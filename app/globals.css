@@ -1,26 +1,158 @@
 @import "tailwindcss";
 
+/* Custom theme */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Option C — Bold & Energetic theme */
+  --color-primary: #0B3D91; /* deep cobalt — brand foundation */
+  --color-secondary: #FF4D4F; /* vibrant warm red — attention accent */
+  --color-background: #F6F7FB; /* soft, cool page background */
+  --metallic-silver: linear-gradient(180deg, #F3F4F6, #D1D5DB);
+  --metallic-accent: linear-gradient(180deg,#FFECEC,#FFDADA); /* subtle warm accent */
+  /* Link underline gradient (used by gradient-underline utility) */
+  --link-gradient: linear-gradient(90deg, #0B3D91 0%, #6C5CE7 45%, #FF4D4F 100%);
+  --font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--color-background);
+    color: var(--color-primary);
+    font-family: var(--font-family);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Optional: smooth transition between light/dark */
+  html {
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  * {
+    box-sizing: border-box;
+  }
+
+  button {
+    cursor: pointer;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Custom utilities */
+@layer utilities {
+  .bg-primary {
+    background-color: var(--color-primary);
+  }
+
+  .bg-secondary {
+    background-color: var(--color-secondary);
+  }
+
+  .text-primary {
+    color: var(--color-primary);
+  }
+
+  .text-secondary {
+    color: var(--color-secondary);
+  }
+
+  .bg-metallic-silver {
+    background: var(--metallic-silver);
+  }
+
+  .bg-metallic-gold {
+    /* deprecated: replaced by metallic-accent */
+    background: var(--metallic-accent);
+  }
+
+  .shadow-metallic {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Animated gradient underline for links */
+  .gradient-underline {
+    background-image: var(--link-gradient);
+    background-repeat: no-repeat;
+    background-size: 0% 3px;
+    background-position: left 100%;
+    transition: background-size 320ms ease, color 200ms ease;
+    text-decoration: none;
+  }
+
+  .gradient-underline:hover,
+  .gradient-underline:focus {
+    background-size: 100% 3px;
+    outline: none;
+  }
+
+  /* Animated gradient text utility - uses --link-gradient */
+  .animated-gradient-text {
+    background-image: var(--link-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% 100%;
+    animation: gradientShift 6s linear infinite;
+    transition: transform 220ms ease, filter 220ms ease;
+  }
+
+  @keyframes gradientShift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* intensify gradient animation and lift on hover/focus */
+  .animated-gradient-text:hover,
+  .animated-gradient-text:focus {
+    animation-duration: 1.6s; /* speed up the gradient shift */
+    transform: translateY(-4px) scale(1.01);
+    filter: drop-shadow(0 6px 12px rgba(11,61,145,0.06));
+  }
+
+  .animated-gradient-text:focus {
+    outline: 4px solid rgba(11,61,145,0.08);
+    outline-offset: 6px;
+  }
+
+  /* Ripple effect used on the coming soon page */
+  .ripple-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .ripple {
+    position: absolute;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    pointer-events: none;
+    background: radial-gradient(circle at 30% 30%, rgba(255,77,79,0.18), rgba(108,92,231,0.08) 40%, transparent 60%);
+    mix-blend-mode: screen;
+    animation: rippleExpand 900ms cubic-bezier(.22,.9,.12,1) forwards;
+  }
+
+  @keyframes rippleExpand {
+    0% {
+      transform: translate(-50%, -50%) scale(0.2);
+      opacity: 0.6;
+    }
+    60% {
+      opacity: 0.28;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(6);
+      opacity: 0;
+    }
+  }
 }
