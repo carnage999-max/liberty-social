@@ -5,8 +5,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
-from .models import User
-from .serializers import LoginSerializer, RegisterUserSerializer, UserSerializer
+from .models import FriendRequest, Friends, User
+from .serializers import FriendRequestSerializer, FriendsSerializer, LoginSerializer, RegisterUserSerializer, UserSerializer
 
 
 class LoginUserview(ModelViewSet):
@@ -61,3 +61,21 @@ class UserView(ModelViewSet):
     
     def get_queryset(self):
         return super().get_queryset().filter(id=self.request.user.id)
+    
+class FriendsViewset(ModelViewSet):
+    queryset = Friends.objects.all()
+    serializer_class = FriendsSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'post', 'delete']
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(user=self.request.user)
+    
+class FriendRequestViewset(ModelViewSet):
+    queryset = FriendRequest.objects.all()
+    serializer_class = FriendRequestSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'post', 'delete']
+    
+    def get_queryset(self):
+        return super().get_queryset().filter(user=self.request.user)

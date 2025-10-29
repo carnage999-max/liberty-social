@@ -1,5 +1,5 @@
 from rest_framework.serializers import ModelSerializer, CharField, Serializer
-from .models import User, UserSettings
+from .models import User, UserSettings, FriendRequest, Friends
 
 class LoginSerializer(ModelSerializer):
     username = CharField(required=True)
@@ -28,3 +28,12 @@ class UserSerializer(ModelSerializer):
         model = User
         fields = "__all__"
         
+class FriendRequestSerializer(ModelSerializer):
+    class Meta:
+        model = FriendRequest
+        fields = "__all__"
+        
+class FriendsSerializer(ModelSerializer):
+    class Meta:
+        model = Friends
+        fields = "__all__"

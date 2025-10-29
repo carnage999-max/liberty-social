@@ -81,6 +81,12 @@ class UserSettings(models.Model):
     def __str__(self) -> str:
         return f"Settings for {self.user}"
     
+class FriendRequest(models.Model):
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="user_friend_requests")
+    user_requesting_id = models.UUIDField()
+    def __str__(self) -> str:
+        return self.user_requesting_id
+    
 class Friends(models.Model):
     user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="user_friends")
     friend_user_id = models.UUIDField()
