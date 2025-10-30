@@ -44,7 +44,7 @@ class CustomUserManager(BaseUserManager):
 
 
 class User(AbstractUser):
-    id = models.UUIDField(_("User ID"), primary_key=True, unique=True, default=uuid4(), auto_created=True)
+    id = models.UUIDField(_("User ID"), primary_key=True, unique=True, default=uuid4, editable=False)
     username = models.CharField(_("Display Name"), unique=True, max_length=200, blank=True, null=True)
     email = models.EmailField(
         _("email address"),
@@ -82,24 +82,37 @@ class UserSettings(models.Model):
         return f"Settings for {self.user}"
     
 class FriendRequest(models.Model):
-    user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="user_friend_requests")
-    user_requesting_id = models.UUIDField()
+    from_user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="sent_friend_requests")
+    to_user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="received_friend_requests")
+    status = models.CharField(max_length=12, choices=(('pending', 'pending'), ('accepted', 'accepted'), ('declined', 'declined')), default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
     def __str__(self) -> str:
-        return self.user_requesting_id
+        return f"{self.from_user} -> {self.to_user} ({self.status})"
     
 class Friends(models.Model):
     user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="user_friends")
-    friend_user_id = models.UUIDField()
-    
+    friend = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="friends_of")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (('user', 'friend'),)
+        indexes = [models.Index(fields=['user', 'friend'])]
+
     def __str__(self) -> str:
-        return self.friend_user_id
-    
-    def friends_count(self, user):
-        return self.objects.filter(user=user).count()
+        return f"{self.user} <-> {self.friend}"
+
+    @classmethod
+    def friends_count(cls, user):
+        return cls.objects.filter(user=user).count()
     
 class BlockedUsers(models.Model):
     user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name='blocked_users')
-    blocked_user_id = models.UUIDField()
-    
+    blocked_user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name='blocked_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (('user', 'blocked_user'),)
+
     def __str__(self) -> str:
-        return self.blocked_user_id    
+        return f"{self.user} blocked {self.blocked_user}"

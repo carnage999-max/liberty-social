@@ -12,6 +12,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from datetime import timedelta
 from pathlib import Path
+import os
+try:
+    from dotenv import load_dotenv
+    # load environment variables from .env if present
+    load_dotenv()
+except Exception:
+    # python-dotenv not installed in this environment; ignore
+    pass
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,6 +40,9 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    # Enable django-cors-headers so frontends (localhost:3000 etc.) can access the API during development.
+    # Install with: pip install django-cors-headers
+    "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -43,9 +54,12 @@ INSTALLED_APPS = [
     "main",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
+    # CorsMiddleware should be as high as possible
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -129,10 +143,16 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "users.User"
 
+# email
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
 }
 
 SIMPLE_JWT = {
@@ -141,3 +161,29 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Liberty Social API',
+    'DESCRIPTION': 'API documentation for Liberty Social application',
+    'VERSION': '1.0.0',
+}
+
+# CORS - allow frontend origins during development
+# Add your frontend origins here (protocol + host + port)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+]
+
+# If your frontend needs to send cookies/auth credentials set this to True
+CORS_ALLOW_CREDENTIALS = True
+
+# Resend email provider integration
+# If you set RESEND_API_KEY in your environment, the project will use a small
+# Django email backend that sends messages through Resend's API. For local
+# development you can leave RESEND_API_KEY empty and Django's console email
+# backend will be used instead.
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+if RESEND_API_KEY:
+    EMAIL_BACKEND = 'liberty_social.email_backends.ResendEmailBackend'
