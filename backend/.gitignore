@@ -2,7 +2,19 @@
 venv/
 __pycache__/
 *.pyc
+# Environment and local config
 .env
+.env.*
+.env.local
+.venv/
+venv/
+
+# Python cache and tooling
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+pip-wheel-metadata/
 instance/
 .DS_Store
 *.sqlite3
@@ -10,3 +22,5 @@ instance/
 coverage/
 .idea/
 *.iml
+media/
+uploads/
