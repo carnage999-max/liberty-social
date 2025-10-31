@@ -3,6 +3,7 @@ import Image from "next/image";
 import "./globals.css";
 import Navbar from "../components/navbar";
 import { AuthProvider } from "@/lib/auth-context";
+import { ToastProvider } from "@/components/Toast";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mylibertysocial.com"),
@@ -55,7 +56,6 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
     shortcut: ["/favicon.ico"],
   },
-  manifest: "/manifest.webmanifest",
   category: "social",
 };
 
@@ -87,56 +87,58 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-background text-textLight transition-colors duration-300 antialiased">
         <AuthProvider>
-        
-        <main>{children}</main>
-        </AuthProvider>
+          <ToastProvider>
+            <Navbar />
+            <main>{children}</main>
 
-
-        <footer className="mt-16 border-t border-gray-200">
-          <div className="max-w-6xl mx-auto py-8 px-6 flex flex-col md:flex-row items-center md:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Image
-                src="/images/logo.png"
-                alt="Liberty Social logo"
-                width={36}
-                height={36}
-                className="rounded-full"
-                priority
-              />
-              <div>
-                <div className="text-sm font-semibold text-primary">
-                  Liberty Social
+            <footer className="mt-16 border-t border-gray-200">
+              <div className="max-w-6xl mx-auto py-8 px-6 flex flex-col md:flex-row items-center md:justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Image
+                    src="/images/logo.png"
+                    alt="Liberty Social logo"
+                    width={36}
+                    height={36}
+                    className="rounded-full"
+                    priority
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-primary">
+                      Liberty Social
+                    </div>
+                  </div>
                 </div>
+
+                <nav className="flex gap-6" aria-label="Footer">
+                  <a
+                    href="/about"
+                    className="text-sm text-gray-600 gradient-underline"
+                  >
+                    About
+                  </a>
+                  <a
+                    href="/privacy"
+                    className="text-sm text-gray-600 gradient-underline"
+                  >
+                    Privacy
+                  </a>
+                  <a
+                    href="/terms"
+                    className="text-sm text-gray-600 gradient-underline"
+                  >
+                    Terms
+                  </a>
+                </nav>
+
+                <div className="w-px h-0" aria-hidden />
               </div>
-            </div>
-
-            <nav className="flex gap-6" aria-label="Footer">
-              <a
-                href="/about"
-                className="text-sm text-gray-600 gradient-underline"
-              >
-                About
-              </a>
-              <a
-                href="/privacy"
-                className="text-sm text-gray-600 gradient-underline"
-              >
-                Privacy
-              </a>
-              <a
-                href="/terms"
-                className="text-sm text-gray-600 gradient-underline"
-              >
-                Terms
-              </a>
-            </nav>
-
-            <div className="w-px h-0" aria-hidden />
-          </div>
-          <div className="text-center text-sm text-gray-400 py-4">
-            © {new Date().getFullYear()} Liberty Social. All rights reserved.
-          </div>
-        </footer>
+              <div className="text-center text-sm text-gray-400 py-4">
+                © {new Date().getFullYear()} Liberty Social. All rights
+                reserved.
+              </div>
+            </footer>
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

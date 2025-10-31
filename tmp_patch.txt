@@ -1,0 +1,81 @@
+*** Begin Patch
+*** Update File: backend/users/management/commands/seed_demo.py
+@@
+-from django.core.management.base import BaseCommand
+-from django.db import transaction
+-from django.utils import timezone
+-
+-from main.models import Bookmark, Comment, Post, PostMedia, Reaction
++from django.contrib.contenttypes.models import ContentType
++from django.core.management.base import BaseCommand
++from django.db import transaction
++from django.utils import timezone
++
++from main.models import Bookmark, Comment, Post, PostMedia, Reaction
+@@
+-            self._seed_posts(users, posts_target)
++            self._seed_posts(users, posts_target)
+             self.stdout.write(self.style.SUCCESS("Posts and media ready."))
+ 
+             self._seed_comments_and_reactions(users)
+             self.stdout.write(self.style.SUCCESS("Comments and reactions created."))
+@@
+-    def _seed_posts(self, users: list[User], posts_target: int) -> None:
++    def _seed_posts(self, users: list[User], posts_target: int) -> None:
+@@
+-                post = Post.objects.create(
+-                    author=user,
+-                    content=content,
+-                    visibility=random.choice(["public", "friends"]),
+-                    created_at=created_at,
+-                    updated_at=created_at,
+-                )
++                post = Post.objects.create(
++                    author=user,
++                    content=content,
++                    visibility=random.choice(["public", "friends"]),
++                )
++                Post.objects.filter(pk=post.pk).update(
++                    created_at=created_at,
++                    updated_at=created_at,
++                )
++                post.refresh_from_db()
+@@
+-    def _seed_comments_and_reactions(self, users: list[User]) -> None:
++    def _seed_comments_and_reactions(self, users: list[User]) -> None:
+         posts = list(Post.objects.all())
+         if not posts:
+             return
++        post_ct = ContentType.objects.get_for_model(Post)
+         for post in posts:
+             commenters = random.sample(users, k=min(3, len(users)))
+             for commenter in commenters:
+-                Comment.objects.get_or_create(
+-                    post=post,
+-                    author=commenter,
+-                    defaults={
+-                        "content": f"Loving this update, {post.author.first_name}!",
+-                        "created_at": post.created_at + timedelta(minutes=random.randint(1, 240)),
+-                    },
+-                )
++                Comment.objects.get_or_create(
++                    post=post,
++                    author=commenter,
++                    defaults={
++                        "content": f"Loving this update, {post.author.first_name}!",
++                    },
++                )
+                 if random.random() < 0.6:
+-                    Reaction.objects.update_or_create(
+-                        content_type=Reaction._meta.get_field("content_type").model_class().objects.get_for_model(Post),
+-                        object_id=post.id,
+-                        user=commenter,
+-                        defaults={"reaction_type": random.choice(REACTION_TYPES)},
+-                    )
++                    Reaction.objects.update_or_create(
++                        content_type=post_ct,
++                        object_id=post.id,
++                        user=commenter,
++                        defaults={"reaction_type": random.choice(REACTION_TYPES)},
++                    )
+*** End Patch

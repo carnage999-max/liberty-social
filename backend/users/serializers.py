@@ -31,16 +31,29 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         # Explicitly list common public fields instead of __all__ for safety
         fields = ["id", "email", "first_name", "last_name", "username", "phone_number", "profile_image_url", "bio", "gender"]
+        read_only_fields = ["id", "email"]
+
+class UserSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserSettings
+        fields = ["id", "user", "profile_privacy", "friends_publicity"]
+        read_only_fields = ["id", "user"]
+
+    def update(self, instance, validated_data):
+        return super().update(instance, validated_data)
 
 
 class FriendRequestSerializer(serializers.ModelSerializer):
     from_user = UserSerializer(read_only=True)
-    to_user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    to_user = UserSerializer(read_only=True)
+    to_user_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), write_only=True, source="to_user"
+    )
 
     class Meta:
         model = FriendRequest
-        fields = ["id", "from_user", "to_user", "status", "created_at"]
-        read_only_fields = ["id", "from_user", "status", "created_at"]
+        fields = ["id", "from_user", "to_user", "to_user_id", "status", "created_at"]
+        read_only_fields = ["id", "from_user", "to_user", "status", "created_at"]
 
     def validate(self, attrs):
         request_user = self.context['request'].user

@@ -1,38 +1,38 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
-import { useProfile } from "@/hooks/useProfile";
+import Image from "next/image";
 
 export default function ProfileCard() {
-  const { logout, loading: authLoading } = useAuth();
-  const { data, loading, error } = useProfile();
+  const { user } = useAuth();
+
+  if (!user) return null;
 
   return (
-    <div className="rounded-[16px] bg-white/80 backdrop-blur-sm shadow-md p-4 sm:p-6">
-      <h3 className="text-lg font-bold">Profile</h3>
+    <div className="bg-white/80 backdrop-blur-sm shadow-md rounded-[16px] p-4 sm:p-6 flex flex-col items-center text-center">
+      <Image
+        src={user.profile_image_url || "/images/default-avatar.png"}
+        alt={user.username || "Profile picture"}
+        width={80}
+        height={80}
+        className="rounded-full object-cover mb-3 border-2 border-[var(--color-primary)]"
+      />
+      <h3 className="font-semibold text-lg text-gray-800">
+        {user.username || `${user.first_name} ${user.last_name}`}
+      </h3>
+      <p className="text-sm text-gray-500">{user.email}</p>
 
-      {loading && <p className="mt-3 text-gray-500 animate-pulse">Loading…</p>}
-      {error && <p className="mt-3 text-red-600 text-sm">{error}</p>}
-
-      {data && (
-        <div className="mt-4 space-y-2 text-sm">
-          <div><span className="font-medium">Username:</span> {data.username}</div>
-          {data.first_name || data.last_name ? (
-            <div><span className="font-medium">Name:</span> {data.first_name} {data.last_name}</div>
-          ) : null}
-          {data.email ? (
-            <div><span className="font-medium">Email:</span> {data.email}</div>
-          ) : null}
-        </div>
-      )}
-
-      <button
-        onClick={logout}
-        disabled={authLoading}
-        className="mt-6 w-full rounded-[10px] px-4 py-2.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white font-semibold hover:opacity-90 transition shadow-metallic disabled:opacity-60"
-      >
-        {authLoading ? "Signing out…" : "Sign out"}
-      </button>
+      <div className="mt-4 w-full flex justify-around text-sm text-gray-600">
+        <span>
+          <strong>12</strong> Friends
+        </span>
+        <span>
+          <strong>5</strong> Posts
+        </span>
+        <span>
+          <strong>3</strong> Communities
+        </span>
+      </div>
     </div>
   );
 }

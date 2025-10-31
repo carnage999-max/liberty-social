@@ -6,8 +6,16 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db.models import Q
-from .models import BlockedUsers, FriendRequest, Friends, User
-from .serializers import BlockedUsersSerializer, FriendRequestSerializer, FriendsSerializer, LoginSerializer, RegisterUserSerializer, UserSerializer
+from .models import BlockedUsers, FriendRequest, Friends, User, UserSettings
+from .serializers import (
+    BlockedUsersSerializer,
+    FriendRequestSerializer,
+    FriendsSerializer,
+    LoginSerializer,
+    RegisterUserSerializer,
+    UserSerializer,
+    UserSettingsSerializer,
+)
 from rest_framework.parsers import MultiPartParser, FormParser
 from main.s3 import upload_fileobj_to_s3
 
@@ -60,7 +68,7 @@ class UserView(ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = UserSerializer
     queryset = User.objects.all()
-    http_method_names = ['get']
+    http_method_names = ['get', 'patch']
     
     def get_queryset(self):
         # For list, return only the requesting user's profile
@@ -90,6 +98,15 @@ class UserView(ModelViewSet):
                 return Response({"detail": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance != request.user:
+            return Response({"detail": "Not authorized to update this profile."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(serializer.data)
     
 class FriendsViewset(ModelViewSet):
@@ -184,6 +201,22 @@ class BlockedUsersViewset(ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("Not authorized to unblock this user.")
         instance.delete()
+
+
+class UserSettingsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        settings, _ = UserSettings.objects.get_or_create(user=request.user)
+        serializer = UserSettingsSerializer(settings)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        settings, _ = UserSettings.objects.get_or_create(user=request.user)
+        serializer = UserSettingsSerializer(settings, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class ProfilePictureUploadView(APIView):

@@ -1,13 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function Navbar() {
+  const pathname = usePathname();
+  const { user, isAuthenticated, hydrated } = useAuth();
   const [raised, setRaised] = useState(false);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const displayName = useMemo(() => {
+    if (!user) return "";
+    const fromFirst = (user.first_name || "").trim();
+    if (fromFirst) return fromFirst;
+    const fromUsername = (user.username || "").trim();
+    if (fromUsername) return fromUsername;
+    if (user.email) return user.email.split("@")[0] ?? "";
+    return "";
+  }, [user]);
+  const initials = displayName ? displayName[0]?.toUpperCase() ?? "U" : "U";
+  const avatarSrc = user?.profile_image_url || undefined;
+  const showProfile = hydrated && isAuthenticated && !!user;
+
+  const skipNav = pathname?.startsWith("/app/feed");
 
   // glass nav raise on scroll
   useEffect(() => {
@@ -47,7 +65,7 @@ export default function Navbar() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  return (
+  return skipNav ? null : (
     <nav
       className={[
         "fixed top-0 inset-x-0 z-40 mx-auto max-w-7xl",
@@ -83,12 +101,35 @@ export default function Navbar() {
           >
             Communities
           </a>
-          <a
-            href="/auth"
-            className="px-4 py-2 rounded-[12px] text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic"
-          >
-            Create account
-          </a>
+          {showProfile ? (
+            <a
+              href="/app"
+              className="inline-flex items-center gap-3 px-3 py-2 rounded-[12px] bg-white text-[var(--color-primary)] font-medium shadow-sm hover:opacity-90 transition"
+              aria-label="Open profile"
+            >
+              <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-primary)]/10 text-sm font-semibold text-[var(--color-primary)] flex items-center justify-center">
+                {avatarSrc ? (
+                  <Image
+                    src={avatarSrc}
+                    alt={`${displayName || "Your"} profile picture`}
+                    fill
+                    sizes="36px"
+                    className="object-cover"
+                  />
+                ) : (
+                  initials
+                )}
+              </span>
+              <span>{displayName || "Profile"}</span>
+            </a>
+          ) : (
+            <a
+              href="/signup"
+              className="px-4 py-2 rounded-[12px] text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic"
+            >
+              Create account
+            </a>
+          )}
         </div>
 
         {/* Mobile: hamburger */}
@@ -130,13 +171,36 @@ export default function Navbar() {
           >
             Communities
           </a>
-          <a
-            href="/signup"
-            onClick={() => setOpen(false)}
-            className="mt-2 block w-full text-left px-4 py-3 rounded-lg text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic"
-          >
-            Create account
-          </a>
+          {showProfile ? (
+            <a
+              href="/app"
+              onClick={() => setOpen(false)}
+              className="mt-2 flex items-center gap-3 px-4 py-3 rounded-lg text-[var(--color-primary)] font-medium hover:bg-[var(--metallic-silver)] transition"
+            >
+              <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-primary)]/10 text-sm font-semibold text-[var(--color-primary)] flex items-center justify-center">
+                {avatarSrc ? (
+                  <Image
+                    src={avatarSrc}
+                    alt={`${displayName || "Your"} profile picture`}
+                    fill
+                    sizes="36px"
+                    className="object-cover"
+                  />
+                ) : (
+                  initials
+                )}
+              </span>
+              <span>{displayName || "Profile"}</span>
+            </a>
+          ) : (
+            <a
+              href="/auth"
+              onClick={() => setOpen(false)}
+              className="mt-2 block w-full text-left px-4 py-3 rounded-lg text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic"
+            >
+              Create account
+            </a>
+          )}
         </div>
       </div>
     </nav>

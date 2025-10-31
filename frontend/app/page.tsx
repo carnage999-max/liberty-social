@@ -1,11 +1,17 @@
-"use client";
+﻿"use client";
 
-import { useCallback, useRef } from "react";
+import { useAuth } from "@/lib/auth-context";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  type MouseEventHandler,
+} from "react";
 import Navbar from "../components/navbar";
 
 export default function LandingPage() {
+  const { user, isAuthenticated, hydrated } = useAuth();
   const rippleLayerRef = useRef<HTMLDivElement | null>(null);
-
   const spawnRipple = useCallback((x: number, y: number) => {
     const layer = rippleLayerRef.current;
     if (!layer) return;
@@ -17,13 +23,23 @@ export default function LandingPage() {
     ripple.addEventListener("animationend", () => ripple.remove());
   }, []);
 
-  const handleHeroClick = useCallback<React.MouseEventHandler<HTMLDivElement>>(
+  const handleHeroClick = useCallback<MouseEventHandler<HTMLDivElement>>(
     (e) => {
       const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
       spawnRipple(e.clientX - rect.left, e.clientY - rect.top);
     },
     [spawnRipple]
   );
+  const displayName = useMemo(() => {
+    if (!user) return "";
+    const first = (user.first_name || "").trim();
+    if (first) return first;
+    const username = (user.username || "").trim();
+    if (username) return username;
+    if (user.email) return user.email.split("@")[0] ?? "";
+    return "";
+  }, [user]);
+  const isLoggedIn = hydrated && isAuthenticated && !!user;
 
   return (
     <main className="relative overflow-hidden bg-[var(--color-background)] text-[var(--color-primary)]">
@@ -80,13 +96,18 @@ export default function LandingPage() {
           </svg>
         </div>
 
-        {/* Ripple layer — HERO ONLY */}
+        {/* Ripple layer â€" HERO ONLY */}
         <div ref={rippleLayerRef} className="ripple-layer" />
 
         <div className="relative z-10 max-w-5xl mx-auto">
           <h1 className="animated-gradient-text text-5xl md:text-7xl font-extrabold leading-tight">
             Connect Freely. Express Boldly.
           </h1>
+          {isLoggedIn && (
+            <p className="mt-4 text-xl font-semibold text-[var(--color-primary)]">
+              Welcome back{displayName ? `, ${displayName}` : ""}!
+            </p>
+          )}
           <p className="mt-6 text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
             Liberty Social is a premium, human-first social space where your
             voice looks and feels as powerful as it sounds.
@@ -98,15 +119,17 @@ export default function LandingPage() {
               className="px-8 py-4 rounded-[12px] text-white font-semibold text-lg shadow-metallic
                          bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition"
             >
-              Open Liberty Social
+              {isLoggedIn ? "Jump back into Liberty Social" : "Open Liberty Social"}
             </a>
-            <a
-              href="/signup"
-              className="px-8 py-4 rounded-[12px] font-medium text-lg bg-white text-[var(--color-primary)]
-                         hover:opacity-90 transition shadow-md"
-            >
-              Create your account
-            </a>
+            {!isLoggedIn && (
+              <a
+                href="/signup"
+                className="px-8 py-4 rounded-[12px] font-medium text-lg bg-white text-[var(--color-primary)]
+                           hover:opacity-90 transition shadow-md"
+              >
+                Create your account
+              </a>
+            )}
           </div>
         </div>
 
@@ -178,8 +201,8 @@ export default function LandingPage() {
               A Place Designed for People
             </h4>
             <p className="text-gray-700 leading-relaxed">
-              We’re building a platform that respects time, attention, and
-              identity. Clean design meets strong values—so you can focus on
+              Weâ€™re building a platform that respects time, attention, and
+              identity. Clean design meets strong valuesâ€"so you can focus on
               real connection.
             </p>
             <a
@@ -197,7 +220,7 @@ export default function LandingPage() {
               {/* For a clean crop look, we use object-contain; switch to object-cover for full bleed */}
               <img
                 src="/images/showcase.png"
-                alt="Liberty Social — preview"
+                alt="Liberty Social â€" preview"
                 className="absolute inset-0 h-full w-full object-contain"
                 loading="eager"
               />
@@ -225,7 +248,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ========================== LIVE CTA (no “request access”) ========================== */}
+      {/* ========================== LIVE CTA (no â€œrequest accessâ€) ========================== */}
       <section
         id="cta"
         className="relative text-center text-[var(--color-primary)] py-24 md:py-32"
@@ -248,23 +271,35 @@ export default function LandingPage() {
             Your Voice. Your Space. Your Liberty.
           </h2>
           <p className="text-lg mb-10 text-gray-700">
-            Jump in now—build your profile, create a space, and connect.
+            Jump in nowâ€"build your profile, create a space, and connect.
           </p>
           <div className="flex gap-4 justify-center flex-col sm:flex-row">
-            <a
-              href="/auth"
-              className="inline-block bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]
-                         text-white font-semibold px-10 py-4 rounded-[12px] hover:opacity-90 transition shadow-metallic"
-            >
-              Create your account
-            </a>
-            <a
-              href="/app"
-              className="inline-block bg-white text-[var(--color-primary)] font-semibold px-10 py-4 rounded-[12px]
-                         hover:opacity-90 transition shadow-md"
-            >
-              Open Liberty Social
-            </a>
+            {isLoggedIn ? (
+              <a
+                href="/app"
+                className="inline-block bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]
+                           text-white font-semibold px-10 py-4 rounded-[12px] hover:opacity-90 transition shadow-metallic"
+              >
+                Go to your home
+              </a>
+            ) : (
+              <>
+                <a
+                  href="/auth"
+                  className="inline-block bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]
+                             text-white font-semibold px-10 py-4 rounded-[12px] hover:opacity-90 transition shadow-metallic"
+                >
+                  Create your account
+                </a>
+                <a
+                  href="/app"
+                  className="inline-block bg-white text-[var(--color-primary)] font-semibold px-10 py-4 rounded-[12px]
+                             hover:opacity-90 transition shadow-md"
+                >
+                  Explore the app
+                </a>
+              </>
+            )}
           </div>
         </div>
 
@@ -328,3 +363,4 @@ function WaveTop({ fill }: { fill: string }) {
     </div>
   );
 }
+

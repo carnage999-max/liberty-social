@@ -20,8 +20,13 @@ class PostViewSet(ModelViewSet):
 	permission_classes = [IsAuthenticated]
 
 	def get_queryset(self):
-		# exclude soft-deleted posts
-		return Post.objects.filter(deleted_at__isnull=True)
+		# exclude soft-deleted posts, newest first, include related data
+		return (
+			Post.objects.filter(deleted_at__isnull=True)
+			.select_related("author")
+			.prefetch_related("comments__author", "media")
+			.order_by("-created_at")
+		)
 
 	def perform_create(self, serializer):
 		serializer.save(author=self.request.user)
@@ -108,10 +113,14 @@ class NewsFeedView(APIView):
 		friend_ids = Friends.objects.filter(user=user).values_list('friend_id', flat=True)
 
 		# build queryset: public posts OR user's own posts OR friends' posts with friends visibility
-		qs = Post.objects.filter(
-			Q(visibility='public') |
-			Q(author=user) |
-			Q(author__id__in=friend_ids, visibility='friends')
+		qs = (
+			Post.objects.filter(
+				Q(visibility='public') |
+				Q(author=user) |
+				Q(author__id__in=friend_ids, visibility='friends')
+			)
+			.select_related('author')
+			.prefetch_related('comments__author', 'media')
 		)
 
 		# exclude posts where either side has blocked the other
@@ -125,6 +134,6 @@ class NewsFeedView(APIView):
 
 		# pagination
 		paginator = PageNumberPagination()
-		page = paginator.paginate_queryset(qs.distinct(), request)
+		page = paginator.paginate_queryset(qs.distinct().order_by('-created_at'), request)
 		serializer = PostSerializer(page, many=True, context={'request': request})
 		return paginator.get_paginated_response(serializer.data)

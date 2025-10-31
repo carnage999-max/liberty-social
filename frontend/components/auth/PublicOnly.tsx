@@ -1,26 +1,22 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import Spinner from "@/components/Spinner";
 
-export default function RequireAuth({
+export default function PublicOnly({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, hydrated, loading, isAuthenticated } = useAuth();
+  const { hydrated, isAuthenticated, loading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     if (!hydrated || loading) return;
-    if (!isAuthenticated) {
-      const next = encodeURIComponent(pathname || "/");
-      router.replace(`/auth?next=${next}`);
-    }
-  }, [hydrated, loading, isAuthenticated, pathname, router]);
+    if (isAuthenticated) router.replace("/app");
+  }, [hydrated, loading, isAuthenticated, router]);
 
   if (!hydrated || loading) {
     return (
@@ -30,7 +26,7 @@ export default function RequireAuth({
     );
   }
 
-  if (!isAuthenticated) return null;
+  if (isAuthenticated) return null;
 
   return <>{children}</>;
 }

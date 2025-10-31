@@ -1,162 +1,210 @@
-// lib/auth-context.tsx
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { apiPost } from "./api";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  ReactNode,
+} from "react";
+import { apiPost } from "@/lib/api";
+import { AuthTokens, User, LoginRequest, RegisterRequest } from "@/lib/types";
 
-type Tokens = {
-  access_token: string;
-  refresh_token: string;
-  user_id: string;
-};
-
-type RegisterPayload = {
-  email: string;
-  password: string;
-  username: string;
-  first_name?: string;
-  last_name?: string;
-  phone?: string;
-};
+/* -----------------------------
+   🔐 Types
+----------------------------- */
 
 type AuthContextValue = {
-  userId: string | null;
+  user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
   loading: boolean;
-  isAuthenticated: boolean; 
-  login: (identifier: string, password: string) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<void>;
+  hydrated: boolean;
+  isAuthenticated: boolean;
+  login: (data: LoginRequest) => Promise<void>;
+  register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   clearAuth: () => void;
+  refreshUser: () => Promise<void>;
 };
+
+/* -----------------------------
+   ⚙️ Config
+----------------------------- */
+
+const STORAGE_KEY = "liberty_auth_v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+
+/* -----------------------------
+   📦 Context
+----------------------------- */
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const STORAGE_KEY = "liberty_auth_v1";
-const MOCK = String(process.env.NEXT_PUBLIC_AUTH_MOCK) === "true";
+/* -----------------------------
+   🧠 Provider
+----------------------------- */
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<{
-    userId: string | null;
-    accessToken: string | null;
-    refreshToken: string | null;
-  }>({ userId: null, accessToken: null, refreshToken: null });
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
 
-  const [loading, setLoading] = useState(false);
-
-  const clearAuth = () => {
-  localStorage.removeItem(STORAGE_KEY);
-  setState({ userId: null, accessToken: null, refreshToken: null });
-};
-
+  /* -----------------------------
+     🔁 Load persisted session
+  ----------------------------- */
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setState(JSON.parse(raw));
-    } catch {}
+      if (raw) {
+        const data = JSON.parse(raw);
+        setAccessToken(data.accessToken || null);
+        setRefreshToken(data.refreshToken || null);
+        setUser(data.user || null);
+      }
+    } catch (err) {
+      console.error("Error loading auth state:", err);
+    } finally {
+      setLoading(false);
+      setHydrated(true);
+    }
   }, []);
 
-  const persist = (tokens: Tokens | null) => {
-    if (!tokens) {
-      localStorage.removeItem(STORAGE_KEY);
-      setState({ userId: null, accessToken: null, refreshToken: null });
-      return;
-    }
-    const next = {
-      userId: tokens.user_id,
+  /* -----------------------------
+     💾 Persist to localStorage
+  ----------------------------- */
+  const persist = (tokens: AuthTokens, userData?: User) => {
+    const payload = {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
+      user: userData || user,
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setState(next);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    setAccessToken(payload.accessToken);
+    setRefreshToken(payload.refreshToken);
+    if (userData) setUser(userData);
   };
 
-  const login = async (identifier: string, password: string) => {
+  /* -----------------------------
+     🧍 Fetch Current User
+  ----------------------------- */
+  const refreshUser = async () => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`${API_BASE}/auth/user/`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch user");
+      const data = await res.json();
+      setUser(data[0] || data); // depending on backend returns list or single user
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          accessToken,
+          refreshToken,
+          user: data[0] || data,
+        })
+      );
+    } catch (err) {
+      console.error("Error fetching user:", err);
+      logout(); // fallback if token invalid
+    }
+  };
+
+  /* -----------------------------
+     🔐 Login
+  ----------------------------- */
+  const login = async (data: LoginRequest) => {
     setLoading(true);
     try {
-      if (MOCK) {
-        await new Promise((r) => setTimeout(r, 400));
-        persist({
-          access_token: "mock_access",
-          refresh_token: "mock_refresh",
-          user_id: "00000000-0000-4000-8000-000000000001",
-        });
-        return;
-      }
-      const data = await apiPost("/auth/login/", {
-        username: identifier,
-        password,
+      const tokens: AuthTokens = await apiPost("/auth/login/", data);
+      const res = await fetch(`${API_BASE}/auth/user/`, {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
       });
-      persist({
-        access_token: data?.access_token,
-        refresh_token: data?.refresh_token,
-        user_id: data?.user_id,
-      });
+      const me = await res.json();
+      persist(tokens, me[0] || me);
+    } catch (err) {
+      console.error("Login failed:", err);
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  const register = async (payload: RegisterPayload) => {
+  /* -----------------------------
+     🧾 Register
+  ----------------------------- */
+  const register = async (data: RegisterRequest) => {
     setLoading(true);
     try {
-      if (MOCK) {
-        await new Promise((r) => setTimeout(r, 500));
-        persist({
-          access_token: "mock_access",
-          refresh_token: "mock_refresh",
-          user_id: "00000000-0000-4000-8000-000000000002",
-        });
-        return;
-      }
-      const data = await apiPost("/auth/register/", {
-        email: payload.email,
-        password: payload.password,
-        username: payload.username,
-        first_name: payload.first_name ?? "",
-        last_name: payload.last_name ?? "",
+      const tokens: AuthTokens = await apiPost("/auth/register/", data);
+      const res = await fetch(`${API_BASE}/auth/user/`, {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
       });
-      persist({
-        access_token: data?.access_token,
-        refresh_token: data?.refresh_token,
-        user_id: data?.user_id,
-      });
+      const me = await res.json();
+      persist(tokens, me[0] || me);
+    } catch (err) {
+      console.error("Registration failed:", err);
+      throw err;
     } finally {
       setLoading(false);
     }
   };
 
+  /* -----------------------------
+     🚪 Logout
+  ----------------------------- */
   const logout = async () => {
-    setLoading(true);
     try {
-      if (!MOCK && state.refreshToken) {
-        await apiPost("/auth/logout/", { refresh_token: state.refreshToken });
+      if (refreshToken) {
+        await apiPost("/auth/logout/", { refresh_token: refreshToken });
       }
-      persist(null);
+    } catch (err) {
+      console.warn("Logout API failed:", err);
     } finally {
-      setLoading(false);
+      clearAuth();
     }
   };
 
-  const value: AuthContextValue = useMemo(
+  /* -----------------------------
+     🧹 Clear All
+  ----------------------------- */
+  const clearAuth = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setUser(null);
+    setAccessToken(null);
+    setRefreshToken(null);
+  };
+
+  /* -----------------------------
+     🧩 Context Value
+  ----------------------------- */
+  const value = useMemo(
     () => ({
-      userId: state.userId,
-      accessToken: state.accessToken,
-      refreshToken: state.refreshToken,
-      isAuthenticated: !!state.accessToken && !!state.userId,
+      user,
+      accessToken,
+      refreshToken,
       loading,
+      hydrated,
+      isAuthenticated: !!accessToken && !!user,
       login,
       register,
       logout,
-      clearAuth
+      clearAuth,
+      refreshUser,
     }),
-    [state, loading]
+    [user, accessToken, refreshToken, loading, hydrated]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/* -----------------------------
+   🎯 Hook
+----------------------------- */
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");

@@ -2,9 +2,17 @@
 
 import { useAuth } from "@/lib/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { loginSchema, registerSchema } from "@/lib/validators";
 import { passwordStrength } from "@/lib/password-strength";
+import { useToast } from "../Toast";
+import Spinner from "../Spinner";
 
 type Mode = "login" | "register";
 
@@ -14,10 +22,11 @@ export default function AuthPanel() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/app";
-
+  const toast = useToast();
   const onSuccess = useCallback(() => {
+    toast.show(mode === "register" ? "Welcome to Liberty Social!" : "Welcome back!");
     router.push(next);
-  }, [router, next]);
+  }, [router, next, mode, toast]);
 
   return (
     <div className="relative mx-auto w-full max-w-4xl">
@@ -138,7 +147,7 @@ function SocialBtn({
   label,
   full,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   label: string;
   full?: boolean;
 }) {
@@ -169,7 +178,7 @@ function Field({
 }: {
   label: string;
   error?: string;
-  children: React.ReactNode;
+  children: ReactNode;
   id?: string;
 }) {
   const describedBy = error ? `${id}-error` : undefined;
@@ -332,7 +341,7 @@ function LoginForm({
     }
   };
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onError(null);
     const parsed = loginSchema.safeParse({ identifier, password });
@@ -344,7 +353,7 @@ function LoginForm({
       return;
     }
     try {
-      await login(identifier.trim(), password);
+      await login({ username: identifier.trim(), password });
       onSuccess();
     } catch (err: any) {
       onError(err?.message || "Login failed. Please try again.");
@@ -385,7 +394,7 @@ function LoginForm({
         label="Password"
         value={password}
         onChange={setPassword}
-        placeholder="••••••••"
+        placeholder="********"
         autoComplete="current-password"
         error={touched.password ? errors.password : ""}
       />
@@ -395,7 +404,7 @@ function LoginForm({
           disabled={loading}
           className="w-full rounded-[12px] px-4 py-3 text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic disabled:opacity-60"
         >
-          {loading ? "Signing in…" : "Sign in"}
+          {loading ? "Signing in..." : "Sign in"}
         </button>
       </div>
     </form>
@@ -439,7 +448,7 @@ function RegisterForm({
     }
   };
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onError(null);
     const parsed = registerSchema.safeParse({
@@ -471,9 +480,9 @@ function RegisterForm({
         username: username.trim(),
         email: email.trim(),
         password,
-        first_name: first.trim() || undefined,
-        last_name: last.trim() || undefined,
-        phone: phone.trim() || undefined,
+        first_name: first.trim(),
+        last_name: last.trim(),
+        phone_number: phone.trim() || undefined,
       });
       onSuccess();
     } catch (err: any) {
@@ -586,7 +595,7 @@ function RegisterForm({
           label="Password *"
           value={password}
           onChange={setPassword}
-          placeholder="••••••••"
+          placeholder="********"
           autoComplete="new-password"
           error={touched.password ? errors.password : ""}
           showMeter
@@ -596,7 +605,7 @@ function RegisterForm({
           label="Confirm password *"
           value={confirm}
           onChange={setConfirm}
-          placeholder="••••••••"
+          placeholder="********"
           autoComplete="new-password"
           error={touched.confirm ? errors.confirm : ""}
         />
@@ -616,7 +625,7 @@ function RegisterForm({
           disabled={loading}
           className="w-full rounded-[12px] px-4 py-3 text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic disabled:opacity-60"
         >
-          {loading ? "Creating account…" : "Create account"}
+          {loading ? <Spinner /> : "Create account"}
         </button>
       </div>
     </form>
