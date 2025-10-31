@@ -24,11 +24,12 @@ type AuthContextValue = {
   accessToken: string | null;
   refreshToken: string | null;
   loading: boolean;
+  isAuthenticated: boolean; 
   login: (identifier: string, password: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => Promise<void>;
+  clearAuth: () => void;
 };
-
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -43,6 +44,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }>({ userId: null, accessToken: null, refreshToken: null });
 
   const [loading, setLoading] = useState(false);
+
+  const clearAuth = () => {
+  localStorage.removeItem(STORAGE_KEY);
+  setState({ userId: null, accessToken: null, refreshToken: null });
+};
 
   useEffect(() => {
     try {
@@ -138,10 +144,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userId: state.userId,
       accessToken: state.accessToken,
       refreshToken: state.refreshToken,
+      isAuthenticated: !!state.accessToken && !!state.userId,
       loading,
       login,
       register,
       logout,
+      clearAuth
     }),
     [state, loading]
   );
