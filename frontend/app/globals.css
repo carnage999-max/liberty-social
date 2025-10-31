@@ -156,3 +156,16 @@
     }
   }
 }
+
+/* Safe-area utilities for iOS and notched Android screens */
+.safe-px {
+  padding-left: max(1rem, env(safe-area-inset-left, 0));
+  padding-right: max(1rem, env(safe-area-inset-right, 0));
+}
+.safe-pt {
+  padding-top: max(7rem, calc(env(safe-area-inset-top, 0) + 4rem)); /* room for glass navbar */
+}
+.safe-pb {
+  padding-bottom: max(5rem, env(safe-area-inset-bottom, 0));
+}
+

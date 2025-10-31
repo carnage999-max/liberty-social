@@ -84,7 +84,7 @@ export default function Navbar() {
             Communities
           </a>
           <a
-            href="/signup"
+            href="/auth"
             className="px-4 py-2 rounded-[12px] text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic"
           >
             Create account

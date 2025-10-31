@@ -252,7 +252,7 @@ export default function LandingPage() {
           </p>
           <div className="flex gap-4 justify-center flex-col sm:flex-row">
             <a
-              href="/signup"
+              href="/auth"
               className="inline-block bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]
                          text-white font-semibold px-10 py-4 rounded-[12px] hover:opacity-90 transition shadow-metallic"
             >

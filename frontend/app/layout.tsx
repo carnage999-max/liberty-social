@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Image from "next/image";
 import "./globals.css";
 import Navbar from "../components/navbar";
+import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mylibertysocial.com"),
@@ -85,8 +86,11 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background text-textLight transition-colors duration-300 antialiased">
-        <Navbar />
+        <AuthProvider>
+        
         <main>{children}</main>
+        </AuthProvider>
+
 
         <footer className="mt-16 border-t border-gray-200">
           <div className="max-w-6xl mx-auto py-8 px-6 flex flex-col md:flex-row items-center md:justify-between gap-4">
