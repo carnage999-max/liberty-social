@@ -17,6 +17,7 @@ import { AuthTokens, User, LoginRequest, RegisterRequest } from "@/lib/types";
 
 type AuthContextValue = {
   user: User | null;
+  rawUser: User | User[] | null;
   accessToken: string | null;
   refreshToken: string | null;
   loading: boolean;
