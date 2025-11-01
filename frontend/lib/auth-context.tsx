@@ -8,7 +8,7 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { apiPost } from "@/lib/api";
+import { apiPost, isApiError } from "@/lib/api";
 import { AuthTokens, User, LoginRequest, RegisterRequest } from "@/lib/types";
 
 /* -----------------------------
@@ -35,6 +35,22 @@ type AuthContextValue = {
 
 const STORAGE_KEY = "liberty_auth_v1";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+const HIDDEN_VALUE = "******";
+
+const logAuthPayload = (
+  action: "login" | "register",
+  payload: Record<string, unknown>
+) => {
+  const redacted: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (typeof value === "string" && key.toLowerCase().includes("password")) {
+      redacted[key] = HIDDEN_VALUE;
+    } else {
+      redacted[key] = value;
+    }
+  }
+  console.info(`[auth] ${action} request`, redacted);
+};
 
 /* -----------------------------
    📦 Context
@@ -48,6 +64,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [rawUser, setRawUser] = useState<User | User[] | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,7 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = JSON.parse(raw);
         setAccessToken(data.accessToken || null);
         setRefreshToken(data.refreshToken || null);
-        setUser(data.user || null);
+        setUser(normaliseUser(data.user));
+        setRawUser(data.user || null);
       }
     } catch (err) {
       console.error("Error loading auth state:", err);
@@ -76,16 +94,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* -----------------------------
      💾 Persist to localStorage
   ----------------------------- */
-  const persist = (tokens: AuthTokens, userData?: User) => {
+  const persist = (tokens: AuthTokens, userData?: User | User[]) => {
     const payload = {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
-      user: userData || user,
+      user: userData || rawUser,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     setAccessToken(payload.accessToken);
     setRefreshToken(payload.refreshToken);
-    if (userData) setUser(userData);
+    if (userData) {
+      setUser(normaliseUser(userData));
+      setRawUser(userData);
+    }
   };
 
   /* -----------------------------
@@ -99,7 +120,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (!res.ok) throw new Error("Failed to fetch user");
       const data = await res.json();
-      setUser(data[0] || data); // depending on backend returns list or single user
+      setUser(normaliseUser(data));
+      setRawUser(data);
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
@@ -120,14 +142,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (data: LoginRequest) => {
     setLoading(true);
     try {
+      logAuthPayload("login", data as Record<string, unknown>);
       const tokens: AuthTokens = await apiPost("/auth/login/", data);
       const res = await fetch(`${API_BASE}/auth/user/`, {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
       });
       const me = await res.json();
-      persist(tokens, me[0] || me);
+      persist(tokens, me);
     } catch (err) {
-      console.error("Login failed:", err);
+      if (isApiError(err)) {
+        console.error("Login failed:", {
+          status: err.status,
+          message: err.message,
+          fieldErrors: err.fieldErrors,
+          nonFieldErrors: err.nonFieldErrors,
+          data: err.data,
+        });
+      } else {
+        console.error("Login failed:", err);
+      }
       throw err;
     } finally {
       setLoading(false);
@@ -140,14 +173,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterRequest) => {
     setLoading(true);
     try {
+      logAuthPayload("register", data as Record<string, unknown>);
       const tokens: AuthTokens = await apiPost("/auth/register/", data);
       const res = await fetch(`${API_BASE}/auth/user/`, {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
       });
       const me = await res.json();
-      persist(tokens, me[0] || me);
+      persist(tokens, me);
     } catch (err) {
-      console.error("Registration failed:", err);
+      if (isApiError(err)) {
+        console.error("Registration failed:", {
+          status: err.status,
+          message: err.message,
+          fieldErrors: err.fieldErrors,
+          nonFieldErrors: err.nonFieldErrors,
+          data: err.data,
+        });
+      } else {
+        console.error("Registration failed:", err);
+      }
       throw err;
     } finally {
       setLoading(false);
@@ -185,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       user,
+      rawUser,
       accessToken,
       refreshToken,
       loading,
@@ -196,7 +241,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAuth,
       refreshUser,
     }),
-    [user, accessToken, refreshToken, loading, hydrated]
+    [user, rawUser, accessToken, refreshToken, loading, hydrated]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -209,4 +254,21 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
+}
+
+function normaliseUser(payload: unknown): User | null {
+  if (!payload) return null;
+  if (Array.isArray(payload)) {
+    const first = payload[0];
+    return first && typeof first === "object" ? (first as User) : null;
+  }
+  if (typeof payload === "object") return payload as User;
+  if (typeof payload === "string") {
+    try {
+      return normaliseUser(JSON.parse(payload));
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }

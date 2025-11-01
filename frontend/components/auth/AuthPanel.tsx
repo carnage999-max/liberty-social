@@ -13,6 +13,7 @@ import { loginSchema, registerSchema } from "@/lib/validators";
 import { passwordStrength } from "@/lib/password-strength";
 import { useToast } from "../Toast";
 import Spinner from "../Spinner";
+import { isApiError } from "@/lib/api";
 
 type Mode = "login" | "register";
 
@@ -21,19 +22,31 @@ export default function AuthPanel() {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/app";
+  const next = params.get("next") || "/app/feed";
   const toast = useToast();
   const onSuccess = useCallback(() => {
     toast.show(mode === "register" ? "Welcome to Liberty Social!" : "Welcome back!");
     router.push(next);
   }, [router, next, mode, toast]);
+  const handleError = useCallback(
+    (message: string | null) => {
+      setGlobalError(message);
+      if (message) {
+        toast.show(message, "error");
+      }
+    },
+    [toast]
+  );
 
   return (
     <div className="relative mx-auto w-full max-w-4xl">
       {/* Toggle tabs */}
-      <div className="mx-auto mb-6 flex w-full max-w-md rounded-[12px] bg-white/70 shadow-sm overflow-hidden">
+      <div className="mx-auto mb-6 flex w-full max-w-md rounded-xl bg-white/70 shadow-sm overflow-hidden">
         <button
-          onClick={() => setMode("login")}
+          onClick={() => {
+            setMode("login");
+            setGlobalError(null);
+          }}
           className={`flex-1 px-4 py-3 text-sm font-semibold transition ${
             mode === "login"
               ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white"
@@ -43,7 +56,10 @@ export default function AuthPanel() {
           Log in
         </button>
         <button
-          onClick={() => setMode("register")}
+          onClick={() => {
+            setMode("register");
+            setGlobalError(null);
+          }}
           className={`flex-1 px-4 py-3 text-sm font-semibold transition ${
             mode === "register"
               ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white"
@@ -59,9 +75,9 @@ export default function AuthPanel() {
         {/* Form card */}
         <div className="rounded-[16px] bg-white/85 backdrop-blur-sm shadow-md p-4 xs:p-5 sm:p-6 md:p-7 lg:p-8 overflow-hidden">
           {mode === "login" ? (
-            <LoginForm onError={setGlobalError} onSuccess={onSuccess} />
+            <LoginForm onError={handleError} onSuccess={onSuccess} />
           ) : (
-            <RegisterForm onError={setGlobalError} onSuccess={onSuccess} />
+            <RegisterForm onError={handleError} onSuccess={onSuccess} />
           )}
 
           {/* Socials */}
@@ -355,8 +371,29 @@ function LoginForm({
     try {
       await login({ username: identifier.trim(), password });
       onSuccess();
-    } catch (err: any) {
-      onError(err?.message || "Login failed. Please try again.");
+    } catch (err: unknown) {
+      if (isApiError(err)) {
+        const apiFieldErrors = err.fieldErrors ?? {};
+        const mappedErrors: Record<string, string> = {};
+        for (const [key, messages] of Object.entries(apiFieldErrors)) {
+          const message = messages.join(" ");
+          if (["username", "email"].includes(key)) mappedErrors.identifier = message;
+          if (key === "password") mappedErrors.password = message;
+        }
+        if (Object.keys(mappedErrors).length) {
+          setErrors((prev) => ({ ...prev, ...mappedErrors }));
+          setTouched((prev) => {
+            const next = { ...prev };
+            for (const field of Object.keys(mappedErrors)) {
+              next[field] = true;
+            }
+            return next;
+          });
+        }
+        onError(err.message || err.nonFieldErrors?.join(" ") || "Login failed. Please try again.");
+      } else {
+        onError("Login failed. Please try again.");
+      }
     }
   };
 
@@ -485,12 +522,38 @@ function RegisterForm({
         phone_number: phone.trim() || undefined,
       });
       onSuccess();
-    } catch (err: any) {
-      onError(err?.message || "Registration failed. Please try again.");
+    } catch (err: unknown) {
+      if (isApiError(err)) {
+        const mappedErrors: Record<string, string> = {};
+        const apiFieldErrors = err.fieldErrors ?? {};
+        for (const [key, messages] of Object.entries(apiFieldErrors)) {
+          const message = messages.join(" ");
+          if (key === "phone_number") mappedErrors.phone = message;
+          if (key === "first_name") mappedErrors.first_name = message;
+          if (key === "last_name") mappedErrors.last_name = message;
+          if (["username", "email", "password"].includes(key))
+            mappedErrors[key] = message;
+        }
+        if (Object.keys(mappedErrors).length) {
+          setErrors((prev) => ({ ...prev, ...mappedErrors }));
+          setTouched((prev) => {
+            const next = { ...prev };
+            for (const field of Object.keys(mappedErrors)) {
+              next[field] = true;
+            }
+            return next;
+          });
+        }
+        onError(
+          err.message ||
+            err.nonFieldErrors?.join(" ") ||
+            "Registration failed. Please try again."
+        );
+      } else {
+        onError("Registration failed. Please try again.");
+      }
     }
   };
-
-  const strength = passwordStrength(password);
 
   return (
     <form onSubmit={submit} className="space-y-4">

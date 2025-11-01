@@ -89,10 +89,10 @@ export default function RootLayout({
         <AuthProvider>
           <ToastProvider>
             <Navbar />
-            <main>{children}</main>
+            <main className="pb-20">{children}</main>
 
-            <footer className="mt-16 border-t border-gray-200">
-              <div className="max-w-6xl mx-auto py-8 px-6 flex flex-col md:flex-row items-center md:justify-between gap-4">
+            <footer className="border-t border-gray-200 bg-white">
+              <div className="max-w-6xl mx-auto py-4 px-6 flex flex-col md:flex-row items-center md:justify-between gap-4 text-sm text-gray-600">
                 <div className="flex items-center gap-3">
                   <Image
                     src="/images/logo.png"
@@ -109,7 +109,7 @@ export default function RootLayout({
                   </div>
                 </div>
 
-                <nav className="flex gap-6" aria-label="Footer">
+                <nav className="flex gap-4" aria-label="Footer">
                   <a
                     href="/about"
                     className="text-sm text-gray-600 gradient-underline"
@@ -130,11 +130,9 @@ export default function RootLayout({
                   </a>
                 </nav>
 
-                <div className="w-px h-0" aria-hidden />
-              </div>
-              <div className="text-center text-sm text-gray-400 py-4">
-                © {new Date().getFullYear()} Liberty Social. All rights
-                reserved.
+                <div className="text-xs text-gray-400">
+                  © {new Date().getFullYear()} Liberty Social. All rights reserved.
+                </div>
               </div>
             </footer>
           </ToastProvider>

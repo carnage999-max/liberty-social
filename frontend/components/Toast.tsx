@@ -1,24 +1,19 @@
 "use client";
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-} from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 
-type ToastMsg = { id: number; message: string };
+type ToastVariant = "success" | "error";
+type ToastMsg = { id: number; message: string; variant: ToastVariant };
 
-const ToastContext = createContext<{ show: (msg: string) => void } | null>(
-  null
-);
+const ToastContext = createContext<
+  { show: (msg: string, variant?: ToastVariant) => void } | null
+>(null);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
 
-  const show = useCallback((message: string) => {
+  const show = useCallback((message: string, variant: ToastVariant = "success") => {
     const id = Date.now();
-    setToasts((prev) => [...prev, { id, message }]);
+    setToasts((prev) => [...prev, { id, message, variant }]);
     setTimeout(
       () => setToasts((prev) => prev.filter((t) => t.id !== id)),
       3500
@@ -32,8 +27,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="rounded-[12px] bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]
-                       text-white px-5 py-3 text-sm shadow-lg animate-fade-in"
+            className={`rounded-[12px] px-5 py-3 text-sm text-white shadow-lg animate-fade-in ${
+              t.variant === "error"
+                ? "bg-red-500"
+                : "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]"
+            }`}
           >
             {t.message}
           </div>

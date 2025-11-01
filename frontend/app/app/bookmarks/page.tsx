@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import RequireAuth from "@/components/auth/RequireAuth";
 import Spinner from "@/components/Spinner";
 import { useAuth } from "@/lib/auth-context";
 import { apiDelete, apiGet } from "@/lib/api";
@@ -76,135 +75,120 @@ export default function BookmarksPage() {
       toast.show("Bookmark removed.");
     } catch (err) {
       console.error(err);
-      toast.show("Unable to remove bookmark. Please try again.");
+      toast.show("Unable to remove bookmark. Please try again.", "error");
     } finally {
       setRemovingId(null);
     }
   };
 
   return (
-    <RequireAuth>
-      <section className="min-h-screen bg-[var(--color-background)] pb-12 pt-24 sm:pt-28">
-        <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
-          <header className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Bookmarks</h1>
-            <p className="text-sm text-gray-500">
-              {count === 0
-                ? "You havenâ€™t saved anything yet."
-                : `${count} bookmark${count === 1 ? "" : "s"}`}
-            </p>
-          </header>
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-2xl font-bold text-gray-900">Bookmarks</h1>
+        <p className="text-sm text-gray-500">
+          {count === 0 ? "You haven't saved anything yet." : `${count} bookmark${count === 1 ? "" : "s"}`}
+        </p>
+      </header>
 
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <Spinner />
-            </div>
-          ) : error ? (
-            <div className="rounded-2xl bg-white/90 p-8 text-center shadow-sm">
-              <p className="text-sm text-gray-700">{error}</p>
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Spinner />
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl bg-white/90 p-8 text-center shadow-sm">
+          <p className="text-sm text-gray-700">{error}</p>
+          <button
+            onClick={() => refresh()}
+            className="mt-4 rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90"
+          >
+            Retry
+          </button>
+        </div>
+      ) : enrichedBookmarks.length === 0 ? (
+        <div className="rounded-2xl bg-white/90 p-10 text-center shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-800">Nothing saved yet.</h2>
+          <p className="mt-2 text-sm text-gray-500">
+            You can bookmark posts to revisit them later.
+          </p>
+        </div>
+      ) : (
+        <>
+          <ul className="space-y-4">
+            {enrichedBookmarks.map((bookmark) => {
+              const post = bookmark.post;
+              const authorLabel =
+                post?.author.username ||
+                [post?.author.first_name, post?.author.last_name].filter(Boolean).join(" ") ||
+                post?.author.email ||
+                "User";
+              return (
+                <li
+                  key={bookmark.id}
+                  className="rounded-[18px] border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-xs uppercase tracking-wide text-gray-400">
+                        Saved {new Date(bookmark.created_at).toLocaleString()}
+                      </p>
+                      {post ? (
+                        <>
+                          <h2 className="mt-1 text-sm font-semibold text-gray-900">{authorLabel}</h2>
+                          <p className="mt-2 line-clamp-3 text-sm text-gray-700">{post.content}</p>
+                          {post.media && post.media.length > 0 && (
+                            <div className="mt-3 overflow-hidden rounded-xl border border-gray-200">
+                              <Image
+                                src={post.media[0]}
+                                alt="Post media"
+                                width={800}
+                                height={400}
+                                className="h-auto w-full object-cover"
+                              />
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <p className="mt-2 text-sm text-gray-500">This post is no longer available.</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <button
+                        onClick={() => handleRemove(bookmark.id)}
+                        disabled={removingId === bookmark.id}
+                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {removingId === bookmark.id ? "Removing..." : "Remove"}
+                      </button>
+                      {post && (
+                        <Link
+                          href={`/app/feed/${post.id}`}
+                          className="rounded-lg border border-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
+                        >
+                          View post
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {next && (
+            <div className="mt-6 flex justify-center">
               <button
-                onClick={() => refresh()}
-                className="mt-4 rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="rounded-lg border border-[var(--color-primary)] px-5 py-2 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Retry
+                {loadingMore ? "Loading..." : "Load more"}
               </button>
             </div>
-          ) : enrichedBookmarks.length === 0 ? (
-            <div className="rounded-2xl bg-white/90 p-10 text-center shadow-sm">
-              <h2 className="text-lg font-semibold text-gray-800">
-                Nothing saved yet.
-              </h2>
-              <p className="mt-2 text-sm text-gray-500">
-                You can bookmark posts to revisit them later.
-              </p>
-            </div>
-          ) : (
-            <>
-              <ul className="space-y-4">
-                {enrichedBookmarks.map((bookmark) => {
-                  const post = bookmark.post;
-                  return (
-                    <li
-                      key={bookmark.id}
-                      className="rounded-[18px] border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <p className="text-xs uppercase tracking-wide text-gray-400">
-                            Saved {new Date(bookmark.created_at).toLocaleString()}
-                          </p>
-                          {post ? (
-                            <>
-                              <h2 className="mt-1 text-sm font-semibold text-gray-900">
-                                {post.author.username ||
-                                  `${post.author.first_name ?? ""} ${
-                                    post.author.last_name ?? ""
-                                  }`.trim() ||
-                                  post.author.email}
-                              </h2>
-                              <p className="mt-2 line-clamp-3 text-sm text-gray-700">
-                                {post.content}
-                              </p>
-                              {post.media && post.media.length > 0 && (
-                                <div className="mt-3 overflow-hidden rounded-xl border border-gray-200">
-                                  <Image
-                                    src={post.media[0]}
-                                    alt="Post media"
-                                    width={800}
-                                    height={400}
-                                    className="h-auto w-full object-cover"
-                                  />
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <p className="mt-2 text-sm text-gray-500">
-                              This post is no longer available.
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <button
-                            onClick={() => handleRemove(bookmark.id)}
-                            disabled={removingId === bookmark.id}
-                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {removingId === bookmark.id ? "Removing..." : "Remove"}
-                          </button>
-                          {post && (
-                            <Link
-                              href={`/app/feed/${post.id}`}
-                              className="rounded-lg border border-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
-                            >
-                              View post
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-              {next && (
-                <div className="mt-6 flex justify-center">
-                  <button
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                    className="rounded-lg border border-[var(--color-primary)] px-5 py-2 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loadingMore ? "Loading..." : "Load more"}
-                  </button>
-                </div>
-              )}
-            </>
           )}
-        </div>
-      </section>
-    </RequireAuth>
+        </>
+      )}
+    </div>
   );
 }
-
-
 
 
 

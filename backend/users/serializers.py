@@ -27,11 +27,53 @@ class RegisterUserSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    phone_number = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    bio = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    gender = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+
     class Meta:
         model = User
         # Explicitly list common public fields instead of __all__ for safety
-        fields = ["id", "email", "first_name", "last_name", "username", "phone_number", "profile_image_url", "bio", "gender"]
-        read_only_fields = ["id", "email"]
+        fields = [
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "username",
+            "phone_number",
+            "profile_image_url",
+            "bio",
+            "gender",
+            "date_joined",
+        ]
+        read_only_fields = ["id", "email", "date_joined"]
+
+    def validate_username(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Username is required.")
+        return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        bio = attrs.get("bio")
+        if bio is not None:
+            attrs["bio"] = bio.strip() or None
+        phone = attrs.get("phone_number")
+        if phone is not None:
+            trimmed = phone.strip()
+            attrs["phone_number"] = trimmed or None
+        gender = attrs.get("gender")
+        if gender is not None:
+            trimmed_gender = gender.strip()
+            attrs["gender"] = trimmed_gender or "Not specified"
+        first_name = attrs.get("first_name")
+        if first_name is not None:
+            attrs["first_name"] = first_name.strip()
+        last_name = attrs.get("last_name")
+        if last_name is not None:
+            attrs["last_name"] = last_name.strip()
+        return attrs
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     class Meta:

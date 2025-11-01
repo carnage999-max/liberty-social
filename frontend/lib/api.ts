@@ -26,11 +26,33 @@ function withAuthHeaders(opts: Options = {}) {
   return h;
 }
 
-export async function apiPost(
-  path: string,
-  body?: unknown,
-  opts: Options = {}
-) {
+export class ApiError extends Error {
+  status: number;
+  data?: unknown;
+  fieldErrors?: Record<string, string[]>;
+  nonFieldErrors?: string[];
+
+  constructor(init: {
+    message: string;
+    status: number;
+    data?: unknown;
+    fieldErrors?: Record<string, string[]>;
+    nonFieldErrors?: string[];
+  }) {
+    super(init.message);
+    this.name = "ApiError";
+    this.status = init.status;
+    this.data = init.data;
+    if (init.fieldErrors) this.fieldErrors = init.fieldErrors;
+    if (init.nonFieldErrors) this.nonFieldErrors = init.nonFieldErrors;
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
+export async function apiPost(path: string, body?: unknown, opts: Options = {}) {
   const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
   const res = await fetch(url, {
     method: "POST",
@@ -122,13 +144,99 @@ async function safeJson<T = any>(res: Response): Promise<T> {
 }
 
 async function toApiError(res: Response) {
-  let message = `Request failed (${res.status})`;
+  let payload: unknown = null;
   try {
-    const data = await res.json();
-    if (data?.detail) message = String(data.detail);
-    if (data?.message) message = String(data.message);
-  } catch {}
-  const err = new Error(message) as Error & { status?: number };
-  err.status = res.status;
-  return err;
+    payload = await res.json();
+  } catch {
+    // ignore JSON parsing issues; payload remains null
+  }
+
+  const { message, fieldErrors, nonFieldErrors } = normalizeErrorPayload(payload);
+  const fallbackMessage =
+    message ||
+    (res.status >= 500
+      ? "Something went wrong on our side. Please try again later."
+      : "We couldn't process your request. Please check your input and try again.");
+
+  return new ApiError({
+    message: fallbackMessage,
+    status: res.status,
+    data: payload,
+    fieldErrors,
+    nonFieldErrors,
+  });
+}
+
+function normalizeErrorPayload(payload: unknown): {
+  message?: string;
+  fieldErrors?: Record<string, string[]>;
+  nonFieldErrors?: string[];
+} {
+  if (!payload) return {};
+
+  if (typeof payload === "string") {
+    return { message: payload };
+  }
+
+  if (Array.isArray(payload)) {
+    const messages = payload.map(String);
+    return {
+      message: messages.join(" "),
+      nonFieldErrors: messages,
+    };
+  }
+
+  if (typeof payload !== "object") return {};
+
+  const data = payload as Record<string, unknown>;
+  const fieldErrors: Record<string, string[]> = {};
+  const nonFieldErrors = collectMessages(data.non_field_errors ?? data.errors);
+
+  let message =
+    pickMessage(data.detail) ??
+    pickMessage(data.message) ??
+    (nonFieldErrors?.length ? nonFieldErrors.join(" ") : undefined);
+
+  for (const [key, value] of Object.entries(data)) {
+    if (["detail", "message", "non_field_errors", "errors"].includes(key)) continue;
+    const msgs = collectMessages(value);
+    if (msgs?.length) {
+      fieldErrors[key] = msgs;
+      if (!message) {
+        message = msgs[0];
+      }
+    }
+  }
+
+  return {
+    message,
+    fieldErrors: Object.keys(fieldErrors).length ? fieldErrors : undefined,
+    nonFieldErrors: nonFieldErrors?.length ? nonFieldErrors : undefined,
+  };
+}
+
+function pickMessage(value: unknown): string | undefined {
+  const msgs = collectMessages(value);
+  return msgs?.[0];
+}
+
+function collectMessages(value: unknown): string[] | undefined {
+  if (!value && value !== 0) return undefined;
+  if (Array.isArray(value)) {
+    const filtered = value.map((v) => String(v)).filter(Boolean);
+    return filtered.length ? filtered : undefined;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : undefined;
+  }
+  if (typeof value === "object" && value !== null) {
+    const nestedMessages: string[] = [];
+    for (const nested of Object.values(value)) {
+      const msgs = collectMessages(nested);
+      if (msgs) nestedMessages.push(...msgs);
+    }
+    return nestedMessages.length ? nestedMessages : undefined;
+  }
+  return [String(value)];
 }

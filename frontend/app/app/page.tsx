@@ -1,7 +1,3 @@
-import RequireAuth from "@/components/auth/RequireAuth";
-import ProfileCard from "@/components/profile/ProfileCard";
-import Feed from "@/components/feed/Feed";
-
 export const metadata = {
   title: "Home",
   description: "Your Liberty Social home",
@@ -9,17 +5,14 @@ export const metadata = {
 
 export default function AppHome() {
   return (
-    <RequireAuth>
-      <section className="pt-28 md:pt-36 pb-16 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto flex flex-col-reverse gap-6 lg:grid lg:grid-cols-[320px,minmax(0,1fr)]">
-          <aside className="lg:order-1 order-2 w-full">
-            <ProfileCard />
-          </aside>
-          <main className="lg:order-2 order-1 w-full rounded-[16px] bg-white/80 backdrop-blur-sm shadow-md p-4 sm:p-6">
-            <Feed />
-          </main>
-        </div>
+    <div className="space-y-6">
+      <section className="rounded-[18px] border border-gray-100 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
+        <h2 className="text-xl font-semibold text-gray-900">Welcome back</h2>
+        <p className="mt-2 text-sm text-gray-600">
+          Use the navigation on the left to dive into your feed, manage friends, review notifications,
+          or fine-tune your settings. New features are landing soon!
+        </p>
       </section>
-    </RequireAuth>
+    </div>
   );
 }

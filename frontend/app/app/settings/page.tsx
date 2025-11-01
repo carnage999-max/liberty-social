@@ -1,6 +1,5 @@
 ﻿"use client";
 
-import RequireAuth from "@/components/auth/RequireAuth";
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth-context";
@@ -41,7 +40,7 @@ const GENDER_OPTIONS = [
 
 export default function SettingsPage() {
   const toast = useToast();
-  const { accessToken, user } = useAuth();
+  const { accessToken, user, rawUser, refreshUser } = useAuth();
 
   const {
     data: profile,
@@ -95,9 +94,9 @@ export default function SettingsPage() {
       first_name: profile.first_name ?? "",
       last_name: profile.last_name ?? "",
       username: profile.username ?? "",
-      phone_number: (profile as any).phone_number ?? "",
-      bio: (profile as any).bio ?? "",
-      gender: (profile as any).gender ?? "",
+      phone_number: profile.phone_number ?? "",
+      bio: profile.bio ?? "",
+      gender: profile.gender ?? "",
     });
   }, [profile]);
 
@@ -112,7 +111,8 @@ export default function SettingsPage() {
   const isLoading = profileLoading || settingsLoading || blockedLoading;
 
   const accountEmail = profile?.email ?? user?.email ?? "-";
-  const memberSince = "-";
+  const joinedSource = profile?.date_joined ?? user?.date_joined;
+  const memberSince = joinedSource ? new Date(joinedSource).toLocaleDateString() : "-";
 
   const handleProfileChange = (field: keyof ProfileForm, value: string) => {
     setProfileForm((prev) => ({ ...prev, [field]: value }));
@@ -120,16 +120,41 @@ export default function SettingsPage() {
 
   const handleProfileSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!user?.id || !accessToken) return;
+    const targetId = profile?.id || (rawUser && !Array.isArray(rawUser) ? rawUser.id : undefined);
+    if (!targetId || !accessToken) {
+      toast.show("Unable to update profile right now.", "error");
+      return;
+    }
     try {
       setFormError(null);
       setSavingProfile(true);
-      await apiPatch(`/auth/user/${user.id}/`, profileForm, {
+      const payload: Record<string, string | null> = {
+        first_name: profileForm.first_name.trim(),
+        last_name: profileForm.last_name.trim(),
+      };
+
+      const trimmedUsername = profileForm.username.trim();
+      if (trimmedUsername) {
+        payload.username = trimmedUsername;
+      }
+
+      const trimmedBio = profileForm.bio.trim();
+      payload.bio = trimmedBio ? trimmedBio : null;
+
+      const trimmedPhone = profileForm.phone_number.trim();
+      payload.phone_number = trimmedPhone ? trimmedPhone : null;
+
+      const trimmedGender = profileForm.gender.trim();
+      if (trimmedGender) {
+        payload.gender = trimmedGender;
+      }
+      await apiPatch(`/auth/user/${targetId}/`, payload, {
         token: accessToken,
         cache: "no-store",
       });
       toast.show("Profile updated");
       refetchProfile();
+      await refreshUser();
     } catch (err: any) {
       console.error(err);
       setFormError(err?.message || "Unable to update profile.");
@@ -169,31 +194,32 @@ export default function SettingsPage() {
       await refreshBlocked();
     } catch (err) {
       console.error(err);
-      toast.show("Could not unblock user. Please try again.");
+      toast.show("Could not unblock user. Please try again.", "error");
     } finally {
       setUnblockingId(null);
     }
   };
 
   return (
-    <RequireAuth>
-      <section className="min-h-screen bg-[var(--color-background)] pb-12 pt-24 sm:pt-28">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 sm:px-6 lg:flex-row">
-          <div className="w-full lg:w-2/3">
-            <header className="mb-6">
+    <div className="space-y-8">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 sm:px-6 lg:flex-row">
+        <div className="w-full lg:w-2/3">
+          <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
               <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
               <p className="text-sm text-gray-500">
                 Manage your profile information, privacy preferences, and blocked users.
               </p>
-            </header>
+            </div>
+          </header>
 
-            {isLoading ? (
-              <div className="flex justify-center py-16">
-                <Spinner />
-              </div>
-            ) : (
-              <div className="space-y-8">
-                <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
+          {isLoading ? (
+            <div className="flex justify-center py-16">
+              <Spinner />
+            </div>
+          ) : (
+            <div className="space-y-8">
+              <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
                   <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
                   <p className="mt-1 text-sm text-gray-500">
                     This information appears on your profile and alongside your posts.
@@ -291,13 +317,13 @@ export default function SettingsPage() {
                         disabled={savingProfile}
                         className="rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-5 py-2 text-sm font-semibold text-white shadow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {savingProfile ? "Savingâ€¦" : "Save profile"}
+                        {savingProfile ? "Saving..." : "Save profile"}
                       </button>
                     </div>
                   </form>
                 </section>
 
-                <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
+              <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
                   <h2 className="text-lg font-semibold text-gray-900">Privacy</h2>
                   <p className="mt-1 text-sm text-gray-500">
                     Decide who can discover your profile and connections.
@@ -358,13 +384,13 @@ export default function SettingsPage() {
                         disabled={savingPrivacy}
                         className="rounded-lg border border-[var(--color-primary)] px-5 py-2 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        {savingPrivacy ? "Savingâ€¦" : "Save privacy settings"}
+                        {savingPrivacy ? "Saving..." : "Save privacy settings"}
                       </button>
                     </div>
                   </form>
                 </section>
 
-                <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
+              <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-lg font-semibold text-gray-900">
@@ -435,57 +461,49 @@ export default function SettingsPage() {
                       </button>
                     </div>
                   )}
-                </section>
+              </section>
+            </div>
+          )}
+        </div>
+
+        <aside className="w-full max-w-xs shrink-0 space-y-6 lg:w-1/3">
+          <div className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
+            <h2 className="text-sm font-semibold text-gray-900">Account</h2>
+            <dl className="mt-3 space-y-2 text-sm text-gray-600">
+              <div className="flex justify-between">
+                <dt>Email</dt>
+                <dd className="font-medium text-[var(--color-primary)]">{accountEmail}</dd>
               </div>
-            )}
+              <div className="flex justify-between">
+                <dt>Member since</dt>
+                <dd>{memberSince}</dd>
+              </div>
+            </dl>
           </div>
 
-          <aside className="w-full max-w-xs shrink-0 space-y-6 lg:w-1/3">
-            <div className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
-              <h2 className="text-sm font-semibold text-gray-900">Account</h2>
-              <dl className="mt-3 space-y-2 text-sm text-gray-600">
-                <div className="flex justify-between">
-                  <dt>Email</dt>
-                  <dd className="font-medium text-[var(--color-primary)]">{accountEmail}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>Member since</dt>
-                  <dd>{memberSince}</dd>
-                </div>
-              </dl>
-            </div>
-
-            <div className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
-              <h2 className="text-sm font-semibold text-gray-900">Need help?</h2>
-              <p className="mt-2 text-sm text-gray-500">
-                Reach out to the Liberty Social team if you have questions about your account or privacy.
-              </p>
-              <a
-                href="mailto:support@mylibertysocial.com"
-                className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-primary)] hover:opacity-80"
-              >
-                Contact support
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M5 12h14M12 5l7 7-7 7"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </a>
-            </div>
-          </aside>
-        </div>
-      </section>
-    </RequireAuth>
+          <div className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
+            <h2 className="text-sm font-semibold text-gray-900">Need help?</h2>
+            <p className="mt-2 text-sm text-gray-500">
+              Reach out to the Liberty Social team if you have questions about your account or privacy.
+            </p>
+            <a
+              href="mailto:support@mylibertysocial.com"
+              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-primary)] hover:opacity-80"
+            >
+              Contact support
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 12h14M12 5l7 7-7 7"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </a>
+          </div>
+        </aside>
+      </div>
+    </div>
   );
 }
-
-
-
-
-
-
-

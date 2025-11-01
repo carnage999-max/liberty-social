@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
 from .models import BlockedUsers, FriendRequest, Friends, User, UserSettings
 from .serializers import (
@@ -108,12 +109,28 @@ class UserView(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance != request.user:
+            return Response({"detail": "Not authorized to update this profile."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
     
+class DefaultPageNumberPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
 class FriendsViewset(ModelViewSet):
     queryset = Friends.objects.all()
     serializer_class = FriendsSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'delete']
+    pagination_class = DefaultPageNumberPagination
     
     def get_queryset(self):
         return super().get_queryset().filter(user=self.request.user)
@@ -143,6 +160,7 @@ class FriendRequestViewset(ModelViewSet):
     serializer_class = FriendRequestSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'post', 'delete']
+    pagination_class = DefaultPageNumberPagination
     
     def get_queryset(self):
         # return friend requests where the current user is either sender or recipient
@@ -217,6 +235,37 @@ class UserSettingsView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class FriendSuggestionsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        friend_ids = Friends.objects.filter(user=user).values_list("friend_id", flat=True)
+        reverse_friend_ids = Friends.objects.filter(friend=user).values_list("user_id", flat=True)
+        sent_requests = FriendRequest.objects.filter(from_user=user).values_list("to_user_id", flat=True)
+        incoming_requests = FriendRequest.objects.filter(to_user=user).values_list("from_user_id", flat=True)
+        blocked_ids = BlockedUsers.objects.filter(user=user).values_list("blocked_user_id", flat=True)
+        blocked_me_ids = BlockedUsers.objects.filter(blocked_user=user).values_list("user_id", flat=True)
+
+        exclude_ids = (
+            set(friend_ids)
+            | set(reverse_friend_ids)
+            | set(sent_requests)
+            | set(incoming_requests)
+            | set(blocked_ids)
+            | set(blocked_me_ids)
+            | {user.id}
+        )
+
+        qs = User.objects.exclude(id__in=exclude_ids).order_by('-date_joined')
+
+        paginator = DefaultPageNumberPagination()
+        page = paginator.paginate_queryset(qs, request)
+        serializer = UserSerializer(page, many=True, context={"request": request})
+        return paginator.get_paginated_response(serializer.data)
 
 
 class ProfilePictureUploadView(APIView):

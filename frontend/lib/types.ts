@@ -22,7 +22,7 @@ export interface RegisterRequest {
   password: string;
   first_name: string;
   last_name: string;
-  username?: string;
+  username: string;
   phone_number?: string | null;
 }
 
@@ -36,6 +36,7 @@ export interface User {
   profile_image_url?: string | null;
   bio?: string | null;
   gender?: string | null;
+  date_joined?: string;
 }
 
 // ----------------------

@@ -96,7 +96,7 @@ export default function LandingPage() {
           </svg>
         </div>
 
-        {/* Ripple layer â€" HERO ONLY */}
+        {/* Ripple layer - HERO ONLY */}
         <div ref={rippleLayerRef} className="ripple-layer" />
 
         <div className="relative z-10 max-w-5xl mx-auto">
@@ -201,8 +201,8 @@ export default function LandingPage() {
               A Place Designed for People
             </h4>
             <p className="text-gray-700 leading-relaxed">
-              Weâ€™re building a platform that respects time, attention, and
-              identity. Clean design meets strong valuesâ€"so you can focus on
+              We&apos;re building a platform that respects time, attention, and
+              identity. Clean design meets strong values so you can focus on
               real connection.
             </p>
             <a
@@ -220,7 +220,7 @@ export default function LandingPage() {
               {/* For a clean crop look, we use object-contain; switch to object-cover for full bleed */}
               <img
                 src="/images/showcase.png"
-                alt="Liberty Social â€" preview"
+                alt="Liberty Social preview"
                 className="absolute inset-0 h-full w-full object-contain"
                 loading="eager"
               />
@@ -248,7 +248,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ========================== LIVE CTA (no â€œrequest accessâ€) ========================== */}
+      {/* ========================== LIVE CTA (no "request access") ========================== */}
       <section
         id="cta"
         className="relative text-center text-[var(--color-primary)] py-24 md:py-32"
@@ -271,7 +271,7 @@ export default function LandingPage() {
             Your Voice. Your Space. Your Liberty.
           </h2>
           <p className="text-lg mb-10 text-gray-700">
-            Jump in nowâ€"build your profile, create a space, and connect.
+            Jump in now - build your profile, create a space, and connect.
           </p>
           <div className="flex gap-4 justify-center flex-col sm:flex-row">
             {isLoggedIn ? (
@@ -363,4 +363,3 @@ function WaveTop({ fill }: { fill: string }) {
     </div>
   );
 }
-

@@ -3,16 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiGet } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import type { User } from "@/lib/types";
 
-type Profile = {
-  id: string;
-  username: string;
-  email: string;
-  first_name?: string;
-  last_name?: string;
-  phone?: string;
-  // add more as backend grows
-};
+type Profile = User;
 
 export function useProfile() {
   const { accessToken, clearAuth } = useAuth();
@@ -37,9 +30,16 @@ export function useProfile() {
         });
         const profile = Array.isArray(res) ? res[0] ?? null : res;
         setData(profile);
-      } catch (e: any) {
-        if (e?.status === 401) clearAuth();
-        else setError(e?.message || "Failed to load profile.");
+      } catch (e: unknown) {
+        if (typeof e === "object" && e && "name" in e && (e as { name: string }).name === "AbortError") {
+          return;
+        }
+        const err = e as { status?: number; message?: string };
+        if (err?.status === 401) {
+          clearAuth();
+        } else {
+          setError(err?.message || "Failed to load profile.");
+        }
         setData(null);
       } finally {
         setLoading(false);

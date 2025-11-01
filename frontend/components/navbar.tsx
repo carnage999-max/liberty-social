@@ -2,12 +2,13 @@
 
 import { useAuth } from "@/lib/auth-context";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, isAuthenticated, hydrated } = useAuth();
+  const { user, isAuthenticated, hydrated, logout } = useAuth();
   const [raised, setRaised] = useState(false);
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -25,7 +26,7 @@ export default function Navbar() {
   const avatarSrc = user?.profile_image_url || undefined;
   const showProfile = hydrated && isAuthenticated && !!user;
 
-  const skipNav = pathname?.startsWith("/app/feed");
+  const skipNav = pathname?.startsWith("/app");
 
   // glass nav raise on scroll
   useEffect(() => {
@@ -79,7 +80,7 @@ export default function Navbar() {
     >
       <div className="flex items-center justify-between">
         {/* Brand: logo + wordmark */}
-        <a href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <Image
             src="/images/logo.png"
             alt="Liberty Social logo"
@@ -91,44 +92,77 @@ export default function Navbar() {
           <span className="text-xl md:text-2xl font-extrabold gradient-underline">
             Liberty Social
           </span>
-        </a>
+        </Link>
 
         {/* Desktop actions */}
         <div className="hidden md:flex items-center gap-3">
-          <a
+          <Link
             href="/app"
             className="px-4 py-2 rounded-[12px] font-medium text-[var(--color-primary)] bg-white hover:opacity-90 transition shadow-sm"
           >
             Communities
-          </a>
+          </Link>
           {showProfile ? (
-            <a
-              href="/app"
-              className="inline-flex items-center gap-3 px-3 py-2 rounded-[12px] bg-white text-[var(--color-primary)] font-medium shadow-sm hover:opacity-90 transition"
-              aria-label="Open profile"
-            >
-              <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-primary)]/10 text-sm font-semibold text-[var(--color-primary)] flex items-center justify-center">
-                {avatarSrc ? (
-                  <Image
-                    src={avatarSrc}
-                    alt={`${displayName || "Your"} profile picture`}
-                    fill
-                    sizes="36px"
-                    className="object-cover"
+            <>
+              <Link
+                href="/app"
+                className="inline-flex items-center gap-3 px-3 py-2 rounded-[12px] bg-white text-[var(--color-primary)] font-medium shadow-sm hover:opacity-90 transition"
+                aria-label="Open profile"
+              >
+                <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-primary)]/10 text-sm font-semibold text-[var(--color-primary)] flex items-center justify-center">
+                  {avatarSrc ? (
+                    <Image
+                      src={avatarSrc}
+                      alt={`${displayName || "Your"} profile picture`}
+                      fill
+                      sizes="36px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    initials
+                  )}
+                </span>
+                <span>{displayName || "Profile"}</span>
+              </Link>
+              <button
+                onClick={() => {
+                  void logout();
+                }}
+                className="inline-flex items-center gap-2 rounded-[12px] bg-gradient-to-r from-rose-500 to-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M15 3H6a2 2 0 00-2 2v14a2 2 0 002 2h9"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
-                ) : (
-                  initials
-                )}
-              </span>
-              <span>{displayName || "Profile"}</span>
-            </a>
+                  <path
+                    d="M10 17l5-5-5-5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M19 12h-9"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Sign out
+              </button>
+            </>
           ) : (
-            <a
-              href="/signup"
+            <Link
+              href="/auth"
               className="px-4 py-2 rounded-[12px] text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic"
             >
               Create account
-            </a>
+            </Link>
           )}
         </div>
 
@@ -164,42 +198,76 @@ export default function Navbar() {
         ].join(" ")}
       >
         <div className="mt-3 rounded-xl bg-white/90 backdrop-blur-md shadow-md p-3">
-          <a
+          <Link
             href="/app"
             onClick={() => setOpen(false)}
             className="block w-full text-left px-4 py-3 rounded-lg text-[var(--color-primary)] hover:bg-[var(--metallic-silver)] transition"
           >
             Communities
-          </a>
+          </Link>
           {showProfile ? (
-            <a
-              href="/app"
-              onClick={() => setOpen(false)}
-              className="mt-2 flex items-center gap-3 px-4 py-3 rounded-lg text-[var(--color-primary)] font-medium hover:bg-[var(--metallic-silver)] transition"
-            >
-              <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-primary)]/10 text-sm font-semibold text-[var(--color-primary)] flex items-center justify-center">
-                {avatarSrc ? (
-                  <Image
-                    src={avatarSrc}
-                    alt={`${displayName || "Your"} profile picture`}
-                    fill
-                    sizes="36px"
-                    className="object-cover"
+            <>
+              <Link
+                href="/app"
+                onClick={() => setOpen(false)}
+                className="mt-2 flex items-center gap-3 px-4 py-3 rounded-lg text-[var(--color-primary)] font-medium hover:bg-[var(--metallic-silver)] transition"
+              >
+                <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-primary)]/10 text-sm font-semibold text-[var(--color-primary)] flex items-center justify-center">
+                  {avatarSrc ? (
+                    <Image
+                      src={avatarSrc}
+                      alt={`${displayName || "Your"} profile picture`}
+                      fill
+                      sizes="36px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    initials
+                  )}
+                </span>
+                <span>{displayName || "Profile"}</span>
+              </Link>
+              <button
+                onClick={async () => {
+                  await logout();
+                  setOpen(false);
+                }}
+                className="mt-2 flex w-full items-center gap-2 rounded-lg bg-gradient-to-r from-rose-500 to-rose-600 px-4 py-3 text-left text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M15 3H6a2 2 0 00-2 2v14a2 2 0 002 2h9"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
-                ) : (
-                  initials
-                )}
-              </span>
-              <span>{displayName || "Profile"}</span>
-            </a>
+                  <path
+                    d="M10 17l5-5-5-5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M19 12h-9"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Sign out
+              </button>
+            </>
           ) : (
-            <a
+            <Link
               href="/auth"
               onClick={() => setOpen(false)}
               className="mt-2 block w-full text-left px-4 py-3 rounded-lg text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic"
             >
               Create account
-            </a>
+            </Link>
           )}
         </div>
       </div>
