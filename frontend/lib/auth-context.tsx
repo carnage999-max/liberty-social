@@ -143,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (data: LoginRequest) => {
     setLoading(true);
     try {
-      logAuthPayload("login", data as Record<string, unknown>);
+      logAuthPayload("login", data as unknown as Record<string, unknown>);
       const tokens: AuthTokens = await apiPost("/auth/login/", data);
       const res = await fetch(`${API_BASE}/auth/user/`, {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
@@ -174,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterRequest) => {
     setLoading(true);
     try {
-      logAuthPayload("register", data as Record<string, unknown>);
+      logAuthPayload("register", data as unknown as Record<string, unknown>);
       const tokens: AuthTokens = await apiPost("/auth/register/", data);
       const res = await fetch(`${API_BASE}/auth/user/`, {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
