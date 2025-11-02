@@ -93,6 +93,7 @@ export interface Comment {
   post: number;
   author: User;
   content: string;
+  media?: string[] | null;
   parent?: number | null;
   created_at: string;
 }

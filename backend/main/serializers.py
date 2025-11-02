@@ -1,22 +1,31 @@
 from rest_framework import serializers
-from .models import Post, Comment, Reaction, Notification, PostMedia
+from .models import Post, Comment, Reaction, Notification, PostMedia, CommentMedia
 from users.serializers import UserSerializer
 from django.contrib.contenttypes.models import ContentType
 
 
 class CommentSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
+    media = serializers.SerializerMethodField()
+    media_urls = serializers.ListField(child=serializers.URLField(), write_only=True, required=False)
 
     class Meta:
         model = Comment
-        fields = ["id", "post", "author", "content", "parent", "created_at"]
-        read_only_fields = ["id", "author", "created_at"]
+        fields = ["id", "post", "author", "content", "parent", "created_at", "media", "media_urls"]
+        read_only_fields = ["id", "author", "created_at", "media"]
 
     def create(self, validated_data):
         request = self.context.get('request')
         if request and getattr(request, 'user', None):
             validated_data['author'] = request.user
-        return super().create(validated_data)
+        media_urls = validated_data.pop('media_urls', [])
+        comment = super().create(validated_data)
+        for url in media_urls:
+            CommentMedia.objects.create(comment=comment, url=url)
+        return comment
+
+    def get_media(self, obj):
+        return [m.url for m in obj.media.all()]
 
 
 class ReactionSerializer(serializers.ModelSerializer):

@@ -110,8 +110,11 @@ export default function SettingsPage() {
 
   const isLoading = profileLoading || settingsLoading || blockedLoading;
 
-  const accountEmail = profile?.email ?? user?.email ?? "-";
-  const joinedSource = profile?.date_joined ?? user?.date_joined;
+  const resolvedUser =
+    profile ?? (rawUser && !Array.isArray(rawUser) ? rawUser : Array.isArray(rawUser) ? rawUser[0] : null) ?? user;
+
+  const accountEmail = resolvedUser?.email ?? "-";
+  const joinedSource = resolvedUser?.date_joined;
   const memberSince = joinedSource ? new Date(joinedSource).toLocaleDateString() : "-";
 
   const handleProfileChange = (field: keyof ProfileForm, value: string) => {
@@ -469,14 +472,57 @@ export default function SettingsPage() {
         <aside className="w-full max-w-xs shrink-0 space-y-6 lg:w-1/3">
           <div className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
             <h2 className="text-sm font-semibold text-gray-900">Account</h2>
-            <dl className="mt-3 space-y-2 text-sm text-gray-600">
-              <div className="flex justify-between">
-                <dt>Email</dt>
-                <dd className="font-medium text-[var(--color-primary)]">{accountEmail}</dd>
+            <dl className="mt-3 space-y-3 text-sm text-gray-600">
+              <div className="flex items-start gap-3">
+                <dt className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                  <svg
+                    aria-hidden
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M4 6h16M4 6v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6M4 6l8 7 8-7"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </dt>
+                <dd className="flex-1">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">Email</p>
+                  <p
+                    className="mt-1 max-w-[180px] truncate font-medium text-[var(--color-primary)] sm:max-w-xs"
+                    title={accountEmail}
+                  >
+                    {accountEmail}
+                  </p>
+                </dd>
               </div>
-              <div className="flex justify-between">
-                <dt>Member since</dt>
-                <dd>{memberSince}</dd>
+              <div className="flex items-start gap-3">
+                <dt className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-secondary)]/10 text-[var(--color-secondary)]">
+                  <svg
+                    aria-hidden
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M7 3v4M17 3v4M5 9h14M6 20h12a1 1 0 0 0 1-1v-8H5v8a1 1 0 0 0 1 1Z"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </dt>
+                <dd>
+                  <p className="text-xs uppercase tracking-wide text-gray-400">Member since</p>
+                  <p className="mt-1 font-medium text-gray-700">{memberSince}</p>
+                </dd>
               </div>
             </dl>
           </div>

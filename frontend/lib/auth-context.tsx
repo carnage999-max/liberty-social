@@ -38,12 +38,13 @@ const STORAGE_KEY = "liberty_auth_v1";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 const HIDDEN_VALUE = "******";
 
-const logAuthPayload = (
-  action: "login" | "register",
-  payload: Record<string, unknown>
-) => {
+const logAuthPayload = (action: "login" | "register", payload: unknown) => {
+  if (!payload || typeof payload !== "object") {
+    console.info(`[auth] ${action} request`, "[unavailable payload]");
+    return;
+  }
   const redacted: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(payload)) {
+  for (const [key, value] of Object.entries(payload as Record<string, unknown>)) {
     if (typeof value === "string" && key.toLowerCase().includes("password")) {
       redacted[key] = HIDDEN_VALUE;
     } else {
@@ -104,10 +105,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     setAccessToken(payload.accessToken);
     setRefreshToken(payload.refreshToken);
-    if (userData) {
-      setUser(normaliseUser(userData));
-      setRawUser(userData);
-    }
+    setRawUser(payload.user || null);
+    setUser(normaliseUser(payload.user));
   };
 
   /* -----------------------------
@@ -143,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (data: LoginRequest) => {
     setLoading(true);
     try {
-      logAuthPayload("login", data as unknown as Record<string, unknown>);
+      logAuthPayload("login", data);
       const tokens: AuthTokens = await apiPost("/auth/login/", data);
       const res = await fetch(`${API_BASE}/auth/user/`, {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
@@ -174,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (data: RegisterRequest) => {
     setLoading(true);
     try {
-      logAuthPayload("register", data as unknown as Record<string, unknown>);
+      logAuthPayload("register", data);
       const tokens: AuthTokens = await apiPost("/auth/register/", data);
       const res = await fetch(`${API_BASE}/auth/user/`, {
         headers: { Authorization: `Bearer ${tokens.access_token}` },
@@ -222,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setAccessToken(null);
     setRefreshToken(null);
+    setRawUser(null);
   };
 
   /* -----------------------------
@@ -259,11 +259,21 @@ export function useAuth() {
 
 function normaliseUser(payload: unknown): User | null {
   if (!payload) return null;
+
   if (Array.isArray(payload)) {
     const first = payload[0];
     return first && typeof first === "object" ? (first as User) : null;
   }
-  if (typeof payload === "object") return payload as User;
+
+  if (typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    if (Array.isArray(obj.results)) {
+      const first = obj.results[0];
+      return first && typeof first === "object" ? (first as User) : null;
+    }
+    return payload as User;
+  }
+
   if (typeof payload === "string") {
     try {
       return normaliseUser(JSON.parse(payload));
@@ -271,5 +281,6 @@ function normaliseUser(payload: unknown): User | null {
       return null;
     }
   }
+
   return null;
 }

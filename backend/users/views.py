@@ -133,14 +133,7 @@ class FriendsViewset(ModelViewSet):
     pagination_class = DefaultPageNumberPagination
     
     def get_queryset(self):
-        return super().get_queryset().filter(user=self.request.user)
-    
-    def get_permissions(self):
-        if self.action in ['list', 'retrieve']:
-            self.permission_classes = [AllowAny]
-        else:
-            self.permission_classes = [IsAuthenticated]
-        return super().get_permissions()
+        return super().get_queryset().filter(user=self.request.user).order_by("-created_at")
     
     def destroy(self, request, *args, **kwargs):
         # Unfriend: delete reciprocal friendship rows
@@ -154,6 +147,34 @@ class FriendsViewset(ModelViewSet):
             Friends.objects.filter(user=request.user, friend=friend).delete()
             Friends.objects.filter(user=friend, friend=request.user).delete()
         return Response({"detail": "Friend removed."}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated], url_path='suggestions')
+    def suggestions(self, request):
+        user = request.user
+
+        friend_ids = Friends.objects.filter(user=user).values_list("friend_id", flat=True)
+        reverse_friend_ids = Friends.objects.filter(friend=user).values_list("user_id", flat=True)
+        sent_requests = FriendRequest.objects.filter(from_user=user).values_list("to_user_id", flat=True)
+        incoming_requests = FriendRequest.objects.filter(to_user=user).values_list("from_user_id", flat=True)
+        blocked_ids = BlockedUsers.objects.filter(user=user).values_list("blocked_user_id", flat=True)
+        blocked_me_ids = BlockedUsers.objects.filter(blocked_user=user).values_list("user_id", flat=True)
+
+        exclude_ids = (
+            set(friend_ids)
+            | set(reverse_friend_ids)
+            | set(sent_requests)
+            | set(incoming_requests)
+            | set(blocked_ids)
+            | set(blocked_me_ids)
+            | {user.id}
+        )
+
+        qs = User.objects.exclude(id__in=exclude_ids).order_by('-date_joined')
+
+        paginator = DefaultPageNumberPagination()
+        page = paginator.paginate_queryset(qs, request)
+        serializer = UserSerializer(page, many=True, context={"request": request})
+        return paginator.get_paginated_response(serializer.data)
     
 class FriendRequestViewset(ModelViewSet):
     queryset = FriendRequest.objects.all()
@@ -164,7 +185,7 @@ class FriendRequestViewset(ModelViewSet):
     
     def get_queryset(self):
         # return friend requests where the current user is either sender or recipient
-        qs = super().get_queryset().filter(Q(to_user=self.request.user) | Q(from_user=self.request.user))
+        qs = super().get_queryset().filter(Q(to_user=self.request.user) | Q(from_user=self.request.user)).order_by("-created_at")
         direction = self.request.query_params.get('direction')
         if direction == 'incoming':
             qs = qs.filter(to_user=self.request.user)
@@ -237,35 +258,6 @@ class UserSettingsView(APIView):
         return Response(serializer.data)
 
 
-class FriendSuggestionsView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        user = request.user
-
-        friend_ids = Friends.objects.filter(user=user).values_list("friend_id", flat=True)
-        reverse_friend_ids = Friends.objects.filter(friend=user).values_list("user_id", flat=True)
-        sent_requests = FriendRequest.objects.filter(from_user=user).values_list("to_user_id", flat=True)
-        incoming_requests = FriendRequest.objects.filter(to_user=user).values_list("from_user_id", flat=True)
-        blocked_ids = BlockedUsers.objects.filter(user=user).values_list("blocked_user_id", flat=True)
-        blocked_me_ids = BlockedUsers.objects.filter(blocked_user=user).values_list("user_id", flat=True)
-
-        exclude_ids = (
-            set(friend_ids)
-            | set(reverse_friend_ids)
-            | set(sent_requests)
-            | set(incoming_requests)
-            | set(blocked_ids)
-            | set(blocked_me_ids)
-            | {user.id}
-        )
-
-        qs = User.objects.exclude(id__in=exclude_ids).order_by('-date_joined')
-
-        paginator = DefaultPageNumberPagination()
-        page = paginator.paginate_queryset(qs, request)
-        serializer = UserSerializer(page, many=True, context={"request": request})
-        return paginator.get_paginated_response(serializer.data)
 
 
 class ProfilePictureUploadView(APIView):

@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from datetime import timedelta
 from pathlib import Path
 import os
+from decouple import config, Csv
 try:
     from dotenv import load_dotenv
     # load environment variables from .env if present
@@ -35,6 +36,7 @@ SECRET_KEY = "django-insecure-qr7)ec(b!*j8d(w_51s=+e)#1hmgv+bx-8(xph5*!xiox5j2vh
 DEBUG = True
 
 ALLOWED_HOSTS = []
+
 
 
 # Application definition
@@ -170,14 +172,10 @@ SPECTACULAR_SETTINGS = {
 
 # CORS - allow frontend origins during development
 # Add your frontend origins here (protocol + host + port)
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-]
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='', cast=Csv())
 
 # If your frontend needs to send cookies/auth credentials set this to True
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = config('CORS_ALLOW_CREDENTIALS', default=False, cast=bool)
 
 # Resend email provider integration
 # If you set RESEND_API_KEY in your environment, the project will use a small

@@ -20,13 +20,16 @@ class PostViewSet(ModelViewSet):
 	permission_classes = [IsAuthenticated]
 
 	def get_queryset(self):
-		# exclude soft-deleted posts, newest first, include related data
-		return (
-			Post.objects.filter(deleted_at__isnull=True)
-			.select_related("author")
-			.prefetch_related("comments__author", "media")
+		qs = (
+		Post.objects.filter(deleted_at__isnull=True)
+		.select_related("author")
+		.prefetch_related("comments__author", "comments__media", "media", "reactions__user")
 			.order_by("-created_at")
 		)
+		mine = self.request.query_params.get("mine")
+		if mine is not None and str(mine).lower() in ("1", "true", "yes"):
+			return qs.filter(author=self.request.user)
+		return qs
 
 	def perform_create(self, serializer):
 		serializer.save(author=self.request.user)
@@ -114,13 +117,13 @@ class NewsFeedView(APIView):
 
 		# build queryset: public posts OR user's own posts OR friends' posts with friends visibility
 		qs = (
-			Post.objects.filter(
-				Q(visibility='public') |
-				Q(author=user) |
-				Q(author__id__in=friend_ids, visibility='friends')
-			)
-			.select_related('author')
-			.prefetch_related('comments__author', 'media')
+		Post.objects.filter(
+			Q(visibility='public') |
+			Q(author=user) |
+			Q(author__id__in=friend_ids, visibility='friends')
+		)
+		.select_related('author')
+		.prefetch_related('comments__author', 'comments__media', 'media', 'reactions__user')
 		)
 
 		# exclude posts where either side has blocked the other

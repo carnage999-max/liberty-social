@@ -23,12 +23,19 @@ export function useProfile() {
       try {
         setLoading(true);
         setError(null);
-        const res = await apiGet<Profile | Profile[]>("/auth/user/", {
+        const res = await apiGet<Profile | Profile[] | { results?: Profile[] }>("/auth/user/", {
           token: accessToken,
           signal,
           cache: "no-store",
         });
-        const profile = Array.isArray(res) ? res[0] ?? null : res;
+        let profile: Profile | null = null;
+        if (Array.isArray(res)) {
+          profile = res[0] ?? null;
+        } else if (hasResults(res)) {
+          profile = res.results?.[0] ?? null;
+        } else if (res && typeof res === "object") {
+          profile = res as Profile;
+        }
         setData(profile);
       } catch (e: unknown) {
         if (typeof e === "object" && e && "name" in e && (e as { name: string }).name === "AbortError") {
@@ -59,4 +66,10 @@ export function useProfile() {
   }, [fetchProfile]);
 
   return { data, loading, error, refetch };
+}
+
+function hasResults(
+  payload: Profile | Profile[] | { results?: Profile[] }
+): payload is { results?: Profile[] } {
+  return typeof payload === "object" && payload !== null && "results" in payload;
 }

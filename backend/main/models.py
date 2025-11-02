@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericRelation
 
 
 class Post(models.Model):
@@ -17,6 +18,7 @@ class Post(models.Model):
 	visibility = models.CharField(max_length=10, choices=VISIBILITY, default='public')
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
+	reactions = GenericRelation('main.Reaction', related_query_name='post')
 
 	class Meta:
 		ordering = ['-created_at']
@@ -36,6 +38,15 @@ class Comment(models.Model):
 
 	def __str__(self):
 		return f"Comment {self.id} by {self.author} on Post {self.post_id}"
+
+
+class CommentMedia(models.Model):
+	comment = models.ForeignKey('main.Comment', on_delete=models.CASCADE, related_name='media')
+	url = models.URLField()
+	content_type = models.CharField(max_length=50, blank=True, null=True)
+
+	def __str__(self):
+		return f"Media for comment {self.comment_id}: {self.url}"
 
 
 class PostMedia(models.Model):

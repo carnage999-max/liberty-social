@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Post, Comment, Reaction, Notification, PostMedia, Bookmark
+from .models import Post, Comment, Reaction, Notification, PostMedia, Bookmark, CommentMedia
 
 
 @admin.register(Post)
@@ -30,6 +30,11 @@ class NotificationAdmin(admin.ModelAdmin):
 @admin.register(PostMedia)
 class PostMediaAdmin(admin.ModelAdmin):
 	list_display = ('id', 'post', 'url')
+
+
+@admin.register(CommentMedia)
+class CommentMediaAdmin(admin.ModelAdmin):
+	list_display = ('id', 'comment', 'url')
 
 
 @admin.register(Bookmark)

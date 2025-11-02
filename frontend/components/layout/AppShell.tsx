@@ -1,21 +1,105 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import ProfileCard from "@/components/profile/ProfileCard";
 import { useAuth } from "@/lib/auth-context";
-import { apiPost } from "@/lib/api";
+import { API_BASE, apiPost } from "@/lib/api";
 import type { Post, Visibility } from "@/lib/types";
 import { useToast } from "@/components/Toast";
 import Image from "next/image";
 
 const NAV_LINKS = [
-  { label: "Feed", href: "/app/feed" },
-  { label: "Friends", href: "/app/friends" },
-  { label: "Friend requests", href: "/app/friend-requests" },
-  { label: "Bookmarks", href: "/app/bookmarks" },
-  { label: "Notifications", href: "/app/notifications" },
-  { label: "Settings", href: "/app/settings" },
+  {
+    label: "Feed",
+    href: "/app/feed",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 4h6v6H4zM4 14h6v6H4zM14 4h6v6h-6zM14 14h6v6h-6z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "Friends",
+    href: "/app/friends",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0ZM20 8v6M23 11h-6"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "Friend requests",
+    href: "/app/friend-requests",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M16 3h5v5M21 3l-7 7M8 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8ZM3 21a5 5 0 0 1 10 0"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "Bookmarks",
+    href: "/app/bookmarks",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M6 3h12a1 1 0 0 1 1 1v16l-7-3-7 3V4a1 1 0 0 1 1-1Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "Notifications",
+    href: "/app/notifications",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "Settings",
+    href: "/app/settings",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
 ];
 
 type AppShellProps = {
@@ -29,6 +113,7 @@ export default function AppShell({ children }: AppShellProps) {
   const toast = useToast();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   const openCreateModal = useCallback(() => {
     setIsCreateModalOpen(true);
@@ -61,6 +146,16 @@ export default function AppShell({ children }: AppShellProps) {
 
   const closeNav = useCallback(() => setNavOpen(false), []);
   const lastPathRef = useRef<string>(pathname);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const updateIsDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    updateIsDesktop();
+    window.addEventListener("resize", updateIsDesktop);
+    return () => window.removeEventListener("resize", updateIsDesktop);
+  }, []);
 
   useEffect(() => {
     if (lastPathRef.current !== pathname) {
@@ -168,122 +263,147 @@ export default function AppShell({ children }: AppShellProps) {
                       <button
                         onClick={() => handleNavigate(link.href)}
                         className={[
-                          "flex w-full items-center justify-between rounded-lg px-3 py-2 transition",
+                          "group flex w-full items-center justify-between rounded-lg px-3 py-2 transition",
                           active
                             ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-sm"
                             : "bg-white text-[var(--color-primary)] hover:bg-[var(--metallic-silver)]/40",
                         ].join(" ")}
                       >
-                        <span>{link.label}</span>
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          className="text-[var(--color-primary)]"
-                        >
-                          <path
-                            d="M9 5l7 7-7 7"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
+                        <span className="flex items-center gap-2">
+                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] transition group-hover:bg-[var(--color-primary)]/15 group-hover:text-[var(--color-primary)]">
+                            {link.icon}
+                          </span>
+                          {link.label}
+                        </span>
                       </button>
                     </li>
                   );
                 })}
               </ul>
+              <div className="mt-5 border-t border-gray-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void logout();
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
+                >
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-500">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M15 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M10 17l5-5-5-5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M19 12h-9"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  Sign out
+                </button>
+              </div>
             </nav>
           </div>
         </div>
       )}
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pt-6 sm:px-6 lg:flex-row">
-        <aside className="hidden lg:block lg:w-64 lg:max-w-[260px]">
-          <div className="space-y-6 lg:sticky lg:top-28">
-            <ProfileCard />
-            <nav
-              aria-label="Primary"
-              className="space-y-4 rounded-[16px] bg-white/85 p-4 shadow-sm backdrop-blur-md"
-            >
-              <div>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Navigation
-                </p>
-                <ul className="space-y-2 text-sm font-medium text-[var(--color-primary)]">
-                  {NAV_LINKS.map((link) => {
-                    const active = pathname?.startsWith(link.href);
-                    return (
-                      <li key={link.href}>
-                        <button
-                          onClick={() => handleNavigate(link.href)}
-                          className={[
-                            "flex w-full items-center justify-between rounded-lg px-3 py-2 transition",
-                            active
-                              ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-sm"
-                              : "hover:bg-[var(--metallic-silver)]/60",
-                          ].join(" ")}
-                        >
-                          <span>{link.label}</span>
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            className="text-[var(--color-primary)]"
-                          >
-                            <path
-                              d="M9 5l7 7-7 7"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-              <button
-                onClick={() => {
-                  void logout();
-                }}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-[12px] bg-gradient-to-r from-rose-500 to-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+        {isDesktop && (
+          <aside className="hidden lg:block lg:w-64 lg:max-w-[260px]">
+            <div className="space-y-6 lg:sticky lg:top-28">
+              <ProfileCard />
+              <nav
+                aria-label="Primary"
+                className="space-y-4 rounded-[16px] bg-white/85 p-4 shadow-sm backdrop-blur-md"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M15 3H6a2 2 0 00-2 2v14a2 2 0 002 2h9"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M10 17l5-5-5-5"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M19 12h-9"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                Sign out
-              </button>
-            </nav>
-          </div>
-        </aside>
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Navigation
+                  </p>
+                  <ul className="space-y-2 text-sm font-medium text-[var(--color-primary)]">
+                    {NAV_LINKS.map((link) => {
+                      const active = pathname?.startsWith(link.href);
+                      return (
+                        <li key={link.href}>
+                          <button
+                            onClick={() => handleNavigate(link.href)}
+                            className={[
+                              "group flex w-full items-center justify-between rounded-lg px-3 py-2 transition",
+                              active
+                                ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-sm"
+                                : "hover:bg-[var(--metallic-silver)]/60",
+                            ].join(" ")}
+                          >
+                            <span className="flex items-center gap-2 text-[var(--color-primary)]">
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] transition group-hover:bg-[var(--color-primary)]/20">
+                                {link.icon}
+                              </span>
+                              {link.label}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+                <button
+                  onClick={() => {
+                    void logout();
+                  }}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-[12px] bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 shadow-sm transition hover:bg-rose-100"
+                >
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-500">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M15 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M10 17l5-5-5-5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M19 12h-9"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  Sign out
+                </button>
+              </nav>
+            </div>
+          </aside>
+        )}
 
         <main className="flex-1 min-w-0">
+          {!isDesktop && (
+            <div className="mb-6 lg:hidden">
+              <ProfileCard className="items-start text-left sm:items-center sm:text-center" />
+            </div>
+          )}
           <CreatePostToolbar onOpen={openCreateModal} />
           <div className="mt-4 sm:mt-6">{children}</div>
         </main>
@@ -343,11 +463,14 @@ function CreatePostModal({
   onCreated: (post: Post) => void;
   onError: (message: string) => void;
 }) {
+  type MediaItem = { file: File; preview: string };
+  const MAX_MEDIA_ITEMS = 6;
   const [content, setContent] = useState("");
   const [visibility, setVisibility] = useState<Visibility>("public");
-  const [mediaInput, setMediaInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -359,8 +482,11 @@ function CreatePostModal({
   }, [open]);
 
   const resetForm = () => {
+    setMediaItems((prev) => {
+      prev.forEach((item) => URL.revokeObjectURL(item.preview));
+      return [];
+    });
     setContent("");
-    setMediaInput("");
     setVisibility("public");
     setError(null);
   };
@@ -369,6 +495,54 @@ function CreatePostModal({
     if (submitting) return;
     resetForm();
     onClose();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleSelectMedia = () => {
+    if (!accessToken) {
+      const message = "You need to sign in to attach media.";
+      setError(message);
+      onError(message);
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleFilesAdded = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    if (!files.length) return;
+    setError(null);
+    const existing = mediaItems.length;
+    const remaining = MAX_MEDIA_ITEMS - existing;
+    if (remaining <= 0) {
+      const message = `You can attach up to ${MAX_MEDIA_ITEMS} images per post.`;
+      setError(message);
+      onError(message);
+      event.target.value = "";
+      return;
+    }
+    const accepted = files.slice(0, remaining);
+    const nextItems = accepted.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setMediaItems((prev) => [...prev, ...nextItems]);
+    if (files.length > remaining) {
+      onError(`Only the first ${remaining} image${remaining === 1 ? "" : "s"} were attached.`);
+    }
+    event.target.value = "";
+  };
+
+  const handleRemoveMedia = (preview: string) => {
+    setMediaItems((prev) => {
+      const target = prev.find((item) => item.preview === preview);
+      if (target) {
+        URL.revokeObjectURL(target.preview);
+      }
+      return prev.filter((item) => item.preview !== preview);
+    });
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -380,26 +554,56 @@ function CreatePostModal({
       onError(message);
       return;
     }
-    if (!content.trim()) {
+    const trimmedContent = content.trim();
+    if (!trimmedContent) {
       setError("Share something before posting.");
       return;
     }
 
     const payload: Record<string, unknown> = {
-      content: content.trim(),
+      content: trimmedContent,
       visibility,
     };
-    const mediaUrls = mediaInput
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-    if (mediaUrls.length > 0) {
-      payload.media_urls = mediaUrls;
-    }
 
     try {
       setSubmitting(true);
       setError(null);
+      if (mediaItems.length > 0) {
+        const formData = new FormData();
+        mediaItems.forEach(({ file }) => formData.append("files", file));
+
+        let uploadResponse: Response;
+        try {
+          uploadResponse = await fetch(`${API_BASE}/uploads/images/`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: formData,
+          });
+        } catch (err) {
+          throw new Error("Unable to upload media right now. Please try again.");
+        }
+
+        const uploadData = await uploadResponse.json().catch(() => null);
+        if (!uploadResponse.ok || !uploadData) {
+          const message =
+            (uploadData && (uploadData.detail || uploadData.message)) ||
+            "We couldn't upload your media. Please try again.";
+          throw new Error(message);
+        }
+
+        const urls = Array.isArray(uploadData.urls)
+          ? uploadData.urls
+          : uploadData.url
+          ? [uploadData.url]
+          : [];
+        if (!urls.length) {
+          throw new Error("Upload succeeded without media URLs. Please retry.");
+        }
+        payload.media_urls = urls;
+      }
+
       const created = (await apiPost("/posts/", payload, {
         token: accessToken,
         cache: "no-store",
@@ -407,6 +611,9 @@ function CreatePostModal({
       resetForm();
       onClose();
       onCreated(created);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (err) {
       console.error("Failed to create post:", err);
       const message =
@@ -459,6 +666,96 @@ function CreatePostModal({
             />
           </label>
 
+          <div className="flex flex-col text-sm font-medium text-gray-700">
+            <span className="mb-2">Media</span>
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-4">
+              {mediaItems.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 text-center text-gray-500">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M3 5h18M3 19h18M3 5l4 7 4-4 4 6 4-5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <p className="text-sm">
+                    Add up to {MAX_MEDIA_ITEMS} images. They&apos;ll upload securely to Liberty Social.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSelectMedia}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white shadow transition hover:opacity-90"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M12 5v14M5 12h14"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    Upload images
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                    {mediaItems.map((item) => (
+                      <div key={item.preview} className="group relative aspect-square overflow-hidden rounded-lg bg-white shadow-sm">
+                        <img src={item.preview} alt="Selected media" className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMedia(item.preview)}
+                          className="absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100"
+                          aria-label="Remove image"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path
+                              d="M6 6l12 12M6 18L18 6"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                    {mediaItems.length < MAX_MEDIA_ITEMS && (
+                      <button
+                        type="button"
+                        onClick={handleSelectMedia}
+                        className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white text-sm text-gray-500 transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                          <path
+                            d="M12 5v14M5 12h14"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        Add more
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    JPEG, PNG, or GIF files. Max {MAX_MEDIA_ITEMS} per post.
+                  </p>
+                </div>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleFilesAdded}
+            />
+          </div>
+
           <label className="flex flex-col text-sm font-medium text-gray-700">
             <span className="mb-2">Who can see this?</span>
             <select
@@ -470,19 +767,6 @@ function CreatePostModal({
               <option value="friends">Friends</option>
               <option value="only_me">Only me</option>
             </select>
-          </label>
-
-          <label className="flex flex-col text-sm font-medium text-gray-700">
-            <span className="mb-2">Media URLs (optional)</span>
-            <input
-              value={mediaInput}
-              onChange={(e) => setMediaInput(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-              placeholder="Paste image URLs separated by commas"
-            />
-            <span className="mt-2 text-xs text-gray-500">
-              Example: https://example.com/photo.jpg, https://example.com/clip.mp4
-            </span>
           </label>
 
           {error && (
