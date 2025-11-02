@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
+    "whitenoise.runserver_nostatic",
     "django.contrib.messages",
     "django.contrib.staticfiles",
     
@@ -63,6 +64,7 @@ MIDDLEWARE = [
     # CorsMiddleware should be as high as possible
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -185,3 +187,7 @@ CORS_ALLOW_CREDENTIALS = config('CORS_ALLOW_CREDENTIALS', default=False, cast=bo
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
 if RESEND_API_KEY:
     EMAIL_BACKEND = 'liberty_social.email_backends.ResendEmailBackend'
+
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
