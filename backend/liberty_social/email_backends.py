@@ -1,5 +1,6 @@
 import requests
 import os
+from decouple import config
 from django.core.mail.backends.base import BaseEmailBackend
 
 
@@ -15,7 +16,7 @@ class ResendEmailBackend(BaseEmailBackend):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.api_key = os.environ.get('RESEND_API_KEY')
+        self.api_key = config('RESEND_API_KEY')
 
     def send_messages(self, email_messages):
         if not email_messages:
@@ -33,7 +34,7 @@ class ResendEmailBackend(BaseEmailBackend):
                 continue
 
             payload = {
-                'from': os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@example.com'),
+                'from': config('DEFAULT_FROM_EMAIL', 'no-reply@nathanreardon.com'),
                 'to': tos,
                 'subject': message.subject or '',
                 # Resend accepts html; if message.content_subtype == 'html' prefer that

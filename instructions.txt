@@ -1,0 +1,76 @@
+AWS App Runner Deployment Guide
+================================
+
+Prerequisites
+-------------
+- AWS CLI v2 installed and configured (`aws configure`) with permissions for App Runner, IAM, and Secrets Manager.
+- GitHub repository containing this backend (main branch holds production code).
+- A PostgreSQL database provisioned (RDS or compatible service). Update the connection string before deploying.
+- Access to the Liberty Social repository on your machine (`/home/binary/Desktop/liberty-social`).
+
+1. Prepare Environment Variables
+--------------------------------
+Create an `.env.production` file for the backend with the production values. At minimum you need:
+
+```
+DJANGO_SETTINGS_MODULE=liberty_social.settings
+DJANGO_SECRET_KEY=<secure-random-string>
+DJANGO_DEBUG=False
+DATABASE_URL=<production-postgres-uri>
+AWS_ACCESS_KEY_ID=<s3-key>
+AWS_SECRET_ACCESS_KEY=<s3-secret>
+AWS_STORAGE_BUCKET_NAME=<bucket>
+AWS_REGION=<bucket-region>
+AWS_S3_CUSTOM_DOMAIN=<optional-custom-domain>
+ALLOWED_HOSTS=*
+CORS_ALLOWED_ORIGINS=https://your-frontend-domain
+```
+
+Later, you will upload this file to AWS Secrets Manager so App Runner can load it.
+
+2. Store Environment Variables in Secrets Manager
+-------------------------------------------------
+```
+aws secretsmanager create-secret   --name liberty-social-backend-env   --secret-string file://backend/.env.production
+```
+
+3. Connect GitHub and Create App Runner Service
+-----------------------------------------------
+Use the AWS Console:
+
+1. Navigate to **App Runner > Services > Create service**.
+2. Deployment source: choose **Source code repository** → **GitHub**. Authorize App Runner if prompted, then select this repository and the branch to deploy (e.g. `main`).
+3. Build configuration:
+   - Runtime: **Python 3.11**.
+   - Build command: `python -m venv .venv && source .venv/bin/activate && pip install --no-cache-dir -r requirements.txt`
+   - Start command: `bash -c "source .venv/bin/activate && python manage.py migrate && python manage.py collectstatic --noinput && gunicorn liberty_social.wsgi:application --bind 0.0.0.0:8000 --workers 3"`
+   - Working directory: `backend`
+4. Service settings:
+   - Service name: `liberty-social-backend`.
+   - CPU & memory: e.g. `1 vCPU / 2 GB`.
+   - Port: `8000`.
+5. Environment variables:
+   - In the “Environment variables” section choose **Add from AWS Secrets Manager** and select `liberty-social-backend-env` created earlier.
+6. Health check path: `/health/` (add a simple Django health view or use an existing endpoint).
+7. Auto scaling & observability: optionally enable CloudWatch Logs and adjust concurrency.
+8. Review and create the service. Enable automatic deployments so App Runner rebuilds when new commits land.
+
+4. Verify Database Migrations
+-----------------------------
+Because the start command runs `python manage.py migrate` and `collectstatic`, migrations and static collection occur on every deployment. After the first deployment completes, confirm in CloudWatch logs that migrations executed successfully. If you prefer to run them manually, you can still trigger a one-off command from **Service > Actions > Run command** with the same commands.
+
+5. (Optional) Configure a Custom Domain and HTTPS
+------------------------------------------------
+- In App Runner service page, choose **Custom domain**.
+- Add your domain, create the required CNAME records in Route 53 (or your DNS provider), and enable HTTPS certificate validation.
+
+6. Update Frontend Environment
+------------------------------
+- Set `NEXT_PUBLIC_API_BASE_URL` in the frontend to the App Runner default domain or custom domain: `https://<app-runner-domain>/api`.
+- Redeploy the frontend with the new API base URL.
+
+Troubleshooting Tips
+--------------------
+- Use CloudWatch logs for App Runner to debug boot or runtime errors.
+- Ensure the database security group allows inbound connections from App Runner (App Runner uses AWS-managed VPC endpoints or a custom VPC connector).
+- If media uploads fail, verify AWS credentials and bucket policies attached to the role used by App Runner.
