@@ -42,8 +42,8 @@ Use the AWS Console:
 2. Deployment source: choose **Source code repository** → **GitHub**. Authorize App Runner if prompted, then select this repository and the branch to deploy (e.g. `main`).
 3. Build configuration:
    - Runtime: **Python 3.11**.
-   - Build command: `python -m venv .venv && source .venv/bin/activate && pip install --no-cache-dir -r requirements.txt`
-   - Start command: `bash -c "source .venv/bin/activate && python manage.py migrate && python manage.py collectstatic --noinput && gunicorn liberty_social.wsgi:application --bind 0.0.0.0:8000 --workers 3"`
+   - Build command: `python3.11 -m pip install --upgrade pip && python3.11 -m pip install --no-cache-dir -r requirements.txt`
+   - Start command: `bash -c "python3.11 manage.py migrate && python3.11 manage.py collectstatic --noinput && gunicorn liberty_social.wsgi:application --bind 0.0.0.0:8000 --workers 3"`
    - Working directory: `backend`
 4. Service settings:
    - Service name: `liberty-social-backend`.
@@ -57,7 +57,7 @@ Use the AWS Console:
 
 4. Verify Database Migrations
 -----------------------------
-Because the start command runs `python manage.py migrate` and `collectstatic`, migrations and static collection occur on every deployment. After the first deployment completes, confirm in CloudWatch logs that migrations executed successfully. If you prefer to run them manually, you can still trigger a one-off command from **Service > Actions > Run command** with the same commands.
+Because the start command runs `python3.11 manage.py migrate` and `collectstatic`, migrations and static collection occur on every deployment. After the first deployment completes, confirm in CloudWatch logs that migrations executed successfully. If you prefer to run them manually, you can still trigger a one-off command from **Service > Actions > Run command** with the same commands.
 
 5. (Optional) Configure a Custom Domain and HTTPS
 ------------------------------------------------
