@@ -14,7 +14,9 @@ import {
   Alert,
   ActionSheetIOS,
   Animated,
+  FlatList,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -121,6 +123,11 @@ export default function PostDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [reactionPending, setReactionPending] = useState(false);
   const [commentSort, setCommentSort] = useState<CommentSort>('recent');
+  const [replyingToCommentId, setReplyingToCommentId] = useState<number | null>(null);
+  const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
+  const [replySubmitting, setReplySubmitting] = useState<Record<number, boolean>>({});
+  const [expandedReplies, setExpandedReplies] = useState<number[]>([]);
+  const [commentMedias, setCommentMedias] = useState<Record<number | 'new', Array<{ formData: FormData; uri: string }>>>({ new: [] });
   const likeAnimation = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -140,27 +147,68 @@ export default function PostDetailScreen() {
   };
 
   const handleSubmitComment = async () => {
-    if (!commentText.trim() || !post) return;
+    if (!post) return;
+    const hasText = commentText.trim();
+    const hasAttachments = commentMedias.new && commentMedias.new.length > 0;
+    if (!hasText && !hasAttachments) return;
 
     setSubmitting(true);
     try {
-      const comment = await apiClient.post<Comment>('/comments/', {
-        post: post.id,
-        content: commentText.trim(),
-      });
-      setPost((prev) => ({
-        ...prev!,
-        comments: [...(prev?.comments || []), comment],
-      }));
+      const hasAttachments = commentMedias.new && commentMedias.new.length > 0;
+      let comment: Comment;
+
+      if (hasAttachments) {
+        const formData = new FormData();
+        formData.append('post', String(post.id));
+        formData.append('content', commentText.trim());
+        commentMedias.new.forEach((media) => {
+          const file = media.formData.get('file');
+          if (file) formData.append('media', file as any);
+        });
+
+        comment = await apiClient.postFormData<Comment>('/comments/', formData);
+      } else {
+        comment = await apiClient.post<Comment>('/comments/', {
+          post: post.id,
+          content: commentText.trim(),
+        });
+      }
+      const normalizedComment: Comment = {
+        ...comment,
+        reactions: comment.reactions ?? [],
+        replies: comment.replies ?? [],
+        replies_count: comment.replies_count ?? comment.replies?.length ?? 0,
+      };
+      
+      setPost((prev) =>
+        prev
+          ? ensureNormalizedPost({
+              ...(prev as Post),
+              comments: [...(prev.comments || []), normalizedComment],
+            })
+          : prev
+      );
       setCommentText('');
+      setCommentMedias(prev => ({ ...prev, new: [] }));
     } catch (error) {
       console.error('Error posting comment:', error);
+      Alert.alert('Error', 'Failed to post comment. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const commentCount = post?.comments?.length ?? 0;
+  const totalComments = useMemo((): string => {
+    if (!post?.comments) {
+      return '0';
+    }
+    const countAll = (items: Comment[]): number =>
+      items.reduce(
+        (total, item) => total + 1 + (item.replies && item.replies.length > 0 ? countAll(item.replies) : 0),
+        0
+      );
+    return String(countAll(post.comments));
+  }, [post?.comments]);
 
   const sortedComments = useMemo(() => {
     if (!post?.comments) {
@@ -261,14 +309,138 @@ export default function PostDetailScreen() {
     [likeAnimation]
   );
 
-  const handleToggleReaction = useCallback(async () => {
+  const handleToggleReaction = useCallback(async (commentId?: number) => {
     if (!post || !user || reactionPending) {
       if (!user) {
-        Alert.alert('Sign in required', 'Please sign in to react to posts.');
+        Alert.alert('Sign in required', 'Please sign in to react.');
       }
       return;
     }
 
+    if (commentId !== undefined) {
+      // Handle comment reaction
+      let targetComment: Comment | undefined;
+      let parentComment: Comment | undefined;
+      let isReply = false;
+
+      // Find the comment and determine if it's a reply
+      for (const comment of post.comments || []) {
+        if (comment.id === commentId) {
+          targetComment = comment;
+          break;
+        }
+        const reply = (comment.replies || []).find((r) => r.id === commentId);
+        if (reply) {
+          targetComment = reply;
+          parentComment = comment;
+          isReply = true;
+          break;
+        }
+      }
+
+      if (!targetComment) return;
+
+      const existingReaction = (targetComment.reactions || []).find(
+        (reaction) => reaction.user?.id === user.id && reaction.reaction_type === 'like'
+      );
+
+      setReactionPending(true);
+      const previousPost = post;
+
+      // Optimistic update
+      setPost((prev) => {
+        if (!prev) return prev;
+        const updateComment = (comment: Comment): Comment => ({
+          ...comment,
+          reactions: existingReaction
+            ? (comment.reactions || []).filter((r) => r.id !== existingReaction.id)
+            : [
+                ...(comment.reactions || []),
+                {
+                  id: -Math.floor(Math.random() * 1_000_000) - 1,
+                  reaction_type: 'like',
+                  created_at: new Date().toISOString(),
+                  user,
+                } as Reaction,
+              ],
+        });
+
+        const updateComments = (comments: Comment[]): Comment[] =>
+          comments.map((c) => {
+            if (c.id === commentId) {
+              return updateComment(c);
+            }
+            if (c.replies) {
+              return {
+                ...c,
+                replies: c.replies.map((r) =>
+                  r.id === commentId ? updateComment(r) : r
+                ),
+              };
+            }
+            return c;
+          });
+
+        return {
+          ...prev,
+          comments: updateComments(prev.comments || []),
+        };
+      });
+
+      try {
+        if (existingReaction) {
+          await apiClient.delete(`/reactions/${existingReaction.id}/`);
+        } else {
+          const savedReaction = await apiClient.post<Reaction>('/reactions/', {
+            comment: commentId,
+            reaction_type: 'like',
+          });
+          // Update with the real reaction data
+          setPost((prev) => {
+            if (!prev) return prev;
+            const updateComment = (comment: Comment): Comment => ({
+              ...comment,
+              reactions: [
+                ...(comment.reactions || []).filter((r) => 
+                  !(r.user?.id === user.id && r.reaction_type === 'like')
+                ),
+                savedReaction,
+              ],
+            });
+
+            const updateComments = (comments: Comment[]): Comment[] =>
+              comments.map((c) => {
+                if (c.id === commentId) {
+                  return updateComment(c);
+                }
+                if (c.replies) {
+                  return {
+                    ...c,
+                    replies: c.replies.map((r) =>
+                      r.id === commentId ? updateComment(r) : r
+                    ),
+                  };
+                }
+                return c;
+              });
+
+            return {
+              ...prev,
+              comments: updateComments(prev.comments || []),
+            };
+          });
+        }
+      } catch (error) {
+        console.error('Error updating reaction:', error);
+        Alert.alert('Unable to react', 'Please try again later.');
+        setPost(previousPost);
+      } finally {
+        setReactionPending(false);
+      }
+      return;
+    }
+
+    // Handle post reaction
     const existingReaction = (post.reactions || []).find(
       (reaction) => reaction.user?.id === user.id && reaction.reaction_type === 'like'
     );
@@ -348,46 +520,305 @@ export default function PostDetailScreen() {
     router.back();
   }, [router]);
 
-  const handleAddAttachment = useCallback(() => {
-    Alert.alert('Coming soon', 'Image and GIF attachments are coming soon.');
+  const handleToggleReplies = useCallback((commentId: number) => {
+    setExpandedReplies((prev) =>
+      prev.includes(commentId) ? prev.filter((id) => id !== commentId) : [...prev, commentId]
+    );
   }, []);
 
-  const renderCommentComposer = useCallback(() => (
-    <View style={styles.commentInputContainer}>
-      <TouchableOpacity
-        style={styles.commentAttachmentButton}
-        onPress={handleAddAttachment}
-        accessibilityLabel="Add media"
-      >
-        <Ionicons name="add-outline" size={20} color={colors.primary} />
-      </TouchableOpacity>
-      <TextInput
-        style={styles.commentInput}
-        placeholder="Write a comment..."
-        placeholderTextColor={colors.textSecondary}
-        value={commentText}
-        onChangeText={setCommentText}
-        multiline
-      />
-      <TouchableOpacity
-        style={[styles.commentSendButton, submitting || !commentText.trim() ? styles.commentSendDisabled : null]}
-        onPress={handleSubmitComment}
-        disabled={submitting || !commentText.trim()}
-      >
-        {submitting ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <Ionicons name="send" size={18} color="#FFFFFF" />
-        )}
-      </TouchableOpacity>
-    </View>
-  ), [colors.primary, colors.textSecondary, commentText, submitting, handleAddAttachment, handleSubmitComment]);
+  const handleStartReply = useCallback(
+    (commentId: number) => {
+      if (!user) {
+        Alert.alert('Sign in required', 'Please sign in to reply to comments.');
+        return;
+      }
+      // Only allow replying to top-level comments
+      const comment = post?.comments?.find(c => c.id === commentId);
+      if (!comment) {
+        return;
+      }
+      setReplyingToCommentId(commentId);
+      setReplyDrafts((prev) => {
+        if (prev[commentId] !== undefined) {
+          return prev;
+        }
+        return { ...prev, [commentId]: '' };
+      });
+      setExpandedReplies((prev) => (prev.includes(commentId) ? prev : [...prev, commentId]));
+    },
+    [user, post]
+  );
 
-  const renderComment = (comment: Comment, depth = 0) => {
+  const handleCancelReply = useCallback((commentId: number) => {
+    setReplyingToCommentId((prev) => (prev === commentId ? null : prev));
+    setReplyDrafts((prev) => {
+      if (prev[commentId] === undefined) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[commentId];
+      return next;
+    });
+    setReplySubmitting((prev) => {
+      if (prev[commentId] === undefined) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[commentId];
+      return next;
+    });
+  }, []);
+
+  const handleSubmitReply = useCallback(
+    async (parentCommentId: number) => {
+      if (!post) {
+        return;
+      }
+      if (!user) {
+        Alert.alert('Sign in required', 'Please sign in to reply to comments.');
+        return;
+      }
+      const draft = (replyDrafts[parentCommentId] || '').trim();
+      const hasAttachments = (commentMedias[parentCommentId] || []).length > 0;
+      if (!draft && !hasAttachments) {
+        Alert.alert('Add a reply', 'Share a thought before sending your reply.');
+        return;
+      }
+      if (replySubmitting[parentCommentId]) {
+        return;
+      }
+
+      setReplySubmitting((prev) => ({ ...prev, [parentCommentId]: true }));
+      try {
+        let created: Comment;
+
+        const attachments = commentMedias[parentCommentId] || [];
+        if (attachments.length > 0) {
+          const formData = new FormData();
+          formData.append('post', String(post.id));
+          formData.append('parent', String(parentCommentId));
+          formData.append('content', draft);
+
+          attachments.forEach((m) => {
+            const file = m.formData.get('file');
+            if (file) formData.append('media', file);
+          });
+
+          const response = await fetch(`${API_BASE}/comments/`, {
+            method: 'POST',
+            body: formData,
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          if (!response.ok) throw new Error('Failed to create reply');
+          created = await response.json();
+        } else {
+          created = await apiClient.post<Comment>('/comments/', {
+            post: post.id,
+            parent: parentCommentId,
+            content: draft,
+            media_urls: [],
+          });
+        }
+
+        const normalizedReply: Comment = {
+          ...created,
+          reactions: created.reactions ?? [],
+          replies: created.replies ?? [],
+          replies_count: created.replies_count ?? created.replies?.length ?? 0,
+        };
+        setPost((prev) => {
+          if (!prev) {
+            return prev;
+          }
+          const appendReply = (comments: Comment[]): Comment[] =>
+            comments.map((item) => {
+              if (item.id === parentCommentId) {
+                const existingReplies = item.replies ?? [];
+                return {
+                  ...item,
+                  replies: [...existingReplies, normalizedReply],
+                  replies_count: (item.replies_count ?? existingReplies.length) + 1,
+                };
+              }
+              if (item.replies && item.replies.length > 0) {
+                return {
+                  ...item,
+                  replies: appendReply(item.replies),
+                };
+              }
+              return item;
+            });
+          return ensureNormalizedPost({
+            ...(prev as Post),
+            comments: appendReply(prev.comments || []),
+          });
+        });
+        setExpandedReplies((prev) => (prev.includes(parentCommentId) ? prev : [...prev, parentCommentId]));
+        setCommentMedias(prev => {
+          const next = { ...prev };
+          delete next[parentCommentId];
+          return next;
+        });
+        handleCancelReply(parentCommentId);
+      } catch (error) {
+        console.error('Error posting reply:', error);
+        Alert.alert('Unable to reply', 'Please try again later.');
+      } finally {
+        setReplySubmitting((prev) => {
+          if (prev[parentCommentId] === undefined) {
+            return prev;
+          }
+          const next = { ...prev };
+          delete next[parentCommentId];
+          return next;
+        });
+      }
+    },
+    [post, replyDrafts, replySubmitting, user, handleCancelReply]
+  );
+
+  const handleAddAttachment = useCallback(async (commentId: number | 'new' = 'new') => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please grant camera roll permissions to add images.');
+        return;
+      }
+
+      // Use the new ImagePicker.MediaType when available, fall back to MediaTypeOptions for older SDKs.
+      // Cast to any to avoid TypeScript issues across different expo-image-picker versions.
+      // Prefer the new MediaType enum when available. If it's not present
+      // avoid passing the deprecated MediaTypeOptions to prevent the deprecation warning.
+      const mediaTypesOption: any = (ImagePicker as any).MediaType
+        ? [(ImagePicker as any).MediaType.Images]
+        : undefined;
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: mediaTypesOption,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        // Ensure we only accept images. Different SDKs expose different fields.
+        const isImage = (asset as any).type === 'image' || (asset as any).mediaType === 'image' || /\.(jpe?g|png|gif|webp)$/i.test(asset.uri || '');
+        if (!isImage) {
+          Alert.alert('Only images supported', 'Please select an image file.');
+          return;
+        }
+        const formData = new FormData();
+        const file = {
+          uri: asset.uri,
+          type: 'image/jpeg',
+          name: 'upload.jpg',
+        } as any;
+        formData.append('file', file);
+
+        setCommentMedias((prev) => {
+          // sanitize keys: keep only 'new' and numeric keys
+          const safePrev: Record<number | 'new', Array<{ formData: FormData; uri: string }>> = {
+            new: (prev as any).new || [],
+          };
+          Object.keys(prev || {}).forEach((k) => {
+            if (/^\d+$/.test(k)) {
+              // numeric key
+              (safePrev as any)[k] = (prev as any)[k];
+            }
+          });
+
+          const key = String(commentId);
+          const existing = (safePrev as any)[key] || [];
+          const next: Record<number | 'new', Array<{ formData: FormData; uri: string }>> = {
+            ...(safePrev as any),
+            [key]: [...existing, { formData, uri: asset.uri }],
+          } as any;
+          console.log('Added media, next commentMedias:', next);
+          return next;
+        });
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  }, []);
+
+  const renderCommentComposer = useCallback((): React.ReactElement => (
+    <View>
+      <View style={styles.commentInputContainer}>
+        <TouchableOpacity
+          style={styles.commentAttachmentButton}
+          onPress={() => handleAddAttachment('new')}
+          accessibilityLabel="Add media"
+        >
+          <Ionicons name="add-outline" size={20} color={colors.primary} />
+        </TouchableOpacity>
+        <TextInput
+          style={styles.commentInput}
+          placeholder="Write a comment..."
+          placeholderTextColor={colors.textSecondary}
+          value={commentText}
+          onChangeText={setCommentText}
+          multiline
+        />
+        <TouchableOpacity
+          style={[styles.commentSendButton, (submitting || (!(commentText.trim()) && !(commentMedias.new && commentMedias.new.length > 0))) ? styles.commentSendDisabled : null]}
+          onPress={handleSubmitComment}
+          disabled={submitting || (!(commentText.trim()) && !(commentMedias.new && commentMedias.new.length > 0))}
+        >
+          {submitting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Ionicons name="send" size={18} color="#FFFFFF" />
+          )}
+        </TouchableOpacity>
+      </View>
+      {commentMedias.new && commentMedias.new.length > 0 && (
+        <ScrollView 
+          horizontal 
+          style={styles.mediaPreviewContainer}
+          showsHorizontalScrollIndicator={false}
+        >
+          {commentMedias.new.map((media, index) => (
+            <View key={index} style={styles.mediaPreviewWrapper}>
+              <Image
+                source={{ uri: media.uri }}
+                style={styles.mediaPreview}
+              />
+              <TouchableOpacity
+                style={styles.removeMediaButton}
+                onPress={() => {
+                  setCommentMedias(prev => ({
+                    ...prev,
+                    new: prev.new.filter((_, i) => i !== index)
+                  }));
+                }}
+              >
+                <Ionicons name="close-circle" size={20} color="#FF4D4D" />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </View>
+  ), [colors.primary, colors.textSecondary, commentText, submitting, handleAddAttachment, handleSubmitComment, commentMedias]);
+
+    const renderComment = (comment: Comment, depth = 0): React.ReactElement | null => {
+    if (!comment) return null;
+    
     const displayName = buildDisplayName(comment.author);
     const avatarSource: ImageSourcePropType = resolveRemoteUrl(comment.author.profile_image_url)
       ? { uri: resolveRemoteUrl(comment.author.profile_image_url)! }
       : DEFAULT_AVATAR;
+    
+    const commentLikedByUser = (comment.reactions || []).some(
+      (reaction) => reaction.user?.id === user?.id && reaction.reaction_type === 'like'
+    );
+    const commentLikeCount = (comment.reactions || []).filter(
+      (reaction) => reaction.reaction_type === 'like'
+    ).length;
+
+    const isTopLevelComment = depth === 0;
 
     return (
       <View
@@ -405,12 +836,157 @@ export default function PostDetailScreen() {
         <View style={styles.commentContent}>
           <Text style={[styles.commentAuthor, { color: colors.text }]}>{displayName}</Text>
           <Text style={[styles.commentText, { color: colors.text }]}>{comment.content}</Text>
-          <Text style={[styles.commentTime, { color: colors.textSecondary }]}>
-            {new Date(comment.created_at).toLocaleString()}
-          </Text>
-          {comment.replies && comment.replies.length > 0 && (
-            <View style={styles.repliesContainer}>
-              {comment.replies.map((reply) => renderComment(reply, depth + 1))}
+          {comment.media && comment.media.length > 0 && (
+            <View style={styles.commentMediaGrid}>
+              {comment.media.map((url, index) => (
+                <Image
+                  key={`comment-media-${index}`}
+                  source={{ uri: url }}
+                  style={styles.commentMediaImage}
+                  resizeMode="cover"
+                />
+              ))}
+            </View>
+          )}
+          {/* Show thumbnails for images attached to replies so images on replies are visible
+              in the parent comment area (useful when replies are collapsed). */}
+          {isTopLevelComment && comment.replies && comment.replies.length > 0 && (() => {
+            const replyMedia: string[] = [];
+            comment.replies.forEach((r) => {
+              if (r.media && r.media.length > 0) {
+                replyMedia.push(...r.media);
+              }
+            });
+            if (replyMedia.length === 0) return null;
+            const preview = replyMedia.slice(0, 3);
+            return (
+              <View style={styles.replySummaryContainer}>
+                {preview.map((uri, i) => (
+                  <Image key={`reply-summary-${i}`} source={{ uri }} style={styles.replySummaryImage} />
+                ))}
+                {replyMedia.length > preview.length && (
+                  <View style={styles.replySummaryMore}>
+                    <Text style={styles.replySummaryMoreText}>+{replyMedia.length - preview.length}</Text>
+                  </View>
+                )}
+              </View>
+            );
+          })()}
+          <View style={styles.commentActions}>
+            <View>
+              <TouchableOpacity
+                style={styles.commentActionButton}
+                onPress={() => handleToggleReaction(comment.id)}
+                disabled={reactionPending}
+              >
+                <Ionicons
+                  name={commentLikedByUser ? 'heart' : 'heart-outline'}
+                  size={18}
+                  color={commentLikedByUser ? '#FF4D6D' : colors.textSecondary}
+                />
+                {commentLikeCount > 0 && (
+                  <Text style={styles.commentActionText}>{String(commentLikeCount)}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+            {isTopLevelComment && (
+              <TouchableOpacity
+                style={styles.commentActionButton}
+                onPress={() => handleStartReply(comment.id)}
+              >
+                <Ionicons name="chatbubble-outline" size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+            <View>
+              <Text style={[styles.commentTime, { color: colors.textSecondary }]}>
+                {new Date(comment.created_at).toLocaleString()}
+              </Text>
+            </View>
+          </View>
+
+          {isTopLevelComment && comment.replies && comment.replies.length > 0 && (
+            <View style={styles.repliesSection}>
+              <TouchableOpacity
+                style={styles.repliesToggleButton}
+                onPress={() => handleToggleReplies(comment.id)}
+              >
+                <View>
+                  <Text style={styles.repliesToggleText}>
+                    {`${expandedReplies.includes(comment.id) ? 'Hide' : 'Show'} ${comment.replies.length} ${comment.replies.length === 1 ? 'reply' : 'replies'}`}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              {expandedReplies.includes(comment.id) && (
+                <View style={styles.repliesContainer}>
+                  {comment.replies.map((reply) => renderComment(reply, 1))}
+                </View>
+              )}
+            </View>
+          )}          {replyingToCommentId === comment.id && (
+            <View style={styles.replyComposer}>
+              <View style={styles.commentInputContainer}>
+                <TouchableOpacity
+                  style={styles.commentAttachmentButton}
+                  onPress={() => handleAddAttachment(comment.id)}
+                  accessibilityLabel="Add media"
+                >
+                  <Ionicons name="add-outline" size={20} color={colors.primary} />
+                </TouchableOpacity>
+                <TextInput
+                  style={styles.commentInput}
+                  placeholder="Write a reply..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={replyDrafts[comment.id] || ''}
+                  onChangeText={(text) => setReplyDrafts(prev => ({ ...prev, [comment.id]: text }))}
+                  multiline
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.commentSendButton,
+                    ((!(replyDrafts[comment.id]?.trim()) && !((commentMedias[comment.id] || []).length)) || replySubmitting[comment.id]) ? styles.commentSendDisabled : null,
+                  ]}
+                  onPress={() => handleSubmitReply(comment.id)}
+                  disabled={(!(replyDrafts[comment.id]?.trim()) && !((commentMedias[comment.id] || []).length)) || replySubmitting[comment.id]}
+                >
+                  {replySubmitting[comment.id] ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Ionicons name="send" size={18} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+              </View>
+              {(commentMedias[comment.id] || []).length > 0 && (
+                <View style={styles.replyMediaPreview}>
+                  <FlatList
+                    horizontal
+                    data={commentMedias[comment.id] || []}
+                    keyExtractor={(item, index) => `reply-media-${index}`}
+                    renderItem={({ item, index }) => (
+                      <View key={index} style={styles.mediaPreviewWrapper}>
+                        <Image
+                          source={{ uri: item.uri }}
+                          style={styles.replyMediaThumbnail}
+                          resizeMode="cover"
+                        />
+                        <TouchableOpacity
+                          style={styles.removeMediaButton}
+                          onPress={() => {
+                            setCommentMedias(prev => {
+                              const next = { ...(prev as any) };
+                              const arr = (next as any)[String(comment.id)] || [];
+                              next[String(comment.id)] = arr.filter((_: any, i: number) => i !== index);
+                              return next;
+                            });
+                          }}
+                        >
+                          <Ionicons name="close-circle" size={20} color="#FF4D4D" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    showsHorizontalScrollIndicator={false}
+                  />
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -418,7 +994,7 @@ export default function PostDetailScreen() {
     );
   };
 
-  const styles = StyleSheet.create({
+  const styles = StyleSheet.create<{[key: string]: any}>({
     container: {
       flex: 1,
       backgroundColor: colors.background,
@@ -431,7 +1007,74 @@ export default function PostDetailScreen() {
       backgroundColor: colors.background,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.border,
-      paddingHorizontal: 0,
+      paddingHorizontal: 16,
+    },
+    commentMediaGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginVertical: 8,
+    },
+    commentMediaImage: {
+      width: '48%',
+      aspectRatio: 1,
+      borderRadius: 8,
+      backgroundColor: colors.border,
+    },
+    repliesSection: {
+      marginTop: 4,
+    },
+    repliesToggleButton: {
+      paddingVertical: 4,
+    },
+    repliesToggleText: {
+      fontSize: 13,
+      fontWeight: '500',
+      color: colors.primary,
+    },
+    replyComposer: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+    },
+    replyMediaPreview: {
+      marginTop: 8,
+      flexDirection: 'row',
+    },
+    replyMediaThumbnail: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+      marginRight: 8,
+      backgroundColor: colors.border,
+    },
+    replySummaryContainer: {
+      flexDirection: 'row',
+      marginTop: 8,
+      alignItems: 'center',
+    },
+    replySummaryImage: {
+      width: 44,
+      height: 44,
+      borderRadius: 6,
+      marginRight: 6,
+      backgroundColor: colors.border,
+    },
+    replySummaryMore: {
+      width: 44,
+      height: 44,
+      borderRadius: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    replySummaryMoreText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.textSecondary,
     },
     headerBackButton: {
       width: 42,
@@ -443,7 +1086,6 @@ export default function PostDetailScreen() {
     },
     postContainer: {
       backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
-      margin: 16,
       borderRadius: 16,
       padding: 16,
       borderWidth: 1,
@@ -514,6 +1156,12 @@ export default function PostDetailScreen() {
       borderTopColor: colors.border,
       gap: 18,
     },
+    contentScroll: {
+      flex: 1,
+    },
+    contentScrollContent: {
+      paddingBottom: 80,
+    },
     actionButton: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -525,14 +1173,19 @@ export default function PostDetailScreen() {
       color: colors.textSecondary,
     },
     commentsSection: {
-      paddingHorizontal: 16,
+      paddingTop: 8,
       paddingBottom: 40,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
     },
-    commentsScroll: {
-      flex: 1,
-    },
-    commentsScrollContent: {
-      paddingBottom: 80,
+    commentsStickyHeader: {
+      backgroundColor: colors.background,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+      zIndex: 2,
     },
     commentsHeaderRow: {
       flexDirection: 'row',
@@ -562,12 +1215,9 @@ export default function PostDetailScreen() {
     },
     commentContainer: {
       flexDirection: 'row',
-      padding: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
       marginBottom: 8,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
     },
     commentAvatar: {
       width: 32,
@@ -582,13 +1232,13 @@ export default function PostDetailScreen() {
     commentAuthor: {
       fontSize: 14,
       fontWeight: '600',
-      marginBottom: 4,
+      marginBottom: 2,
       color: colors.text,
     },
     commentText: {
       fontSize: 14,
       lineHeight: 20,
-      marginBottom: 4,
+      marginBottom: 2,
       color: colors.text,
     },
     commentTime: {
@@ -596,7 +1246,11 @@ export default function PostDetailScreen() {
       color: colors.textSecondary,
     },
     repliesContainer: {
-      marginTop: 8,
+      marginTop: 4,
+      marginLeft: 16,
+      paddingLeft: 12,
+      borderLeftWidth: 1,
+      borderLeftColor: colors.border,
     },
     commentInputContainer: {
       flexDirection: 'row',
@@ -610,7 +1264,6 @@ export default function PostDetailScreen() {
     },
     commentComposerWrapper: {
       marginTop: 12,
-      paddingHorizontal: 16,
     },
     commentAttachmentButton: {
       marginRight: 8,
@@ -629,6 +1282,22 @@ export default function PostDetailScreen() {
       paddingVertical: 8,
       fontSize: 14,
       color: colors.text,
+    },
+    commentActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 2,
+      gap: 16,
+    },
+    commentActionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    commentActionText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      fontWeight: '500',
     },
     commentSendButton: {
       marginLeft: 10,
@@ -650,6 +1319,32 @@ export default function PostDetailScreen() {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    mediaPreviewContainer: {
+      marginTop: 8,
+      paddingHorizontal: 12,
+    },
+    mediaPreviewWrapper: {
+      position: 'relative',
+      marginRight: 8,
+    },
+    mediaPreview: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+      backgroundColor: colors.border,
+    },
+    removeMediaButton: {
+      position: 'absolute',
+      top: -8,
+      right: -8,
+      backgroundColor: 'white',
+      borderRadius: 10,
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 1.41,
     },
   });
 
@@ -683,7 +1378,9 @@ export default function PostDetailScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      // Use padding behavior on all platforms to avoid visual gaps when the
+      // keyboard opens (prevents a white strip appearing on some Android setups).
+      behavior={'padding'}
       keyboardVerticalOffset={90}
     >
       <ScreenHeader
@@ -700,88 +1397,92 @@ export default function PostDetailScreen() {
       />
 
       <View style={styles.pageContent}>
-        <View style={styles.postStickyContainer}>
-          <View style={styles.postContainer}>
-            <View style={styles.postHeaderRow}>
-              <TouchableOpacity
-                style={styles.postHeaderContent}
-                onPress={() => router.push(`/(tabs)/users/${post.author.id}`)}
-              >
-              <Image source={post.authorAvatar} style={styles.avatar} />
-              <View style={styles.postHeaderText}>
-                <Text style={styles.authorName}>{displayName}</Text>
-                <Text style={styles.postTime}>
-                  {new Date(post.created_at).toLocaleString()}
-                </Text>
-              </View>
-            </TouchableOpacity>
-            <PostActionsMenu
-              post={post}
-              currentUserId={user?.id ?? null}
-              onPostUpdated={handlePostMenuUpdated}
-              onPostDeleted={handlePostMenuDeleted}
-              normalizePost={ensureNormalizedPost}
-            />
-          </View>
-
-          {post.content ? (
-            <Text style={styles.postContent}>{post.content}</Text>
-          ) : null}
-
-          {mediaUrls.length > 0 && (
-            <View
-              style={[
-                styles.postMediaGrid,
-                mediaUrls.length === 1 ? styles.postMediaSingle : styles.postMediaMultiple,
-              ]}
-            >
-              {mediaUrls.map((url: string, index: number) => (
-                <Image
-                  key={`post-media-${index}`}
-                  source={{ uri: url }}
-                  style={styles.postMediaImage}
-                  resizeMode="cover"
-                />
-              ))}
-            </View>
-          )}
-
-          <View style={styles.postActions}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleToggleReaction}
-              disabled={reactionPending}
-            >
-              <Animated.View style={{ transform: [{ scale: likeAnimation }] }}>
-                <Ionicons
-                  name={likedByUser ? 'heart' : 'heart-outline'}
-                  size={22}
-                  color={likedByUser ? '#FF4D6D' : colors.textSecondary}
-                />
-              </Animated.View>
-              <Text style={styles.actionText}>{likeCount}</Text>
-            </TouchableOpacity>
-
-            <View style={styles.actionButton}>
-              <Ionicons name="chatbubble-outline" size={20} color={colors.textSecondary} />
-              <Text style={styles.actionText}>{commentCount}</Text>
-            </View>
-
-            <TouchableOpacity style={styles.actionButton} onPress={handleSharePost}>
-              <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.commentComposerWrapper}>{renderCommentComposer()}</View>
-        </View>
-
         <ScrollView
-          style={styles.commentsScroll}
-          contentContainerStyle={styles.commentsScrollContent}
+          style={[styles.contentScroll, { backgroundColor: colors.background }]}
+          contentContainerStyle={styles.contentScrollContent}
+          stickyHeaderIndices={[1]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.commentsSection}>
+          <View style={styles.postStickyContainer}>
+            <View style={styles.postContainer}>
+              <View style={styles.postHeaderRow}>
+                <TouchableOpacity
+                  style={styles.postHeaderContent}
+                  onPress={() => router.push(`/(tabs)/users/${post.author.id}`)}
+                >
+                  <Image source={post.authorAvatar} style={styles.avatar} />
+                  <View style={styles.postHeaderText}>
+                    <Text style={styles.authorName}>{displayName}</Text>
+                    <Text style={styles.postTime}>
+                      {new Date(post.created_at).toLocaleString()}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <PostActionsMenu
+                  post={post}
+                  currentUserId={user?.id ?? null}
+                  onPostUpdated={handlePostMenuUpdated}
+                  onPostDeleted={handlePostMenuDeleted}
+                  normalizePost={ensureNormalizedPost}
+                />
+              </View>
+
+              {post.content ? (
+                <Text style={styles.postContent}>{post.content}</Text>
+              ) : null}
+
+              {mediaUrls.length > 0 && (
+                <View
+                  style={[
+                    styles.postMediaGrid,
+                    mediaUrls.length === 1 ? styles.postMediaSingle : styles.postMediaMultiple,
+                  ]}
+                >
+                  {mediaUrls.map((url: string, index: number) => (
+                    <Image
+                      key={`post-media-${index}`}
+                      source={{ uri: url }}
+                      style={styles.postMediaImage}
+                      resizeMode="cover"
+                    />
+                  ))}
+                </View>
+              )}
+
+              <View style={styles.postActions}>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={handleToggleReaction}
+                  disabled={reactionPending}
+                >
+                  <Animated.View style={{ transform: [{ scale: likeAnimation }] }}>
+                    <Ionicons
+                      name={likedByUser ? 'heart' : 'heart-outline'}
+                      size={22}
+                      color={likedByUser ? '#FF4D6D' : colors.textSecondary}
+                    />
+                  </Animated.View>
+                  <Text style={styles.actionText}>{String(likeCount)}</Text>
+                </TouchableOpacity>
+
+                <View style={styles.actionButton}>
+                  <Ionicons name="chatbubble-outline" size={20} color={colors.textSecondary} />
+                  <Text style={styles.actionText}>{String(totalComments)}</Text>
+                </View>
+
+                <TouchableOpacity style={styles.actionButton} onPress={handleSharePost}>
+                  <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.commentsStickyHeader}>
             <View style={styles.commentsHeaderRow}>
-              <Text style={styles.commentsTitle}>Comments ({commentCount})</Text>
+              <Text style={styles.commentsTitle}>
+                {`Comments (${totalComments})`}
+              </Text>
               <TouchableOpacity style={styles.sortButton} onPress={handleChangeSort}>
                 <Text style={[styles.sortButtonText, { color: colors.textSecondary }]}>
                   Sort: {formatSortLabel(commentSort)}
@@ -789,7 +1490,10 @@ export default function PostDetailScreen() {
                 <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
+            <View style={styles.commentComposerWrapper}>{renderCommentComposer()}</View>
+          </View>
 
+          <View style={styles.commentsSection}>
             {sortedComments.length === 0 ? (
               <Text style={[styles.emptyCommentsText, { color: colors.textSecondary }]}>
                 Be the first to comment.
