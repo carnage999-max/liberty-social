@@ -199,3 +199,5 @@ if RESEND_API_KEY:
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+FRONTEND_URL=config("FRONTEND_URL", default="http://localhost:3000")

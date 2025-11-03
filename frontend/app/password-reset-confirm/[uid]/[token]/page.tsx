@@ -5,6 +5,7 @@ import { useToast } from "@/components/Toast";
 import { API_BASE, isApiError } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { PasswordField } from "@/components/forms/PasswordField";
 import { z } from "zod";
 
 const resetConfirmSchema = z.object({
@@ -74,34 +75,28 @@ export default function PasswordResetConfirm({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white py-16 px-4 sm:py-24 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white py-16 px-4 sm:py-24 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-md">
-        <h2 className="text-center text-3xl font-extrabold text-gray-900">Reset your password</h2>
+        <h2 className="text-3xl font-extrabold text-gray-900">Reset your password</h2>
         
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="password" className="sr-only">New Password</label>
-              <input
+          <div className="rounded-md shadow-sm space-y-4">
+            <div className="space-y-4">
+              <PasswordField
                 id="password"
-                type="password"
-                required
+                label="New Password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:z-10 sm:text-sm"
-                placeholder="New Password"
+                onChange={setPassword}
+                autoComplete="new-password"
+                showMeter
+                error={error ?? undefined}
               />
-            </div>
-            <div>
-              <label htmlFor="confirm-password" className="sr-only">Confirm Password</label>
-              <input
+              <PasswordField
                 id="confirm-password"
-                type="password"
-                required
+                label="Confirm Password"
                 value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] focus:z-10 sm:text-sm"
-                placeholder="Confirm Password"
+                onChange={setConfirm}
+                autoComplete="new-password"
               />
             </div>
           </div>
@@ -120,7 +115,7 @@ export default function PasswordResetConfirm({
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--color-primary)]"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-linear-to-r from-(--color-primary) to-(--color-secondary) hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-(--color-primary)"
             >
               {loading ? <Spinner /> : "Reset Password"}
             </button>

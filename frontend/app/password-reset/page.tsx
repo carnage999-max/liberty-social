@@ -6,6 +6,7 @@ import { API_BASE, isApiError } from "@/lib/api";
 import Link from "next/link";
 import { useState } from "react";
 import { z } from "zod";
+import { PasswordField } from "@/components/forms/PasswordField";
 
 const resetSchema = z.object({
   email: z.string().email(),

@@ -13,6 +13,7 @@ import {
 } from "@/hooks/useUserSettings";
 import type { BlockedUser } from "@/lib/types";
 import { useEffect, useState } from "react";
+import { PasswordField } from "@/components/forms/PasswordField";
 
 type ProfileForm = {
   first_name: string;
@@ -262,60 +263,78 @@ export default function SettingsPage() {
           ) : (
             <div className="space-y-8">
               <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
-                <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Update your password to keep your account secure.
-                </p>
+                <details className="group">
+                  <summary className="flex cursor-pointer items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Update your password to keep your account secure.
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-(--color-primary)/5 p-2 text-(--color-primary) transition group-open:rotate-180">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </div>
+                  </summary>
 
-                {passwordError && (
-                  <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
-                    {passwordError}
-                  </p>
-                )}
+                  <div className="mt-6">
+                    {passwordError && (
+                      <p className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
+                        {passwordError}
+                      </p>
+                    )}
 
-                <form onSubmit={handleChangePasswordSubmit} className="mt-6 space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="flex flex-col text-sm font-medium text-gray-700">
-                      Current Password
-                      <input
-                        type="password"
-                        value={changePasswordForm.old_password}
-                        onChange={(e) =>
-                          setChangePasswordForm(prev => ({
-                            ...prev,
-                            old_password: e.target.value
-                          }))
-                        }
-                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-(--color-primary) focus:ring-2 focus:ring-(--color-primary)/20"
-                        required
-                      />
-                    </label>
-                    <label className="flex flex-col text-sm font-medium text-gray-700">
-                      New Password
-                      <input
-                        type="password"
-                        value={changePasswordForm.new_password}
-                        onChange={(e) =>
-                          setChangePasswordForm(prev => ({
-                            ...prev,
-                            new_password: e.target.value
-                          }))
-                        }
-                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-(--color-primary) focus:ring-2 focus:ring-(--color-primary)/20"
-                        required
-                      />
-                    </label>
+                    <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <PasswordField
+                          id="current-password"
+                          label="Current Password"
+                          value={changePasswordForm.old_password}
+                          onChange={(value) =>
+                            setChangePasswordForm(prev => ({
+                              ...prev,
+                              old_password: value
+                            }))
+                          }
+                          autoComplete="current-password"
+                          required
+                        />
+                        <PasswordField
+                          id="new-password"
+                          label="New Password"
+                          value={changePasswordForm.new_password}
+                          onChange={(value) =>
+                            setChangePasswordForm(prev => ({
+                              ...prev,
+                              new_password: value
+                            }))
+                          }
+                          autoComplete="new-password"
+                          showMeter
+                          required
+                        />
+                      </div>
+
+                      {/* Password strength tip */}
+                      {changePasswordForm.new_password && (
+                        <p className="text-xs text-gray-600">
+                          Tip: use at least 12+ chars mixing letters, numbers, and symbols for a stronger password.
+                        </p>
+                      )}
+
+                      <div className="pt-2">
+                        <button
+                          type="submit"
+                          disabled={changingPassword}
+                          className="rounded-lg bg-linear-to-r from-(--color-primary) to-(--color-secondary) px-5 py-2 text-sm font-semibold text-white shadow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {changingPassword ? "Changing password..." : "Change password"}
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      disabled={changingPassword}
-                      className="rounded-lg bg-linear-to-r from-(--color-primary) to-(--color-secondary) px-5 py-2 text-sm font-semibold text-white shadow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {changingPassword ? "Changing password..." : "Change password"}
-                    </button>
-                  </div>
-                </form>
+                </details>
               </section>
 
               <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
