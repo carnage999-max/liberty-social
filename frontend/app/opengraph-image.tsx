@@ -31,8 +31,7 @@ export default async function OpengraphImage() {
             borderRadius: 20,
           }}
         >
-          {/* If you want to embed your PNG logo, uncomment next line and host /images/logo.png */}
-          {/* <img src={`${process.env.NEXT_PUBLIC_SITE_URL || "https://mylibertysocial.com"}/images/logo.png`} width={96} height={96} style={{ borderRadius: 16 }} /> */}
+          <img src={`${process.env.NEXT_PUBLIC_SITE_URL || "https://mylibertysocial.com"}/images/logo.jpeg`} width={96} height={96} style={{ borderRadius: 16 }} />
           <div style={{ fontSize: 64, fontWeight: 800, lineHeight: 1.1 }}>
             Liberty Social
           </div>

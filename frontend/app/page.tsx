@@ -219,9 +219,9 @@ export default function LandingPage() {
               {/* If your file is logo or a product shot, drop it in /public/images and update src */}
               {/* For a clean crop look, we use object-contain; switch to object-cover for full bleed */}
               <img
-                src="/images/showcase.png"
+                src="/images/_showcase.jpeg"
                 alt="Liberty Social preview"
-                className="absolute inset-0 h-full w-full object-contain"
+                className="absolute inset-0 h-full w-full object-cover"
                 loading="eager"
               />
               {/* subtle brand gradient bar along the bottom for polish */}
