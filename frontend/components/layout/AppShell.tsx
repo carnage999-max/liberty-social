@@ -115,6 +115,7 @@ export default function AppShell({ children }: AppShellProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [showCompactLogo, setShowCompactLogo] = useState(false);
   const { count: incomingFriendRequests } = usePaginatedResource<FriendRequest>(
     "/auth/friend-requests/",
     {
@@ -187,6 +188,20 @@ export default function AppShell({ children }: AppShellProps) {
     }
   }, [pathname]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleScroll = () => {
+      if (window.innerWidth >= 640) {
+        setShowCompactLogo(false);
+        return;
+      }
+      setShowCompactLogo(window.scrollY > 24);
+    };
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   const handleNavigate = useCallback(
     (href: string) => {
       router.push(href);
@@ -219,9 +234,22 @@ export default function AppShell({ children }: AppShellProps) {
             <button
               type="button"
               onClick={() => handleNavigate("/app/feed")}
-              className="text-lg font-semibold tracking-tight text-white transition hover:opacity-80 focus:outline-none"
+              className={`inline-flex items-center justify-center text-lg font-semibold tracking-tight text-white transition hover:opacity-80 focus:outline-none ${
+                showCompactLogo ? "h-9 w-9 rounded-full bg-white/15" : "px-2"
+              }`}
             >
-              Liberty Social
+              {showCompactLogo ? (
+                <Image
+                  src="/images/icon.png"
+                  alt="Liberty Social"
+                  width={32}
+                  height={32}
+                  className="h-8 w-8 object-cover"
+                  priority
+                />
+              ) : (
+                <span>Liberty Social</span>
+              )}
             </button>
             <button
               type="button"

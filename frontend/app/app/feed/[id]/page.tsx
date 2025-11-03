@@ -7,6 +7,7 @@ import RequireAuth from "@/components/auth/RequireAuth";
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
+import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -126,6 +127,25 @@ export default function PostDetailPage() {
   const [replySubmitting, setReplySubmitting] = useState<Record<number, boolean>>({});
   const [expandedReplies, setExpandedReplies] = useState<Set<number>>(new Set());
   const [deleteCommentId, setDeleteCommentId] = useState<number | null>(null);
+
+  const handlePostMenuUpdated = useCallback(
+    (updated: Post) => {
+      setPost((prev) => {
+        const merged = ensurePost({ ...(prev ?? {}), ...updated });
+        return merged;
+      });
+    },
+    []
+  );
+
+  const handlePostMenuDeleted = useCallback(
+    (postId: number) => {
+      setPost(null);
+      toast.show("Post deleted.", "success");
+      router.push("/app/feed");
+    },
+    [router, toast]
+  );
 
   // Count all comments including replies
   const totalComments = useMemo(() => {
@@ -950,32 +970,41 @@ export default function PostDetailPage() {
               </div>
             ) : (
               <>
-                <header className="mb-5 flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-                    {post.author.profile_image_url ? (
-                      <Image
-                        src={post.author.profile_image_url}
-                        alt={post.author.username || post.author.email}
-                        width={48}
-                        height={48}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-base font-semibold text-gray-600">
-                        {(post.author.username ||
-                          post.author.email)?.[0]?.toUpperCase() || "U"}
-                      </span>
-                    )}
+                <header className="mb-5 flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+                      {post.author.profile_image_url ? (
+                        <Image
+                          src={post.author.profile_image_url}
+                          alt={post.author.username || post.author.email}
+                          width={48}
+                          height={48}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-base font-semibold text-gray-600">
+                          {(post.author.username ||
+                            post.author.email)?.[0]?.toUpperCase() || "U"}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {post.author.username ||
+                          `${post.author.first_name} ${post.author.last_name}`}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(post.created_at).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {post.author.username ||
-                        `${post.author.first_name} ${post.author.last_name}`}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(post.created_at).toLocaleString()}
-                    </p>
-                  </div>
+                  <PostActionsMenu
+                    post={post}
+                    accessToken={accessToken}
+                    currentUserId={user?.id ?? null}
+                    onUpdated={handlePostMenuUpdated}
+                    onDeleted={handlePostMenuDeleted}
+                  />
                 </header>
 
                 <p className="whitespace-pre-line text-sm text-gray-800 sm:text-base">
