@@ -14,6 +14,7 @@ import { passwordStrength } from "@/lib/password-strength";
 import { useToast } from "../Toast";
 import Spinner from "../Spinner";
 import { isApiError } from "@/lib/api";
+import Link from "next/link";
 
 type Mode = "login" | "register";
 
@@ -435,11 +436,21 @@ function LoginForm({
         autoComplete="current-password"
         error={touched.password ? errors.password : ""}
       />
+
+      <div className="flex justify-end">
+        <Link
+          href="/password-reset"
+          className="text-sm text-(--color-primary) hover:opacity-80"
+        >
+          Forgot your password?
+        </Link>
+      </div>
+      
       <div className="pt-1">
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-[12px] px-4 py-3 text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic disabled:opacity-60"
+          className="w-full rounded-[12px] px-4 py-3 text-white font-semibold bg-linear-to-r from-(--color-primary) to-(--color-secondary) hover:opacity-90 transition shadow-metallic disabled:opacity-60"
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>

@@ -4,7 +4,7 @@ import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth-context";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
-import { apiDelete, apiPatch } from "@/lib/api";
+import { apiDelete, apiPatch, apiPost } from "@/lib/api";
 import { useProfile } from "@/hooks/useProfile";
 import { usePaginatedResource } from "@/hooks/usePaginatedResource";
 import {
@@ -89,6 +89,37 @@ export default function SettingsPage() {
   const [unblockingId, setUnblockingId] = useState<number | null>(null);
   const [blockToUnblock, setBlockToUnblock] = useState<BlockedUser | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!accessToken) {
+      toast.show("You must be logged in to change your password.", "error");
+      return;
+    }
+    try {
+      setPasswordError(null);
+      setChangingPassword(true);
+      await apiPost("/auth/change-password/", changePasswordForm, {
+        token: accessToken,
+      });
+      setChangePasswordForm({
+        old_password: '',
+        new_password: '',
+      });
+      toast.show("Password successfully changed.");
+    } catch (err: any) {
+      console.error(err);
+      setPasswordError(err?.message || "Unable to change password.");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+  const [changePasswordForm, setChangePasswordForm] = useState({
+    old_password: '',
+    new_password: '',
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -231,6 +262,63 @@ export default function SettingsPage() {
           ) : (
             <div className="space-y-8">
               <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
+                <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Update your password to keep your account secure.
+                </p>
+
+                {passwordError && (
+                  <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
+                    {passwordError}
+                  </p>
+                )}
+
+                <form onSubmit={handleChangePasswordSubmit} className="mt-6 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="flex flex-col text-sm font-medium text-gray-700">
+                      Current Password
+                      <input
+                        type="password"
+                        value={changePasswordForm.old_password}
+                        onChange={(e) =>
+                          setChangePasswordForm(prev => ({
+                            ...prev,
+                            old_password: e.target.value
+                          }))
+                        }
+                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-(--color-primary) focus:ring-2 focus:ring-(--color-primary)/20"
+                        required
+                      />
+                    </label>
+                    <label className="flex flex-col text-sm font-medium text-gray-700">
+                      New Password
+                      <input
+                        type="password"
+                        value={changePasswordForm.new_password}
+                        onChange={(e) =>
+                          setChangePasswordForm(prev => ({
+                            ...prev,
+                            new_password: e.target.value
+                          }))
+                        }
+                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-(--color-primary) focus:ring-2 focus:ring-(--color-primary)/20"
+                        required
+                      />
+                    </label>
+                  </div>
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={changingPassword}
+                      className="rounded-lg bg-linear-to-r from-(--color-primary) to-(--color-secondary) px-5 py-2 text-sm font-semibold text-white shadow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {changingPassword ? "Changing password..." : "Change password"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+
+              <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
                   <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
                   <p className="mt-1 text-sm text-gray-500">
                     This information appears on your profile and alongside your posts.
@@ -326,7 +414,7 @@ export default function SettingsPage() {
                       <button
                         type="submit"
                         disabled={savingProfile}
-                        className="rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-5 py-2 text-sm font-semibold text-white shadow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-lg bg-linear-to-r from-(--color-primary) to-(--color-secondary) px-5 py-2 text-sm font-semibold text-white shadow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {savingProfile ? "Saving..." : "Save profile"}
                       </button>
@@ -393,7 +481,7 @@ export default function SettingsPage() {
                       <button
                         type="submit"
                         disabled={savingPrivacy}
-                        className="rounded-lg border border-[var(--color-primary)] px-5 py-2 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-lg border border-(--color-primary) px-5 py-2 text-sm font-semibold text-(--color-primary) transition hover:bg-(--color-primary) hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {savingPrivacy ? "Saving..." : "Save privacy settings"}
                       </button>
