@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .password_reset_view import PasswordResetView
 from .views import (
     BlockedUsersViewset,
+    ChangePasswordView,
     FriendRequestViewset,
     FriendsViewset,
     LoginUserview,
@@ -26,8 +27,17 @@ router.register("blocks", BlockedUsersViewset, basename="blocks")
 urlpatterns = [
     path("", include(router.urls)),
     path("logout/", LogoutView, name="logout"),
-    path("profile/upload-picture/", ProfilePictureUploadView.as_view(), name="profile-upload"),
+    path(
+        "profile/upload-picture/",
+        ProfilePictureUploadView.as_view(),
+        name="profile-upload",
+    ),
     path("password-reset/", PasswordResetView.as_view(), name="password-reset"),
+    path("change-password/", ChangePasswordView.as_view(), name="change-password"),
     path("settings/", UserSettingsView.as_view(), name="user-settings"),
-    path("user/<uuid:user_id>/overview/", UserOverviewView.as_view(), name="user-overview"),
+    path(
+        "user/<uuid:user_id>/overview/",
+        UserOverviewView.as_view(),
+        name="user-overview",
+    ),
 ]

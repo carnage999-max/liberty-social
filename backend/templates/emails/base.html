@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subject }}</title>
+    <style>
+        :root {
+            --color-primary: #6366f1;
+            --color-secondary: #8b5cf6;
+            --color-success: #22c55e;
+            --color-danger: #ef4444;
+            --color-warning: #f59e0b;
+            --color-info: #3b82f6;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #374151;
+            background-color: #f3f4f6;
+        }
+
+        .wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .logo {
+            max-width: 150px;
+            height: auto;
+        }
+
+        .content {
+            padding: 32px 24px;
+            background-color: #ffffff;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(to right, var(--color-primary), var(--color-secondary));
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 16px 0;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: #6b7280;
+            font-size: 0.875rem;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .footer p {
+            margin: 0 0 8px 0;
+        }
+
+        .social {
+            margin-top: 16px;
+        }
+
+        .social a {
+            color: #6b7280;
+            text-decoration: none;
+            margin: 0 8px;
+        }
+
+        @media screen and (max-width: 600px) {
+            .wrapper {
+                padding: 10px;
+            }
+            .content {
+                padding: 24px 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="header">
+            <img src="https://liberty-social-black.vercel.app/images/logo.png" alt="Liberty Social" class="logo">
+        </div>
+        
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+
+        <div class="footer">
+            <p>&copy; {{ year }} Liberty Social. All rights reserved.</p>
+            <p>You received this email because you have an account on Liberty Social.</p>
+            <div class="social">
+                <a href="https://twitter.com/libertysocial">Twitter</a>
+                <a href="https://facebook.com/libertysocial">Facebook</a>
+                <a href="https://instagram.com/libertysocial">Instagram</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

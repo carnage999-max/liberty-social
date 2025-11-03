@@ -32,7 +32,6 @@ DEBUG = True
 ALLOWED_HOSTS = ["*"]
 
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -46,7 +45,6 @@ INSTALLED_APPS = [
     "whitenoise.runserver_nostatic",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    
     "users",
     "main",
     "rest_framework",
@@ -72,7 +70,7 @@ ROOT_URLCONF = "liberty_social.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -98,19 +96,16 @@ WSGI_APPLICATION = "liberty_social.wsgi.application"
 # }
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': 5432,
-        'OPTIONS': {'sslmode': 'require', 'channel_binding': 'require'}
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": config("DB_NAME"),
+        "USER": config("DB_USER"),
+        "PASSWORD": config("DB_PASSWORD"),
+        "HOST": config("DB_HOST"),
+        "PORT": 5432,
+        "OPTIONS": {"sslmode": "require", "channel_binding": "require"},
     }
 }
-print(DATABASES)
-
-
 
 
 # Password validation
@@ -149,6 +144,9 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+# Frontend URL for email links
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -157,28 +155,28 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
 
 # email
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "webmaster@localhost")
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10,
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=100),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=104),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=100),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=104),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Liberty Social API',
-    'DESCRIPTION': 'API documentation for Liberty Social application',
-    'VERSION': '1.0.0',
+    "TITLE": "Liberty Social API",
+    "DESCRIPTION": "API documentation for Liberty Social application",
+    "VERSION": "1.0.0",
 }
 
 # CORS - allow frontend origins during development
@@ -187,19 +185,17 @@ SPECTACULAR_SETTINGS = {
 CORS_ALLOW_ALL_ORIGINS = True
 
 # If your frontend needs to send cookies/auth credentials set this to True
-CORS_ALLOW_CREDENTIALS = config('CORS_ALLOW_CREDENTIALS', default=False, cast=bool)
+CORS_ALLOW_CREDENTIALS = config("CORS_ALLOW_CREDENTIALS", default=False, cast=bool)
 
 # Resend email provider integration
 # If you set RESEND_API_KEY in your environment, the project will use a small
 # Django email backend that sends messages through Resend's API. For local
 # development you can leave RESEND_API_KEY empty and Django's console email
 # backend will be used instead.
-RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+RESEND_API_KEY = config("RESEND_API_KEY")
 if RESEND_API_KEY:
-    EMAIL_BACKEND = 'liberty_social.email_backends.ResendEmailBackend'
+    EMAIL_BACKEND = "liberty_social.email_backends.ResendEmailBackend"
 
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-print(RESEND_API_KEY)

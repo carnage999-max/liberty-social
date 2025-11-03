@@ -1,0 +1,24 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h1 style="color: #1f2937; font-size: 24px; margin-bottom: 16px;">Welcome to Liberty Social!</h1>
+
+<p style="margin-bottom: 16px;">Hi {{ user.first_name }},</p>
+
+<p style="margin-bottom: 16px;">We're excited to have you join Liberty Social! Your account has been successfully created and you're ready to start connecting with others.</p>
+
+<p style="margin-bottom: 24px;">Here's what you can do next:</p>
+
+<ul style="margin-bottom: 24px; padding-left: 24px;">
+    <li style="margin-bottom: 8px;">Complete your profile</li>
+    <li style="margin-bottom: 8px;">Find and connect with friends</li>
+    <li style="margin-bottom: 8px;">Share your first post</li>
+    <li style="margin-bottom: 8px;">Join conversations</li>
+</ul>
+
+<a href="{{ profile_url }}" class="button">Complete Your Profile</a>
+
+<p style="margin-top: 24px;">If you have any questions or need assistance, don't hesitate to reach out to our support team.</p>
+
+<p style="margin-top: 24px;">Best regards,<br>The Liberty Social Team</p>
+{% endblock %}
