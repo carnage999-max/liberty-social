@@ -1,31 +1,9 @@
 from rest_framework import serializers
+from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.contrib.contenttypes.models import ContentType
 from .models import Post, Comment, Reaction, Notification, PostMedia, CommentMedia
 from users.serializers import UserSerializer
-from django.contrib.contenttypes.models import ContentType
-
-
-class CommentSerializer(serializers.ModelSerializer):
-    author = UserSerializer(read_only=True)
-    media = serializers.SerializerMethodField()
-    media_urls = serializers.ListField(child=serializers.URLField(), write_only=True, required=False)
-
-    class Meta:
-        model = Comment
-        fields = ["id", "post", "author", "content", "parent", "created_at", "media", "media_urls"]
-        read_only_fields = ["id", "author", "created_at", "media"]
-
-    def create(self, validated_data):
-        request = self.context.get('request')
-        if request and getattr(request, 'user', None):
-            validated_data['author'] = request.user
-        media_urls = validated_data.pop('media_urls', [])
-        comment = super().create(validated_data)
-        for url in media_urls:
-            CommentMedia.objects.create(comment=comment, url=url)
-        return comment
-
-    def get_media(self, obj):
-        return [m.url for m in obj.media.all()]
 
 
 class ReactionSerializer(serializers.ModelSerializer):
@@ -67,12 +45,143 @@ class ReactionSerializer(serializers.ModelSerializer):
         return reaction
 
 
+class CommentSerializer(serializers.ModelSerializer):
+    author = UserSerializer(read_only=True)
+    media = serializers.SerializerMethodField()
+    media_urls = serializers.ListField(child=serializers.URLField(), write_only=True, required=False)
+    reactions = ReactionSerializer(many=True, read_only=True)
+    reaction_summary = serializers.SerializerMethodField()
+    replies_count = serializers.SerializerMethodField()
+    user_reaction = serializers.SerializerMethodField()
+    replies = serializers.SerializerMethodField()
+    url_validator = URLValidator()
+
+    class Meta:
+        model = Comment
+        fields = [
+            "id",
+            "post",
+            "author",
+            "content",
+            "parent",
+            "created_at",
+            "media",
+            "media_urls",
+            "reactions",
+            "reaction_summary",
+            "replies_count",
+            "user_reaction",
+            "replies",
+        ]
+        read_only_fields = [
+            "id",
+            "author",
+            "created_at",
+            "media",
+            "reactions",
+            "reaction_summary",
+            "replies_count",
+            "user_reaction",
+            "replies",
+        ]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        parent = attrs.get("parent")
+        post = attrs.get("post") or getattr(self.instance, "post", None)
+        if parent:
+            parent_post_id = parent.post_id
+            if post is not None:
+                current_post_id = getattr(post, "id", None) or getattr(post, "pk", None)
+            elif self.instance is not None:
+                current_post_id = self.instance.post_id
+            else:
+                current_post_id = None
+            if parent_post_id != current_post_id:
+                raise serializers.ValidationError({"parent": "Replies must belong to the same post."})
+        return attrs
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if request and getattr(request, 'user', None):
+            validated_data['author'] = request.user
+        media_urls = validated_data.pop('media_urls', [])
+        comment = super().create(validated_data)
+        for index, url in enumerate(media_urls):
+            cleaned_url = url.strip() if isinstance(url, str) else str(url)
+            try:
+                self.url_validator(cleaned_url)
+            except DjangoValidationError:
+                raise serializers.ValidationError(
+                    {"media_urls": [f"Invalid media URL at position {index + 1}."]}
+                )
+            CommentMedia.objects.create(comment=comment, url=cleaned_url)
+        return comment
+
+    def get_media(self, obj):
+        return [m.url for m in obj.media.all()]
+
+    def get_reaction_summary(self, obj):
+        base = {choice[0]: 0 for choice in Reaction.TYPE_CHOICES}
+        total = 0
+        if hasattr(obj, "_prefetched_objects_cache") and "reactions" in obj._prefetched_objects_cache:
+            reactions_iterable = obj._prefetched_objects_cache["reactions"]
+        else:
+            reactions_manager = getattr(obj, "reactions", None)
+            if reactions_manager is not None:
+                reactions_iterable = reactions_manager.all()
+            else:
+                reactions_iterable = Reaction.objects.filter(comment=obj).select_related("user")
+
+        for reaction in reactions_iterable:
+            base[reaction.reaction_type] = base.get(reaction.reaction_type, 0) + 1
+            total += 1
+        return {"total": total, "by_type": base}
+
+    def get_replies_count(self, obj):
+        if hasattr(obj, "_prefetched_objects_cache") and "replies" in obj._prefetched_objects_cache:
+            return len(obj._prefetched_objects_cache["replies"])
+        return obj.replies.count()
+
+    def get_user_reaction(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return None
+        user_id = request.user.id
+        if hasattr(obj, "_prefetched_objects_cache") and "reactions" in obj._prefetched_objects_cache:
+            for reaction in obj._prefetched_objects_cache["reactions"]:
+                if reaction.user_id == user_id:
+                    return ReactionSerializer(reaction, context=self.context).data
+            return None
+        reaction = obj.reactions.filter(user=request.user).select_related("user").first()
+        if reaction:
+            return ReactionSerializer(reaction, context=self.context).data
+        return None
+
+    def get_replies(self, obj):
+        depth = self.context.get("depth", 0)
+        if hasattr(obj, "_prefetched_objects_cache") and "replies" in obj._prefetched_objects_cache:
+            replies_qs = obj._prefetched_objects_cache["replies"]
+        else:
+            replies_qs = obj.replies.all()
+        if not replies_qs:
+            return []
+        serializer = CommentSerializer(
+            replies_qs,
+            many=True,
+            context={**self.context, "depth": depth + 1},
+        )
+        return serializer.data
+
 class PostSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
     reactions = ReactionSerializer(many=True, read_only=True)
     media = serializers.SerializerMethodField()
     media_urls = serializers.ListField(child=serializers.URLField(), write_only=True, required=False)
+    bookmarked = serializers.SerializerMethodField()
+    bookmark_id = serializers.SerializerMethodField()
+    url_validator = URLValidator()
 
     class Meta:
         model = Post
@@ -87,6 +196,8 @@ class PostSerializer(serializers.ModelSerializer):
             "updated_at",
             "comments",
             "reactions",
+            "bookmarked",
+            "bookmark_id",
         ]
         read_only_fields = [
             "id",
@@ -96,6 +207,8 @@ class PostSerializer(serializers.ModelSerializer):
             "comments",
             "reactions",
             "media",
+            "bookmarked",
+            "bookmark_id",
         ]
 
     def create(self, validated_data):
@@ -104,12 +217,32 @@ class PostSerializer(serializers.ModelSerializer):
             validated_data['author'] = request.user
         media_urls = validated_data.pop('media_urls', [])
         post = super().create(validated_data)
-        for url in media_urls:
-            PostMedia.objects.create(post=post, url=url)
+        for index, url in enumerate(media_urls):
+            cleaned_url = url.strip() if isinstance(url, str) else str(url)
+            try:
+                self.url_validator(cleaned_url)
+            except DjangoValidationError:
+                raise serializers.ValidationError(
+                    {"media_urls": [f"Invalid media URL at position {index + 1}."]}
+                )
+            PostMedia.objects.create(post=post, url=cleaned_url)
         return post
 
     def get_media(self, obj):
         return [m.url for m in obj.media.all()]
+
+    def get_bookmarked(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return obj.bookmarks.filter(user=request.user).exists()
+
+    def get_bookmark_id(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return None
+        bookmark = obj.bookmarks.filter(user=request.user).values_list('id', flat=True).first()
+        return bookmark
 
 
 class NotificationSerializer(serializers.ModelSerializer):

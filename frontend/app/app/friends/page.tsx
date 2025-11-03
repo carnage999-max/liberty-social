@@ -9,6 +9,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useToast } from "@/components/Toast";
+import ConfirmationDialog from "@/components/ConfirmationDialog";
 
 export default function FriendsPage() {
   const { accessToken } = useAuth();
@@ -26,9 +27,16 @@ export default function FriendsPage() {
   } = usePaginatedResource<User>("/auth/friends/suggestions/");
   const [removingId, setRemovingId] = useState<number | null>(null);
   const [requestingId, setRequestingId] = useState<string | null>(null);
+  const [friendToRemove, setFriendToRemove] = useState<Friend | null>(null);
 
-  const handleRemove = async (friendId: number) => {
-    if (!accessToken) return;
+  const handleRemoveClick = (friend: Friend) => {
+    setFriendToRemove(friend);
+  };
+
+  const handleRemove = async () => {
+    if (!accessToken || !friendToRemove) return;
+    const friendId = friendToRemove.id;
+    setFriendToRemove(null);
     try {
       setRemovingId(friendId);
       await apiDelete(`/auth/friends/${friendId}/`, {
@@ -137,14 +145,16 @@ export default function FriendsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Link
-                      href={`/app/profile/${friend.id}`}
-                      className="rounded-lg border border-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
-                    >
-                      View profile
-                    </Link>
+                    {friend.id && friend.id !== "undefined" ? (
+                      <Link
+                        href={`/app/users/${friend.id}`}
+                        className="rounded-lg border border-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
+                      >
+                        View profile
+                      </Link>
+                    ) : null}
                     <button
-                      onClick={() => handleRemove(friendship.id)}
+                      onClick={() => handleRemoveClick(friendship)}
                       disabled={removingId === friendship.id}
                       className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -234,12 +244,14 @@ export default function FriendsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Link
-                      href={`/app/profile/${suggestion.id}`}
-                      className="rounded-lg border border-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
-                    >
-                      View profile
-                    </Link>
+                    {suggestion.id && suggestion.id !== "undefined" ? (
+                      <Link
+                        href={`/app/users/${suggestion.id}`}
+                        className="rounded-lg border border-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
+                      >
+                        View profile
+                      </Link>
+                    ) : null}
                     <button
                       onClick={() => sendRequest(suggestion.id)}
                       disabled={requestingId === suggestion.id}
@@ -258,9 +270,20 @@ export default function FriendsPage() {
           <p className="text-xs text-gray-500">That&apos;s everyone for now. We&apos;ll suggest more people soon.</p>
         )}
       </section>
+      <ConfirmationDialog
+        isOpen={friendToRemove !== null}
+        title="Remove Friend"
+        message={
+          friendToRemove
+            ? `Are you sure you want to remove ${friendToRemove.friend.username || friendToRemove.friend.first_name || "this friend"}? You will no longer see each other's posts.`
+            : ""
+        }
+        confirmText="Remove"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={handleRemove}
+        onCancel={() => setFriendToRemove(null)}
+      />
     </div>
   );
 }
-
-
-

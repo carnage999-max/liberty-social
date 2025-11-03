@@ -19,6 +19,8 @@ from .serializers import (
 )
 from rest_framework.parsers import MultiPartParser, FormParser
 from main.s3 import upload_fileobj_to_s3
+from main.models import Post, PostMedia
+from main.serializers import PostSerializer
 
 
 class LoginUserview(ModelViewSet):
@@ -100,6 +102,165 @@ class UserView(ModelViewSet):
 
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+
+class UserOverviewView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id):
+        viewer = request.user
+        try:
+            target = User.objects.select_related("user_settings").get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        is_self = viewer == target
+
+        blocked_by_target = False
+        if not is_self:
+            blocked_by_target = BlockedUsers.objects.filter(user=target, blocked_user=viewer).exists()
+            if blocked_by_target:
+                return Response({"detail": "Access denied."}, status=status.HTTP_403_FORBIDDEN)
+
+        viewer_block_record = BlockedUsers.objects.filter(user=viewer, blocked_user=target).first()
+        viewer_has_blocked = viewer_block_record is not None
+
+        is_friend = False
+        friend_record = None
+        if not is_self:
+            friend_record = Friends.objects.filter(user=viewer, friend=target).first()
+            is_friend = friend_record is not None
+
+        incoming_request = None
+        outgoing_request = None
+        if not is_self:
+            incoming_request = FriendRequest.objects.filter(
+                from_user=target, to_user=viewer, status="pending"
+            ).first()
+            outgoing_request = FriendRequest.objects.filter(
+                from_user=viewer, to_user=target, status="pending"
+            ).first()
+
+        settings = getattr(target, "user_settings", None)
+        profile_privacy = getattr(settings, "profile_privacy", "public") if settings else "public"
+        friends_publicity = getattr(settings, "friends_publicity", "public") if settings else "public"
+
+        can_view_posts = True
+        if not is_self:
+            if profile_privacy == "only_me":
+                can_view_posts = False
+            elif profile_privacy == "private" and not is_friend:
+                can_view_posts = False
+        if viewer_has_blocked and not is_self:
+            # viewer chose to block; still allow viewing profile metadata but hide posts
+            can_view_posts = False
+
+        allowed_posts_qs = Post.objects.filter(author=target, deleted_at__isnull=True)
+        if not is_self:
+            visibility_levels = ["public"]
+            if is_friend:
+                visibility_levels.append("friends")
+            allowed_posts_qs = allowed_posts_qs.filter(visibility__in=visibility_levels)
+        if not can_view_posts:
+            allowed_posts_qs = Post.objects.none()
+
+        post_count = allowed_posts_qs.count() if can_view_posts else None
+        recent_posts_data = []
+        photos = []
+        if can_view_posts:
+            recent_posts_list = list(allowed_posts_qs.order_by("-created_at")[:6])
+            if recent_posts_list:
+                recent_posts_data = PostSerializer(recent_posts_list, many=True, context={"request": request}).data
+            post_ids_for_photos = list(
+                allowed_posts_qs.order_by("-created_at").values_list("id", flat=True)[:30]
+            )
+            if post_ids_for_photos:
+                photos = list(
+                    PostMedia.objects.filter(post_id__in=post_ids_for_photos)
+                    .order_by("-id")
+                    .values_list("url", flat=True)[:12]
+                )
+
+        can_view_friend_count = True
+        if not is_self:
+            if friends_publicity == "only_me":
+                can_view_friend_count = False
+            elif friends_publicity == "private" and not is_friend:
+                can_view_friend_count = False
+        friend_count = Friends.objects.filter(user=target).count() if can_view_friend_count else None
+
+        incoming_request_id = incoming_request.id if incoming_request else None
+        outgoing_request_id = outgoing_request.id if outgoing_request else None
+        friend_entry_id = friend_record.id if friend_record else None
+        viewer_block_id = viewer_block_record.id if viewer_block_record else None
+
+        if is_self:
+            relationship_status = "self"
+        elif viewer_has_blocked:
+            relationship_status = "viewer_blocked"
+        elif blocked_by_target:
+            relationship_status = "blocked_by_target"
+        elif is_friend:
+            relationship_status = "friend"
+        elif incoming_request_id:
+            relationship_status = "incoming_request"
+        elif outgoing_request_id:
+            relationship_status = "outgoing_request"
+        else:
+            relationship_status = "none"
+
+        relationship = {
+            "is_self": is_self,
+            "is_friend": is_friend,
+            "status": relationship_status,
+            "incoming_request": bool(incoming_request_id),
+            "incoming_request_id": incoming_request_id,
+            "outgoing_request": bool(outgoing_request_id),
+            "outgoing_request_id": outgoing_request_id,
+            "friend_entry_id": friend_entry_id,
+            "viewer_has_blocked": viewer_has_blocked,
+            "viewer_block_id": viewer_block_id,
+            "blocked_by_target": blocked_by_target,
+            "can_send_friend_request": (
+                not is_self
+                and not is_friend
+                and not incoming_request_id
+                and not outgoing_request_id
+                and not viewer_has_blocked
+                and not blocked_by_target
+            ),
+        }
+
+        user_data = {
+            "id": str(target.id),
+            "username": target.username,
+            "first_name": target.first_name,
+            "last_name": target.last_name,
+            "profile_image_url": target.profile_image_url,
+            "bio": target.bio,
+            "date_joined": target.date_joined.isoformat() if target.date_joined else None,
+        }
+
+        stats = {
+            "post_count": post_count if can_view_posts else None,
+            "friend_count": friend_count if can_view_friend_count else None,
+            "photos": photos if can_view_posts else [],
+        }
+
+        return Response(
+            {
+                "user": user_data,
+                "stats": stats,
+                "relationship": relationship,
+                "recent_posts": recent_posts_data if can_view_posts else [],
+                "can_view_posts": can_view_posts,
+                "can_view_friend_count": can_view_friend_count,
+                "privacy": {
+                    "profile_privacy": profile_privacy,
+                    "friends_publicity": friends_publicity,
+                },
+            }
+        )
 
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -191,6 +352,11 @@ class FriendRequestViewset(ModelViewSet):
             qs = qs.filter(to_user=self.request.user)
         elif direction == 'outgoing':
             qs = qs.filter(from_user=self.request.user)
+        status_param = self.request.query_params.get('status')
+        if status_param:
+            qs = qs.filter(status=status_param)
+        else:
+            qs = qs.filter(status='pending')
         return qs
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated], url_path='decline')

@@ -39,6 +39,57 @@ export interface User {
   date_joined?: string;
 }
 
+export type RelationshipStatus =
+  | "self"
+  | "viewer_blocked"
+  | "blocked_by_target"
+  | "friend"
+  | "incoming_request"
+  | "outgoing_request"
+  | "none";
+
+export interface UserProfileRelationship {
+  is_self: boolean;
+  is_friend: boolean;
+  status: RelationshipStatus;
+  incoming_request: boolean;
+  incoming_request_id?: number | null;
+  outgoing_request: boolean;
+  outgoing_request_id?: number | null;
+  friend_entry_id?: number | null;
+  viewer_has_blocked: boolean;
+  viewer_block_id?: number | null;
+  blocked_by_target: boolean;
+  can_send_friend_request: boolean;
+}
+
+export interface UserProfileStats {
+  post_count: number | null;
+  friend_count: number | null;
+  photos: string[];
+}
+
+export interface UserProfileOverview {
+  user: {
+    id: string;
+    username?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    profile_image_url?: string | null;
+    bio?: string | null;
+    date_joined?: string | null;
+  };
+  stats: UserProfileStats;
+  relationship: UserProfileRelationship;
+  recent_posts: Post[];
+  can_view_posts: boolean;
+  can_view_friend_count: boolean;
+  privacy: {
+    profile_privacy: string;
+    friends_publicity: string;
+  };
+}
+
 // ----------------------
 // FRIENDS & REQUESTS
 // ----------------------
@@ -86,7 +137,14 @@ export interface Post {
   updated_at: string;
   comments: Comment[];
   reactions: Reaction[];
+  bookmarked?: boolean;
+  bookmark_id?: number | null;
 }
+
+export type ReactionSummary = {
+  total: number;
+  by_type: Record<ReactionType, number>;
+};
 
 export interface Comment {
   id: number;
@@ -96,6 +154,11 @@ export interface Comment {
   media?: string[] | null;
   parent?: number | null;
   created_at: string;
+  reactions?: Reaction[];
+  reaction_summary?: ReactionSummary | null;
+  replies_count?: number;
+  user_reaction?: Reaction | null;
+  replies?: Comment[];
 }
 
 export type ReactionType = "like" | "love" | "haha" | "sad" | "angry";

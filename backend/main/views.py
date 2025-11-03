@@ -3,10 +3,12 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.views import APIView
+from rest_framework.exceptions import PermissionDenied
 from drf_spectacular.utils import extend_schema, OpenApiExample
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import status
 from django.db.models import Q
+from django.utils import timezone
 from .models import Post, Comment, Reaction, Bookmark
 from .serializers import PostSerializer, CommentSerializer, ReactionSerializer, NotificationSerializer
 from .serializers import BookmarkSerializer
@@ -23,7 +25,15 @@ class PostViewSet(ModelViewSet):
 		qs = (
 		Post.objects.filter(deleted_at__isnull=True)
 		.select_related("author")
-		.prefetch_related("comments__author", "comments__media", "media", "reactions__user")
+		.prefetch_related(
+			"comments__author",
+			"comments__media",
+			"comments__reactions__user",
+			"comments__replies",
+			"media",
+			"reactions__user",
+			"bookmarks__user",
+		)
 			.order_by("-created_at")
 		)
 		mine = self.request.query_params.get("mine")
@@ -35,12 +45,15 @@ class PostViewSet(ModelViewSet):
 		serializer.save(author=self.request.user)
 
 	def perform_update(self, serializer):
-		# mark edited
-		serializer.save(edited_at=__import__('django.utils.timezone', fromlist=['now']).timezone.now())
+		instance = serializer.instance
+		if instance.author != self.request.user:
+			raise PermissionDenied("You are not allowed to edit this post.")
+		serializer.save(edited_at=timezone.now())
 
 	def perform_destroy(self, instance):
-		# soft delete
-		instance.deleted_at = __import__('django.utils.timezone', fromlist=['now']).timezone.now()
+		if instance.author != self.request.user:
+			raise PermissionDenied("You are not allowed to delete this post.")
+		instance.deleted_at = timezone.now()
 		instance.save()
 
 
@@ -51,6 +64,17 @@ class CommentViewSet(ModelViewSet):
 
 	def perform_create(self, serializer):
 		serializer.save(author=self.request.user)
+
+	def perform_update(self, serializer):
+		instance = serializer.instance
+		if instance.author != self.request.user:
+			raise PermissionDenied("You are not allowed to edit this comment.")
+		serializer.save()
+
+	def perform_destroy(self, instance):
+		if instance.author != self.request.user:
+			raise PermissionDenied("You are not allowed to delete this comment.")
+		instance.delete()
 
 
 class ReactionViewSet(ModelViewSet):
@@ -123,7 +147,7 @@ class NewsFeedView(APIView):
 			Q(author__id__in=friend_ids, visibility='friends')
 		)
 		.select_related('author')
-		.prefetch_related('comments__author', 'comments__media', 'media', 'reactions__user')
+		.prefetch_related('comments__author', 'comments__media', 'media', 'reactions__user', 'bookmarks__user')
 		)
 
 		# exclude posts where either side has blocked the other

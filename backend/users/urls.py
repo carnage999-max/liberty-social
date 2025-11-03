@@ -12,6 +12,7 @@ from .views import (
     RegisterUserViewSet,
     UserSettingsView,
     UserView,
+    UserOverviewView,
 )
 
 router = DefaultRouter()
@@ -28,4 +29,5 @@ urlpatterns = [
     path("profile/upload-picture/", ProfilePictureUploadView.as_view(), name="profile-upload"),
     path("password-reset/", PasswordResetView.as_view(), name="password-reset"),
     path("settings/", UserSettingsView.as_view(), name="user-settings"),
+    path("user/<uuid:user_id>/overview/", UserOverviewView.as_view(), name="user-overview"),
 ]

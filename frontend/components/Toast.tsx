@@ -1,24 +1,30 @@
 "use client";
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 type ToastVariant = "success" | "error";
-type ToastMsg = { id: number; message: string; variant: ToastVariant };
+type ToastMsg = {
+  id: number;
+  message: ReactNode;
+  variant: ToastVariant;
+};
 
 const ToastContext = createContext<
-  { show: (msg: string, variant?: ToastVariant) => void } | null
+  { show: (msg: ReactNode, variant?: ToastVariant, duration?: number) => void } | null
 >(null);
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
 
-  const show = useCallback((message: string, variant: ToastVariant = "success") => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, variant }]);
-    setTimeout(
-      () => setToasts((prev) => prev.filter((t) => t.id !== id)),
-      3500
-    );
-  }, []);
+  const show = useCallback(
+    (message: ReactNode, variant: ToastVariant = "success", duration = 3500) => {
+      const id = Date.now();
+      setToasts((prev) => [...prev, { id, message, variant }]);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, duration);
+    },
+    []
+  );
 
   return (
     <ToastContext.Provider value={{ show }}>

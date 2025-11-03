@@ -1,4 +1,5 @@
 import uuid
+from urllib.parse import quote
 from decouple import config
 
 
@@ -55,6 +56,7 @@ def upload_fileobj_to_s3(file_obj, filename=None, content_type=None):
 
     # Build URL
     custom = config('AWS_S3_CUSTOM_DOMAIN', default='').strip()
+    encoded_key = quote(key, safe="/")
     if custom:
         if '{' in custom:
             try:
@@ -62,7 +64,7 @@ def upload_fileobj_to_s3(file_obj, filename=None, content_type=None):
             except Exception:
                 # fall back to raw string if formatting fails
                 custom = custom.replace('{}', bucket)
-        return f"https://{custom}/{key}"
+        return f"https://{custom}/{encoded_key}"
     if region and region != 'us-east-1':
-        return f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
-    return f"https://{bucket}.s3.amazonaws.com/{key}"
+        return f"https://{bucket}.s3.{region}.amazonaws.com/{encoded_key}"
+    return f"https://{bucket}.s3.amazonaws.com/{encoded_key}"

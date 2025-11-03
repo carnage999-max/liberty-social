@@ -5,6 +5,7 @@ import { apiDelete, apiGet, apiGetUrl, apiPost, type PaginatedResponse } from "@
 import type { Post, Reaction } from "@/lib/types";
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
+import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -139,16 +140,23 @@ export default function FeedPage() {
   }, [loadFeed]);
 
   const canLoadMore = !!pagination.next;
-  const feedCountLabel = useMemo(() => {
-    if (pagination.count === 0) return "No posts yet";
-    if (pagination.count === 1) return "1 post";
-    return `${pagination.count} posts`;
-  }, [pagination.count]);
 
   const handleLoadMore = useCallback(() => {
     if (!pagination.next) return;
     loadFeed(pagination.next, true);
   }, [pagination.next, loadFeed]);
+
+  const handlePostUpdated = useCallback((updated: Post) => {
+    setPosts((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+  }, []);
+
+  const handlePostDeleted = useCallback((postId: number) => {
+    setPosts((prev) => prev.filter((item) => item.id !== postId));
+    setPagination((prev) => ({
+      ...prev,
+      count: prev.count > 0 ? prev.count - 1 : 0,
+    }));
+  }, []);
 
   const openGallery = useCallback((postId: number, index: number) => {
     setGallery({ postId, index });
@@ -331,6 +339,9 @@ export default function FeedPage() {
             post.author.username ||
             [post.author.first_name, post.author.last_name].filter(Boolean).join(" ") ||
             post.author.email;
+          const rawAuthorId = post.author?.id;
+          const profileHref =
+            rawAuthorId && rawAuthorId !== "undefined" ? `/app/users/${rawAuthorId}` : null;
           const currentUserReaction =
             user && post.reactions
               ? post.reactions.find((reaction) => reaction.user?.id === user.id)
@@ -343,28 +354,21 @@ export default function FeedPage() {
               key={post.id}
               className="rounded-[18px] border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md sm:p-6"
             >
-              <header className="mb-4 flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-                  {post.author.profile_image_url ? (
-                    <Image
-                      src={post.author.profile_image_url}
-                      alt={authorLabel}
-                      width={44}
-                      height={44}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold text-gray-600">
-                      {(authorLabel || "U")[0]?.toUpperCase() || "U"}
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">{authorLabel}</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(post.created_at).toLocaleString()}
-                  </p>
-                </div>
+              <header className="mb-4 flex items-start justify-between gap-3">
+                {profileHref ? (
+                  <Link href={profileHref} className="flex items-center gap-3 transition hover:opacity-90">
+                    <AuthorMeta authorLabel={authorLabel} createdAt={post.created_at} avatarUrl={post.author.profile_image_url} />
+                  </Link>
+                ) : (
+                  <AuthorMeta authorLabel={authorLabel} createdAt={post.created_at} avatarUrl={post.author.profile_image_url} />
+                )}
+                <PostActionsMenu
+                  post={post}
+                  accessToken={accessToken}
+                  currentUserId={user?.id ?? null}
+                  onUpdated={handlePostUpdated}
+                  onDeleted={handlePostDeleted}
+                />
               </header>
 
               <Link href={`/app/feed/${post.id}`}>
@@ -495,7 +499,6 @@ export default function FeedPage() {
         <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Your Feed</h1>
-            <p className="text-sm text-gray-500">{feedCountLabel}</p>
           </div>
         </header>
 
@@ -666,6 +669,39 @@ function GalleryModal({ posts, state, onClose, onNavigate, onSelect }: GalleryMo
             {state.index + 1} of {media.length}
           </p>
         </footer>
+      </div>
+    </div>
+  );
+}
+function AuthorMeta({
+  authorLabel,
+  createdAt,
+  avatarUrl,
+}: {
+  authorLabel: string | null | undefined;
+  createdAt: string;
+  avatarUrl?: string | null;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+        {avatarUrl ? (
+          <Image
+            src={avatarUrl}
+            alt={authorLabel || "Profile picture"}
+            width={44}
+            height={44}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <span className="text-sm font-semibold text-gray-600">
+            {(authorLabel || "U")?.[0]?.toUpperCase() || "U"}
+          </span>
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-gray-900">{authorLabel}</p>
+        <p className="text-xs text-gray-500">{new Date(createdAt).toLocaleString()}</p>
       </div>
     </div>
   );

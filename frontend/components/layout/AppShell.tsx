@@ -5,9 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import ProfileCard from "@/components/profile/ProfileCard";
 import { useAuth } from "@/lib/auth-context";
 import { API_BASE, apiPost } from "@/lib/api";
-import type { Post, Visibility } from "@/lib/types";
+import type { Post, Visibility, FriendRequest } from "@/lib/types";
 import { useToast } from "@/components/Toast";
 import Image from "next/image";
+import { usePaginatedResource } from "@/hooks/usePaginatedResource";
 
 const NAV_LINKS = [
   {
@@ -114,6 +115,13 @@ export default function AppShell({ children }: AppShellProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const { count: incomingFriendRequests } = usePaginatedResource<FriendRequest>(
+    "/auth/friend-requests/",
+    {
+      enabled: !!accessToken,
+      query: { direction: "incoming", page_size: 1 },
+    }
+  );
 
   const openCreateModal = useCallback(() => {
     setIsCreateModalOpen(true);
@@ -125,12 +133,27 @@ export default function AppShell({ children }: AppShellProps) {
 
   const handlePostCreated = useCallback(
     (post: Post) => {
-      toast.show("Post published!");
+      toast.show(
+        <span className="flex items-center gap-3">
+          <span>Post published!</span>
+          <button
+            type="button"
+            onClick={() => {
+              router.push(`/app/feed/${post.id}`);
+            }}
+            className="rounded-full border border-white/80 bg-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/20"
+          >
+            View post
+          </button>
+        </span>,
+        "success",
+        15000
+      );
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("post:created", { detail: post }));
       }
     },
-    [toast]
+    [router, toast]
   );
 
   const notifyError = useCallback(
@@ -193,7 +216,13 @@ export default function AppShell({ children }: AppShellProps) {
                 />
               </svg>
             </button>
-            <span className="text-lg font-semibold tracking-tight">Liberty Social</span>
+            <button
+              type="button"
+              onClick={() => handleNavigate("/app/feed")}
+              className="text-lg font-semibold tracking-tight text-white transition hover:opacity-80 focus:outline-none"
+            >
+              Liberty Social
+            </button>
             <button
               type="button"
               onClick={() => handleNavigate("/app/settings")}
@@ -258,6 +287,8 @@ export default function AppShell({ children }: AppShellProps) {
               <ul className="space-y-2 text-sm font-medium">
                 {NAV_LINKS.map((link) => {
                   const active = pathname?.startsWith(link.href);
+                  const badgeCount = link.href === "/app/friend-requests" ? incomingFriendRequests : 0;
+                  const badgeLabel = badgeCount > 99 ? "99+" : String(badgeCount);
                   return (
                     <li key={link.href}>
                       <button
@@ -267,14 +298,19 @@ export default function AppShell({ children }: AppShellProps) {
                           active
                             ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-sm"
                             : "bg-white text-[var(--color-primary)] hover:bg-[var(--metallic-silver)]/40",
-                        ].join(" ")}
+                          ].join(" ")}
                       >
                         <span className="flex items-center gap-2">
                           <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] transition group-hover:bg-[var(--color-primary)]/15 group-hover:text-[var(--color-primary)]">
                             {link.icon}
                           </span>
-                          {link.label}
+                          <span>{link.label}</span>
                         </span>
+                        {badgeCount > 0 && (
+                          <span className="ml-3 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-rose-500 px-2 text-xs font-semibold text-white">
+                            {badgeLabel}
+                          </span>
+                        )}
                       </button>
                     </li>
                   );
@@ -337,6 +373,8 @@ export default function AppShell({ children }: AppShellProps) {
                   <ul className="space-y-2 text-sm font-medium text-[var(--color-primary)]">
                     {NAV_LINKS.map((link) => {
                       const active = pathname?.startsWith(link.href);
+                      const badgeCount = link.href === "/app/friend-requests" ? incomingFriendRequests : 0;
+                      const badgeLabel = badgeCount > 99 ? "99+" : String(badgeCount);
                       return (
                         <li key={link.href}>
                           <button
@@ -352,8 +390,13 @@ export default function AppShell({ children }: AppShellProps) {
                               <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] transition group-hover:bg-[var(--color-primary)]/20">
                                 {link.icon}
                               </span>
-                              {link.label}
+                              <span>{link.label}</span>
                             </span>
+                            {badgeCount > 0 && (
+                              <span className="ml-3 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-rose-500 px-2 text-xs font-semibold text-white">
+                                {badgeLabel}
+                              </span>
+                            )}
                           </button>
                         </li>
                       );

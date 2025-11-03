@@ -3,6 +3,7 @@
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth-context";
+import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { apiDelete, apiPatch } from "@/lib/api";
 import { useProfile } from "@/hooks/useProfile";
 import { usePaginatedResource } from "@/hooks/usePaginatedResource";
@@ -86,6 +87,7 @@ export default function SettingsPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPrivacy, setSavingPrivacy] = useState(false);
   const [unblockingId, setUnblockingId] = useState<number | null>(null);
+  const [blockToUnblock, setBlockToUnblock] = useState<BlockedUser | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -185,8 +187,14 @@ export default function SettingsPage() {
     }
   };
 
-  const handleUnblock = async (blockId: number) => {
-    if (!accessToken) return;
+  const handleUnblockClick = (block: BlockedUser) => {
+    setBlockToUnblock(block);
+  };
+
+  const handleUnblock = async () => {
+    if (!accessToken || !blockToUnblock) return;
+    const blockId = blockToUnblock.id;
+    setBlockToUnblock(null);
     try {
       setUnblockingId(blockId);
       await apiDelete(`/auth/blocks/${blockId}/`, {
@@ -441,7 +449,7 @@ export default function SettingsPage() {
                               </p>
                             </div>
                             <button
-                              onClick={() => handleUnblock(entry.id)}
+                              onClick={() => handleUnblockClick(entry)}
                               disabled={unblockingId === entry.id}
                               className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
                             >
@@ -550,6 +558,20 @@ export default function SettingsPage() {
           </div>
         </aside>
       </div>
+      <ConfirmationDialog
+        isOpen={blockToUnblock !== null}
+        title="Unblock User"
+        message={
+          blockToUnblock
+            ? `Are you sure you want to unblock this user? You'll be able to see their posts again.`
+            : ""
+        }
+        confirmText="Unblock"
+        cancelText="Cancel"
+        confirmVariant="default"
+        onConfirm={handleUnblock}
+        onCancel={() => setBlockToUnblock(null)}
+      />
     </div>
   );
 }
