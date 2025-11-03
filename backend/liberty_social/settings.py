@@ -104,7 +104,7 @@ WSGI_APPLICATION = "liberty_social.wsgi.application"
 #     }
 # }
 
-tmpPostgres = urlparse(config("DATABASE_URL"))
+tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
 
 DATABASES = {
     'default': {
