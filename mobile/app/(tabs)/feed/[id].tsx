@@ -423,8 +423,15 @@ export default function PostDetailScreen() {
       flex: 1,
       backgroundColor: colors.background,
     },
-    scrollContent: {
-      paddingBottom: 36,
+    pageContent: {
+      flex: 1,
+    },
+    postStickyContainer: {
+      paddingBottom: 16,
+      backgroundColor: colors.background,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+      paddingHorizontal: 0,
     },
     headerBackButton: {
       width: 42,
@@ -521,6 +528,12 @@ export default function PostDetailScreen() {
       paddingHorizontal: 16,
       paddingBottom: 40,
     },
+    commentsScroll: {
+      flex: 1,
+    },
+    commentsScrollContent: {
+      paddingBottom: 80,
+    },
     commentsHeaderRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -593,8 +606,11 @@ export default function PostDetailScreen() {
       borderColor: colors.border,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      marginBottom: 16,
       backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+    },
+    commentComposerWrapper: {
+      marginTop: 12,
+      paddingHorizontal: 16,
     },
     commentAttachmentButton: {
       marginRight: 8,
