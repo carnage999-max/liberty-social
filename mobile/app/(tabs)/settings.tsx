@@ -14,6 +14,25 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import ScreenHeader from '../../components/layout/ScreenHeader';
 
+type SwitchSetting = {
+  type: 'switch';
+  label: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+};
+
+type ActionSetting = {
+  type: 'link';
+  label: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  onPress: () => void;
+};
+
+type SettingSection = {
+  title: string;
+  items: Array<SwitchSetting | ActionSetting>;
+};
+
 export default function SettingsScreen() {
   const { colors, isDark, mode, setMode } = useTheme();
   const { user, logout } = useAuth();
@@ -37,20 +56,20 @@ export default function SettingsScreen() {
     );
   };
 
-  const settings = [
+  const settings: SettingSection[] = [
     {
       title: 'Appearance',
       items: [
         {
+          type: 'switch',
           label: 'Dark Mode',
           value: mode === 'dark',
-          type: 'switch',
           onValueChange: (value: boolean) => setMode(value ? 'dark' : 'light'),
         },
         {
+          type: 'switch',
           label: 'Use System Theme',
           value: mode === 'auto',
-          type: 'switch',
           onValueChange: (value: boolean) => setMode(value ? 'auto' : (isDark ? 'dark' : 'light')),
         },
       ],
@@ -59,11 +78,13 @@ export default function SettingsScreen() {
       title: 'Account',
       items: [
         {
+          type: 'link',
           label: 'Edit Profile',
           icon: 'person-outline',
           onPress: () => router.push('/(tabs)/profile/edit'),
         },
         {
+          type: 'link',
           label: 'Privacy Settings',
           icon: 'lock-closed-outline',
           onPress: () => router.push('/(tabs)/settings/privacy'),
@@ -74,11 +95,13 @@ export default function SettingsScreen() {
       title: 'Social',
       items: [
         {
+          type: 'link',
           label: 'Friend Requests',
           icon: 'person-add-outline',
           onPress: () => router.push('/(tabs)/friend-requests'),
         },
         {
+          type: 'link',
           label: 'Blocked Users',
           icon: 'ban-outline',
           onPress: () => router.push('/(tabs)/settings/blocked'),
@@ -145,30 +168,33 @@ export default function SettingsScreen() {
       {settings.map((section) => (
         <View key={section.title} style={styles.section}>
           <Text style={styles.sectionTitle}>{section.title}</Text>
-          {section.items.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.settingItem}
-              onPress={item.onPress}
-              disabled={!item.onPress}
-            >
-              {item.icon && (
-                <Ionicons name={item.icon as any} size={24} color={colors.text} />
-              )}
-              <Text style={styles.settingLabel}>{item.label}</Text>
-              {item.type === 'switch' && (
-                <Switch
-                  value={item.value}
-                  onValueChange={item.onValueChange}
-                  trackColor={{ false: colors.border, true: colors.primary }}
-                  thumbColor="#FFFFFF"
-                />
-              )}
-              {!item.type && item.onPress && (
+          {section.items.map((item, index) => {
+            if (item.type === 'switch') {
+              return (
+                <View key={`${section.title}-${index}`} style={styles.settingItem}>
+                  <Text style={styles.settingLabel}>{item.label}</Text>
+                  <Switch
+                    value={item.value}
+                    onValueChange={item.onValueChange}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
+              );
+            }
+
+            return (
+              <TouchableOpacity
+                key={`${section.title}-${index}`}
+                style={styles.settingItem}
+                onPress={item.onPress}
+              >
+                <Ionicons name={item.icon} size={24} color={colors.text} />
+                <Text style={styles.settingLabel}>{item.label}</Text>
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-              )}
-            </TouchableOpacity>
-          ))}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       ))}
 

@@ -3,13 +3,15 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { ParamListBase } from '@react-navigation/native';
+import type { BottomTabNavigationEventMap } from '@react-navigation/bottom-tabs';
+import type { NavigationHelpers } from '@react-navigation/native';
 
 export default function TabsLayout() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 0;
-  const estimatedNavHeight = 58 + bottomPadding;
 
   const styles = StyleSheet.create({
     tabBarContainer: {
@@ -49,7 +51,28 @@ export default function TabsLayout() {
     },
   });
 
-  const renderTabBar = ({ state, descriptors, navigation }: any) => {
+  const TAB_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+    feed: 'home',
+    friends: 'people',
+    'create-post': 'add',
+    notifications: 'notifications',
+    profile: 'person',
+  };
+
+  const renderTabBar = ({
+    state,
+    descriptors,
+    navigation,
+  }: {
+    state: { routes: any[]; index: number };
+    descriptors: Record<
+      string,
+      {
+        options: any;
+      }
+    >;
+    navigation: NavigationHelpers<ParamListBase, BottomTabNavigationEventMap>;
+  }) => {
     return (
       <View style={styles.tabBarContainer}>
         <View style={styles.tabBarContent}>
@@ -64,7 +87,7 @@ export default function TabsLayout() {
                   ? options.title
                   : route.name;
 
-              const iconName = options.tabBarIconName as React.ComponentProps<typeof Ionicons>['name'];
+              const iconName = TAB_ICONS[route.name];
               if (!iconName) {
                 return null;
               }
@@ -139,35 +162,30 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarStyle: { display: 'none' },
       }}
-      sceneContainerStyle={{ paddingBottom: estimatedNavHeight }}
       tabBar={renderTabBar}
     >
       <Tabs.Screen
         name="feed"
         options={{
           title: 'Feed',
-          tabBarIconName: 'home',
         }}
       />
       <Tabs.Screen
         name="friends"
         options={{
           title: 'Friends',
-          tabBarIconName: 'people',
         }}
       />
       <Tabs.Screen
         name="create-post"
         options={{
           title: 'Create',
-          tabBarIconName: 'add',
         }}
       />
       <Tabs.Screen
         name="notifications"
         options={{
           title: 'Notifications',
-          tabBarIconName: 'notifications',
           tabBarBadge: undefined,
         }}
       />
@@ -175,7 +193,6 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIconName: 'person',
         }}
       />
       <Tabs.Screen

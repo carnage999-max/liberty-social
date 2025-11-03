@@ -3,6 +3,7 @@ export const Theme = {
     primary: '#0B3D91',
     secondary: '#FF4D4F',
     background: '#F6F7FB',
+    backgroundSecondary: '#FFFFFF',
     text: '#111827',
     textSecondary: '#6B7280',
     border: '#E5E7EB',
@@ -32,4 +33,3 @@ export const Theme = {
 };
 
 export type ThemeMode = 'light' | 'dark' | 'auto';
-

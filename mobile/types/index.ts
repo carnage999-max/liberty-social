@@ -1,3 +1,5 @@
+import { ImageSourcePropType } from "react-native";
+
 // Types matching the website API
 export interface AuthTokens {
   refresh_token: string;
@@ -66,6 +68,8 @@ export interface Comment {
 export type Visibility = 'public' | 'friends' | 'only_me';
 
 export interface Post {
+  authorAvatar: ImageSourcePropType | undefined;
+  mediaUrls: any;
   id: number;
   author: User;
   content: string;

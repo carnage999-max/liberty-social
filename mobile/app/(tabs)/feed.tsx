@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   ImageSourcePropType,
+  Share,
+  Animated,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,6 +19,7 @@ import { apiClient } from '../../utils/api';
 import { Post, PaginatedResponse, User, Reaction } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import MaskedView from '@react-native-masked-view/masked-view';
@@ -27,7 +30,8 @@ import {
   resolveRemoteUrl,
   DEFAULT_AVATAR,
 } from '../../utils/url';
-const GRADIENT_COLORS = ['#4F8EF7', '#7A6AF5', '#FF5C8A'];
+import { API_BASE } from '../../constants/API';
+const GRADIENT_COLORS = ['#4F8EF7', '#7A6AF5', '#FF5C8A'] as const;
 const PLACEHOLDER_AVATAR = DEFAULT_AVATAR;
 
 type FeedPost = Post & {
@@ -38,7 +42,7 @@ type FeedPost = Post & {
 const buildDisplayName = (u: User) =>
   u.username || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email || 'User';
 
-const normalizePost = (post: Post): FeedPost => {
+const normalizePost = (post: Post | FeedPost): FeedPost => {
   const candidateSources: (string | null | undefined)[] = [];
 
   const appendCandidate = (value?: string | null) => {
@@ -107,6 +111,8 @@ export default function FeedScreen() {
   const [suggestions, setSuggestions] = useState<User[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
   const [reactionBusy, setReactionBusy] = useState<Record<number, boolean>>({});
+  const [reachedEnd, setReachedEnd] = useState(false);
+  const likeAnimationsRef = useRef<Record<number, Animated.Value>>({});
 
   type SuggestionItem =
     | { type: 'create' }
@@ -122,11 +128,12 @@ export default function FeedScreen() {
     return items;
   }, [suggestions]);
 
-  const loadFeed = async (url?: string, append = false) => {
+  const loadFeed = useCallback(async (url?: string, append = false) => {
     try {
       if (append) {
         setLoadingMore(true);
       } else {
+        setReachedEnd(false);
         setLoading(true);
       }
 
@@ -146,6 +153,9 @@ export default function FeedScreen() {
       }
       
       setNext(response.next);
+      if (!response.next) {
+        setReachedEnd(true);
+      }
     } catch (error) {
       console.error('Error loading feed:', error);
     } finally {
@@ -153,9 +163,9 @@ export default function FeedScreen() {
       setLoadingMore(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
-  const loadSuggestions = async () => {
+  const loadSuggestions = useCallback(async () => {
     try {
       const response = await apiClient.get<PaginatedResponse<User>>('/auth/friends/suggestions/');
       const results = (response as any)?.results ?? (Array.isArray(response) ? response : []);
@@ -165,18 +175,65 @@ export default function FeedScreen() {
     } finally {
       setLoadingSuggestions(false);
     }
-  };
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadFeed();
-    loadSuggestions();
   }, []);
 
-  const loadMore = () => {
-    if (next && !loadingMore) {
-      loadFeed(next, true);
+  const getLikeAnimation = useCallback(
+    (postId: number) => {
+      if (!likeAnimationsRef.current[postId]) {
+        likeAnimationsRef.current[postId] = new Animated.Value(1);
+      }
+      return likeAnimationsRef.current[postId];
+    },
+    []
+  );
+
+  const animateLikeState = useCallback(
+    (postId: number, liked: boolean) => {
+      const animation = getLikeAnimation(postId);
+      animation.stopAnimation();
+      Animated.sequence([
+        Animated.spring(animation, {
+          toValue: liked ? 1.3 : 0.9,
+          useNativeDriver: true,
+          stiffness: 260,
+          damping: 16,
+          mass: 0.7,
+        }),
+        Animated.spring(animation, {
+          toValue: 1,
+          useNativeDriver: true,
+          stiffness: 220,
+          damping: 14,
+          mass: 0.7,
+        }),
+      ]).start();
+    },
+    [getLikeAnimation]
+  );
+
+  const navigation = useNavigation<NavigationProp<Record<string, object | undefined>>>();
+
+  const triggerRefresh = useCallback(() => {
+    if (refreshing) {
+      return;
     }
+    setRefreshing(true);
+    Promise.all([loadFeed(), loadSuggestions()]).finally(() => setRefreshing(false));
+  }, [refreshing, loadFeed, loadSuggestions]);
+
+  const onRefresh = useCallback(() => {
+    triggerRefresh();
+  }, [triggerRefresh]);
+
+  const loadMore = () => {
+    if (!next || reachedEnd) {
+      setReachedEnd(true);
+      return;
+    }
+    if (loadingMore) {
+      return;
+    }
+    loadFeed(next, true);
   };
 
   const handleToggleLike = async (post: FeedPost) => {
@@ -191,23 +248,54 @@ export default function FeedScreen() {
 
     setReactionBusy((prev) => ({ ...prev, [post.id]: true }));
 
+    const previousPosts = posts;
+    const optimisticReactionId = -Math.floor(Math.random() * 1_000_000) - 1;
+
+    if (existingReaction) {
+      setPosts((prev) =>
+        prev.map((item) =>
+          item.id === post.id
+            ? {
+                ...item,
+                reactions: (item.reactions || []).filter(
+                  (reaction) => reaction.id !== existingReaction.id
+                ),
+              }
+            : item
+        )
+      );
+      animateLikeState(post.id, false);
+    } else {
+      const optimisticReaction: Reaction = {
+        id: optimisticReactionId,
+        reaction_type: 'like',
+        created_at: new Date().toISOString(),
+        user,
+      };
+
+      setPosts((prev) =>
+        prev.map((item) =>
+          item.id === post.id
+            ? {
+                ...item,
+                reactions: [
+                  ...((item.reactions || []).filter(
+                    (reaction) => reaction.user?.id !== user.id
+                  ) || []),
+                  optimisticReaction,
+                ],
+              }
+            : item
+        )
+      );
+      animateLikeState(post.id, true);
+    }
+
     try {
       if (existingReaction) {
         await apiClient.delete(`/reactions/${existingReaction.id}/`);
-        setPosts((prev) =>
-          prev.map((item) =>
-            item.id === post.id
-              ? {
-                  ...item,
-                  reactions: (item.reactions || []).filter(
-                    (reaction) => reaction.id !== existingReaction.id
-                  ),
-                }
-              : item
-          )
-        );
       } else {
-        const reaction = await apiClient.post<Reaction>('/reactions/', {
+        const savedReaction = await apiClient.post<Reaction>('/reactions/', {
           post: post.id,
           reaction_type: 'like',
         });
@@ -218,9 +306,9 @@ export default function FeedScreen() {
                   ...item,
                   reactions: [
                     ...((item.reactions || []).filter(
-                      (current) => current.user?.id !== user.id
+                      (reaction) => reaction.id !== optimisticReactionId
                     ) || []),
-                    reaction,
+                    savedReaction,
                   ],
                 }
               : item
@@ -230,13 +318,30 @@ export default function FeedScreen() {
     } catch (error) {
       console.error('Error updating reaction:', error);
       Alert.alert('Unable to update reaction', 'Please try again in a moment.');
+      setPosts(previousPosts);
     } finally {
       setReactionBusy((prev) => ({ ...prev, [post.id]: false }));
     }
   };
 
-  const handlePostUpdated = (nextPost: Post | FeedPost) => {
-    const normalized = normalizePost(nextPost as Post);
+  const handleSharePost = async (post: FeedPost) => {
+    try {
+      const shareMessage = [post.content, `${API_BASE.replace(/\/api\/?$/, '')}/feed/${post.id}`]
+        .filter(Boolean)
+        .join('\n\n');
+
+      await Share.share({
+        message: shareMessage,
+        title: 'Share post',
+      });
+    } catch (error) {
+      console.error('Error sharing post:', error);
+      Alert.alert('Unable to share', 'Please try again later.');
+    }
+  };
+
+  const handlePostUpdated = (nextPost: FeedPost) => {
+    const normalized = normalizePost(nextPost);
     setPosts((prev) => prev.map((item) => (item.id === normalized.id ? normalized : item)));
   };
 
@@ -247,24 +352,31 @@ export default function FeedScreen() {
   useEffect(() => {
     loadFeed();
     loadSuggestions();
-  }, []);
+  }, [loadFeed, loadSuggestions]);
 
-  const renderPost = ({ item }: { item: Post }) => {
+  useEffect(() => {
+    const listener = (navigation as any)?.addListener?.('tabPress', () => {
+      triggerRefresh();
+    });
+    return typeof listener === 'function' ? listener : undefined;
+  }, [navigation, triggerRefresh]);
+
+  const renderPost = ({ item }: { item: FeedPost }) => {
     const displayName = buildDisplayName(item.author);
 
-    const galleryUrls =
+    const galleryUrls: string[] =
       item.mediaUrls && item.mediaUrls.length
         ? item.mediaUrls
         : resolveMediaUrls(Array.isArray(item.media) ? (item.media as any) : []);
 
     const likeCount = (item.reactions || []).filter(
-      (reaction) => reaction.reaction_type === 'like'
-    ).length;
+      (reaction) => reaction.reaction_type === 'like').length;
     const commentCount = item.comments?.length || 0;
     const hasLiked = !!user && (item.reactions || []).some(
       (reaction) => reaction.user?.id === user.id && reaction.reaction_type === 'like'
     );
     const likeProcessing = !!reactionBusy[item.id];
+    const likeAnimation = getLikeAnimation(item.id);
 
     return (
       <View
@@ -309,7 +421,7 @@ export default function FeedScreen() {
                 key={`${item.id}-media-${index}`}
                 source={{ uri: url }}
                 style={styles.mediaImage}
-                resizeMode="cover"
+                resizeMode="contain"
               />
             ))}
           </View>
@@ -337,12 +449,11 @@ export default function FeedScreen() {
             <Text style={[styles.actionText, { color: colors.textSecondary }]}>{commentCount}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons
-              name={item.bookmarked ? 'bookmark' : 'bookmark-outline'}
-              size={20}
-              color={colors.textSecondary}
-            />
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleSharePost(item)}
+          >
+            <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -561,6 +672,16 @@ export default function FeedScreen() {
       color: colors.textSecondary,
       textAlign: 'center',
     },
+    footerContainer: {
+      paddingVertical: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    footerText: {
+      fontSize: 12,
+      fontWeight: '500',
+      opacity: 0.6,
+    },
     engagementCard: {
       borderRadius: 20,
       marginHorizontal: 20,
@@ -716,7 +837,11 @@ export default function FeedScreen() {
       </ScreenHeader>
 
       <LinearGradient
-        colors={isDark ? ['#1E2244', '#151627'] : ['#EEF3FF', '#F8F9FF']}
+        colors={
+          isDark
+            ? (['#1E2244', '#151627'] as const)
+            : (['#EEF3FF', '#F8F9FF'] as const)
+        }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.engagementCard}
@@ -812,7 +937,7 @@ export default function FeedScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
+      <FlatList<FeedPost>
         data={posts}
         renderItem={renderPost}
         keyExtractor={(item) => item.id.toString()}
@@ -827,9 +952,13 @@ export default function FeedScreen() {
         onEndReachedThreshold={0.5}
         ListHeaderComponent={renderListHeader}
         ListFooterComponent={
-          loadingMore ? (
-            <View style={{ padding: 16 }}>
-              <ActivityIndicator size="small" color={colors.primary} />
+          loadingMore || reachedEnd ? (
+            <View style={styles.footerContainer}>
+              {loadingMore ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={[styles.footerText, { color: colors.textSecondary }]}>Refresh to see new stuff</Text>
+              )}
             </View>
           ) : null
         }
@@ -838,7 +967,7 @@ export default function FeedScreen() {
             <Text style={styles.emptyText}>No posts yet. Start following people to see their posts!</Text>
           </View>
         }
-        contentContainerStyle={{ paddingBottom: 32, paddingTop: 0 }}
+        contentContainerStyle={{ paddingBottom: 64, paddingTop: 0 }}
       />
     </View>
   );

@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Modal,
   View,
   Text,
@@ -9,6 +10,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../utils/api';
@@ -33,6 +35,38 @@ const PostActionsMenu = <TPost extends Post>({
   const [editVisible, setEditVisible] = useState(false);
   const [pending, setPending] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
+  const translateYRef = useRef(new Animated.Value(0));
+  const translateY = translateYRef.current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 12,
+      onPanResponderMove: (_, gesture) => {
+        if (gesture.dy > 0) {
+          translateY.setValue(gesture.dy);
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        const shouldDismiss = gesture.dy > 140 || gesture.vy > 1.2;
+        if (shouldDismiss) {
+          Animated.spring(translateY, {
+            toValue: 400,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 160,
+          }).start(({ finished }) => {
+            if (finished) setMenuVisible(false);
+          });
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 14,
+            stiffness: 120,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   const isOwner = useMemo(() => {
     if (!currentUserId) return false;
@@ -40,7 +74,29 @@ const PostActionsMenu = <TPost extends Post>({
     return String(post.author.id) === String(currentUserId);
   }, [currentUserId, post.author?.id]);
 
-  const toggleMenu = (next: boolean) => setMenuVisible(next);
+  const toggleMenu = (next: boolean) => {
+    if (next) {
+      setMenuVisible(true);
+      translateY.setValue(300);
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        damping: 14,
+        stiffness: 120,
+      }).start();
+    } else {
+      Animated.spring(translateY, {
+        toValue: 300,
+        useNativeDriver: true,
+        damping: 18,
+        stiffness: 180,
+      }).start(({ finished }) => {
+        if (finished) {
+          setMenuVisible(false);
+        }
+      });
+    }
+  };
 
   const closeAll = () => {
     setMenuVisible(false);
@@ -52,13 +108,15 @@ const PostActionsMenu = <TPost extends Post>({
     try {
       if (post.bookmarked && post.bookmark_id) {
         await apiClient.delete(`/bookmarks/${post.bookmark_id}/`);
-        onPostUpdated({ ...post, bookmarked: false, bookmark_id: null });
+        onPostUpdated(normalizePost({ ...post, bookmarked: false, bookmark_id: null }));
       } else {
         const result = await apiClient.post<{ id?: number }>(`/bookmarks/`, {
           post: post.id,
         });
         const bookmarkId = result?.id ?? null;
-        onPostUpdated({ ...post, bookmarked: true, bookmark_id: bookmarkId });
+        onPostUpdated(
+          normalizePost({ ...post, bookmarked: true, bookmark_id: bookmarkId })
+        );
       }
     } catch (error) {
       console.error('Error updating bookmark:', error);
@@ -139,8 +197,16 @@ const PostActionsMenu = <TPost extends Post>({
         <TouchableWithoutFeedback onPress={() => toggleMenu(false)}>
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
-        <View style={styles.sheet}>
-          <TouchableOpacity style={styles.sheetHandle} activeOpacity={1} />
+        <Animated.View
+          style={[styles.sheet, { transform: [{ translateY }] }]}
+          accessibilityViewIsModal
+          {...panResponder.panHandlers}
+        >
+          <TouchableOpacity
+            style={styles.sheetHandle}
+            activeOpacity={0.8}
+            onPress={() => toggleMenu(false)}
+          />
           <View style={styles.sheetContent}>
             <Text style={styles.sheetTitle}>Post options</Text>
             <TouchableOpacity
@@ -151,7 +217,7 @@ const PostActionsMenu = <TPost extends Post>({
               <Ionicons
                 name={post.bookmarked ? 'bookmark' : 'bookmark-outline'}
                 size={18}
-                color="#3949AB"
+                color="#9FA8FF"
               />
               <Text style={styles.sheetActionText}>
                 {post.bookmarked ? 'Remove bookmark' : 'Bookmark post'}
@@ -169,7 +235,7 @@ const PostActionsMenu = <TPost extends Post>({
                   }}
                   disabled={pending}
                 >
-                  <Ionicons name="create-outline" size={18} color="#3949AB" />
+                  <Ionicons name="create-outline" size={18} color="#9FA8FF" />
                   <Text style={styles.sheetActionText}>Edit post</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -177,7 +243,7 @@ const PostActionsMenu = <TPost extends Post>({
                   onPress={handleDelete}
                   disabled={pending}
                 >
-                  <Ionicons name="trash-outline" size={18} color="#C62828" />
+                  <Ionicons name="trash-outline" size={18} color="#FF7B7B" />
                   <Text style={[styles.sheetActionText, styles.destructiveText]}>
                     Delete post
                   </Text>
@@ -185,7 +251,7 @@ const PostActionsMenu = <TPost extends Post>({
               </>
             )}
           </View>
-        </View>
+        </Animated.View>
       </Modal>
 
       <Modal
@@ -242,55 +308,57 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(6, 10, 30, 0.55)',
   },
   sheet: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0F1324',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 16,
+    paddingBottom: 26,
+    paddingHorizontal: 20,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(159,168,255,0.2)',
   },
   sheetHandle: {
-    width: 46,
-    height: 5,
+    width: 50,
+    height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(120,120,140,0.3)',
+    backgroundColor: 'rgba(159,168,255,0.35)',
     alignSelf: 'center',
-    marginVertical: 10,
+    marginVertical: 12,
   },
   sheetContent: {
-    gap: 8,
+    gap: 10,
   },
   sheetTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1C1C28',
-    marginBottom: 4,
+    fontWeight: '700',
+    color: '#E3E7FF',
+    marginBottom: 10,
   },
   sheetAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
+    gap: 14,
+    paddingVertical: 14,
   },
   sheetActionText: {
     fontSize: 15,
-    color: '#1E1E2F',
-    fontWeight: '500',
+    color: '#EAEFFF',
+    fontWeight: '600',
   },
   destructiveAction: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(230, 57, 70, 0.2)',
-    marginTop: 4,
-    paddingTop: 16,
+    borderTopColor: 'rgba(255, 123, 123, 0.2)',
+    marginTop: 6,
+    paddingTop: 18,
   },
   destructiveText: {
-    color: '#C62828',
+    color: '#FF7B7B',
   },
   editModal: {
     position: 'absolute',
