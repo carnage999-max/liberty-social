@@ -298,7 +298,7 @@ export default function SettingsPage() {
                             }))
                           }
                           autoComplete="current-password"
-                          required
+                          
                         />
                         <PasswordField
                           id="new-password"
@@ -312,7 +312,7 @@ export default function SettingsPage() {
                           }
                           autoComplete="new-password"
                           showMeter
-                          required
+                          
                         />
                       </div>
 
