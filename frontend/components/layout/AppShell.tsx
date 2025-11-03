@@ -249,15 +249,23 @@ export default function AppShell({ children }: AppShellProps) {
             </button>
           </div>
 
-          <div className="hidden items-center justify-between gap-6 py-6 sm:flex">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
-                Welcome to Liberty Social
-              </p>
-              <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Your hub for open conversations</h1>
-              <p className="mt-1 text-sm text-white/80">
-                Stay connected, share freely, and discover what your community is up to.
-              </p>
+          <div className="hidden items-center justify-between gap-6 py-4 sm:flex">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white/20 shadow-sm">
+                <Image
+                  src="/images/icon.png"
+                  alt="Liberty Social"
+                  width={48}
+                  height={48}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold sm:text-2xl">Liberty Social</h1>
+                <p className="text-sm text-white/80">
+                  Your hub for open conversations
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <button
