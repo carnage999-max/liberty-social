@@ -15,13 +15,6 @@ from pathlib import Path
 import os
 from decouple import config, Csv
 from urllib.parse import urlparse, parse_qsl
-try:
-    from dotenv import load_dotenv
-    # load environment variables from .env if present
-    load_dotenv()
-except Exception:
-    # python-dotenv not installed in this environment; ignore
-    pass
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -107,10 +100,10 @@ WSGI_APPLICATION = "liberty_social.wsgi.application"
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
         'PORT': 5432,
         'OPTIONS': {'sslmode': 'require', 'channel_binding': 'require'}
     }
@@ -208,3 +201,5 @@ if RESEND_API_KEY:
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+print(RESEND_API_KEY)
