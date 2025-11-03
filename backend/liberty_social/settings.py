@@ -104,15 +104,13 @@ WSGI_APPLICATION = "liberty_social.wsgi.application"
 #     }
 # }
 
-tmpPostgres = urlparse(os.getenv("DATABASE_URL"))
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', tmpPostgres.path[1:]),
-        'USER': os.getenv('DB_USER', tmpPostgres.username),
-        'PASSWORD': os.getenv('DB_PASSWORD', tmpPostgres.password),
-        'HOST': os.getenv('DB_HOST', tmpPostgres.hostname),
+        'NAME': os.getenv('DB_NAME'),
+        'USER': os.getenv('DB_USER'),
+        'PASSWORD': os.getenv('DB_PASSWORD'),
+        'HOST': os.getenv('DB_HOST'),
         'PORT': 5432,
         'OPTIONS': {'sslmode': 'require', 'channel_binding': 'require'}
     }
