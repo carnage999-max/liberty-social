@@ -4,6 +4,8 @@ import "./globals.css";
 import Navbar from "../components/navbar";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/Toast";
+import ReportBug from "@/components/BugReport";
+
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mylibertysocial.com"),
@@ -89,7 +91,10 @@ export default function RootLayout({
         <AuthProvider>
           <ToastProvider>
             <Navbar />
-            <main className="pb-20">{children}</main>
+            <main className="pb-20">
+              {children}
+              <ReportBug />
+            </main>
 
             <footer className="border-t border-gray-200 bg-white">
               <div className="max-w-6xl mx-auto py-4 px-6 flex flex-col md:flex-row items-center md:justify-between gap-4 text-sm text-gray-600">
