@@ -44,7 +44,7 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
+        <h1 className="text-2xl font-bold text-gray-300">Notifications</h1>
         <p className="text-sm text-gray-500">
           {count === 0 ? "Nothing new right now." : `${count} notification${count === 1 ? "" : "s"}`}
         </p>
@@ -59,7 +59,7 @@ export default function NotificationsPage() {
           <p className="text-sm text-gray-700">{error}</p>
           <button
             onClick={() => refresh()}
-            className="mt-4 rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90"
+            className="mt-4 rounded-lg btn-primary px-4 py-2 text-sm font-semibold text-white"
           >
             Retry
           </button>
@@ -88,12 +88,12 @@ export default function NotificationsPage() {
                 >
                   <div
                     className={`mt-1 h-2.5 w-2.5 rounded-full ${
-                      notification.unread ? "bg-[var(--color-secondary)]" : "bg-gray-300"
+                      notification.unread ? "bg-[var(--color-rich-red-top)]" : "bg-gray-300"
                     }`}
                   />
                   <div className="flex-1">
                     <p className="text-sm text-gray-800">
-                      <span className="font-semibold text-[var(--color-primary)]">{actorLabel}</span>{" "}
+                      <span className="font-semibold text-[var(--color-deep-navy)]">{actorLabel}</span>{" "}
                       {notification.verb}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">
@@ -104,7 +104,7 @@ export default function NotificationsPage() {
                     <button
                       onClick={() => handleMarkRead(notification.id)}
                       disabled={updatingId === notification.id}
-                      className="rounded-lg border border-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-lg border border-[var(--color-deep-navy)] px-3 py-1.5 text-xs font-semibold text-[var(--color-deep-navy)] transition hover:bg-[var(--color-deep-navy)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {updatingId === notification.id ? "Marking..." : "Mark as read"}
                     </button>
@@ -118,7 +118,7 @@ export default function NotificationsPage() {
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="rounded-lg border border-[var(--color-primary)] px-5 py-2 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg border border-[var(--color-deep-navy)] px-5 py-2 text-sm font-semibold text-[var(--color-deep-navy)] transition hover:bg-[var(--color-deep-navy)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loadingMore ? "Loading..." : "Load more"}
               </button>

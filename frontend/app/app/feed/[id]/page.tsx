@@ -1166,7 +1166,7 @@ export default function PostDetailPage() {
                       <button
                         type="button"
                         onClick={() => setEmojiPaletteOpen((prev) => !prev)}
-                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-[var(--color-primary)]"
                       >
                         <span role="img" aria-hidden>
                           🙂
@@ -1176,7 +1176,7 @@ export default function PostDetailPage() {
                       <button
                         type="button"
                         onClick={handleSelectAttachment}
-                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-[var(--color-primary)]"
                       >
                         <span role="img" aria-hidden>
                           🖼️
@@ -1186,7 +1186,7 @@ export default function PostDetailPage() {
                       <button
                         type="submit"
                         disabled={commentSubmitting}
-                        className="ml-auto inline-flex items-center justify-center rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white shadow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="ml-auto inline-flex items-center justify-center btn-primary px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {commentSubmitting ? "Posting..." : "Comment"}
                       </button>
@@ -1300,7 +1300,7 @@ export default function PostDetailPage() {
                                       type="button"
                                       onClick={() => handleSaveCommentEdit(comment.id)}
                                       disabled={commentActionPendingId === comment.id}
-                                      className="rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-1.5 text-xs font-semibold text-white shadow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                                      className="btn-primary px-4 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                       {commentActionPendingId === comment.id ? "Saving..." : "Save"}
                                     </button>
@@ -1715,7 +1715,7 @@ export default function PostDetailPage() {
                                         input.onchange = (e) => handleReplyFilesAdded(comment.id, e as any);
                                         input.click();
                                       }}
-                                      className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                                      className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 transition hover:border-[var(--color-primary)]"
                                     >
                                       🖼️ Photo
                                     </button>
@@ -1730,7 +1730,7 @@ export default function PostDetailPage() {
                                     <button
                                       type="submit"
                                       disabled={replySubmitting[comment.id]}
-                                      className="rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-1.5 text-xs font-semibold text-white shadow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                                      className="btn-primary px-4 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                       {replySubmitting[comment.id] ? "Posting..." : "Reply"}
                                     </button>

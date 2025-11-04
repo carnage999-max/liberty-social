@@ -42,7 +42,7 @@ export default function LandingPage() {
   const isLoggedIn = hydrated && isAuthenticated && !!user;
 
   return (
-    <main className="relative overflow-hidden bg-[var(--color-background)] text-[var(--color-primary)]">
+  <main className="relative overflow-hidden bg-primary text-(--color-white)">
       <Navbar />
       {/* ========================== HERO ========================== */}
       <section
@@ -104,7 +104,7 @@ export default function LandingPage() {
             Connect Freely. Express Boldly.
           </h1>
           {isLoggedIn && (
-            <p className="mt-4 text-xl font-semibold text-[var(--color-primary)]">
+            <p className="mt-4 text-xl font-semibold text-(--color-white)">
               Welcome back{displayName ? `, ${displayName}` : ""}!
             </p>
           )}
@@ -116,19 +116,18 @@ export default function LandingPage() {
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
             <a
               href="/app"
-              className="px-8 py-4 rounded-[12px] text-white font-semibold text-lg shadow-metallic
-                         bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition"
+              className="btn-primary px-8 py-4 rounded-[12px] text-lg inline-flex items-center justify-center"
             >
               {isLoggedIn ? "Jump back into Liberty Social" : "Open Liberty Social"}
             </a>
             {!isLoggedIn && (
-              <a
-                href="/signup"
-                className="px-8 py-4 rounded-[12px] font-medium text-lg bg-white text-[var(--color-primary)]
-                           hover:opacity-90 transition shadow-md"
-              >
-                Create your account
-              </a>
+                <a
+                  href="/signup"
+                  className="px-8 py-4 rounded-[12px] font-medium text-lg bg-white text-(--color-deep-navy)
+                             hover:opacity-90 transition shadow-md"
+                >
+                  Create your account
+                </a>
             )}
           </div>
         </div>
@@ -138,7 +137,7 @@ export default function LandingPage() {
       </section>
 
       {/* ========================== FEATURES ========================== */}
-      <section id="features" className="relative bg-white pt-20 pb-24">
+  <section id="features" className="relative bg-white pt-20 pb-24">
         <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-8">
           {[
             {
@@ -154,30 +153,26 @@ export default function LandingPage() {
               desc: "Join spaces that celebrate people, not just posts.",
             },
           ].map((f, i) => (
-            <article
-              key={i}
-              className="group relative overflow-hidden rounded-[24px] p-8 bg-metallic-silver shadow-md transition-transform hover:-translate-y-1"
+        <article
+          key={i}
+          className="group relative overflow-hidden rounded-[24px] p-8 bg-metallic-silver shadow-md transition-transform hover:-translate-y-1"
               style={{ boxShadow: "0 10px 30px rgba(11, 61, 145, 0.08)" }}
             >
               {/* content */}
-              <h3 className="text-2xl font-extrabold text-primary mb-3">
+              <h3 className="text-2xl font-extrabold text-(--color-deep-navy) mb-3">
                 {f.title}
               </h3>
               <p className="text-gray-600 leading-relaxed">{f.desc}</p>
 
               {/* gradient flow bar on hover */}
               <div
-                className="pointer-events-none absolute left-0 bottom-0 h-[6px] w-0
-                           bg-[linear-gradient(90deg,var(--color-primary),var(--color-secondary))]
-                           transition-all duration-500 ease-out
-                           group-hover:w-full"
+                className="pointer-events-none absolute left-0 bottom-0 h-[6px] w-0 transition-all duration-500 ease-out group-hover:w-full"
+                style={{ background: "linear-gradient(90deg,var(--color-deep-navy),var(--color-rich-red-top))" }}
               />
               {/* subtle glow that fades in with the bar */}
               <div
-                className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 w-1/3 h-12
-                           rounded-full blur-2xl opacity-0 transition-opacity duration-500
-                           group-hover:opacity-40
-                           bg-[linear-gradient(90deg,var(--color-primary),var(--color-secondary))]"
+                className="pointer-events-none absolute -bottom-6 left-1/2 -translate-x-1/2 w-1/3 h-12 rounded-full blur-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-40"
+                style={{ background: "linear-gradient(90deg,var(--color-deep-navy),var(--color-rich-red-top))" }}
               />
             </article>
           ))}
@@ -187,7 +182,7 @@ export default function LandingPage() {
       </section>
 
       {/* ========================== PEOPLE-FIRST STRIP ========================== */}
-      <section id="community" className="relative py-20 md:py-28">
+      <section id="community" className="relative py-20 md:py-28 bg-(--color-deep-navy)">
         {/* soft backdrop that blends with your palette */}
         <div
           aria-hidden
@@ -196,18 +191,18 @@ export default function LandingPage() {
 
         <div className="relative max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-12 items-center">
           {/* Left: text content */}
-          <div className="order-2 md:order-1 rounded-[24px] p-8 bg-white/80 backdrop-blur-sm shadow-md">
-            <h4 className="text-3xl font-extrabold mb-4">
+          <div className="order-2 md:order-1 rounded-[24px] p-8">
+            <h4 className="text-3xl font-extrabold mb-4 text-white">
               A Place Designed for People
             </h4>
-            <p className="text-gray-700 leading-relaxed">
+            <p className="text-white/90 leading-relaxed">
               We&apos;re building a platform that respects time, attention, and
               identity. Clean design meets strong values so you can focus on
               real connection.
             </p>
             <a
               href="/discover"
-              className="mt-5 inline-block gradient-underline"
+              className="mt-5 inline-block gradient-underline text-white"
             >
               Explore communities
             </a>
@@ -227,22 +222,29 @@ export default function LandingPage() {
               {/* subtle brand gradient bar along the bottom for polish */}
               <div
                 className="pointer-events-none absolute inset-x-0 bottom-0 h-[6px]
-                        bg-[linear-gradient(90deg,var(--color-primary),var(--color-secondary))] opacity-80"
+                        bg-[linear-gradient(90deg,var(--color-deep-navy),var(--color-rich-red-top))] opacity-80"
               />
             </div>
           </div>
         </div>
 
-        {/* Curved visual separator to blend into the next section */}
+        {/* Curved visual separator */}
         <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
           <svg
             viewBox="0 0 1440 120"
             className="w-full h-24"
             preserveAspectRatio="none"
           >
+            <defs>
+              <linearGradient id="waveGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="var(--color-deep-navy)" stopOpacity="0.15" />
+                  <stop offset="100%" stopColor="var(--color-deeper-navy)" />
+              </linearGradient>
+            </defs>
             <path
               d="M0,64 C240,128 480,0 720,64 C960,128 1200,32 1440,64 L1440,160 L0,160 Z"
-              fill="var(--color-background)"
+              fill="url(#waveGradient)"
+                className="translate-y-[1px]"
             />
           </svg>
         </div>
@@ -251,34 +253,23 @@ export default function LandingPage() {
       {/* ========================== LIVE CTA (no "request access") ========================== */}
       <section
         id="cta"
-        className="relative text-center text-[var(--color-primary)] py-24 md:py-32"
+        className="relative text-center text-white py-24 md:py-32"
       >
-        {/* Soft cobalt wash so it blends (no heavy black) */}
-        <div aria-hidden className="absolute inset-0 opacity-[0.30]">
-          <svg viewBox="0 0 800 400" className="w-full h-full">
-            <defs>
-              <radialGradient id="ctaWash" cx="50%" cy="50%" r="60%">
-                <stop offset="0%" stopColor="rgba(11,61,145,0.12)" />
-                <stop offset="100%" stopColor="rgba(11,61,145,0.0)" />
-              </radialGradient>
-            </defs>
-            <rect width="800" height="400" fill="url(#ctaWash)" />
-          </svg>
-        </div>
+        {/* Rich background gradient */}
+        <div aria-hidden className="absolute inset-0 bg-linear-to-b from-(--color-deep-navy) to-(--color-deeper-navy) opacity-95"></div>
 
         <div className="relative max-w-3xl mx-auto px-6">
-          <h2 className="text-4xl md:text-5xl font-extrabold mb-6">
+          <h2 className="text-4xl md:text-5xl font-extrabold mb-6 animated-gradient-text">
             Your Voice. Your Space. Your Liberty.
           </h2>
-          <p className="text-lg mb-10 text-gray-700">
+          <p className="text-lg mb-10 text-white/90">
             Jump in now - build your profile, create a space, and connect.
           </p>
           <div className="flex gap-4 justify-center flex-col sm:flex-row">
             {isLoggedIn ? (
               <a
                 href="/app"
-                className="inline-block bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]
-                           text-white font-semibold px-10 py-4 rounded-[12px] hover:opacity-90 transition shadow-metallic"
+                className="btn-primary inline-block text-white font-semibold px-10 py-4 rounded-xl hover:opacity-90 transition shadow-metallic"
               >
                 Go to your home
               </a>
@@ -286,14 +277,13 @@ export default function LandingPage() {
               <>
                 <a
                   href="/auth"
-                  className="inline-block bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)]
-                             text-white font-semibold px-10 py-4 rounded-[12px] hover:opacity-90 transition shadow-metallic"
+                  className="btn-primary inline-block text-white font-semibold px-10 py-4 rounded-xl hover:opacity-90 transition shadow-metallic"
                 >
                   Create your account
                 </a>
                 <a
                   href="/app"
-                  className="inline-block bg-white text-[var(--color-primary)] font-semibold px-10 py-4 rounded-[12px]
+                  className="inline-block bg-white text-(--color-deep-navy) font-semibold px-10 py-4 rounded-xl
                              hover:opacity-90 transition shadow-md"
                 >
                   Explore the app
@@ -320,10 +310,16 @@ function HeroWaveBottom() {
         className="w-full h-24"
         preserveAspectRatio="none"
       >
+        <defs>
+          <linearGradient id="heroWaveGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="var(--color-deep-navy)" stopOpacity="0" />
+            <stop offset="100%" stopColor="white" />
+          </linearGradient>
+        </defs>
         <path
           d="M0,64 C240,128 480,0 720,64 C960,128 1200,32 1440,64 L1440,160 L0,160 Z"
-          fill="#FFFFFF"
-          opacity="0.95"
+          fill="url(#heroWaveGradient)"
+          className="translate-y-[1px]"
         />
       </svg>
     </div>
@@ -340,7 +336,7 @@ function WaveBottom({ fill }: { fill: string }) {
       >
         <path
           d="M0,64 C240,128 480,0 720,64 C960,128 1200,32 1440,64 L1440,160 L0,160 Z"
-          fill={fill}
+            fill={fill}
         />
       </svg>
     </div>

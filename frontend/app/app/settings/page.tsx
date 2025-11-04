@@ -249,7 +249,7 @@ export default function SettingsPage() {
         <div className="w-full lg:w-2/3">
           <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+              <h1 className="text-2xl font-bold text-gray-500">Settings</h1>
               <p className="text-sm text-gray-500">
                 Manage your profile information, privacy preferences, and blocked users.
               </p>
@@ -262,16 +262,16 @@ export default function SettingsPage() {
             </div>
           ) : (
             <div className="space-y-8">
-              <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
+              <section className="rounded-[18px] border border-(--color-gold) bg-white/95 p-6 shadow-metallic backdrop-blur-sm">
                 <details className="group">
                   <summary className="flex cursor-pointer items-center justify-between">
                     <div>
-                      <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
+                      <h2 className="text-lg font-semibold text-red-900">Change Password</h2>
                       <p className="mt-1 text-sm text-gray-500">
                         Update your password to keep your account secure.
                       </p>
                     </div>
-                    <div className="rounded-full bg-(--color-primary)/5 p-2 text-(--color-primary) transition group-open:rotate-180">
+                    <div className="rounded-full bg-(--color-deep-navy)/5 p-2 text-(--color-deep-navy) transition group-open:rotate-180">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
@@ -286,7 +286,7 @@ export default function SettingsPage() {
                     )}
 
                     <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-4 sm:grid-cols-2 text-black">
                         <PasswordField
                           id="current-password"
                           label="Current Password"
@@ -327,7 +327,7 @@ export default function SettingsPage() {
                         <button
                           type="submit"
                           disabled={changingPassword}
-                          className="rounded-lg bg-linear-to-r from-(--color-primary) to-(--color-secondary) px-5 py-2 text-sm font-semibold text-white shadow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-lg btn-primary px-5 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {changingPassword ? "Changing password..." : "Change password"}
                         </button>
@@ -363,7 +363,7 @@ export default function SettingsPage() {
                           onChange={(e) =>
                             handleProfileChange("first_name", e.target.value)
                           }
-                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                          className="mt-1 rounded-lg border border-(--color-silver-light) px-3 py-2 text-sm outline-none transition focus:border-(--color-gold) focus:ring-2 focus:ring-(--color-deep-navy)/20"
                         />
                       </label>
                       <label className="flex flex-col text-sm font-medium text-gray-700">
@@ -373,7 +373,7 @@ export default function SettingsPage() {
                           onChange={(e) =>
                             handleProfileChange("last_name", e.target.value)
                           }
-                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
                         />
                       </label>
                     </div>
@@ -385,7 +385,7 @@ export default function SettingsPage() {
                           onChange={(e) =>
                             handleProfileChange("username", e.target.value)
                           }
-                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
                           placeholder="e.g. libertarian_dreamer"
                         />
                       </label>
@@ -396,7 +396,7 @@ export default function SettingsPage() {
                           onChange={(e) =>
                             handleProfileChange("phone_number", e.target.value)
                           }
-                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
                           placeholder="+15551234567"
                         />
                       </label>
@@ -409,7 +409,7 @@ export default function SettingsPage() {
                           handleProfileChange("bio", e.target.value)
                         }
                         rows={4}
-                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
                         placeholder="Tell people a little about yourself"
                       />
                     </label>
@@ -420,7 +420,7 @@ export default function SettingsPage() {
                         onChange={(e) =>
                           handleProfileChange("gender", e.target.value)
                         }
-                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
                       >
                         {GENDER_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -433,7 +433,7 @@ export default function SettingsPage() {
                       <button
                         type="submit"
                         disabled={savingProfile}
-                        className="rounded-lg bg-linear-to-r from-(--color-primary) to-(--color-secondary) px-5 py-2 text-sm font-semibold text-white shadow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-lg btn-primary px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {savingProfile ? "Saving..." : "Save profile"}
                       </button>
@@ -465,7 +465,7 @@ export default function SettingsPage() {
                               e.target.value as UserSettings["profile_privacy"],
                           }))
                         }
-                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
                       >
                         {PRIVACY_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -486,7 +486,7 @@ export default function SettingsPage() {
                               e.target.value as UserSettings["friends_publicity"],
                           }))
                         }
-                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
                       >
                         {PRIVACY_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -500,7 +500,7 @@ export default function SettingsPage() {
                       <button
                         type="submit"
                         disabled={savingPrivacy}
-                        className="rounded-lg border border-(--color-primary) px-5 py-2 text-sm font-semibold text-(--color-primary) transition hover:bg-(--color-primary) hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-lg border border-(--color-deep-navy) px-5 py-2 text-sm font-semibold text-(--color-deep-navy) transition hover:bg-(--color-deep-navy) hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {savingPrivacy ? "Saving..." : "Save privacy settings"}
                       </button>
@@ -573,7 +573,7 @@ export default function SettingsPage() {
                       <button
                         onClick={loadMoreBlocked}
                         disabled={loadingMoreBlocked}
-                        className="rounded-lg border border-[var(--color-primary)] px-4 py-2 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-lg border border-[var(--color-deep-navy)] px-4 py-2 text-xs font-semibold text-[var(--color-deep-navy)] transition hover:bg-[var(--color-deep-navy)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {loadingMoreBlocked ? "Loading..." : "Load more"}
                       </button>
@@ -585,11 +585,11 @@ export default function SettingsPage() {
         </div>
 
         <aside className="w-full max-w-xs shrink-0 space-y-6 lg:w-1/3">
-          <div className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
+          <div className="rounded-[18px] border border-(--color-gold) bg-white/95 p-6 shadow-metallic backdrop-blur-sm">
             <h2 className="text-sm font-semibold text-gray-900">Account</h2>
             <dl className="mt-3 space-y-3 text-sm text-gray-600">
               <div className="flex items-start gap-3">
-                <dt className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+                <dt className="flex h-8 w-8 items-center justify-center rounded-full bg-(--color-deep-navy)/10 text-(--color-deep-navy)">
                   <svg
                     aria-hidden
                     className="h-4 w-4"
@@ -609,7 +609,7 @@ export default function SettingsPage() {
                 <dd className="flex-1">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Email</p>
                   <p
-                    className="mt-1 max-w-[180px] truncate font-medium text-[var(--color-primary)] sm:max-w-xs"
+                    className="mt-1 max-w-[180px] truncate font-medium text-[var(--color-deep-navy)] sm:max-w-xs"
                     title={accountEmail}
                   >
                     {accountEmail}
@@ -617,7 +617,7 @@ export default function SettingsPage() {
                 </dd>
               </div>
               <div className="flex items-start gap-3">
-                <dt className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-secondary)]/10 text-[var(--color-secondary)]">
+                  <dt className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-rich-red-top)]/10 text-[var(--color-rich-red-top)]">
                   <svg
                     aria-hidden
                     className="h-4 w-4"
@@ -649,7 +649,7 @@ export default function SettingsPage() {
             </p>
             <a
               href="mailto:support@mylibertysocial.com"
-              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-primary)] hover:opacity-80"
+              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-deep-navy)] hover:opacity-80"
             >
               Contact support
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">

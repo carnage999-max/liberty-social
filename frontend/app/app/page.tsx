@@ -58,7 +58,7 @@ export default function AppHome() {
               <h3 className="text-lg font-semibold text-gray-900">{card.title}</h3>
               <p className="text-sm text-gray-600">{card.description}</p>
             </div>
-            <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-primary)] transition group-hover:gap-3">
+            <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-(--color-deep-navy) transition group-hover:gap-3">
               {card.linkLabel}
               <svg
                 className="h-4 w-4"

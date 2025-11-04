@@ -66,29 +66,31 @@ export default function Navbar() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  return skipNav ? null : (
+    return skipNav ? null : (
     <nav
       className={[
         "fixed top-0 inset-x-0 z-40 mx-auto max-w-7xl",
         "transition-all duration-300 ease-out",
         "px-6 md:px-8 py-3 md:py-4",
         "rounded-xl backdrop-blur-md",
-        raised ? "bg-white/75 shadow-md" : "bg-white/40 shadow-sm",
+        raised ? "header-bar shadow-md" : "header-bar shadow-sm",
       ].join(" ")}
       role="navigation"
       aria-label="Main"
     >
       <div className="flex items-center justify-between">
-        {/* Brand: logo + wordmark */}
-        <Link href="/" className="flex items-center gap-2">
-          <Image
-            src="/images/logo.png"
-            alt="Liberty Social logo"
-            width={28}
-            height={28}
-            priority
-            className="rounded-md"
-          />
+        {/* Brand: logo + wordmark (logo centered visual is handled by layout) */}
+        <Link href="/" className="flex items-center gap-3">
+          <span className="logo-area">
+            <Image
+              src="/images/logo.png"
+              alt="Liberty Social logo"
+              width={36}
+              height={36}
+              priority
+              className="rounded-md"
+            />
+          </span>
           <span className="text-xl md:text-2xl font-extrabold gradient-underline">
             Liberty Social
           </span>
@@ -98,7 +100,7 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-3">
           <Link
             href="/app"
-            className="px-4 py-2 rounded-[12px] font-medium text-[var(--color-primary)] bg-white hover:opacity-90 transition shadow-sm"
+            className="btn-primary px-4 py-2 inline-flex items-center justify-center"
           >
             Communities
           </Link>
@@ -106,10 +108,10 @@ export default function Navbar() {
             <>
               <Link
                 href="/app"
-                className="inline-flex items-center gap-3 px-3 py-2 rounded-[12px] bg-white text-[var(--color-primary)] font-medium shadow-sm hover:opacity-90 transition"
+                className="inline-flex items-center gap-3 px-3 py-2 rounded-[12px] bg-white text-(--color-deep-navy) font-medium shadow-sm hover:opacity-90 transition"
                 aria-label="Open profile"
               >
-                <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-primary)]/10 text-sm font-semibold text-[var(--color-primary)] flex items-center justify-center">
+                  <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-deep-navy)]/10 text-sm font-semibold text-[var(--color-deep-navy)] flex items-center justify-center">
                   {avatarSrc ? (
                     <Image
                       src={avatarSrc}
@@ -128,7 +130,7 @@ export default function Navbar() {
                 onClick={() => {
                   void logout();
                 }}
-                className="inline-flex items-center gap-2 rounded-[12px] bg-gradient-to-r from-rose-500 to-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                className="inline-flex items-center gap-2 rounded-[12px] btn-primary px-4 py-2 text-sm font-semibold transition hover:opacity-90"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
@@ -159,7 +161,7 @@ export default function Navbar() {
           ) : (
             <Link
               href="/auth"
-              className="px-4 py-2 rounded-[12px] text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic"
+              className="btn-primary px-4 py-2 text-sm font-semibold"
             >
               Create account
             </Link>
@@ -197,22 +199,22 @@ export default function Navbar() {
             : "max-h-0 opacity-0 -translate-y-1",
         ].join(" ")}
       >
-        <div className="mt-3 rounded-xl bg-white/90 backdrop-blur-md shadow-md p-3">
-          <Link
-            href="/app"
-            onClick={() => setOpen(false)}
-            className="block w-full text-left px-4 py-3 rounded-lg text-[var(--color-primary)] hover:bg-[var(--metallic-silver)] transition"
-          >
-            Communities
-          </Link>
+          <div className="mt-3 rounded-xl bg-white/90 backdrop-blur-md shadow-md p-3">
+            <Link
+              href="/app"
+              onClick={() => setOpen(false)}
+              className="block w-full text-left px-4 py-3 rounded-lg btn-primary"
+            >
+              Communities
+            </Link>
           {showProfile ? (
             <>
               <Link
                 href="/app"
                 onClick={() => setOpen(false)}
-                className="mt-2 flex items-center gap-3 px-4 py-3 rounded-lg text-[var(--color-primary)] font-medium hover:bg-[var(--metallic-silver)] transition"
+                className="mt-2 flex items-center gap-3 px-4 py-3 rounded-lg text-[var(--color-deep-navy)] font-medium hover:bg-[var(--metallic-silver)] transition"
               >
-                <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-primary)]/10 text-sm font-semibold text-[var(--color-primary)] flex items-center justify-center">
+                    <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-deep-navy)]/10 text-sm font-semibold text-[var(--color-deep-navy)] flex items-center justify-center">
                   {avatarSrc ? (
                     <Image
                       src={avatarSrc}
@@ -232,7 +234,7 @@ export default function Navbar() {
                   await logout();
                   setOpen(false);
                 }}
-                className="mt-2 flex w-full items-center gap-2 rounded-lg bg-gradient-to-r from-rose-500 to-rose-600 px-4 py-3 text-left text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                className="mt-2 flex w-full items-center gap-2 rounded-lg btn-primary px-4 py-3 text-left text-sm font-semibold transition hover:opacity-90"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
@@ -264,7 +266,7 @@ export default function Navbar() {
             <Link
               href="/auth"
               onClick={() => setOpen(false)}
-              className="mt-2 block w-full text-left px-4 py-3 rounded-lg text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic"
+              className="mt-2 block w-full text-left px-4 py-3 rounded-lg btn-primary"
             >
               Create account
             </Link>

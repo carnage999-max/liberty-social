@@ -22,8 +22,8 @@ export default function Spinner({
         <div
           className="absolute inset-0 rounded-full border-[4px] border-transparent animate-spin-gradient"
           style={{
-            borderTopColor: "var(--color-primary)",
-            borderRightColor: "var(--color-secondary)",
+            borderTopColor: "var(--color-deep-navy)",
+            borderRightColor: "var(--color-rich-red-top)",
             borderRadius: "50%",
             animationDuration: speed,
             boxShadow:
@@ -32,7 +32,7 @@ export default function Spinner({
         />
         {/* Subtle center glow */}
         <div
-          className="absolute rounded-full bg-gradient-to-br from-[var(--color-primary)]/10 to-[var(--color-secondary)]/10 blur-md"
+          className="absolute rounded-full bg-gradient-to-br from-[var(--color-deep-navy)]/10 to-[var(--color-rich-red-top)]/10 blur-md"
           style={{
             width: size * 0.6,
             height: size * 0.6,

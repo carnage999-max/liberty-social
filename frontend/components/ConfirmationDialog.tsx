@@ -39,7 +39,7 @@ export default function ConfirmationDialog({
   const confirmButtonClass =
     confirmVariant === "danger"
       ? "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
-      : "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 text-white";
+      : "btn-primary text-white";
 
   return (
     <div

@@ -11,10 +11,14 @@ import { API_BASE, apiPatch } from "@/lib/api";
 type ProfileCardProps = {
   showStats?: boolean;
   className?: string;
+  profileHref?: string;
 };
 
-export default function ProfileCard({ showStats = true, className = "" }: ProfileCardProps = {}) {
+import { useRouter } from "next/navigation";
+
+export default function ProfileCard({ showStats = true, className = "", profileHref }: ProfileCardProps = {}) {
   const { user, rawUser, accessToken, refreshUser } = useAuth();
+  const router = useRouter();
   const toast = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [updatingImage, setUpdatingImage] = useState(false);
@@ -116,10 +120,20 @@ export default function ProfileCard({ showStats = true, className = "" }: Profil
     }
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (!profileHref) return;
+    const target = e.target as HTMLElement | null;
+    // don't navigate if an interactive element was the target
+    if (!target) return;
+    if (target.closest("button") || target.closest("a") || target.closest("input")) return;
+    void router.push(profileHref);
+  };
+
   return (
     <div
+      onClick={handleCardClick}
       className={[
-        "flex flex-col items-center rounded-[16px] bg-white/80 p-4 text-center shadow-md backdrop-blur-sm sm:p-6",
+        `flex flex-col items-center ${profileHref ? "cursor-pointer" : ""} rounded-[16px] bg-white/80 p-4 text-center shadow-md backdrop-blur-sm sm:p-6`,
         className,
       ]
         .filter(Boolean)
@@ -127,8 +141,8 @@ export default function ProfileCard({ showStats = true, className = "" }: Profil
     >
       <button
         type="button"
-        onClick={() => setModalOpen(true)}
-        className="relative mb-3 rounded-full border-2 border-[var(--color-primary)] p-1 focus:outline-none focus:ring focus:ring-offset-2 focus:ring-[var(--color-primary)]/40"
+        onClick={() => (profileHref ? router.push(profileHref) : setModalOpen(true))}
+        className="relative mb-3 rounded-full border-2 border-(--color-deep-navy) p-1 focus:outline-none focus:ring focus:ring-offset-2 focus:ring-(--color-deep-navy)/40"
         aria-label="View profile photo"
       >
         <Image
@@ -155,7 +169,7 @@ export default function ProfileCard({ showStats = true, className = "" }: Profil
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-sm rounded-2xl bg-white/95 p-6 shadow-metallic backdrop-blur-sm">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Profile photo</h3>
@@ -184,7 +198,7 @@ export default function ProfileCard({ showStats = true, className = "" }: Profil
                 alt={avatarAlt}
                 width={160}
                 height={160}
-                className="rounded-full object-cover border-4 border-[var(--color-primary)]/30"
+                className="rounded-full object-cover border-4 border-(--color-deep-navy)/30"
               />
 
               <div className="flex w-full flex-col gap-2">
@@ -192,9 +206,9 @@ export default function ProfileCard({ showStats = true, className = "" }: Profil
                   type="button"
                   onClick={handleFileSelect}
                   disabled={updatingImage}
-                  className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white shadow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="btn-primary inline-flex items-center justify-center rounded-lg px-5 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {updatingImage ? "Updating..." : "Change photo"}
+                  {updatingImage ? "Updating..." : "Update profile image"}
                 </button>
                 {resolvedUser.profile_image_url && (
                   <button

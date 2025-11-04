@@ -95,11 +95,11 @@ export default function BookmarksPage() {
           <Spinner />
         </div>
       ) : error ? (
-        <div className="rounded-2xl bg-white/90 p-8 text-center shadow-sm">
+          <div className="rounded-2xl bg-white/90 p-8 text-center shadow-sm">
           <p className="text-sm text-gray-700">{error}</p>
           <button
             onClick={() => refresh()}
-            className="mt-4 rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90"
+            className="mt-4 rounded-lg btn-primary px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90"
           >
             Retry
           </button>
@@ -162,7 +162,7 @@ export default function BookmarksPage() {
                       {post && (
                         <Link
                           href={`/app/feed/${post.id}`}
-                          className="rounded-lg border border-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
+                          className="rounded-lg border border-(--color-deep-navy) px-3 py-1.5 text-xs font-semibold text-(--color-deep-navy) transition hover:bg-(--color-deep-navy) hover:text-white"
                         >
                           View post
                         </Link>
@@ -178,7 +178,7 @@ export default function BookmarksPage() {
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="rounded-lg border border-[var(--color-primary)] px-5 py-2 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg border border-(--color-deep-navy) px-5 py-2 text-sm font-semibold text-(--color-deep-navy) transition hover:bg-(--color-deep-navy) hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loadingMore ? "Loading..." : "Load more"}
               </button>

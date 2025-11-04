@@ -142,7 +142,7 @@ export default function AppShell({ children }: AppShellProps) {
             onClick={() => {
               router.push(`/app/feed/${post.id}`);
             }}
-            className="rounded-full border border-white/80 bg-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/20"
+            className="rounded-full border border-transparent bg-(--color-deep-navy) px-3 py-1 text-xs font-semibold text-white transition hover:bg-(--color-deeper-navy)"
           >
             View post
           </button>
@@ -210,9 +210,19 @@ export default function AppShell({ children }: AppShellProps) {
     [router, closeNav]
   );
 
+  // compute a best-effort href to the current user's public profile
+  const myProfileHref = (() => {
+    try {
+      const uid = (user as any)?.id ?? (typeof window !== "undefined" ? localStorage.getItem("userId") : null);
+      return uid ? `/app/users/${uid}` : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
+
   return (
     <div className="min-h-screen bg-[var(--color-background)] pb-32">
-      <header className="sticky top-0 z-30 border-b border-white/20 bg-gradient-to-r from-[var(--color-primary)] via-[var(--color-secondary)] to-[var(--color-primary)] text-white shadow-lg backdrop-blur-sm">
+      <header className="sticky top-0 z-30 header-bar text-white shadow-lg backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
           <div className="flex items-center justify-between py-3 sm:hidden">
             <button
@@ -252,11 +262,17 @@ export default function AppShell({ children }: AppShellProps) {
               )}
             </button>
             <button
-              type="button"
-              onClick={() => handleNavigate("/app/settings")}
-              aria-label="View profile"
-              className="relative h-9 w-9 overflow-hidden rounded-full border border-white/40 bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30"
-            >
+                type="button"
+                onClick={() => {
+                  if (myProfileHref) {
+                    router.push(myProfileHref);
+                  } else {
+                    handleNavigate("/app/settings");
+                  }
+                }}
+                aria-label="View profile"
+                className="relative h-9 w-9 overflow-hidden rounded-full border border-white/40 bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30"
+              >
               {user ? (
                 user.profile_image_url ? (
                   <Image
@@ -297,14 +313,36 @@ export default function AppShell({ children }: AppShellProps) {
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => handleNavigate("/app/settings")}
-                className="rounded-full border border-white/40 px-4 py-2 text-sm font-medium text-white/90 transition hover:bg-white/15"
+                type="button"
+                onClick={() => {
+                  if (myProfileHref) router.push(myProfileHref);
+                  else handleNavigate("/app/settings");
+                }}
+                aria-label="View profile"
+                className="relative h-9 w-9 overflow-hidden rounded-full border border-white/40 bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30"
               >
-                Manage profile
+                {user ? (
+                  user.profile_image_url ? (
+                    <Image
+                      src={user.profile_image_url}
+                      alt={user.username || user.email || "Your profile"}
+                      fill
+                      sizes="36px"
+                      className="object-cover"
+                      priority
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center">
+                      {(user.username || user.email || "U").charAt(0).toUpperCase()}
+                    </span>
+                  )
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center">?</span>
+                )}
               </button>
               <button
                 onClick={openCreateModal}
-                className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-[var(--color-primary)] shadow-sm transition hover:bg-white/90"
+                className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/90"
               >
                 Create post
               </button>
@@ -314,7 +352,7 @@ export default function AppShell({ children }: AppShellProps) {
       </header>
 
       {navOpen && (
-        <div className="sm:hidden border-b border-gray-200 bg-white/95 text-[var(--color-primary)] shadow-sm">
+        <div className="sm:hidden border-b border-gray-200 bg-white/95 text-[var(--color-deep-navy)] shadow-sm">
           <div className="mx-auto w-full max-w-6xl space-y-4 px-4 py-4">
             <nav aria-label="Mobile navigation" className="rounded-[16px] bg-white p-4 shadow-sm">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -332,12 +370,12 @@ export default function AppShell({ children }: AppShellProps) {
                         className={[
                           "group flex w-full items-center justify-between rounded-lg px-3 py-2 transition",
                           active
-                            ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-sm"
-                            : "bg-white text-[var(--color-primary)] hover:bg-[var(--metallic-silver)]/40",
+                            ? "bg-[var(--color-deep-navy)]/15 text-[var(--color-deep-navy)] shadow-sm"
+                            : "bg-white text-[var(--color-deep-navy)] hover:bg-[var(--metallic-silver)]/40",
                           ].join(" ")}
                       >
                         <span className="flex items-center gap-2">
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] transition group-hover:bg-[var(--color-primary)]/15 group-hover:text-[var(--color-primary)]">
+                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-deep-navy)]/10 text-[var(--color-deep-navy)] transition group-hover:bg-[var(--color-deep-navy)]/15 group-hover:text-[var(--color-deep-navy)]">
                             {link.icon}
                           </span>
                           <span>{link.label}</span>
@@ -406,7 +444,7 @@ export default function AppShell({ children }: AppShellProps) {
                   <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Navigation
                   </p>
-                  <ul className="space-y-2 text-sm font-medium text-[var(--color-primary)]">
+                  <ul className="space-y-2 text-sm font-medium text-[var(--color-deep-navy)]">
                     {NAV_LINKS.map((link) => {
                       const active = pathname?.startsWith(link.href);
                       const badgeCount = link.href === "/app/friend-requests" ? incomingFriendRequests : 0;
@@ -418,12 +456,12 @@ export default function AppShell({ children }: AppShellProps) {
                             className={[
                               "group flex w-full items-center justify-between rounded-lg px-3 py-2 transition",
                               active
-                                ? "bg-[var(--color-primary)]/15 text-[var(--color-primary)] shadow-sm"
+                                ? "bg-[var(--color-deep-navy)]/15 text-[var(--color-deep-navy)] shadow-sm"
                                 : "hover:bg-[var(--metallic-silver)]/60",
                             ].join(" ")}
                           >
-                            <span className="flex items-center gap-2 text-[var(--color-primary)]">
-                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)] transition group-hover:bg-[var(--color-primary)]/20">
+                            <span className="flex items-center gap-2 text-[var(--color-deep-navy)]">
+                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-deep-navy)]/10 text-[var(--color-deep-navy)] transition group-hover:bg-[var(--color-deep-navy)]/20">
                                 {link.icon}
                               </span>
                               <span>{link.label}</span>
@@ -480,7 +518,7 @@ export default function AppShell({ children }: AppShellProps) {
         <main className="flex-1 min-w-0">
           {!isDesktop && (
             <div className="mb-6 lg:hidden">
-              <ProfileCard className="items-start text-left sm:items-center sm:text-center" />
+              <ProfileCard profileHref={myProfileHref} className="items-start text-left sm:items-center sm:text-center" />
             </div>
           )}
           <CreatePostToolbar onOpen={openCreateModal} />
@@ -512,7 +550,7 @@ function CreatePostToolbar({ onOpen }: { onOpen: () => void }) {
         </div>
         <button
           onClick={onOpen}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-5 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90"
+          className="inline-flex items-center justify-center gap-2 rounded-full btn-primary px-5 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
             <path
@@ -740,7 +778,7 @@ function CreatePostModal({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={6}
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
               placeholder="Start typing to share a thought, idea, or update..."
             />
           </label>
@@ -762,11 +800,11 @@ function CreatePostModal({
                   <p className="text-sm">
                     Add up to {MAX_MEDIA_ITEMS} images. They&apos;ll upload securely to Liberty Social.
                   </p>
-                  <button
-                    type="button"
-                    onClick={handleSelectMedia}
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white shadow transition hover:opacity-90"
-                  >
+                    <button
+                      type="button"
+                      onClick={handleSelectMedia}
+                      className="inline-flex items-center justify-center gap-2 rounded-full btn-primary px-4 py-2 text-sm font-semibold text-white shadow transition hover:opacity-90"
+                    >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <path
                         d="M12 5v14M5 12h14"
@@ -805,7 +843,7 @@ function CreatePostModal({
                       <button
                         type="button"
                         onClick={handleSelectMedia}
-                        className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white text-sm text-gray-500 transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                        className="flex aspect-square flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white text-sm text-gray-500 transition hover:border-[var(--color-deep-navy)] hover:text-[var(--color-deep-navy)]"
                       >
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                           <path
@@ -840,7 +878,7 @@ function CreatePostModal({
             <select
               value={visibility}
               onChange={(e) => setVisibility(e.target.value as Visibility)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
             >
               <option value="public">Public</option>
               <option value="friends">Friends</option>
@@ -865,7 +903,7 @@ function CreatePostModal({
             <button
               type="submit"
               disabled={submitting}
-              className="rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-6 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-full btn-primary px-6 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting ? "Posting..." : "Share"}
             </button>
@@ -975,7 +1013,7 @@ function FloatingCreateButton({ onOpen }: { onOpen: () => void }) {
         }
       }}
       style={{ left: `${position.x}px`, top: `${position.y}px` }}
-      className="fixed z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white shadow-metallic transition hover:scale-105 active:scale-95 touch-action-none cursor-grab active:cursor-grabbing"
+      className="fixed z-40 flex h-14 w-14 items-center justify-center rounded-full btn-primary text-white shadow-metallic transition hover:scale-105 active:scale-95 touch-action-none cursor-grab active:cursor-grabbing"
     >
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

@@ -34,7 +34,7 @@ class ResendEmailBackend(BaseEmailBackend):
                 continue
 
             payload = {
-                'from': 'Liberty Social <no-reply@onresend.com>',
+                'from': f'Liberty Social <{config("DEFAULT_FROM_EMAIL")}>',
                 'to': tos,
                 'subject': message.subject or '',
                 # Resend accepts html; if message.content_subtype == 'html' prefer that

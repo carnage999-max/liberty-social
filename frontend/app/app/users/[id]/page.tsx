@@ -274,7 +274,7 @@ export default function UserProfilePage() {
       return (
         <Link
           href="/app/settings"
-          className="inline-flex items-center justify-center gap-2 rounded-full border border-[var(--color-primary)] px-5 py-2 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white"
+          className="inline-flex items-center justify-center gap-2 rounded-full btn-primary px-5 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90"
         >
           Manage profile
         </Link>
@@ -319,7 +319,7 @@ export default function UserProfilePage() {
           <button
             onClick={handleAcceptRequest}
             disabled={pendingAction !== null}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-5 py-2 text-sm font-semibold text-white shadow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-full btn-primary px-5 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {pendingAction === "accept" ? "Accepting..." : "Accept request"}
           </button>
@@ -351,7 +351,7 @@ export default function UserProfilePage() {
         <button
           onClick={handleSendFriendRequest}
           disabled={pendingAction !== null}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-5 py-2 text-sm font-semibold text-white shadow transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 rounded-full btn-primary px-5 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {pendingAction === "friend" ? "Sending..." : "Add friend"}
         </button>
@@ -438,7 +438,7 @@ export default function UserProfilePage() {
         <div className="mt-4">
           <Link
             href={`/app/feed/${post.id}`}
-            className="text-sm font-semibold text-[var(--color-primary)] transition hover:opacity-80"
+            className="text-sm font-semibold text-(--color-deep-navy) transition hover:opacity-80"
           >
             View full post
           </Link>
@@ -449,11 +449,11 @@ export default function UserProfilePage() {
 
   return (
     <RequireAuth>
-      <section className="min-h-screen bg-[var(--color-background)] pb-16 pt-24 sm:pt-28">
-        <div className="mx-auto w-full max-w-4xl px-4 sm:px-6">
+      <section className="min-h-screen bg-(--color-background) pb-16 pt-24 sm:pt-28">
+  <div className="mx-auto w-full max-w-4xl px-4 sm:px-6">
           <Link
             href="/app/feed"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-primary)] transition hover:opacity-80"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-(--color-deep-navy) transition hover:opacity-80"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path
@@ -467,7 +467,7 @@ export default function UserProfilePage() {
             Back to feed
           </Link>
 
-          <div className="mt-6 rounded-[20px] border border-gray-100 bg-white/90 p-6 shadow-sm backdrop-blur-md sm:p-8">
+          <div className="mt-6 rounded-2xl border border-gray-100 bg-white/95 p-6 shadow-metallic backdrop-blur-md sm:p-8">
             {loading ? (
               <div className="flex justify-center py-16">
                 <Spinner />
@@ -487,7 +487,7 @@ export default function UserProfilePage() {
               <>
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex items-start gap-5">
-                    <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-[var(--color-primary)]/20 bg-gray-100 sm:h-28 sm:w-28">
+                      <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-(--color-deep-navy)/30 bg-gray-100 sm:h-28 sm:w-28">
                       {overview.user.profile_image_url ? (
                         <Image
                           src={overview.user.profile_image_url}
@@ -503,7 +503,7 @@ export default function UserProfilePage() {
                       )}
                     </div>
                     <div>
-                      <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{displayName}</h1>
+                      <h1 className="text-2xl font-bold text-(--color-deep-navy) sm:text-3xl">{displayName}</h1>
                       {usernameTag && <p className="text-sm text-gray-500">{usernameTag}</p>}
                       {memberSince && (
                         <p className="mt-2 text-xs text-gray-400">Member since {memberSince}</p>
@@ -515,7 +515,7 @@ export default function UserProfilePage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-col items-start gap-3 sm:items-end">
+                    <div className="flex flex-col items-start gap-3 sm:items-end">
                     {renderPrimaryActions()}
                     {renderSecondaryActions()}
                   </div>
@@ -537,7 +537,7 @@ export default function UserProfilePage() {
                           className={[
                             "rounded-full px-4 py-2 text-sm font-semibold transition",
                             activeTab === tab
-                              ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white shadow"
+                              ? "btn-primary text-white shadow"
                               : "border border-gray-300 text-gray-600 hover:bg-gray-100",
                             disabled ? "cursor-not-allowed opacity-50" : "",
                           ].join(" ")}
@@ -555,12 +555,12 @@ export default function UserProfilePage() {
                       {stats.map((stat) => (
                         <div
                           key={stat.label}
-                          className="rounded-[16px] border border-gray-100 bg-white p-4 text-center shadow-sm"
+                          className="rounded-xl border border-gray-100 bg-white/95 p-4 text-center shadow-metallic"
                         >
                           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
                             {stat.label}
                           </p>
-                          <p className="mt-2 text-2xl font-bold text-gray-900">
+                          <p className="mt-2 text-2xl font-bold text-(--color-deep-navy)">
                             {stat.value ?? "—"}
                           </p>
                         </div>
@@ -585,13 +585,13 @@ export default function UserProfilePage() {
                       photos.length > 0 ? (
                         <>
                           <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-semibold text-gray-900">Photos</h2>
-                            <Link
-                              href="/app/feed"
-                              className="text-sm font-semibold text-[var(--color-primary)] transition hover:opacity-80"
-                            >
-                              See feed
-                            </Link>
+                            <h2 className="text-lg font-semibold text-(--color-deep-navy)">Photos</h2>
+                              <Link
+                                href="/app/feed"
+                                className="text-sm font-semibold text-(--color-deep-navy) transition hover:opacity-80"
+                              >
+                                See feed
+                              </Link>
                           </div>
                           <div className="mt-4 grid gap-3 sm:grid-cols-3">
                             {photos.map((url, index) => (
@@ -625,10 +625,10 @@ export default function UserProfilePage() {
                       ) : (
                         <>
                           <div className="flex items-center justify-between">
-                            <h2 className="text-lg font-semibold text-gray-900">Recent posts</h2>
+                            <h2 className="text-lg font-semibold text-(--color-deep-navy)">Recent posts</h2>
                             <Link
                               href="/app/feed"
-                              className="text-sm font-semibold text-[var(--color-primary)] transition hover:opacity-80"
+                              className="text-sm font-semibold text-(--color-deep-navy) transition hover:opacity-80"
                             >
                               See feed
                             </Link>

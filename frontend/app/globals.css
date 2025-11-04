@@ -2,15 +2,25 @@
 
 /* Custom theme */
 :root {
-  /* Option C — Bold & Energetic theme */
-  --color-primary: #0B3D91; /* deep cobalt — brand foundation */
-  --color-secondary: #FF4D4F; /* vibrant warm red — attention accent */
-  --color-background: #F6F7FB; /* soft, cool page background */
-  --metallic-silver: linear-gradient(180deg, #F3F4F6, #D1D5DB);
-  --metallic-accent: linear-gradient(180deg,#FFECEC,#FFDADA); /* subtle warm accent */
-  /* Link underline gradient (used by gradient-underline utility) */
-  --link-gradient: linear-gradient(90deg, #0B3D91 0%, #6C5CE7 45%, #FF4D4F 100%);
-  --font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  /* Liberty Social — new brand tokens */
+  --color-deep-navy: #1D2B4F; /* primary background panel */
+  --color-deeper-navy: #121A33; /* darker navy for gradient end */
+  --color-rich-red-top: #A31717; /* header top */
+  --color-rich-red-bottom: #6E0E0E; /* header bottom */
+  --color-gold: #C8A25F; /* gold trim / accent */
+  --color-silver-light: #E0E0E0; /* light metallic silver */
+  --color-silver-mid: #C0C0C0; /* silver midtone */
+  --color-white: #FFFFFF;
+  --color-text-dark: #2B2B2B;
+
+  /* gradients */
+  --bg-gradient: linear-gradient(180deg, var(--color-deep-navy) 0%, var(--color-deeper-navy) 100%);
+  --header-gradient: linear-gradient(180deg, var(--color-rich-red-top) 0%, var(--color-rich-red-bottom) 100%);
+  --silver-metallic: linear-gradient(180deg, var(--color-silver-mid), #EDEDED);
+  --link-gradient: linear-gradient(90deg, var(--color-deep-navy) 0%, var(--color-gold) 60%, var(--color-rich-red-top) 100%);
+
+  /* typography */
+  --font-family: "SF Pro Display", Roboto, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial;
 }
 
 @layer base {
@@ -18,8 +28,8 @@
   body {
     margin: 0;
     padding: 0;
-    background-color: var(--color-background);
-    color: var(--color-primary);
+    background: var(--bg-gradient);
+    color: var(--color-white);
     font-family: var(--font-family);
     -webkit-font-smoothing: antialiased;
   }
@@ -40,23 +50,25 @@
 /* Custom utilities */
 @layer utilities {
   .bg-primary {
-    background-color: var(--color-primary);
+    background: var(--bg-gradient);
   }
 
   .bg-secondary {
-    background-color: var(--color-secondary);
+    /* mapped to brand rich red accent */
+    background-color: var(--color-rich-red-top);
   }
 
   .text-primary {
-    color: var(--color-primary);
+    /* primary accent now uses deep navy */
+    color: var(--color-deep-navy);
   }
 
   .text-secondary {
-    color: var(--color-secondary);
+    color: var(--color-rich-red-top);
   }
 
   .bg-metallic-silver {
-    background: var(--metallic-silver);
+    background: var(--silver-metallic);
   }
 
   .bg-metallic-gold {
@@ -65,7 +77,68 @@
   }
 
   .shadow-metallic {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Brand header bar */
+  .header-bar {
+    background: var(--header-gradient);
+    border-bottom: 2px solid var(--color-gold);
+    color: var(--color-white);
+  }
+
+  /* Primary button styles */
+  .btn-primary {
+    border-radius: 8px;
+    background: linear-gradient(180deg, #2F406B 0%, #192A4A 100%);
+    color: var(--color-white);
+    font-weight: 700;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--color-gold);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    text-shadow: 0 -1px 0 rgba(0,0,0,0.25) inset;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.95;
+  }
+
+  /* Action icons */
+  .action-accept {
+    width: 36px; height: 36px; border-radius: 9999px;
+    background: var(--color-gold);
+    display:inline-flex; align-items:center; justify-content:center;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.25);
+    color: #111;
+    border: 1px solid rgba(255,255,255,0.24);
+  }
+
+  .action-decline {
+    width: 36px; height: 36px; border-radius: 9999px;
+    background: var(--color-rich-red-top);
+    display:inline-flex; align-items:center; justify-content:center;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.25);
+    color: var(--color-white);
+    border: 1px solid rgba(0,0,0,0.12);
+  }
+
+  /* List card */
+  .card-request {
+    background: var(--color-silver-light);
+    border: 1px solid var(--color-gold);
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    color: #000;
+    font-weight: 600;
+  }
+
+  /* Logo area */
+  .logo-area {
+    background: var(--color-deep-navy);
+    border: 2px solid var(--color-gold);
+    display:inline-flex; align-items:center; justify-content:center;
+    padding: 8px; border-radius: 8px;
   }
 
   /* Animated gradient underline for links */

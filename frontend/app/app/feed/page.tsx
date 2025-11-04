@@ -498,7 +498,7 @@ export default function FeedPage() {
       <div className="space-y-6">
         <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Your Feed</h1>
+            <h1 className="text-2xl font-bold text-gray-400">Your Feed</h1>
           </div>
         </header>
 

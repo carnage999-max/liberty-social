@@ -73,7 +73,7 @@ export default function PasswordReset() {
             <div className="mt-5">
               <Link
                 href="/auth"
-                className="text-sm font-medium text-(--color-primary) hover:opacity-80"
+                className="text-sm font-medium text-(--color-deep-navy) hover:opacity-80"
               >
                 Return to login
               </Link>
@@ -107,7 +107,7 @@ export default function PasswordReset() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-(--color-primary) focus:border-(--color-primary) sm:text-sm"
+              className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-(--color-deep-navy) focus:border-(--color-deep-navy) sm:text-sm"
               placeholder="Email address"
             />
           </div>
@@ -126,7 +126,7 @@ export default function PasswordReset() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-linear-to-r from-(--color-primary) to-(--color-secondary) hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-(--color-primary)"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white btn-primary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-(--color-deep-navy)"
             >
               {loading ? <Spinner /> : "Send reset instructions"}
             </button>
@@ -135,7 +135,7 @@ export default function PasswordReset() {
           <div className="text-center">
             <Link
               href="/auth"
-              className="text-sm font-medium text-(--color-primary) hover:opacity-80"
+              className="text-sm font-medium text-(--color-deep-navy) hover:opacity-80"
             >
               Return to login
             </Link>

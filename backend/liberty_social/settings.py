@@ -157,6 +157,12 @@ AUTH_USER_MODEL = "users.User"
 # email
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "webmaster@localhost")
 
+# Admin email for receiving bug reports / feedback.
+# The project previously expected an ADMIN_EMAIL env var in some deployments.
+# For convenience (so a developer doesn't have to set an env var), default to
+# the requested inbox. Override with ADMIN_EMAIL in environment if desired.
+ADMIN_EMAIL = config("ADMIN_EMAIL", "jamesezekiel039@gmail.com")
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -200,4 +206,4 @@ if RESEND_API_KEY:
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-FRONTEND_URL=config("FRONTEND_URL", default="http://localhost:3000")
+FRONTEND_URL = config("FRONTEND_URL")

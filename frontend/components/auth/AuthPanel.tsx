@@ -42,7 +42,7 @@ export default function AuthPanel() {
   return (
     <div className="relative mx-auto w-full max-w-4xl">
       {/* Toggle tabs */}
-      <div className="mx-auto mb-6 flex w-full max-w-md rounded-xl bg-white/70 shadow-sm overflow-hidden">
+      <div className="mx-auto mb-6 flex w-full max-w-md rounded-xl border border-(--color-gold) bg-white/70 shadow-metallic overflow-hidden">
         <button
           onClick={() => {
             setMode("login");
@@ -50,8 +50,8 @@ export default function AuthPanel() {
           }}
           className={`flex-1 px-4 py-3 text-sm font-semibold transition ${
             mode === "login"
-              ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white"
-              : "text-[var(--color-primary)]"
+              ? "btn-primary"
+              : "text-(--color-deep-navy)"
           }`}
         >
           Log in
@@ -63,8 +63,8 @@ export default function AuthPanel() {
           }}
           className={`flex-1 px-4 py-3 text-sm font-semibold transition ${
             mode === "register"
-              ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white"
-              : "text-[var(--color-primary)]"
+              ? "btn-primary"
+              : "text-(--color-deep-navy)"
           }`}
         >
           Sign up
@@ -74,7 +74,7 @@ export default function AuthPanel() {
       {/* Content grid */}
       <div className="grid gap-6 md:gap-8 md:grid-cols-2">
         {/* Form card */}
-        <div className="rounded-[16px] bg-white/85 backdrop-blur-sm shadow-md p-4 xs:p-5 sm:p-6 md:p-7 lg:p-8 overflow-hidden">
+        <div className="rounded-[16px] bg-gradient-to-b from-white to-white/95 backdrop-blur-sm shadow-metallic border border-(--color-gold) p-4 xs:p-5 sm:p-6 md:p-7 lg:p-8 overflow-hidden">
           {mode === "login" ? (
             <LoginForm onError={handleError} onSuccess={onSuccess} />
           ) : (
@@ -139,15 +139,15 @@ export default function AuthPanel() {
         </div>
 
         {/* Brand / copy side */}
-        <div className="rounded-[16px] bg-white/60 backdrop-blur-sm shadow-sm p-4 xs:p-5 sm:p-6 md:p-7 lg:p-8">
+        <div className="rounded-[16px] bg-white/60 backdrop-blur-sm shadow-metallic border border-(--color-gold) p-4 xs:p-5 sm:p-6 md:p-7 lg:p-8">
           <h3 className="text-2xl font-extrabold mb-2">
             Welcome to Liberty Social
           </h3>
-          <p className="text-gray-700">
+          <p className="text-(--color-text-dark)">
             One place to connect freely and share boldly. Create your account to
             join communities, follow conversations, and make your voice heard.
           </p>
-          <ul className="mt-6 space-y-3 text-sm text-gray-700">
+          <ul className="mt-6 space-y-3 text-sm text-(--color-text-dark)">
             <li>• Fast onboarding with email or username</li>
             <li>• Privacy-first design</li>
             <li>• Community spaces that celebrate people, not just posts</li>
@@ -168,15 +168,16 @@ function SocialBtn({
   label: string;
   full?: boolean;
 }) {
-  return (
+      return (
     <button
       type="button"
       title={label}
       aria-label={label}
       className={[
         "inline-flex items-center justify-center gap-2",
-        "rounded-[10px] bg-white text-[var(--color-primary)]",
-        "px-4 py-2 shadow-sm hover:opacity-90 transition",
+        "rounded-[10px] bg-gradient-to-b from-(--color-silver-light) to-(--color-silver-dark)",
+        "border border-(--color-gold) text-(--color-deep-navy)",
+        "px-4 py-2 shadow-metallic hover:opacity-90 transition",
         full ? "w-full sm:w-auto" : "",
       ].join(" ")}
     >
@@ -201,7 +202,7 @@ function Field({
   const describedBy = error ? `${id}-error` : undefined;
   return (
     <div className="min-w-0">
-      <label htmlFor={id} className="block text-sm font-medium mb-1">
+      <label htmlFor={id} className="block text-sm font-semibold text-(--color-text-dark) mb-1">
         {label}
       </label>
       <div>{children}</div>
@@ -244,8 +245,9 @@ function PasswordField({
       <div className="relative">
         <input
           id={id}
-          className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-[var(--color-primary)] ${
-            error ? "border-red-400" : "border-gray-300"
+          className={`w-full rounded-[10px] border bg-white/90 px-3 py-2.5 outline-none transition-all
+            focus:border-(--color-gold) focus:ring-2 focus:ring-(--color-deep-navy)/20 focus:bg-white
+            ${error ? "border-red-400" : "border-(--color-silver-light)"
           }`}
           type={show ? "text" : "password"}
           placeholder={placeholder}
@@ -257,7 +259,7 @@ function PasswordField({
         />
         <button
           type="button"
-          className="absolute inset-y-0 right-2 my-auto inline-flex items-center justify-center rounded-md px-2 text-gray-600 hover:text-[var(--color-primary)]"
+          className="absolute inset-y-0 right-2 my-auto inline-flex items-center justify-center rounded-md px-2 text-gray-600 hover:text-(--color-deep-navy)"
           onClick={() => setShow((s) => !s)}
           aria-label={show ? "Hide password" : "Show password"}
         >
@@ -407,10 +409,11 @@ function LoginForm({
       >
         <input
           id="login-identifier"
-          className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-[var(--color-primary)] ${
-            touched.identifier && errors.identifier
+          className={`w-full rounded-[10px] border bg-white/90 px-3 py-2.5 outline-none transition-all 
+            focus:border-(--color-gold) focus:ring-2 focus:ring-(--color-deep-navy)/20 focus:bg-white
+            ${touched.identifier && errors.identifier
               ? "border-red-400"
-              : "border-gray-300"
+              : "border-(--color-silver-light)"
           }`}
           placeholder="alice / alice@example.com / +123456789"
           value={identifier}
@@ -440,7 +443,7 @@ function LoginForm({
       <div className="flex justify-end">
         <Link
           href="/password-reset"
-          className="text-sm text-(--color-primary) hover:opacity-80"
+          className="text-sm text-(--color-deep-navy) hover:opacity-80"
         >
           Forgot your password?
         </Link>
@@ -450,7 +453,7 @@ function LoginForm({
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-[12px] px-4 py-3 text-white font-semibold bg-linear-to-r from-(--color-primary) to-(--color-secondary) hover:opacity-90 transition shadow-metallic disabled:opacity-60"
+          className="w-full rounded-[12px] px-4 py-3 text-white font-semibold btn-primary disabled:opacity-60"
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>
@@ -576,7 +579,7 @@ function RegisterForm({
         >
           <input
             id="reg-username"
-            className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-[var(--color-primary)] ${
+            className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-(--color-deep-navy) ${
               touched.username && errors.username
                 ? "border-red-400"
                 : "border-gray-300"
@@ -595,7 +598,7 @@ function RegisterForm({
         >
           <input
             id="reg-email"
-            className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-[var(--color-primary)] ${
+            className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-(--color-deep-navy) ${
               touched.email && errors.email
                 ? "border-red-400"
                 : "border-gray-300"
@@ -619,7 +622,7 @@ function RegisterForm({
         >
           <input
             id="reg-first"
-            className="w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            className="w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-(--color-deep-navy)"
             placeholder="Alice"
             value={first}
             onChange={(e) => setFirst(e.target.value)}
@@ -634,7 +637,7 @@ function RegisterForm({
         >
           <input
             id="reg-last"
-            className="w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+            className="w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-(--color-deep-navy)"
             placeholder="Example"
             value={last}
             onChange={(e) => setLast(e.target.value)}
@@ -651,7 +654,7 @@ function RegisterForm({
       >
         <input
           id="reg-phone"
-          className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-[var(--color-primary)] ${
+          className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-(--color-deep-navy) ${
             touched.phone && errors.phone ? "border-red-400" : "border-gray-300"
           }`}
           placeholder="+123456789"
@@ -697,7 +700,7 @@ function RegisterForm({
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-[12px] px-4 py-3 text-white font-semibold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] hover:opacity-90 transition shadow-metallic disabled:opacity-60"
+          className="w-full rounded-[12px] px-4 py-3 text-white font-semibold btn-primary disabled:opacity-60"
         >
           {loading ? <Spinner /> : "Create account"}
         </button>

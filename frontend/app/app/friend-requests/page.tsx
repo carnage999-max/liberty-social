@@ -90,7 +90,7 @@ export default function FriendRequestsPage() {
           <p className="text-sm text-gray-700">{error}</p>
           <button
             onClick={() => refresh()}
-            className="mt-4 rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90"
+            className="mt-4 rounded-lg btn-primary px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90"
           >
             Retry
           </button>
@@ -154,7 +154,7 @@ export default function FriendRequestsPage() {
                       <button
                         onClick={() => handleAction(request.id, "accept")}
                         disabled={pendingAction === request.id}
-                        className="rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-3 py-1.5 text-xs font-semibold text-white shadow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-lg btn-primary px-3 py-1.5 text-xs font-semibold text-white shadow hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Accept
                       </button>
@@ -186,7 +186,7 @@ export default function FriendRequestsPage() {
             <button
               onClick={loadMore}
               disabled={loadingMore}
-              className="rounded-lg border border-[var(--color-primary)] px-5 py-2 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg border border-(--color-deep-navy) px-5 py-2 text-sm font-semibold text-(--color-deep-navy) transition hover:bg-(--color-deep-navy) hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loadingMore ? "Loading..." : "Load more"}
             </button>
@@ -200,7 +200,7 @@ export default function FriendRequestsPage() {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Friend requests</h1>
+          <h1 className="text-2xl font-bold text-gray-300">Friend requests</h1>
           <p className="text-sm text-gray-500">
             {count === 0 ? "No pending requests" : `${count} request${count === 1 ? "" : "s"}`}
           </p>
@@ -211,10 +211,10 @@ export default function FriendRequestsPage() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`rounded-[10px] px-3 py-1.5 text-sm font-medium transition ${
-                activeTab === tab.id
-                  ? "bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] text-white shadow"
-                  : "text-[var(--color-primary)] hover:bg-[var(--metallic-silver)]/60"
-              }`}
+                  activeTab === tab.id
+                    ? "btn-primary text-white shadow"
+                    : "text-(--color-deep-navy) hover:bg-(--metallic-silver)/60"
+                }`}
             >
               {tab.label}
             </button>

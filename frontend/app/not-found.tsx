@@ -28,16 +28,14 @@ export default function NotFound() {
             {isAuthenticated ? (
               <Link
                 href="/app/feed"
-                className="inline-block bg-linear-to-r from-(--color-primary) to-(--color-secondary)
-                         text-white font-semibold px-8 py-3 rounded-xl hover:opacity-90 transition shadow-metallic"
+                className="inline-block btn-primary text-white font-semibold px-8 py-3 rounded-xl hover:opacity-90 transition shadow-metallic"
               >
                 Return to Feed
               </Link>
             ) : (
               <Link
                 href="/"
-                className="inline-block bg-linear-to-r from-(--color-primary) to-(--color-secondary)
-                         text-white font-semibold px-8 py-3 rounded-xl hover:opacity-90 transition shadow-metallic"
+                className="inline-block btn-primary text-white font-semibold px-8 py-3 rounded-xl hover:opacity-90 transition shadow-metallic"
               >
                 Return Home
               </Link>
@@ -45,7 +43,7 @@ export default function NotFound() {
             
             <Link
               href={isAuthenticated ? "/app" : "/auth"}
-              className="inline-block bg-white text-(--color-primary) font-semibold px-8 py-3 rounded-xl
+              className="inline-block bg-white text-(--color-deep-navy) font-semibold px-8 py-3 rounded-xl
                        hover:opacity-90 transition shadow-md border border-gray-100"
             >
               {isAuthenticated ? "Go to Dashboard" : "Sign In"}
