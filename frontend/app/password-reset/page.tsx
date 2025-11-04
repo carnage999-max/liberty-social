@@ -63,7 +63,7 @@ export default function PasswordReset() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-linear-to-br from-gray-50 to-white py-16 px-4 sm:py-24 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-linear-to-br from-gray-50 to-white py-16 px-4 sm:py-24 sm:px-6 lg:px-8 mt-6">
         <div className="mx-auto max-w-md">
           <div className="text-center">
             <h2 className="text-3xl font-extrabold text-gray-900">Check your email</h2>

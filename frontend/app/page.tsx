@@ -108,7 +108,7 @@ export default function LandingPage() {
               Welcome back{displayName ? `, ${displayName}` : ""}!
             </p>
           )}
-          <p className="mt-6 text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
+          <p className="mt-6 text-lg md:text-xl text-gray-400 max-w-2xl mx-auto">
             Liberty Social is a premium, human-first social space where your
             voice looks and feels as powerful as it sounds.
           </p>
@@ -122,7 +122,7 @@ export default function LandingPage() {
             </a>
             {!isLoggedIn && (
                 <a
-                  href="/signup"
+                  href="/auth"
                   className="px-8 py-4 rounded-[12px] font-medium text-lg bg-white text-(--color-deep-navy)
                              hover:opacity-90 transition shadow-md"
                 >

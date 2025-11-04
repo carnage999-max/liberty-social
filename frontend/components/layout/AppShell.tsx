@@ -3,6 +3,7 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import ProfileCard from "@/components/profile/ProfileCard";
+import ProfileImageModal from "@/components/profile/ProfileImageModal";
 import { useAuth } from "@/lib/auth-context";
 import { API_BASE, apiPost } from "@/lib/api";
 import type { Post, Visibility, FriendRequest } from "@/lib/types";
@@ -116,6 +117,7 @@ export default function AppShell({ children }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [showCompactLogo, setShowCompactLogo] = useState(false);
+  const [mobileProfileModalOpen, setMobileProfileModalOpen] = useState(false);
   const { count: incomingFriendRequests } = usePaginatedResource<FriendRequest>(
     "/auth/friend-requests/",
     {
@@ -264,11 +266,15 @@ export default function AppShell({ children }: AppShellProps) {
             <button
                 type="button"
                 onClick={() => {
-                  if (myProfileHref) {
-                    router.push(myProfileHref);
-                  } else {
-                    handleNavigate("/app/settings");
+                  if (!user) {
+                    if (myProfileHref) {
+                      router.push(myProfileHref);
+                    } else {
+                      handleNavigate("/app/settings");
+                    }
+                    return;
                   }
+                  setMobileProfileModalOpen(true);
                 }}
                 aria-label="View profile"
                 className="relative h-9 w-9 overflow-hidden rounded-full border border-white/40 bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30"
@@ -525,6 +531,13 @@ export default function AppShell({ children }: AppShellProps) {
           <div className="mt-4 sm:mt-6">{children}</div>
         </main>
       </div>
+
+      <ProfileImageModal
+        open={mobileProfileModalOpen}
+        onClose={() => setMobileProfileModalOpen(false)}
+        currentImageUrl={user?.profile_image_url}
+        userId={user?.id}
+      />
 
       <CreatePostModal
         open={isCreateModalOpen}

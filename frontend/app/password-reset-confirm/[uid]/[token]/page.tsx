@@ -75,13 +75,13 @@ export default function PasswordResetConfirm({
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white py-16 px-4 sm:py-24 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-white py-16 px-4 sm:py-24 sm:px-6 lg:px-8 mt-6">
       <div className="mx-auto max-w-md">
         <h2 className="text-3xl font-extrabold text-gray-900">Reset your password</h2>
         
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-          <div className="rounded-md shadow-sm space-y-4">
-            <div className="space-y-4">
+          <div className="rounded-md shadow-sm space-y-4 text-black">
+            <div className="space-y-4 text-black">
               <PasswordField
                 id="password"
                 label="New Password"

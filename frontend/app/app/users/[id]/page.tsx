@@ -9,6 +9,7 @@ import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { useAuth } from "@/lib/auth-context";
+import ProfileImageModal from "@/components/profile/ProfileImageModal";
 import { apiDelete, apiGet, apiPost, ApiError } from "@/lib/api";
 import type { Post, UserProfileOverview } from "@/lib/types";
 
@@ -60,6 +61,7 @@ export default function UserProfilePage() {
     message: "",
     onConfirm: () => {},
   });
+  const [profileImageModalOpen, setProfileImageModalOpen] = useState(false);
 
   const fetchOverview = useCallback(async (signal?: AbortSignal) => {
     if (!accessToken || !profileId) return;
@@ -487,21 +489,43 @@ export default function UserProfilePage() {
               <>
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex items-start gap-5">
-                      <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-(--color-deep-navy)/30 bg-gray-100 sm:h-28 sm:w-28">
-                      {overview.user.profile_image_url ? (
-                        <Image
-                          src={overview.user.profile_image_url}
-                          alt={displayName}
-                          fill
-                          sizes="112px"
-                          className="object-cover"
-                        />
+                      {isSelf ? (
+                        <button
+                          type="button"
+                          onClick={() => setProfileImageModalOpen(true)}
+                          className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-(--color-deep-navy)/30 bg-gray-100 sm:h-28 sm:w-28"
+                        >
+                          {overview.user.profile_image_url ? (
+                            <Image
+                              src={overview.user.profile_image_url}
+                              alt={displayName}
+                              fill
+                              sizes="112px"
+                              className="object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-xl font-semibold text-gray-500">
+                              {(displayName || "U").charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </button>
                       ) : (
-                        <span className="flex h-full w-full items-center justify-center text-xl font-semibold text-gray-500">
-                          {(displayName || "U").charAt(0).toUpperCase()}
-                        </span>
+                        <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-(--color-deep-navy)/30 bg-gray-100 sm:h-28 sm:w-28">
+                          {overview.user.profile_image_url ? (
+                            <Image
+                              src={overview.user.profile_image_url}
+                              alt={displayName}
+                              fill
+                              sizes="112px"
+                              className="object-cover"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-xl font-semibold text-gray-500">
+                              {(displayName || "U").charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
                       )}
-                    </div>
                     <div>
                       <h1 className="text-2xl font-bold text-(--color-deep-navy) sm:text-3xl">{displayName}</h1>
                       {usernameTag && <p className="text-sm text-gray-500">{usernameTag}</p>}
@@ -658,6 +682,13 @@ export default function UserProfilePage() {
           onConfirm={confirmDialog.onConfirm}
           onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
         />
+
+      <ProfileImageModal
+        open={profileImageModalOpen}
+        onClose={() => setProfileImageModalOpen(false)}
+        currentImageUrl={overview?.user?.profile_image_url}
+        userId={overview?.user?.id}
+      />
       </RequireAuth>
     );
   }
