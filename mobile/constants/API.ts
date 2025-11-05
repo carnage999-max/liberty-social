@@ -3,7 +3,7 @@
 // For Android emulator, use 10.0.2.2 instead of localhost
 // For iOS simulator, use localhost or your machine's IP
 
-export const API_BASE = 'https://yyhfmnzpfk.us-east-1.awsapprunner.com/api';
+export const API_BASE = 'https://ma3vebz3bj.us-east-1.awsapprunner.com/api';
 
 // Helper to get the correct API base for mobile emulators
 export const getApiBase = () => {

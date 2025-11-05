@@ -1,14 +1,17 @@
 import { Tabs } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, Platform, StyleSheet } from 'react-native';
+import { View, Text, Platform, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import type { ParamListBase } from '@react-navigation/native';
 import type { BottomTabNavigationEventMap } from '@react-navigation/bottom-tabs';
 import type { NavigationHelpers } from '@react-navigation/native';
 
 export default function TabsLayout() {
   const { colors, isDark } = useTheme();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
 
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 0;
@@ -106,6 +109,43 @@ export default function TabsLayout() {
                   navigation.navigate(route.name);
                 }
               };
+
+              // For profile tab, show user's profile picture
+              if (route.name === 'profile') {
+                const avatarSrc = user?.profile_image_url ? resolveRemoteUrl(user.profile_image_url) : null;
+                const avatarSource = avatarSrc ? { uri: avatarSrc } : DEFAULT_AVATAR;
+                const username = user?.username || 'Profile';
+
+                return (
+                  <TouchableOpacity key={route.key} style={styles.tabButton} onPress={onPress}>
+                    <View
+                      style={[
+                        styles.tabIconWrapper,
+                        {
+                          borderWidth: 1.5,
+                          borderColor: isFocused ? colors.primary : 'transparent',
+                          overflow: 'hidden',
+                        },
+                      ]}
+                    >
+                      <Image 
+                        source={avatarSource} 
+                        style={{ width: '100%', height: '100%' }}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.tabLabel,
+                        {
+                          color: isFocused ? colors.primary : colors.textSecondary,
+                        },
+                      ]}
+                    >
+                      {username}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }
 
               return (
                 <View key={route.key} style={styles.tabButton}>

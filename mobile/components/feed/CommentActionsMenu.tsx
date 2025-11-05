@@ -14,27 +14,25 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../utils/api';
-import type { Post } from '../../types';
+import type { Comment } from '../../types';
 
-export interface PostActionsMenuProps<TPost extends Post> {
-  post: TPost;
+export interface CommentActionsMenuProps {
+  comment: Comment;
   currentUserId: string | null;
-  onPostUpdated: (post: TPost) => void;
-  onPostDeleted: (postId: number) => void;
-  normalizePost: (post: Post) => TPost;
+  onCommentUpdated: (comment: Comment) => void;
+  onCommentDeleted: (commentId: number) => void;
 }
 
-const PostActionsMenu = <TPost extends Post>({
-  post,
+const CommentActionsMenu: React.FC<CommentActionsMenuProps> = ({
+  comment,
   currentUserId,
-  onPostUpdated,
-  onPostDeleted,
-  normalizePost,
-}: PostActionsMenuProps<TPost>) => {
+  onCommentUpdated,
+  onCommentDeleted,
+}) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [pending, setPending] = useState(false);
-  const [editContent, setEditContent] = useState(post.content);
+  const [editContent, setEditContent] = useState(comment.content || '');
   const translateYRef = useRef(new Animated.Value(0));
   const translateY = translateYRef.current;
   const panResponder = useRef(
@@ -70,9 +68,9 @@ const PostActionsMenu = <TPost extends Post>({
 
   const isOwner = useMemo(() => {
     if (!currentUserId) return false;
-    if (!post.author?.id) return false;
-    return String(post.author.id) === String(currentUserId);
-  }, [currentUserId, post.author?.id]);
+    if (!comment.author?.id) return false;
+    return String(comment.author.id) === String(currentUserId);
+  }, [currentUserId, comment.author?.id]);
 
   const toggleMenu = (next: boolean) => {
     if (next) {
@@ -85,7 +83,6 @@ const PostActionsMenu = <TPost extends Post>({
         stiffness: 120,
       }).start();
     } else {
-      // Close immediately
       setMenuVisible(false);
       translateY.setValue(0);
     }
@@ -96,33 +93,13 @@ const PostActionsMenu = <TPost extends Post>({
     setEditVisible(false);
   };
 
-  const handleBookmark = async () => {
-    toggleMenu(false); // Close immediately
-    setPending(true);
-    try {
-      if (post.bookmarked && post.bookmark_id) {
-        await apiClient.delete(`/bookmarks/${post.bookmark_id}/`);
-        onPostUpdated(normalizePost({ ...post, bookmarked: false, bookmark_id: null }));
-      } else {
-        const result = await apiClient.post<{ id?: number }>(`/bookmarks/`, {
-          post: post.id,
-        });
-        const bookmarkId = result?.id ?? null;
-        onPostUpdated(
-          normalizePost({ ...post, bookmarked: true, bookmark_id: bookmarkId })
-        );
-      }
-    } catch (error) {
-      console.error('Error updating bookmark:', error);
-      Alert.alert('Unable to update bookmark', 'Please try again later.');
-    } finally {
-      setPending(false);
-    }
-  };
-
   const handleDelete = async () => {
     toggleMenu(false);
-    Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
+    const isReply = !!comment.parent;
+    Alert.alert(
+      isReply ? 'Delete Reply' : 'Delete Comment',
+      isReply ? 'Are you sure you want to delete this reply?' : 'Are you sure you want to delete this comment?',
+      [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -130,10 +107,10 @@ const PostActionsMenu = <TPost extends Post>({
         onPress: async () => {
           setPending(true);
           try {
-            await apiClient.delete(`/posts/${post.id}/`);
-            onPostDeleted(post.id);
+            await apiClient.delete(`/comments/${comment.id}/`);
+            onCommentDeleted(comment.id);
           } catch (error) {
-            console.error('Error deleting post:', error);
+            console.error('Error deleting comment:', error);
             Alert.alert('Unable to delete', 'Please try again later.');
           } finally {
             setPending(false);
@@ -146,37 +123,42 @@ const PostActionsMenu = <TPost extends Post>({
   const handleEditSubmit = async () => {
     const trimmed = editContent.trim();
     if (!trimmed) {
-      Alert.alert('Edit Post', 'Post content cannot be empty.');
+      Alert.alert(
+        comment.parent ? 'Edit Reply' : 'Edit Comment',
+        comment.parent ? 'Reply content cannot be empty.' : 'Comment content cannot be empty.'
+      );
       return;
     }
 
     setPending(true);
     try {
-      const updated = await apiClient.patch<Post>(`/posts/${post.id}/`, {
+      const updated = await apiClient.patch<Comment>(`/comments/${comment.id}/`, {
         content: trimmed,
       });
-      onPostUpdated(normalizePost({ ...post, ...updated, content: trimmed }));
+      onCommentUpdated({ ...comment, ...updated, content: trimmed });
       closeAll();
     } catch (error) {
-      console.error('Error updating post:', error);
-      Alert.alert('Unable to update post', 'Please try again later.');
+      console.error('Error updating comment:', error);
+      Alert.alert('Unable to update comment', 'Please try again later.');
     } finally {
       setPending(false);
     }
   };
 
+  if (!isOwner) return null; // Only show menu for own comments
+
   return (
     <>
       <TouchableOpacity
         accessibilityRole="button"
-        accessibilityLabel="Open post actions"
+        accessibilityLabel="Open comment actions"
         onPress={() => toggleMenu(true)}
         style={styles.triggerButton}
         disabled={pending}
       >
         <Ionicons
           name="ellipsis-horizontal"
-          size={20}
+          size={18}
           color="rgba(120,120,130,0.9)"
         />
       </TouchableOpacity>
@@ -201,48 +183,34 @@ const PostActionsMenu = <TPost extends Post>({
             onPress={() => toggleMenu(false)}
           />
           <View style={styles.sheetContent}>
-            <Text style={styles.sheetTitle}>Post options</Text>
+            <Text style={styles.sheetTitle}>
+              {comment.parent ? 'Reply options' : 'Comment options'}
+            </Text>
+
             <TouchableOpacity
               style={styles.sheetAction}
-              onPress={handleBookmark}
+              onPress={() => {
+                toggleMenu(false);
+                setEditContent(comment.content || '');
+                setEditVisible(true);
+              }}
               disabled={pending}
             >
-              <Ionicons
-                name={post.bookmarked ? 'bookmark' : 'bookmark-outline'}
-                size={18}
-                color="#9FA8FF"
-              />
+              <Ionicons name="create-outline" size={18} color="#9FA8FF" />
               <Text style={styles.sheetActionText}>
-                {post.bookmarked ? 'Remove bookmark' : 'Bookmark post'}
+                {comment.parent ? 'Edit reply' : 'Edit comment'}
               </Text>
             </TouchableOpacity>
-
-            {isOwner && (
-              <>
-                <TouchableOpacity
-                  style={styles.sheetAction}
-                  onPress={() => {
-                    toggleMenu(false); // Close immediately
-                    setEditContent(post.content);
-                    setEditVisible(true);
-                  }}
-                  disabled={pending}
-                >
-                  <Ionicons name="create-outline" size={18} color="#9FA8FF" />
-                  <Text style={styles.sheetActionText}>Edit post</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.sheetAction, styles.destructiveAction]}
-                  onPress={handleDelete}
-                  disabled={pending}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#FF7B7B" />
-                  <Text style={[styles.sheetActionText, styles.destructiveText]}>
-                    Delete post
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
+            <TouchableOpacity
+              style={[styles.sheetAction, styles.destructiveAction]}
+              onPress={handleDelete}
+              disabled={pending}
+            >
+              <Ionicons name="trash-outline" size={18} color="#FF7B7B" />
+              <Text style={[styles.sheetActionText, styles.destructiveText]}>
+                {comment.parent ? 'Delete reply' : 'Delete comment'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </Animated.View>
       </Modal>
@@ -257,13 +225,15 @@ const PostActionsMenu = <TPost extends Post>({
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
         <View style={styles.editModal}>
-          <Text style={styles.editTitle}>Edit post</Text>
+          <Text style={styles.editTitle}>
+            {comment.parent ? 'Edit reply' : 'Edit comment'}
+          </Text>
           <TextInput
             style={styles.editInput}
             multiline
             value={editContent}
             onChangeText={setEditContent}
-            placeholder="Update your post..."
+            placeholder="Update your comment..."
             placeholderTextColor="rgba(90,90,110,0.6)"
           />
           <View style={styles.editActions}>
@@ -294,8 +264,8 @@ const PostActionsMenu = <TPost extends Post>({
 
 const styles = StyleSheet.create({
   triggerButton: {
-    padding: 8,
-    borderRadius: 20,
+    padding: 6,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -410,4 +380,5 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PostActionsMenu;
+export default CommentActionsMenu;
+

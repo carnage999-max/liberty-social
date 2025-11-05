@@ -8,12 +8,15 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../contexts/ThemeContext';
 import { apiClient } from '../../utils/api';
 import { useRouter } from 'expo-router';
 import { Visibility } from '../../types';
-import ScreenHeader from '../../components/layout/ScreenHeader';
+import AppNavbar from '../../components/layout/AppNavbar';
+import { Ionicons } from '@expo/vector-icons';
 
 const visibilityOptions: Visibility[] = ['public', 'friends', 'only_me'];
 
@@ -29,9 +32,48 @@ export default function CreatePostScreen() {
   const router = useRouter();
 
   const [content, setContent] = useState('');
-  const [mediaInput, setMediaInput] = useState('');
+  const [selectedImages, setSelectedImages] = useState<Array<{ uri: string; formData: FormData }>>([]);
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [submitting, setSubmitting] = useState(false);
+
+  const handlePickImages = async () => {
+    if (selectedImages.length >= 6) {
+      Alert.alert('Maximum reached', 'You can upload up to 6 images per post.');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        selectionLimit: 6 - selectedImages.length,
+      });
+
+      if (!result.canceled && result.assets) {
+        const newImages = result.assets.slice(0, 6 - selectedImages.length).map(asset => {
+          const formData = new FormData();
+          const filename = asset.uri.split('/').pop() || 'image.jpg';
+          formData.append('file', {
+            uri: asset.uri,
+            type: 'image/jpeg',
+            name: filename,
+          } as any);
+          
+          return { uri: asset.uri, formData };
+        });
+
+        setSelectedImages(prev => [...prev, ...newImages]);
+      }
+    } catch (error) {
+      console.error('Error picking images:', error);
+      Alert.alert('Error', 'Failed to pick images. Please try again.');
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async () => {
     const trimmedContent = content.trim();
@@ -43,6 +85,24 @@ export default function CreatePostScreen() {
 
     setSubmitting(true);
     try {
+      // Step 1: Upload images if any
+      const uploadedUrls: string[] = [];
+      if (selectedImages.length > 0) {
+        for (const image of selectedImages) {
+          try {
+            const uploadResponse = await apiClient.postFormData('/uploads/images/', image.formData);
+            if (uploadResponse.url) {
+              uploadedUrls.push(uploadResponse.url);
+            } else if (uploadResponse.urls && Array.isArray(uploadResponse.urls) && uploadResponse.urls.length > 0) {
+              uploadedUrls.push(...uploadResponse.urls);
+            }
+          } catch (uploadError) {
+            console.error('Error uploading image:', uploadError);
+          }
+        }
+      }
+
+      // Step 2: Create post with uploaded media URLs
       const payload: {
         content: string;
         visibility: Visibility;
@@ -52,19 +112,15 @@ export default function CreatePostScreen() {
         visibility,
       };
 
-      const mediaUrls = mediaInput
-        .split(/[\n,]/)
-        .map((value) => value.trim())
-        .filter(Boolean);
-
-      if (mediaUrls.length) {
-        payload.media_urls = mediaUrls;
+      if (uploadedUrls.length > 0) {
+        payload.media_urls = uploadedUrls;
       }
 
       await apiClient.post('/posts/', payload);
 
+      // Clear form
       setContent('');
-      setMediaInput('');
+      setSelectedImages([]);
       setVisibility('public');
 
       Alert.alert('Success', 'Your post has been published!', [
@@ -157,11 +213,54 @@ export default function CreatePostScreen() {
     disabledButton: {
       opacity: 0.6,
     },
+    imagePickerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+      marginBottom: 16,
+      gap: 8,
+    },
+    imagePickerText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    imagesPreview: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 16,
+    },
+    imagePreviewWrapper: {
+      width: '31%',
+      aspectRatio: 1,
+      borderRadius: 8,
+      position: 'relative',
+    },
+    imagePreview: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 8,
+    },
+    removeImageButton: {
+      position: 'absolute',
+      top: 4,
+      right: 4,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      borderRadius: 12,
+      padding: 4,
+    },
   });
 
   return (
     <View style={themedStyles.container}>
-      <ScreenHeader title="Create Post" containerStyle={{ paddingBottom: 12 }} />
+      <AppNavbar title="Create Post" showLogo={false} showProfileImage={false} />
       <ScrollView
         contentContainerStyle={themedStyles.content}
         keyboardShouldPersistTaps="handled"
@@ -176,18 +275,33 @@ export default function CreatePostScreen() {
           onChangeText={setContent}
         />
 
-        <Text style={themedStyles.label}>Media URLs (optional)</Text>
-        <TextInput
-          multiline
-          style={themedStyles.mediaInput}
-          placeholder="Paste image or video URLs, separated by commas or new lines"
-          placeholderTextColor={colors.textSecondary}
-          value={mediaInput}
-          onChangeText={setMediaInput}
-        />
-        <Text style={themedStyles.helperText}>
-          We currently support sharing media through direct URLs. Uploads are coming soon.
-        </Text>
+        <Text style={themedStyles.label}>Add Images (up to 6)</Text>
+        <TouchableOpacity 
+          style={themedStyles.imagePickerButton} 
+          onPress={handlePickImages}
+          disabled={selectedImages.length >= 6}
+        >
+          <Ionicons name="image-outline" size={24} color={colors.textSecondary} />
+          <Text style={themedStyles.imagePickerText}>
+            {selectedImages.length >= 6 ? 'Maximum images reached' : 'Pick Images'}
+          </Text>
+        </TouchableOpacity>
+
+        {selectedImages.length > 0 && (
+          <View style={themedStyles.imagesPreview}>
+            {selectedImages.map((image, index) => (
+              <View key={index} style={themedStyles.imagePreviewWrapper}>
+                <Image source={{ uri: image.uri }} style={themedStyles.imagePreview} />
+                <TouchableOpacity
+                  style={themedStyles.removeImageButton}
+                  onPress={() => handleRemoveImage(index)}
+                >
+                  <Ionicons name="close" size={16} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
 
         <Text style={themedStyles.label}>Visibility</Text>
         <View style={themedStyles.visibilityContainer}>

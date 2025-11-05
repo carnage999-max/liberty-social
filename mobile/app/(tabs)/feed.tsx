@@ -16,15 +16,16 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../utils/api';
-import { Post, PaginatedResponse, User, Reaction } from '../../types';
+import { Post, PaginatedResponse, User, Reaction, ReactionType } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import MaskedView from '@react-native-masked-view/masked-view';
-import ScreenHeader from '../../components/layout/ScreenHeader';
+import AppNavbar from '../../components/layout/AppNavbar';
 import PostActionsMenu from '../../components/feed/PostActionsMenu';
+import ReactionPicker from '../../components/feed/ReactionPicker';
+import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
 import {
   resolveMediaUrls,
   resolveRemoteUrl,
@@ -113,6 +114,11 @@ export default function FeedScreen() {
   const [reactionBusy, setReactionBusy] = useState<Record<number, boolean>>({});
   const [reachedEnd, setReachedEnd] = useState(false);
   const likeAnimationsRef = useRef<Record<number, Animated.Value>>({});
+  const [reactionPickerVisible, setReactionPickerVisible] = useState(false);
+  const [reactionPickerPostId, setReactionPickerPostId] = useState<number | null>(null);
+  const [reactionPickerPosition, setReactionPickerPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+  const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
 
   type SuggestionItem =
     | { type: 'create' }
@@ -236,46 +242,84 @@ export default function FeedScreen() {
     loadFeed(next, true);
   };
 
-  const handleToggleLike = async (post: FeedPost) => {
+  const handleReactionLongPress = (post: FeedPost, event: any) => {
     if (!user) {
       Alert.alert('Sign in required', 'Please log in to react to posts.');
       return;
     }
+    // Get button position from layout event
+    const { pageX, pageY } = event.nativeEvent;
+    // Position picker centered on the button
+    setReactionPickerPosition({ x: pageX, y: pageY - 60 });
+    setReactionPickerPostId(post.id);
+    setReactionPickerVisible(true);
+  };
+
+  const handleReactionSelect = async (postId: number, reactionType: ReactionType) => {
+    if (!user) return;
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
 
     const existingReaction = (post.reactions || []).find(
-      (reaction) => reaction.user?.id === user.id && reaction.reaction_type === 'like'
+      (reaction) => reaction.user?.id === user.id
     );
 
-    setReactionBusy((prev) => ({ ...prev, [post.id]: true }));
+    setReactionBusy((prev) => ({ ...prev, [postId]: true }));
 
     const previousPosts = posts;
     const optimisticReactionId = -Math.floor(Math.random() * 1_000_000) - 1;
 
     if (existingReaction) {
-      setPosts((prev) =>
-        prev.map((item) =>
-          item.id === post.id
-            ? {
-                ...item,
-                reactions: (item.reactions || []).filter(
-                  (reaction) => reaction.id !== existingReaction.id
-                ),
-              }
-            : item
-        )
-      );
-      animateLikeState(post.id, false);
+      if (existingReaction.reaction_type === reactionType) {
+        // Remove reaction if same type
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: (item.reactions || []).filter(
+                    (reaction) => reaction.id !== existingReaction.id
+                  ),
+                }
+              : item
+          )
+        );
+        animateLikeState(postId, false);
+      } else {
+        // Update reaction type
+        const optimisticReaction: Reaction = {
+          ...existingReaction,
+          id: optimisticReactionId,
+          reaction_type: reactionType,
+        };
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: [
+                    ...((item.reactions || []).filter(
+                      (reaction) => reaction.id !== existingReaction.id
+                    ) || []),
+                    optimisticReaction,
+                  ],
+                }
+              : item
+          )
+        );
+        animateLikeState(postId, true);
+      }
     } else {
+      // Add new reaction
       const optimisticReaction: Reaction = {
         id: optimisticReactionId,
-        reaction_type: 'like',
+        reaction_type: reactionType,
         created_at: new Date().toISOString(),
         user,
       };
-
       setPosts((prev) =>
         prev.map((item) =>
-          item.id === post.id
+          item.id === postId
             ? {
                 ...item,
                 reactions: [
@@ -288,20 +332,43 @@ export default function FeedScreen() {
             : item
         )
       );
-      animateLikeState(post.id, true);
+      animateLikeState(postId, true);
     }
 
     try {
       if (existingReaction) {
-        await apiClient.delete(`/reactions/${existingReaction.id}/`);
+        if (existingReaction.reaction_type === reactionType) {
+          await apiClient.delete(`/reactions/${existingReaction.id}/`);
+        } else {
+          await apiClient.delete(`/reactions/${existingReaction.id}/`);
+          const savedReaction = await apiClient.post<Reaction>('/reactions/', {
+            post: postId,
+            reaction_type: reactionType,
+          });
+          setPosts((prev) =>
+            prev.map((item) =>
+              item.id === postId
+                ? {
+                    ...item,
+                    reactions: [
+                      ...((item.reactions || []).filter(
+                        (reaction) => reaction.id !== optimisticReactionId
+                      ) || []),
+                      savedReaction,
+                    ],
+                  }
+                : item
+            )
+          );
+        }
       } else {
         const savedReaction = await apiClient.post<Reaction>('/reactions/', {
-          post: post.id,
-          reaction_type: 'like',
+          post: postId,
+          reaction_type: reactionType,
         });
         setPosts((prev) =>
           prev.map((item) =>
-            item.id === post.id
+            item.id === postId
               ? {
                   ...item,
                   reactions: [
@@ -320,7 +387,26 @@ export default function FeedScreen() {
       Alert.alert('Unable to update reaction', 'Please try again in a moment.');
       setPosts(previousPosts);
     } finally {
-      setReactionBusy((prev) => ({ ...prev, [post.id]: false }));
+      setReactionBusy((prev) => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  const handleToggleLike = async (post: FeedPost) => {
+    if (!user) {
+      Alert.alert('Sign in required', 'Please log in to react to posts.');
+      return;
+    }
+
+    const existingReaction = (post.reactions || []).find(
+      (reaction) => reaction.user?.id === user.id
+    );
+
+    if (existingReaction) {
+      // Remove reaction
+      await handleReactionSelect(post.id, existingReaction.reaction_type);
+    } else {
+      // Add like reaction
+      await handleReactionSelect(post.id, 'like');
     }
   };
 
@@ -369,14 +455,24 @@ export default function FeedScreen() {
         ? item.mediaUrls
         : resolveMediaUrls(Array.isArray(item.media) ? (item.media as any) : []);
 
-    const likeCount = (item.reactions || []).filter(
-      (reaction) => reaction.reaction_type === 'like').length;
+    const reactionCount = (item.reactions || []).length;
     const commentCount = item.comments?.length || 0;
-    const hasLiked = !!user && (item.reactions || []).some(
-      (reaction) => reaction.user?.id === user.id && reaction.reaction_type === 'like'
-    );
+    const currentUserReaction = user
+      ? (item.reactions || []).find((reaction) => reaction.user?.id === user.id)
+      : null;
+    const hasReacted = !!currentUserReaction;
+    const reactionType = currentUserReaction?.reaction_type || null;
     const likeProcessing = !!reactionBusy[item.id];
     const likeAnimation = getLikeAnimation(item.id);
+    
+    // Reaction emoji mapping
+    const reactionEmojis: Record<string, string> = {
+      like: '👍',
+      love: '❤️',
+      haha: '😂',
+      sad: '😢',
+      angry: '😡',
+    };
 
     return (
       <View
@@ -391,7 +487,10 @@ export default function FeedScreen() {
         <View style={styles.postHeaderRow}>
           <TouchableOpacity
             style={styles.postHeader}
-            onPress={() => router.push(`/(tabs)/users/${item.author.id}`)}
+            onPress={() => {
+              setSelectedUserId(item.author.id);
+              setProfileBottomSheetVisible(true);
+            }}
           >
             <Image source={item.authorAvatar} style={styles.avatar} />
             <View style={styles.postHeaderText}>
@@ -415,14 +514,36 @@ export default function FeedScreen() {
         )}
 
         {galleryUrls.length > 0 && (
-          <View style={styles.mediaContainer}>
-            {galleryUrls.slice(0, 3).map((url, index) => (
-              <Image
+          <View
+            style={[
+              styles.mediaGrid,
+              galleryUrls.length === 1
+                ? styles.mediaGridSingle
+                : galleryUrls.length === 2
+                ? styles.mediaGridDouble
+                : styles.mediaGridTriple,
+            ]}
+          >
+            {galleryUrls.slice(0, 9).map((url, index) => (
+              <TouchableOpacity
                 key={`${item.id}-media-${index}`}
-                source={{ uri: url }}
-                style={styles.mediaImage}
-                resizeMode="contain"
-              />
+                style={[
+                  styles.mediaImageWrapper,
+                  galleryUrls.length === 1
+                    ? styles.mediaImageSingle
+                    : galleryUrls.length === 2
+                    ? styles.mediaImageDouble
+                    : styles.mediaImageTriple,
+                ]}
+                onPress={() => router.push(`/(tabs)/feed/${item.id}`)}
+                activeOpacity={0.9}
+              >
+                <Image
+                  source={{ uri: url }}
+                  style={styles.mediaImage}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -431,14 +552,21 @@ export default function FeedScreen() {
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleToggleLike(item)}
+            onLongPress={(e) => handleReactionLongPress(item, e)}
             disabled={likeProcessing}
           >
-            <Ionicons
-              name={hasLiked ? 'heart' : 'heart-outline'}
-              size={20}
-              color={hasLiked ? '#FF4D6D' : colors.textSecondary}
-            />
-            <Text style={[styles.actionText, { color: colors.textSecondary }]}>{likeCount}</Text>
+            {hasReacted && reactionType ? (
+              <Text style={styles.reactionEmoji}>{reactionEmojis[reactionType] || '👍'}</Text>
+            ) : (
+              <Ionicons
+                name="heart-outline"
+                size={20}
+                color={colors.textSecondary}
+              />
+            )}
+            <Text style={[styles.actionText, { color: colors.textSecondary }]}>
+              {reactionCount}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -497,7 +625,10 @@ export default function FeedScreen() {
     return (
       <TouchableOpacity
         style={styles.storyItem}
-        onPress={() => router.push(`/(tabs)/users/${item.user.id}`)}
+        onPress={() => {
+          setSelectedUserId(item.user.id);
+          setProfileBottomSheetVisible(true);
+        }}
       >
         <Image source={avatarSource} style={styles.storyAvatar} />
         <Text style={[styles.storyName, { color: colors.text }]} numberOfLines={1}>
@@ -628,17 +759,56 @@ export default function FeedScreen() {
       lineHeight: 22,
       marginBottom: 12,
     },
-    mediaContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
+    mediaGrid: {
       gap: 8,
       marginBottom: 12,
     },
-    mediaImage: {
-      width: '30%',
-      aspectRatio: 1,
-      borderRadius: 8,
+    mediaGridSingle: {
+      flexDirection: 'row',
+    },
+    mediaGridDouble: {
+      flexDirection: 'row',
+    },
+    mediaGridTriple: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    mediaImageWrapper: {
+      borderRadius: 12,
+      overflow: 'hidden',
       backgroundColor: colors.border,
+    },
+    mediaImageSingle: {
+      width: '100%',
+      aspectRatio: 16 / 9,
+    },
+    mediaImageDouble: {
+      flex: 1,
+      aspectRatio: 1,
+      marginRight: 8,
+    },
+    mediaImageTriple: {
+      width: '31%',
+      aspectRatio: 1,
+    },
+    mediaImage: {
+      width: '100%',
+      height: '100%',
+    },
+    reactionEmoji: {
+      fontSize: 20,
+    },
+    suggestionsHeader: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 12,
+    },
+    suggestionsTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    suggestionsList: {
+      paddingBottom: 16,
     },
     postActions: {
       flexDirection: 'row',
@@ -795,23 +965,10 @@ export default function FeedScreen() {
 
   const renderListHeader = () => (
     <View style={styles.listHeaderWrapper}>
-      <ScreenHeader
-        title={
-          <MaskedView
-            style={styles.headerTitleWrapper}
-            maskElement={<Text style={styles.headerTitleText}>Liberty Social</Text>}
-          >
-            <LinearGradient
-              colors={GRADIENT_COLORS}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientFill}
-            />
-          </MaskedView>
-        }
-        subtitle={<Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>People you may know</Text>}
-        containerStyle={{ paddingBottom: 14 }}
-      >
+      <View style={styles.suggestionsHeader}>
+        <Text style={[styles.suggestionsTitle, { color: colors.text }]}>People you may know</Text>
+      </View>
+      <View style={styles.suggestionsList}>
         <FlatList
           horizontal
           data={suggestionItems}
@@ -834,7 +991,7 @@ export default function FeedScreen() {
             No suggestions yet—invite friends to get started.
           </Text>
         ) : null}
-      </ScreenHeader>
+      </View>
 
       <LinearGradient
         colors={
@@ -889,54 +1046,36 @@ export default function FeedScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.engagementHighlights}>
-            <View style={styles.highlightItem}>
-              <Text
-                style={[
-                  styles.highlightValue,
-                  isDark ? null : styles.highlightValueLight,
-                ]}
-              >
-                {posts.length}
-              </Text>
-              <Text
-                style={[
-                  styles.highlightLabel,
-                  isDark ? null : styles.highlightLabelLight,
-                ]}
-              >
-                Stories today
-              </Text>
-            </View>
-            <View
-              style={[styles.highlightDivider, isDark ? null : styles.highlightDividerLight]}
-            />
-            <View style={styles.highlightItem}>
-              <Text
-                style={[
-                  styles.highlightValue,
-                  isDark ? null : styles.highlightValueLight,
-                ]}
-              >
-                {suggestions.length > 0 ? suggestions.length : '+'}
-              </Text>
-              <Text
-                style={[
-                  styles.highlightLabel,
-                  isDark ? null : styles.highlightLabelLight,
-                ]}
-              >
-                New connections
-              </Text>
-            </View>
-          </View>
         </View>
       </LinearGradient>
     </View>
   );
 
+  const currentPost = reactionPickerPostId
+    ? posts.find((p) => p.id === reactionPickerPostId)
+    : null;
+  const currentReaction = currentPost
+    ? (currentPost.reactions || []).find((r) => r.user?.id === user?.id)
+    : null;
+
   return (
     <View style={styles.container}>
+      <AppNavbar />
+      <ReactionPicker
+        visible={reactionPickerVisible}
+        onClose={() => {
+          setReactionPickerVisible(false);
+          setReactionPickerPostId(null);
+          setReactionPickerPosition(undefined);
+        }}
+        onSelect={(reactionType) => {
+          if (reactionPickerPostId) {
+            handleReactionSelect(reactionPickerPostId, reactionType);
+          }
+        }}
+        currentReaction={currentReaction?.reaction_type || null}
+        position={reactionPickerPosition}
+      />
       <FlatList<FeedPost>
         data={posts}
         renderItem={renderPost}
@@ -968,6 +1107,15 @@ export default function FeedScreen() {
           </View>
         }
         contentContainerStyle={{ paddingBottom: 64, paddingTop: 0 }}
+      />
+
+      <UserProfileBottomSheet
+        visible={profileBottomSheetVisible}
+        userId={selectedUserId}
+        onClose={() => {
+          setProfileBottomSheetVisible(false);
+          setSelectedUserId(null);
+        }}
       />
     </View>
   );

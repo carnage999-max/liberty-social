@@ -11,25 +11,33 @@ import {
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { apiClient } from '../../utils/api';
-import { Friend, PaginatedResponse } from '../../types';
+import { Friend, PaginatedResponse, User } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import ScreenHeader from '../../components/layout/ScreenHeader';
+import AppNavbar from '../../components/layout/AppNavbar';
+import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
+import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
 
 export default function FriendsScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [suggestions, setSuggestions] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [next, setNext] = useState<string | null>(null);
+  const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
 
   const loadFriends = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get<PaginatedResponse<Friend>>('/auth/friends/');
-      setFriends(response.results);
-      setNext(response.next);
+      const friendsResponse = await apiClient.get<PaginatedResponse<Friend>>('/auth/friends/');
+      setFriends(friendsResponse.results);
+      setNext(friendsResponse.next);
+      // TODO: Implement friend suggestions endpoint on backend
+      // For now, we'll leave suggestions empty
+      setSuggestions([]);
     } catch (error) {
       console.error('Error loading friends:', error);
     } finally {
@@ -62,12 +70,20 @@ export default function FriendsScreen() {
             borderColor: colors.border,
           }
         ]}
-        onPress={() => router.push(`/(tabs)/users/${item.friend.id}`)}
+        onPress={() => {
+          setSelectedUserId(item.friend.id);
+          setProfileBottomSheetVisible(true);
+        }}
       >
         <Image
-          source={{
-            uri: item.friend.profile_image_url || 'https://via.placeholder.com/64',
-          }}
+          source={
+            item.friend.profile_image_url
+              ? (() => {
+                  const uri = resolveRemoteUrl(item.friend.profile_image_url);
+                  return uri ? { uri } : DEFAULT_AVATAR;
+                })()
+              : DEFAULT_AVATAR
+          }
           style={styles.avatar}
         />
         <View style={styles.friendInfo}>
@@ -79,6 +95,49 @@ export default function FriendsScreen() {
           )}
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+      </TouchableOpacity>
+    );
+  };
+
+  const renderSuggestion = ({ item }: { item: User }) => {
+    const displayName = item.username || 
+      `${item.first_name} ${item.last_name}`.trim() || 
+      item.email || 
+      'User';
+
+    const avatarUri = item.profile_image_url 
+      ? resolveRemoteUrl(item.profile_image_url)
+      : null;
+    const avatarSource = avatarUri ? { uri: avatarUri } : DEFAULT_AVATAR;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.suggestionContainer,
+          { 
+            backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+            borderColor: colors.border,
+          }
+        ]}
+        onPress={() => {
+          setSelectedUserId(item.id);
+          setProfileBottomSheetVisible(true);
+        }}
+      >
+        <Image
+          source={avatarSource}
+          style={styles.suggestionAvatar}
+        />
+        <View style={styles.suggestionInfo}>
+          <Text style={[styles.suggestionName, { color: colors.text }]} numberOfLines={1}>
+            {displayName}
+          </Text>
+          {item.username && (
+            <Text style={[styles.suggestionUsername, { color: colors.textSecondary }]} numberOfLines={1}>
+              @{item.username}
+            </Text>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -139,6 +198,62 @@ export default function FriendsScreen() {
       color: colors.textSecondary,
       textAlign: 'center',
     },
+    sectionHeader: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.background,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    suggestionContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 12,
+      marginHorizontal: 16,
+      marginVertical: 4,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+    suggestionAvatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: colors.border,
+      marginRight: 12,
+    },
+    suggestionInfo: {
+      flex: 1,
+    },
+    suggestionName: {
+      fontSize: 15,
+      fontWeight: '600',
+      marginBottom: 2,
+    },
+    suggestionUsername: {
+      fontSize: 13,
+    },
+    friendsCountContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      backgroundColor: colors.background,
+    },
+    friendsCountText: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    addFriendButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 1.5,
+      borderColor: 'rgba(255, 255, 255, 0.4)',
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
   });
 
   if (loading && friends.length === 0) {
@@ -151,17 +266,17 @@ export default function FriendsScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader
-        title="Friends"
-        rightContent={
+      <AppNavbar 
+        title="Friends" 
+        showProfileImage={false}
+        customRightButton={
           <TouchableOpacity
-            style={styles.headerActionButton}
             onPress={() => router.push('/(tabs)/friend-requests')}
+            style={styles.addFriendButton}
           >
-            <Ionicons name="person-add-outline" size={22} color={colors.primary} />
+            <Ionicons name="person-add-outline" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         }
-        containerStyle={{ paddingBottom: 12 }}
       />
 
       <FlatList
@@ -175,6 +290,37 @@ export default function FriendsScreen() {
             tintColor={colors.primary}
           />
         }
+        ListHeaderComponent={
+          <>
+            {friends.length > 0 && (
+              <View style={styles.friendsCountContainer}>
+                <Text style={[styles.friendsCountText, { color: colors.text }]}>
+                  {friends.length} {friends.length === 1 ? 'Friend' : 'Friends'}
+                </Text>
+              </View>
+            )}
+            {suggestions.length > 0 && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>People You May Know</Text>
+                </View>
+                <FlatList
+                  data={suggestions}
+                  renderItem={renderSuggestion}
+                  keyExtractor={(item) => `suggestion-${item.id}`}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 16 }}
+                />
+              </>
+            )}
+            {friends.length > 0 && (
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Your Friends</Text>
+              </View>
+            )}
+          </>
+        }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
@@ -185,6 +331,15 @@ export default function FriendsScreen() {
           </View>
         }
         contentContainerStyle={{ paddingVertical: 8, paddingBottom: 32 }}
+      />
+
+      <UserProfileBottomSheet
+        visible={profileBottomSheetVisible}
+        userId={selectedUserId}
+        onClose={() => {
+          setProfileBottomSheetVisible(false);
+          setSelectedUserId(null);
+        }}
       />
     </View>
   );

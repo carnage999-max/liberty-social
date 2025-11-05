@@ -14,7 +14,8 @@ import { apiClient } from '../../utils/api';
 import { Notification, PaginatedResponse } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import ScreenHeader from '../../components/layout/ScreenHeader';
+import AppNavbar from '../../components/layout/AppNavbar';
+import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 
 export default function NotificationsScreen() {
   const { colors, isDark } = useTheme();
@@ -89,9 +90,11 @@ export default function NotificationsScreen() {
         onPress={() => handleNotificationPress(item)}
       >
         <Image
-          source={{
-            uri: item.actor.profile_image_url || 'https://via.placeholder.com/48',
-          }}
+          source={
+            item.actor.profile_image_url
+              ? { uri: resolveRemoteUrl(item.actor.profile_image_url) || '' }
+              : DEFAULT_AVATAR
+          }
           style={styles.avatar}
         />
         <View style={styles.notificationContent}>
@@ -183,11 +186,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader
-        title="Notifications"
-        subtitle={<Text style={{ fontSize: 14, color: colors.textSecondary }}>Stay in the loop</Text>}
-        containerStyle={{ paddingBottom: 12 }}
-      />
+      <AppNavbar title="Notifications" />
 
       <FlatList
         data={notifications}

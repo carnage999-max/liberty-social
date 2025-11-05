@@ -181,13 +181,18 @@ class FriendsSerializer(serializers.ModelSerializer):
 
 
 class BlockedUsersSerializer(serializers.ModelSerializer):
-    blocked_user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    blocked_user = UserSerializer(read_only=True)
     user = UserSerializer(read_only=True)
+    blocked_user_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        source='blocked_user',
+        write_only=True
+    )
 
     class Meta:
         model = BlockedUsers
-        fields = ["id", "user", "blocked_user", "created_at"]
-        read_only_fields = ["id", "user", "created_at"]
+        fields = ["id", "user", "blocked_user", "blocked_user_id", "created_at"]
+        read_only_fields = ["id", "user", "blocked_user", "created_at"]
 
     def validate(self, attrs):
         request_user = self.context["request"].user
