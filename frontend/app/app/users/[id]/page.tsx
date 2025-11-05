@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 import ProfileImageModal from "@/components/profile/ProfileImageModal";
 import { apiDelete, apiGet, apiPost, ApiError } from "@/lib/api";
 import type { Post, UserProfileOverview } from "@/lib/types";
+import { UserActionsMenu } from "@/components/profile/UserActionsMenu";
 
 type PendingAction =
   | "friend"
@@ -304,15 +305,7 @@ export default function UserProfilePage() {
     }
 
     if (relationship.is_friend) {
-      return (
-        <button
-          onClick={handleUnfriend}
-          disabled={pendingAction !== null}
-          className="inline-flex items-center justify-center gap-2 rounded-full border border-red-200 px-5 py-2 text-sm font-semibold text-red-500 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {pendingAction === "unfriend" ? "Removing..." : "Unfriend"}
-        </button>
-      );
+      return null;
     }
 
     if (relationship.incoming_request) {
@@ -540,8 +533,16 @@ export default function UserProfilePage() {
                     </div>
                   </div>
                     <div className="flex flex-col items-start gap-3 sm:items-end">
-                    {renderPrimaryActions()}
-                    {renderSecondaryActions()}
+                    <div className="flex items-center gap-2">
+                      {renderPrimaryActions()}
+                      {!isSelf && overview && (
+                        <UserActionsMenu
+                          overview={overview}
+                          accessToken={accessToken}
+                          onUpdated={fetchOverview}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
 

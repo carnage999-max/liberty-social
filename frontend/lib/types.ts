@@ -106,6 +106,7 @@ export interface FriendRequest {
 }
 
 export interface Friend {
+  username: string;
   id: number;
   user: string; // UUID
   friend: User;

@@ -83,7 +83,7 @@ export default function Navbar() {
         <Link href="/" className="flex items-center gap-3">
           <span className="logo-area">
             <Image
-              src="/images/logo.png"
+              src={raised ? "/images/logo.jpeg" : "/images/logo.png"}
               alt="Liberty Social logo"
               width={36}
               height={36}
@@ -91,9 +91,12 @@ export default function Navbar() {
               className="rounded-md"
             />
           </span>
-          <span className="text-xl md:text-2xl font-extrabold gradient-underline">
-            Liberty Social
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xl md:text-2xl font-extrabold gradient-underline">
+              Liberty Social
+            </span>
+            <span className="waving-flag text-xl mt-0.5">🇺🇸</span>
+          </div>
         </Link>
 
         {/* Desktop actions */}

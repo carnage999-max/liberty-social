@@ -42,7 +42,13 @@ export default function ReportBug() {
         <>
             {/* Floating button (brand) */}
             <button
-                onClick={() => setOpen(true)}
+                onClick={() => {
+                    setOpen(true);
+                    // Reset form state when opening to ensure clean slate
+                    setSent(false);
+                    setMessage("");
+                    setScreenshot(null);
+                }}
                 className="fixed bottom-24 right-6 bg-(--color-gold) text-(--color-deeper-navy) rounded-full w-14 h-14 shadow-metallic hover:scale-105 transition-transform flex items-center justify-center text-2xl z-50"
                 aria-label="Report Bug"
                 title="Report a bug"
@@ -56,7 +62,13 @@ export default function ReportBug() {
                     <div className="bg-white/95 rounded-2xl shadow-metallic p-6 w-full max-w-md relative">
                         <button
                             className="absolute top-3 right-3 text-(--color-deeper-navy) hover:text-(--color-deeper-navy)/80"
-                            onClick={() => setOpen(false)}
+                            onClick={() => {
+                                setOpen(false);
+                                // Reset state when closing so next open is fresh
+                                setSent(false);
+                                setMessage("");
+                                setScreenshot(null);
+                            }}
                             aria-label="Close"
                         >
                             ✕
@@ -108,7 +120,13 @@ export default function ReportBug() {
                                     <button
                                         type="button"
                                         className="btn-ghost"
-                                        onClick={() => setOpen(false)}
+                                        onClick={() => {
+                                            setOpen(false);
+                                            // Reset state when canceling
+                                            setSent(false);
+                                            setMessage("");
+                                            setScreenshot(null);
+                                        }}
                                     >
                                         Cancel
                                     </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { usePaginatedResource } from "@/hooks/usePaginatedResource";
 import type { Friend, FriendRequest, Post } from "@/lib/types";
@@ -27,11 +27,12 @@ export default function ProfileCard({ showStats = true, className = "", profileH
   if (!resolvedUser) return null;
 
   const {
+    items: friendsItems,
     count: friendsCount,
     loading: friendsLoading,
   } = usePaginatedResource<Friend>("/auth/friends/", {
     enabled: showStats && !!resolvedUser,
-    query: { page_size: 1 },
+    query: { page_size: 20 },
   });
 
   const {
@@ -68,6 +69,13 @@ export default function ProfileCard({ showStats = true, className = "", profileH
     void router.push(profileHref);
   };
 
+  const displayedFriends = useMemo(() => {
+    if (!friendsItems || friendsItems.length === 0) return [] as Friend[];
+    // shuffle and pick up to 4 friends so each page load shows different ones
+    const shuffled = [...friendsItems].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 4);
+  }, [friendsItems]);
+
   return (
     <div
       onClick={handleCardClick}
@@ -78,10 +86,86 @@ export default function ProfileCard({ showStats = true, className = "", profileH
         .filter(Boolean)
         .join(" ")}
     >
+      {/* Mobile-only horizontal layout: avatar on top, name and email below, friends grid on right */}
+      <div className="w-full sm:hidden">
+        <div className="flex justify-between">
+          <div className="flex flex-col items-center">
+            <button
+              type="button"
+              onClick={() => (profileHref ? router.push(profileHref) : setModalOpen(true))}
+              className="relative mb-2 rounded-full border-2 border-(--color-deep-navy) p-1 focus:outline-none focus:ring focus:ring-offset-2 focus:ring-(--color-deep-navy)/40"
+              aria-label="View profile photo"
+            >
+              <Image
+                src={avatarSrc}
+                alt={avatarAlt}
+                width={80}
+                height={80}
+                className="rounded-full object-cover"
+              />
+              <span className="pointer-events-none absolute inset-0 rounded-full bg-black/0 transition hover:bg-black/10" />
+            </button>
+            <div className="flex flex-col items-center flex-shrink">
+              <span className="font-semibold text-base text-gray-800 text-center break-words">{(resolvedUser.first_name || '') + (resolvedUser.last_name ? ' ' + resolvedUser.last_name : '') || displayName}</span>
+              {resolvedUser.email && <span className="text-sm text-gray-500 text-center break-words">{resolvedUser.email}</span>}
+            </div>
+          </div>
+
+          <div className="w-24">
+            <div className="grid grid-cols-2 gap-1.5">
+              {friendsLoading ? (
+                // Loading skeleton for friends grid
+                [...Array(4)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center">
+                    <div className="h-10 w-10 rounded-full bg-gray-200 animate-pulse"></div>
+                    <div className="mt-1 h-2 w-12 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                ))
+              ) : displayedFriends.length === 0 ? (
+                <div className="col-span-2 text-xs text-gray-400">No friends yet</div>
+              ) : (
+                displayedFriends.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void router.push(`/app/users/${f.friend.id}`);
+                    }}
+                    className="flex flex-col items-center text-center group"
+                    aria-label={`View ${f.username || "friend"}'s profile`}
+                    type="button"
+                  >
+                    <div className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-transparent transition group-hover:ring-(--color-deep-navy)">
+                      <Image
+                        src={f.friend.profile_image_url || "/images/default-avatar.png"}
+                        alt={f.friend.username || "friend"}
+                        width={40}
+                        height={40}
+                        className="rounded-full object-cover"
+                      />
+                    </div>
+                    <div className="mt-0.5 w-16 text-xs text-gray-600 truncate">{f.friend.username || (f.friend.email ? f.friend.email.split("@")[0] : "")}</div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {showStats && (
+          <div className="mt-3 grid w-full grid-cols-3 text-center text-sm text-gray-600">
+            <Stat label="Friends" value={friendsLoading ? "--" : friendsCount} />
+            <Stat label="Posts" value={postsLoading ? "--" : postsCount} />
+            <Stat label="Requests" value={requestsLoading ? "--" : incomingRequests} />
+          </div>
+        )}
+      </div>
+
+      {/* Desktop / default vertical layout (restored) */}
       <button
         type="button"
         onClick={() => (profileHref ? router.push(profileHref) : setModalOpen(true))}
-        className="relative mb-3 rounded-full border-2 border-(--color-deep-navy) p-1 focus:outline-none focus:ring focus:ring-offset-2 focus:ring-(--color-deep-navy)/40"
+        className="relative mb-3 hidden sm:inline-block rounded-full border-2 border-(--color-deep-navy) p-1 focus:outline-none focus:ring focus:ring-offset-2 focus:ring-(--color-deep-navy)/40"
         aria-label="View profile photo"
       >
         <Image
@@ -93,13 +177,12 @@ export default function ProfileCard({ showStats = true, className = "", profileH
         />
         <span className="pointer-events-none absolute inset-0 rounded-full bg-black/0 transition hover:bg-black/10" />
       </button>
-      <h3 className="font-semibold text-lg text-gray-800">
-        {displayName}
-      </h3>
-      {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+
+      <h3 className="font-semibold text-lg text-gray-800 hidden sm:block">{displayName}</h3>
+      {subtitle && <p className="text-sm text-gray-500 hidden sm:block">{subtitle}</p>}
 
       {showStats && (
-        <div className="mt-4 grid w-full grid-cols-3 text-center text-sm text-gray-600">
+        <div className="mt-4 grid w-full grid-cols-3 text-center text-sm text-gray-600 hidden sm:grid">
           <Stat label="Friends" value={friendsLoading ? "--" : friendsCount} />
           <Stat label="Posts" value={postsLoading ? "--" : postsCount} />
           <Stat label="Requests" value={requestsLoading ? "--" : incomingRequests} />

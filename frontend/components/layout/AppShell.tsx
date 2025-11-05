@@ -254,15 +254,18 @@ export default function AppShell({ children }: AppShellProps) {
             >
               {showCompactLogo ? (
                 <Image
-                  src="/images/icon.png"
+                  src="/icon.png"
                   alt="Liberty Social"
                   width={32}
                   height={32}
-                  className="h-8 w-8 object-cover"
+                  className="h-8 w-8 object-cover rounded-2xl"
                   priority
                 />
               ) : (
-                <span>Liberty Social</span>
+                <div className="flex items-center gap-2">
+                  <span>Liberty Social</span>
+                  <span className="waving-flag text-xl">🇺🇸</span>
+                </div>
               )}
             </button>
             <button
@@ -305,7 +308,7 @@ export default function AppShell({ children }: AppShellProps) {
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white/20 shadow-sm">
                 <Image
-                  src="/images/icon.png"
+                  src="/images/logo.jpeg"
                   alt="Liberty Social"
                   width={48}
                   height={48}
