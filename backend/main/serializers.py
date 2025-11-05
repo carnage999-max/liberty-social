@@ -247,11 +247,61 @@ class PostSerializer(serializers.ModelSerializer):
 
 class NotificationSerializer(serializers.ModelSerializer):
     actor = UserSerializer(read_only=True)
+    target_post_id = serializers.SerializerMethodField()
+    target_post_preview = serializers.SerializerMethodField()
+    target_comment_preview = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
-        fields = ['id', 'actor', 'verb', 'content_type', 'object_id', 'unread', 'created_at']
-        read_only_fields = ['id', 'actor', 'verb', 'content_type', 'object_id', 'created_at']
+        fields = ['id', 'actor', 'verb', 'content_type', 'object_id', 'unread', 'created_at', 'target_post_id', 'target_post_preview', 'target_comment_preview']
+        read_only_fields = ['id', 'actor', 'verb', 'content_type', 'object_id', 'created_at', 'target_post_id', 'target_post_preview', 'target_comment_preview']
+
+    def get_target_post_id(self, obj):
+        """Get the post ID that this notification relates to"""
+        if obj.content_type and obj.object_id:
+            # If target is a Post, return its ID
+            if obj.content_type.model == 'post':
+                return obj.object_id
+            # If target is a Comment, get the post from the comment
+            elif obj.content_type.model == 'comment':
+                try:
+                    comment = obj.target
+                    if comment and hasattr(comment, 'post'):
+                        return comment.post.id
+                except:
+                    pass
+        return None
+
+    def get_target_post_preview(self, obj):
+        """Get a preview of the post content (first 100 chars)"""
+        post_id = self.get_target_post_id(obj)
+        if post_id:
+            try:
+                post = Post.objects.get(id=post_id)
+                if post.content:
+                    preview = post.content[:100]
+                    if len(post.content) > 100:
+                        preview += "..."
+                    return preview
+            except:
+                pass
+        return None
+
+    def get_target_comment_preview(self, obj):
+        """Get a preview of the comment if this is a comment notification"""
+        if obj.verb == 'commented' and obj.content_type and obj.content_type.model == 'post':
+            # For comment notifications, we need to get the latest comment by the actor
+            try:
+                post = Post.objects.get(id=obj.object_id)
+                comment = post.comments.filter(author=obj.actor).order_by('-created_at').first()
+                if comment and comment.content:
+                    preview = comment.content[:100]
+                    if len(comment.content) > 100:
+                        preview += "..."
+                    return preview
+            except:
+                pass
+        return None
 
 
 class BookmarkSerializer(serializers.ModelSerializer):
