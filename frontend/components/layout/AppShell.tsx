@@ -10,6 +10,7 @@ import type { Post, Visibility, FriendRequest } from "@/lib/types";
 import { useToast } from "@/components/Toast";
 import Image from "next/image";
 import { usePaginatedResource } from "@/hooks/usePaginatedResource";
+import { useNotifications } from "@/hooks/useNotifications";
 
 const NAV_LINKS = [
   {
@@ -125,6 +126,7 @@ export default function AppShell({ children }: AppShellProps) {
       query: { direction: "incoming", page_size: 1 },
     }
   );
+  const { unreadCount: notificationUnreadCount } = useNotifications();
 
   const openCreateModal = useCallback(() => {
     setIsCreateModalOpen(true);
@@ -453,7 +455,12 @@ export default function AppShell({ children }: AppShellProps) {
                   <ul className="space-y-2 text-sm font-medium text-[var(--color-deep-navy)]">
                     {NAV_LINKS.map((link) => {
                       const active = pathname?.startsWith(link.href);
-                      const badgeCount = link.href === "/app/friend-requests" ? incomingFriendRequests : 0;
+                      let badgeCount = 0;
+                      if (link.href === "/app/friend-requests") {
+                        badgeCount = incomingFriendRequests;
+                      } else if (link.href === "/app/notifications") {
+                        badgeCount = notificationUnreadCount;
+                      }
                       const badgeLabel = badgeCount > 99 ? "99+" : String(badgeCount);
                       return (
                         <li key={link.href}>

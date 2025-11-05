@@ -53,7 +53,9 @@ export function ReactionPicker({ onSelect, onClose, currentReaction }: ReactionP
     };
   }, [onClose]);
 
-  const handleReactionClick = (reactionType: ReactionType) => {
+  const handleReactionClick = (e: React.MouseEvent, reactionType: ReactionType) => {
+    e.stopPropagation();
+    e.preventDefault();
     if (reactionType === currentReaction) {
       // If clicking the same reaction, remove it
       onSelect(reactionType);
@@ -71,6 +73,8 @@ export function ReactionPicker({ onSelect, onClose, currentReaction }: ReactionP
       role="menu"
       aria-label="Reaction picker"
       style={{ animation: "fadeIn 0.15s ease-out" }}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       {REACTION_TYPES.map((reactionType) => {
         const isSelected = reactionType === currentReaction;
@@ -80,7 +84,7 @@ export function ReactionPicker({ onSelect, onClose, currentReaction }: ReactionP
           <button
             key={reactionType}
             type="button"
-            onClick={() => handleReactionClick(reactionType)}
+            onClick={(e) => handleReactionClick(e, reactionType)}
             onMouseEnter={() => setHoveredReaction(reactionType)}
             onMouseLeave={() => setHoveredReaction(null)}
             className={`

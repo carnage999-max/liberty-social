@@ -133,6 +133,7 @@ export default function PostDetailPage() {
   const [reactionPending, setReactionPending] = useState(false);
   const [openReactionPicker, setOpenReactionPicker] = useState(false);
   const [showReactionBreakdown, setShowReactionBreakdown] = useState(false);
+  const [openCommentReactionPickerId, setOpenCommentReactionPickerId] = useState<number | null>(null);
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyContent, setReplyContent] = useState<Record<number, string>>({});
   const [replyAttachments, setReplyAttachments] = useState<Record<number, MediaAttachment[]>>({});
@@ -673,7 +674,7 @@ export default function PostDetailPage() {
   );
 
   const handleToggleCommentReaction = useCallback(
-    async (comment: Comment) => {
+    async (comment: Comment, reactionType: ReactionType) => {
       if (!accessToken) {
         toast.show("Sign in to react to comments.", "error");
         return;
@@ -682,7 +683,8 @@ export default function PostDetailPage() {
       const existingReaction = comment.user_reaction;
       setCommentReactionPendingId(commentId);
       try {
-        if (existingReaction) {
+        // If clicking the same reaction type, remove it
+        if (existingReaction && existingReaction.reaction_type === reactionType) {
           await apiDelete(`/reactions/${existingReaction.id}/`, {
             token: accessToken,
             cache: "no-store",
@@ -724,9 +726,17 @@ export default function PostDetailPage() {
             return { ...prev, comments: updateCommentReaction(prev.comments ?? []) };
           });
         } else {
+          // Otherwise, add or update the reaction
+          if (existingReaction) {
+            // Delete existing and create new one
+            await apiDelete(`/reactions/${existingReaction.id}/`, {
+              token: accessToken,
+              cache: "no-store",
+            });
+          }
           const created = (await apiPost(
             "/reactions/",
-            { comment: commentId, reaction_type: "like" },
+            { comment: commentId, reaction_type: reactionType },
             { token: accessToken, cache: "no-store" }
           )) as Reaction;
           setPost((prev) => {
@@ -736,12 +746,28 @@ export default function PostDetailPage() {
               return comments.map((item) => {
                 if (item.id === commentId) {
                   const currentSummary = normaliseReactionSummary(item.reaction_summary, item.reactions);
+                  // Calculate updated summary
+                  const updatedByType = { ...currentSummary.by_type };
+                  if (existingReaction) {
+                    // Decrease count for old reaction type
+                    updatedByType[existingReaction.reaction_type] = Math.max(
+                      0,
+                      (updatedByType[existingReaction.reaction_type] ?? 0) - 1
+                    );
+                    // Increase count for new reaction type (if different)
+                    if (existingReaction.reaction_type !== created.reaction_type) {
+                      updatedByType[created.reaction_type] = (updatedByType[created.reaction_type] ?? 0) + 1;
+                    }
+                  } else {
+                    // New reaction - just increase count
+                    updatedByType[created.reaction_type] = (updatedByType[created.reaction_type] ?? 0) + 1;
+                  }
+                  
                   const updatedSummary: ReactionSummary = {
-                    total: currentSummary.total + 1,
-                    by_type: {
-                      ...currentSummary.by_type,
-                      [created.reaction_type]: (currentSummary.by_type[created.reaction_type] ?? 0) + 1,
-                    },
+                    total: existingReaction
+                      ? currentSummary.total // Total stays the same when changing reaction type
+                      : currentSummary.total + 1, // Total increases when adding new reaction
+                    by_type: updatedByType,
                   };
                   const existingFiltered = (item.reactions ?? []).filter(
                     (reaction) => reaction.user.id !== created.user.id
@@ -1404,39 +1430,55 @@ export default function PostDetailPage() {
                                 {new Date(comment.created_at).toLocaleString()}
                               </p>
                               <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    handleToggleCommentReaction(comment);
-                                  }}
-                                  aria-pressed={commentLiked}
-                                  disabled={commentReactionPendingId === comment.id}
-                                  className={[
-                                    "inline-flex items-center gap-1 rounded-full border px-2 py-1 transition",
-                                    commentLiked
-                                      ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                                      : "border-gray-200 text-gray-600 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]",
-                                    commentReactionPendingId === comment.id ? "cursor-not-allowed opacity-60" : "",
-                                  ].join(" ")}
-                                >
-                                  <svg
-                                    width="14"
-                                    height="14"
-                                    viewBox="0 0 24 24"
-                                    fill={commentLiked ? "currentColor" : "none"}
-                                    stroke="currentColor"
-                                    strokeWidth="1.5"
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
+                                      setOpenCommentReactionPickerId(
+                                        openCommentReactionPickerId === comment.id ? null : comment.id
+                                      );
+                                    }}
+                                    aria-pressed={commentLiked}
+                                    disabled={commentReactionPendingId === comment.id}
+                                    aria-expanded={openCommentReactionPickerId === comment.id}
+                                    className={[
+                                      "inline-flex items-center gap-1 rounded-full border px-2 py-1 transition",
+                                      commentLiked
+                                        ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                                        : "border-gray-200 text-gray-600 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]",
+                                      commentReactionPendingId === comment.id ? "cursor-not-allowed opacity-60" : "",
+                                    ].join(" ")}
                                   >
-                                    <path
-                                      d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.54L12 21.35z"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
+                                    {comment.user_reaction ? (
+                                      <span className="text-sm">{REACTION_EMOJIS[comment.user_reaction.reaction_type]}</span>
+                                    ) : (
+                                      <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.5"
+                                      >
+                                        <path
+                                          d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.54L12 21.35z"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                        />
+                                      </svg>
+                                    )}
+                                    <span className="text-xs font-semibold">{commentLikeCount}</span>
+                                  </button>
+                                  {openCommentReactionPickerId === comment.id && (
+                                    <ReactionPicker
+                                      onSelect={(reactionType) => handleToggleCommentReaction(comment, reactionType)}
+                                      onClose={() => setOpenCommentReactionPickerId(null)}
+                                      currentReaction={comment.user_reaction?.reaction_type ?? null}
                                     />
-                                  </svg>
-                                  <span className="text-xs font-semibold">{commentLikeCount}</span>
-                                </button>
+                                  )}
+                                </div>
                                 {repliesCount > 0 && (
                                   <button
                                     type="button"
@@ -1681,39 +1723,57 @@ export default function PostDetailPage() {
                                           )}
                                           <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
                                             <span>{new Date(reply.created_at).toLocaleString()}</span>
-                                            <button
-                                              type="button"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                e.preventDefault();
-                                                handleToggleCommentReaction(reply);
-                                              }}
-                                              aria-pressed={replyLiked}
-                                              disabled={commentReactionPendingId === reply.id}
-                                              className={[
-                                                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 transition",
-                                                replyLiked
-                                                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                                                  : "border-gray-200 text-gray-600 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]",
-                                                commentReactionPendingId === reply.id ? "cursor-not-allowed opacity-60" : "",
-                                              ].join(" ")}
-                                            >
-                                              <svg
-                                                width="12"
-                                                height="12"
-                                                viewBox="0 0 24 24"
-                                                fill={replyLiked ? "currentColor" : "none"}
-                                                stroke="currentColor"
-                                                strokeWidth="1.5"
+                                            <div className="relative">
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  e.preventDefault();
+                                                  setOpenCommentReactionPickerId(
+                                                    openCommentReactionPickerId === reply.id ? null : reply.id
+                                                  );
+                                                }}
+                                                aria-pressed={replyLiked}
+                                                disabled={commentReactionPendingId === reply.id}
+                                                aria-expanded={openCommentReactionPickerId === reply.id}
+                                                className={[
+                                                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 transition",
+                                                  replyLiked
+                                                    ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                                                    : "border-gray-200 text-gray-600 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]",
+                                                  commentReactionPendingId === reply.id ? "cursor-not-allowed opacity-60" : "",
+                                                ].join(" ")}
                                               >
-                                                <path
-                                                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.54L12 21.35z"
-                                                  strokeLinecap="round"
-                                                  strokeLinejoin="round"
-                                                />
-                                              </svg>
-                                              <span className="text-xs font-semibold">{replyLikeCount}</span>
-                                            </button>
+                                                {reply.user_reaction ? (
+                                                  <span className="text-sm">{REACTION_EMOJIS[reply.user_reaction.reaction_type]}</span>
+                                                ) : (
+                                                  <svg
+                                                    width="12"
+                                                    height="12"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="1.5"
+                                                  >
+                                                    <path
+                                                      d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.54L12 21.35z"
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                    />
+                                                  </svg>
+                                                )}
+                                                <span className="text-xs font-semibold">{replyLikeCount}</span>
+                                              </button>
+                                              {openCommentReactionPickerId === reply.id && (
+                                                <div onClick={(e) => e.stopPropagation()}>
+                                                  <ReactionPicker
+                                                    onSelect={(reactionType) => handleToggleCommentReaction(reply, reactionType)}
+                                                    onClose={() => setOpenCommentReactionPickerId(null)}
+                                                    currentReaction={reply.user_reaction?.reaction_type ?? null}
+                                                  />
+                                                </div>
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
                                       </div>

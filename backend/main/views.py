@@ -84,14 +84,7 @@ class ReactionViewSet(ModelViewSet):
 
 	def perform_create(self, serializer):
 		instance = serializer.save(user=self.request.user)
-		# create a notification for the owner of the target object (if different)
-		try:
-			target = instance.content_object
-			owner = getattr(target, 'author', None)
-			if owner and owner != self.request.user:
-				Notification.objects.create(recipient=owner, actor=self.request.user, verb='reacted', content_type=instance.content_type, object_id=instance.object_id)
-		except Exception:
-			pass
+		# Notification is now handled by the signal in signals.py
 
 
 class NotificationViewSet(ModelViewSet):

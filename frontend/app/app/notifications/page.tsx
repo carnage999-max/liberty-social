@@ -4,15 +4,17 @@ import Spinner from "@/components/Spinner";
 import { useAuth } from "@/lib/auth-context";
 import { apiPost } from "@/lib/api";
 import type { Notification } from "@/lib/types";
-import { usePaginatedResource } from "@/hooks/usePaginatedResource";
+import { useNotifications } from "@/hooks/useNotifications";
 import { useState } from "react";
 import { useToast } from "@/components/Toast";
+import { useRouter } from "next/navigation";
 
 export default function NotificationsPage() {
   const { accessToken } = useAuth();
   const toast = useToast();
+  const router = useRouter();
   const {
-    items,
+    notifications: items,
     loading,
     error,
     next,
@@ -20,10 +22,14 @@ export default function NotificationsPage() {
     loadingMore,
     refresh,
     count,
-  } = usePaginatedResource<Notification>("/notifications/");
+  } = useNotifications();
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
-  const handleMarkRead = async (notificationId: number) => {
+  const handleMarkRead = async (notificationId: number, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     if (!accessToken) return;
     try {
       setUpdatingId(notificationId);
@@ -32,13 +38,32 @@ export default function NotificationsPage() {
         cache: "no-store",
       });
       await refresh();
-      toast.show("Notification marked as read.");
     } catch (err) {
       console.error(err);
       toast.show("Unable to mark notification. Please try again.", "error");
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    // Mark as read if unread
+    if (notification.unread) {
+      handleMarkRead(notification.id);
+    }
+    // Navigate to the post
+    if (notification.target_post_id) {
+      router.push(`/app/feed/${notification.target_post_id}`);
+    }
+  };
+
+  const getNotificationMessage = (notification: Notification): string => {
+    if (notification.verb === "commented") {
+      return "commented on your post";
+    } else if (notification.verb === "reacted") {
+      return "reacted to your post";
+    }
+    return notification.verb;
   };
 
   return (
@@ -81,30 +106,46 @@ export default function NotificationsPage() {
                   .filter(Boolean)
                   .join(" ") ||
                 notification.actor.email;
+              const message = getNotificationMessage(notification);
+              const hasPostLink = notification.target_post_id !== null && notification.target_post_id !== undefined;
+
               return (
                 <li
                   key={notification.id}
-                  className="flex items-start gap-4 rounded-[16px] border border-gray-100 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
+                  className={`flex items-start gap-4 rounded-[16px] border border-gray-100 bg-white/90 p-4 shadow-sm backdrop-blur-sm transition ${
+                    hasPostLink ? "cursor-pointer hover:shadow-md hover:border-[var(--color-primary)]/40" : ""
+                  }`}
+                  onClick={() => hasPostLink && handleNotificationClick(notification)}
                 >
                   <div
-                    className={`mt-1 h-2.5 w-2.5 rounded-full ${
+                    className={`mt-1 h-2.5 w-2.5 rounded-full flex-shrink-0 ${
                       notification.unread ? "bg-[var(--color-rich-red-top)]" : "bg-gray-300"
                     }`}
                   />
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-800">
                       <span className="font-semibold text-[var(--color-deep-navy)]">{actorLabel}</span>{" "}
-                      {notification.verb}
+                      {message}
                     </p>
-                    <p className="mt-1 text-xs text-gray-500">
+                    {notification.target_post_preview && (
+                      <p className="mt-1.5 text-xs text-gray-600 italic line-clamp-2">
+                        "{notification.target_post_preview}"
+                      </p>
+                    )}
+                    {notification.target_comment_preview && (
+                      <p className="mt-1.5 text-xs text-gray-600 line-clamp-2">
+                        Comment: "{notification.target_comment_preview}"
+                      </p>
+                    )}
+                    <p className="mt-2 text-xs text-gray-500">
                       {new Date(notification.created_at).toLocaleString()}
                     </p>
                   </div>
                   {notification.unread && (
                     <button
-                      onClick={() => handleMarkRead(notification.id)}
+                      onClick={(e) => handleMarkRead(notification.id, e)}
                       disabled={updatingId === notification.id}
-                      className="rounded-lg border border-[var(--color-deep-navy)] px-3 py-1.5 text-xs font-semibold text-[var(--color-deep-navy)] transition hover:bg-[var(--color-deep-navy)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-lg border border-[var(--color-deep-navy)] px-3 py-1.5 text-xs font-semibold text-[var(--color-deep-navy)] transition hover:bg-[var(--color-deep-navy)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60 flex-shrink-0"
                     >
                       {updatingId === notification.id ? "Marking..." : "Mark as read"}
                     </button>
