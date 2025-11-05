@@ -3,7 +3,7 @@
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import { API_BASE, isApiError } from "@/lib/api";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useState } from "react";
 import { PasswordField } from "@/components/forms/PasswordField";
 import { z } from "zod";
@@ -16,11 +16,8 @@ const resetConfirmSchema = z.object({
   path: ["confirm"]
 });
 
-export default function PasswordResetConfirm({
-  params,
-}: {
-  params: { uid: string; token: string };
-}) {
+export default function PasswordResetConfirm() {
+  const params = useParams<{ uid?: string | string[]; token?: string | string[] }>();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,9 +25,18 @@ export default function PasswordResetConfirm({
   const toast = useToast();
   const router = useRouter();
 
+  // Normalize params to handle arrays or strings
+  const uid = Array.isArray(params?.uid) ? params.uid[0] : params?.uid;
+  const token = Array.isArray(params?.token) ? params.token[0] : params?.token;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!uid || !token) {
+      setError("Invalid reset link. Please request a new password reset.");
+      return;
+    }
 
     const validation = resetConfirmSchema.safeParse({ password, confirm });
     if (!validation.success) {
@@ -47,8 +53,8 @@ export default function PasswordResetConfirm({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          uid: params.uid,
-          token: params.token,
+          uid,
+          token,
           password,
         }),
       });
@@ -58,6 +64,7 @@ export default function PasswordResetConfirm({
         if (isApiError(data)) {
           throw data;
         }
+        console.log(data);
         throw new Error("Failed to reset password");
       }
 

@@ -8,10 +8,20 @@ import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
+import { ReactionPicker } from "@/components/feed/ReactionPicker";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactionType } from "@/lib/types";
+
+const REACTION_EMOJIS: Record<ReactionType, string> = {
+  like: "👍",
+  love: "❤️",
+  haha: "😂",
+  sad: "😢",
+  angry: "😠",
+};
 
 type ReactionBreakdown = {
   total: number;
@@ -121,6 +131,8 @@ export default function PostDetailPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const attachmentsSnapshotRef = useRef<MediaAttachment[]>([]);
   const [reactionPending, setReactionPending] = useState(false);
+  const [openReactionPicker, setOpenReactionPicker] = useState(false);
+  const [showReactionBreakdown, setShowReactionBreakdown] = useState(false);
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyContent, setReplyContent] = useState<Record<number, string>>({});
   const [replyAttachments, setReplyAttachments] = useState<Record<number, MediaAttachment[]>>({});
@@ -313,60 +325,72 @@ export default function PostDetailPage() {
     });
   }, []);
 
-  const handleToggleReaction = useCallback(async () => {
-    if (!post || !accessToken || !user) {
-      toast.show("Sign in to react to this post.", "error");
-      return;
-    }
-    if (reactionPending) return;
-    setReactionPending(true);
-    try {
-      if (currentReaction) {
-        await apiDelete(`/reactions/${currentReaction.id}/`, {
-          token: accessToken,
-          cache: "no-store",
-        });
-        setPost((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            reactions: (prev.reactions ?? []).filter(
-              (reaction) => reaction.id !== currentReaction.id
-            ),
-          };
-        });
-      } else {
-        const created = (await apiPost(
-          "/reactions/",
-          { post: post.id, reaction_type: "like" },
-          { token: accessToken, cache: "no-store" }
-        )) as Reaction;
-        const normalized: Reaction = {
-          ...created,
-          user: created.user ?? user,
-        };
-        setPost((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            reactions: [
-              ...(prev.reactions ?? []).filter((reaction) => reaction.user?.id !== user.id),
-              normalized,
-            ],
-          };
-        });
+  const handleToggleReaction = useCallback(
+    async (reactionType: ReactionType) => {
+      if (!post || !accessToken || !user) {
+        toast.show("Sign in to react to this post.", "error");
+        return;
       }
-    } catch (err) {
-      console.error(err);
-      const message =
-        err instanceof Error && err.message
-          ? err.message
-          : "We couldn't update your reaction. Please try again.";
-      toast.show(message, "error");
-    } finally {
-      setReactionPending(false);
-    }
-  }, [post, accessToken, user, reactionPending, currentReaction, toast]);
+      if (reactionPending) return;
+      setReactionPending(true);
+      try {
+        // If clicking the same reaction type, remove it
+        if (currentReaction && currentReaction.reaction_type === reactionType) {
+          await apiDelete(`/reactions/${currentReaction.id}/`, {
+            token: accessToken,
+            cache: "no-store",
+          });
+          setPost((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              reactions: (prev.reactions ?? []).filter(
+                (reaction) => reaction.id !== currentReaction.id
+              ),
+            };
+          });
+        } else {
+          // Otherwise, add or update the reaction
+          if (currentReaction) {
+            // Delete existing and create new one
+            await apiDelete(`/reactions/${currentReaction.id}/`, {
+              token: accessToken,
+              cache: "no-store",
+            });
+          }
+          const created = (await apiPost(
+            "/reactions/",
+            { post: post.id, reaction_type: reactionType },
+            { token: accessToken, cache: "no-store" }
+          )) as Reaction;
+          const normalized: Reaction = {
+            ...created,
+            user: created.user ?? user,
+          };
+          setPost((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              reactions: [
+                ...(prev.reactions ?? []).filter((reaction) => reaction.user?.id !== user.id),
+                normalized,
+              ],
+            };
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        const message =
+          err instanceof Error && err.message
+            ? err.message
+            : "We couldn't update your reaction. Please try again.";
+        toast.show(message, "error");
+      } finally {
+        setReactionPending(false);
+      }
+    },
+    [post, accessToken, user, reactionPending, currentReaction, toast]
+  );
 
   useEffect(() => {
     if (!gallery) return;
@@ -1041,35 +1065,49 @@ export default function PostDetailPage() {
 
                 <footer className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-4 text-sm text-gray-600">
                   <div className="flex items-center gap-4">
-                    <button
-                      type="button"
-                      onClick={handleToggleReaction}
-                      aria-pressed={liked}
-                      disabled={reactionPending}
-                      aria-label={liked ? "Remove your reaction" : "React to this post"}
-                      className={[
-                        "inline-flex items-center justify-center rounded-full border p-1.5 transition disabled:cursor-not-allowed",
-                        liked
-                          ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                          : "border-gray-200 text-gray-600 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]",
-                        reactionPending ? "opacity-60" : "",
-                      ].join(" ")}
-                    >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill={liked ? "currentColor" : "none"}
-                        stroke="currentColor"
-                        strokeWidth="1.5"
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setOpenReactionPicker(!openReactionPicker)}
+                        aria-pressed={liked}
+                        disabled={reactionPending}
+                        aria-label={liked ? "Remove your reaction" : "React to this post"}
+                        aria-expanded={openReactionPicker}
+                        className={[
+                          "inline-flex items-center justify-center rounded-full border p-1.5 transition disabled:cursor-not-allowed",
+                          liked
+                            ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                            : "border-gray-200 text-gray-600 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]",
+                          reactionPending ? "opacity-60" : "",
+                        ].join(" ")}
                       >
-                        <path
-                          d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.54L12 21.35z"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                        {currentReaction ? (
+                          <span className="text-base">{REACTION_EMOJIS[currentReaction.reaction_type]}</span>
+                        ) : (
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          >
+                            <path
+                              d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.54L12 21.35z"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </button>
+                      {openReactionPicker && (
+                        <ReactionPicker
+                          onSelect={(reactionType) => handleToggleReaction(reactionType)}
+                          onClose={() => setOpenReactionPicker(false)}
+                          currentReaction={currentReaction?.reaction_type ?? null}
                         />
-                      </svg>
-                    </button>
+                      )}
+                    </div>
                     <span className="flex items-center gap-1">
                       <svg
                         width="18"
@@ -1088,15 +1126,37 @@ export default function PostDetailPage() {
                       {post.comments?.length ?? 0}
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                    {Object.entries(reactionSummary.byType)
-                      .filter(([, value]) => value > 0)
-                      .map(([type, value]) => (
-                        <span key={type}>
-                          {type}: {value}
-                        </span>
-                      ))}
-                  </div>
+                  {reactionSummary.total > 0 && (
+                    <div className="mt-2">
+                      {!showReactionBreakdown ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowReactionBreakdown(true)}
+                          className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                        >
+                          Show reactions
+                        </button>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-500 items-center">
+                          {Object.entries(reactionSummary.byType)
+                            .filter(([, value]) => value > 0)
+                            .map(([type, value]) => (
+                              <span key={type} className="inline-flex items-center gap-1">
+                                <span className="text-base leading-none">{REACTION_EMOJIS[type as ReactionType]}</span>
+                                <span>{value}</span>
+                              </span>
+                            ))}
+                          <button
+                            type="button"
+                            onClick={() => setShowReactionBreakdown(false)}
+                            className="ml-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            Hide
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </footer>
 
                 <section id="comments" className="mt-8">

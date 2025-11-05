@@ -245,7 +245,7 @@ function PasswordField({
       <div className="relative">
         <input
           id={id}
-          className={`w-full rounded-[10px] border bg-white/90 px-3 py-2.5 outline-none transition-all
+          className={`w-full rounded-[10px] border bg-white/90 px-3 py-2.5 outline-none transition-all text-gray-900
             focus:border-(--color-gold) focus:ring-2 focus:ring-(--color-deep-navy)/20 focus:bg-white
             ${error ? "border-red-400" : "border-(--color-silver-light)"
           }`}
@@ -409,7 +409,7 @@ function LoginForm({
       >
         <input
           id="login-identifier"
-          className={`w-full rounded-[10px] border bg-white/90 px-3 py-2.5 outline-none transition-all 
+          className={`w-full rounded-[10px] border bg-white/90 px-3 py-2.5 outline-none transition-all text-gray-900
             focus:border-(--color-gold) focus:ring-2 focus:ring-(--color-deep-navy)/20 focus:bg-white
             ${touched.identifier && errors.identifier
               ? "border-red-400"
@@ -579,7 +579,7 @@ function RegisterForm({
         >
           <input
             id="reg-username"
-            className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-(--color-deep-navy) ${
+            className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none text-gray-900 focus:ring-2 focus:ring-(--color-deep-navy) ${
               touched.username && errors.username
                 ? "border-red-400"
                 : "border-gray-300"
@@ -598,7 +598,7 @@ function RegisterForm({
         >
           <input
             id="reg-email"
-            className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-(--color-deep-navy) ${
+            className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none text-gray-900 focus:ring-2 focus:ring-(--color-deep-navy) ${
               touched.email && errors.email
                 ? "border-red-400"
                 : "border-gray-300"
@@ -622,7 +622,7 @@ function RegisterForm({
         >
           <input
             id="reg-first"
-            className="w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-(--color-deep-navy)"
+            className="w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2.5 outline-none text-gray-900 focus:ring-2 focus:ring-(--color-deep-navy)"
             placeholder="Alice"
             value={first}
             onChange={(e) => setFirst(e.target.value)}
@@ -637,7 +637,7 @@ function RegisterForm({
         >
           <input
             id="reg-last"
-            className="w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-(--color-deep-navy)"
+            className="w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2.5 outline-none text-gray-900 focus:ring-2 focus:ring-(--color-deep-navy)"
             placeholder="Example"
             value={last}
             onChange={(e) => setLast(e.target.value)}
@@ -654,7 +654,7 @@ function RegisterForm({
       >
         <input
           id="reg-phone"
-          className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none focus:ring-2 focus:ring-(--color-deep-navy) ${
+          className={`w-full rounded-[10px] border bg-white px-3 py-2.5 outline-none text-gray-900 focus:ring-2 focus:ring-(--color-deep-navy) ${
             touched.phone && errors.phone ? "border-red-400" : "border-gray-300"
           }`}
           placeholder="+123456789"

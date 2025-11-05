@@ -6,9 +6,19 @@ import type { Post, Reaction } from "@/lib/types";
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
+import { ReactionPicker } from "@/components/feed/ReactionPicker";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactionType } from "@/lib/types";
+
+const REACTION_EMOJIS: Record<ReactionType, string> = {
+  like: "👍",
+  love: "❤️",
+  haha: "😂",
+  sad: "😢",
+  angry: "😠",
+};
 
 type FeedPost = Post;
 
@@ -63,6 +73,7 @@ export default function FeedPage() {
   const controllerRef = useRef<AbortController | null>(null);
   const pendingReactionsRef = useRef<Set<number>>(new Set());
   const [gallery, setGallery] = useState<{ postId: number; index: number } | null>(null);
+  const [openReactionPickerPostId, setOpenReactionPickerPostId] = useState<number | null>(null);
 
   useEffect(() => {
     pendingReactionsRef.current = pendingReactions;
@@ -214,7 +225,7 @@ export default function FeedPage() {
   }, [gallery]);
 
   const handleToggleReaction = useCallback(
-    async (postId: number) => {
+    async (postId: number, reactionType: ReactionType) => {
       if (!accessToken || !user) {
         toast.show("Sign in to react to posts.", "error");
         return;
@@ -227,9 +238,10 @@ export default function FeedPage() {
         (reaction) => reaction.user?.id === user.id
       );
 
-      updatePendingReaction(postId, true);
-      try {
-        if (existing) {
+      // If clicking the same reaction type, remove it
+      if (existing && existing.reaction_type === reactionType) {
+        updatePendingReaction(postId, true);
+        try {
           await apiDelete(`/reactions/${existing.id}/`, {
             token: accessToken,
             cache: "no-store",
@@ -246,35 +258,56 @@ export default function FeedPage() {
                 : item
             )
           );
-        } else {
-          const created = (await apiPost(
-            "/reactions/",
-            { post: postId, reaction_type: "like" },
-            {
-              token: accessToken,
-              cache: "no-store",
-            }
-          )) as Reaction;
-          const normalized = {
-            ...created,
-            user: created.user ?? user,
-          } as Reaction;
-          setPosts((prev) =>
-            prev.map((item) =>
-              item.id === postId
-                ? {
-                    ...item,
-                    reactions: [
-                      ...(item.reactions ?? []).filter(
-                        (reaction) => reaction.user?.id !== user.id
-                      ),
-                      normalized,
-                    ],
-                  }
-                : item
-            )
-          );
+        } catch (err) {
+          console.error(err);
+          const message =
+            err instanceof Error && err.message
+              ? err.message
+              : "We couldn't update your reaction. Please try again.";
+          toast.show(message, "error");
+        } finally {
+          updatePendingReaction(postId, false);
         }
+        return;
+      }
+
+      // Otherwise, add or update the reaction
+      updatePendingReaction(postId, true);
+      try {
+        if (existing) {
+          // Delete existing and create new one
+          await apiDelete(`/reactions/${existing.id}/`, {
+            token: accessToken,
+            cache: "no-store",
+          });
+        }
+        const created = (await apiPost(
+          "/reactions/",
+          { post: postId, reaction_type: reactionType },
+          {
+            token: accessToken,
+            cache: "no-store",
+          }
+        )) as Reaction;
+        const normalized = {
+          ...created,
+          user: created.user ?? user,
+        } as Reaction;
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: [
+                    ...(item.reactions ?? []).filter(
+                      (reaction) => reaction.user?.id !== user.id
+                    ),
+                    normalized,
+                  ],
+                }
+              : item
+          )
+        );
       } catch (err) {
         console.error(err);
         const message =
@@ -348,6 +381,7 @@ export default function FeedPage() {
               : undefined;
           const liked = Boolean(currentUserReaction);
           const reactionBusy = pendingReactions.has(post.id);
+          const showReactionPicker = openReactionPickerPostId === post.id;
 
           return (
             <article
@@ -415,36 +449,50 @@ export default function FeedPage() {
               )}
 
               <footer className="mt-4 flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                <button
-                  type="button"
-                  onClick={() => handleToggleReaction(post.id)}
-                  aria-pressed={liked}
-                  disabled={reactionBusy}
-                  aria-label={liked ? "Remove your reaction" : "React to this post"}
-                  className={[
-                    "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm font-medium transition disabled:cursor-not-allowed",
-                    liked
-                      ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                      : "border-gray-200 text-gray-600 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]",
-                    reactionBusy ? "opacity-60" : "",
-                  ].join(" ")}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill={liked ? "currentColor" : "none"}
-                    stroke="currentColor"
-                    strokeWidth="1.5"
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setOpenReactionPickerPostId(showReactionPicker ? null : post.id)}
+                    aria-pressed={liked}
+                    disabled={reactionBusy}
+                    aria-label={liked ? "Remove your reaction" : "React to this post"}
+                    aria-expanded={showReactionPicker}
+                    className={[
+                      "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm font-medium transition disabled:cursor-not-allowed",
+                      liked
+                        ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                        : "border-gray-200 text-gray-600 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]",
+                      reactionBusy ? "opacity-60" : "",
+                    ].join(" ")}
                   >
-                    <path
-                      d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.54L12 21.35z"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                    {currentUserReaction ? (
+                      <span className="text-base">{REACTION_EMOJIS[currentUserReaction.reaction_type]}</span>
+                    ) : (
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path
+                          d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.54L12 21.35z"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                    {reactionSummary.total}
+                  </button>
+                  {showReactionPicker && (
+                    <ReactionPicker
+                      onSelect={(reactionType) => handleToggleReaction(post.id, reactionType)}
+                      onClose={() => setOpenReactionPickerPostId(null)}
+                      currentReaction={currentUserReaction?.reaction_type ?? null}
                     />
-                  </svg>
-                  {reactionSummary.total}
-                </button>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={() => handleCommentsNavigate(post.id)}
@@ -462,17 +510,6 @@ export default function FeedPage() {
                   </svg>
                   {post.comments?.length ?? 0}
                 </button>
-                {reactionSummary.total > 0 && (
-                  <div className="hidden gap-3 text-xs text-gray-500 sm:flex">
-                    {Object.entries(reactionSummary.byType)
-                      .filter(([, value]) => value > 0)
-                      .map(([type, value]) => (
-                        <span key={type}>
-                          {type}: {value}
-                        </span>
-                      ))}
-                  </div>
-                )}
               </footer>
             </article>
           );
