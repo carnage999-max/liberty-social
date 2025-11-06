@@ -1,27 +1,36 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "Starting celery worker..."
+echo "Starting health endpoint and Celery worker..."
 
-CELERY_CMD="./venv/bin/celery"
+# Default port that App Runner probes
+export PORT="${PORT:-8000}"
 
-# Ensure the venv binary is executable by non-root (usually already 755)
-chmod +x ./venv/bin/celery || true
+# --- tiny health server ---
+python - <<'PY' &
+import os, threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-# Celery sometimes writes temp files; make sure we use a writable dir
-export TMPDIR=/tmp
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path in ("/", "/health", "/_health"):
+            self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
+        else:
+            self.send_response(404); self.end_headers()
+    def log_message(self, *args, **kwargs):
+        pass
 
-# Optional: keep pid/logs in /tmp (writeable by 'nobody'); remove if you don't want files
-PIDFILE=/tmp/celery-worker.pid
-LOGFILE=/tmp/celery-worker.log
+def serve():
+    HTTPServer(("", int(os.getenv("PORT", "8000"))), HealthHandler).serve_forever()
 
-# Run as non-root (user 'nobody' exists in the App Runner Python image)
-exec "$CELERY_CMD" -A liberty_social worker \
+threading.Thread(target=serve, daemon=True).start()
+PY
+
+# --- run celery ---
+exec ./venv/bin/celery -A liberty_social worker \
   --loglevel=info \
   --uid nobody --gid nobody \
   --concurrency="${CELERY_WORKER_CONCURRENCY:-2}" \
-  --max-tasks-per-child=500 \
-  --prefetch-multiplier=4 \
-  --without-gossip --without-mingle \
-  --pidfile="$PIDFILE" \
-  --logfile="$LOGFILE"
+  --max-tasks-per-child="${CELERY_MAX_TASKS_PER_CHILD:-500}" \
+  --prefetch-multiplier="${CELERY_PREFETCH_MULTIPLIER:-4}" \
+  --without-gossip --without-mingle
