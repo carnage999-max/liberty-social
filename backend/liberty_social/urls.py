@@ -18,8 +18,14 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from django.http import JsonResponse
+
+
+def health_check(_request):
+    return JsonResponse({"status": "ok"})
 
 urlpatterns = [
+    path("", health_check, name="health-check"),
     path("admin/", admin.site.urls),
     path("api/auth/", include('users.urls')),
     path("api/", include("main.urls"))
