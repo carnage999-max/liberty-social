@@ -1,6 +1,4 @@
 "use client";
-
-import clsx from "clsx";
 import type { ReactNode } from "react";
 
 type MetricCardProps = {
@@ -11,9 +9,9 @@ type MetricCardProps = {
 };
 
 const toneClasses: Record<NonNullable<MetricCardProps["tone"]>, string> = {
-  default: "border-slate-200 bg-white text-slate-900",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  warning: "border-amber-200 bg-amber-50 text-amber-900",
+  default: "",
+  success: "metric-card--success",
+  warning: "metric-card--warning",
 };
 
 export function MetricCard({
@@ -22,20 +20,12 @@ export function MetricCard({
   subtitle,
   tone = "default",
 }: MetricCardProps) {
+  const toneClass = toneClasses[tone] ? ` ${toneClasses[tone]}` : "";
   return (
-    <article
-      className={clsx(
-        "rounded-2xl border px-6 py-5 shadow-sm transition hover:shadow-md",
-        toneClasses[tone]
-      )}
-    >
-      <p className="text-sm font-medium uppercase tracking-wide opacity-70">
-        {title}
-      </p>
-      <p className="mt-3 text-3xl font-semibold">{value}</p>
-      {subtitle ? (
-        <p className="mt-2 text-sm font-normal opacity-80">{subtitle}</p>
-      ) : null}
+    <article className={`metric-card${toneClass}`}>
+      <p className="metric-card__eyebrow">{title}</p>
+      <p className="metric-card__value">{value}</p>
+      {subtitle ? <p className="metric-card__subtitle">{subtitle}</p> : null}
     </article>
   );
 }

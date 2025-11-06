@@ -83,6 +83,12 @@ export default function AdminDashboardPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         setError("Invalid credentials. Please check your details and try again.");
+      } else if (err instanceof Error) {
+        setError(
+          err.message.includes("NEXT_PUBLIC_API_BASE_URL")
+            ? "NEXT_PUBLIC_API_BASE_URL is missing or invalid. Update the admin environment variables and restart the app."
+            : err.message || "Unable to sign in. Please try again."
+        );
       } else {
         setError("Unable to sign in. Please try again.");
       }
@@ -120,17 +126,17 @@ export default function AdminDashboardPage() {
 
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-6">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white px-8 py-10 shadow-lg">
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Liberty Social Admin
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
+      <div className="auth-shell">
+        <div className="auth-card">
+          <p className="auth-eyebrow">Liberty Social</p>
+          <h1 className="auth-title">Admin Console</h1>
+          <p className="auth-subtitle">
             Sign in with an admin account to view internal metrics.
           </p>
-          <form className="mt-8 space-y-4" onSubmit={handleLogin}>
-            <div className="space-y-2">
-              <label htmlFor="username" className="text-sm font-medium text-slate-700">
+
+          <form className="form" onSubmit={handleLogin}>
+            <div className="field">
+              <label htmlFor="username" className="label">
                 Email or username
               </label>
               <input
@@ -143,12 +149,12 @@ export default function AdminDashboardPage() {
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, username: event.target.value }))
                 }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="input"
                 placeholder="admin@example.com"
               />
             </div>
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-slate-700">
+            <div className="field">
+              <label htmlFor="password" className="label">
                 Password
               </label>
               <input
@@ -161,111 +167,109 @@ export default function AdminDashboardPage() {
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, password: event.target.value }))
                 }
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="input"
                 placeholder="••••••••"
               />
             </div>
-            {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+            {error ? <p className="form-error">{error}</p> : null}
             <button
               type="submit"
               disabled={authStep === "working"}
-              className="flex w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-base font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn btn--primary"
             >
               {authStep === "working" ? "Signing in…" : "Sign in"}
             </button>
           </form>
+          <p className="auth-footnote">
+            Need an account? Ask a system administrator to grant staff access.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen px-6 pb-10">
-      <header className="mx-auto flex w-full max-w-6xl flex-col gap-4 py-10 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-indigo-600">
-            Internal Dashboard
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold text-slate-900">
-            Liberty Social Overview
-          </h1>
-          {lastUpdatedLabel ? (
-            <p className="mt-1 text-sm text-slate-500">
-              Last generated: {lastUpdatedLabel}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => token && loadMetrics(token)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-400 hover:text-indigo-700"
-            disabled={loading}
-          >
-            {loading ? "Refreshing…" : "Refresh"}
-          </button>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-700"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-6xl space-y-8">
-        {error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
+    <div className="dashboard">
+      <div className="dashboard-container">
+        <header className="dashboard-header">
+          <div className="dashboard-header__meta">
+            <p className="dashboard-eyebrow">Internal Dashboard</p>
+            <h1 className="dashboard-title">Liberty Social Overview</h1>
+            {lastUpdatedLabel ? (
+              <p className="dashboard-timestamp">
+                Last generated: {lastUpdatedLabel}
+              </p>
+            ) : null}
           </div>
-        ) : null}
+          <div className="dashboard-actions">
+            <button
+              type="button"
+              onClick={() => token && loadMetrics(token)}
+              className="btn btn--outline"
+              disabled={loading}
+            >
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="btn btn--danger"
+            >
+              Sign out
+            </button>
+          </div>
+        </header>
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            title="Total users"
-            value={
-              metrics?.totals?.users !== undefined
-                ? metrics.totals.users.toLocaleString()
-                : "—"
-            }
-          />
-          <MetricCard
-            title="New (24h)"
-            value={metrics?.new_users?.last_24_hours ?? "—"}
-            subtitle="Users registered in the past 24 hours."
-            tone="success"
-          />
-          <MetricCard
-            title="New (7 days)"
-            value={metrics?.new_users?.last_7_days ?? "—"}
-            subtitle="Sign-ups in the last 7 days."
-          />
-          <MetricCard
-            title="Active (30 days)"
-            value={metrics?.active_users?.last_30_days ?? "—"}
-            subtitle="Users who logged in at least once."
-          />
-        </section>
+        <main className="dashboard-content">
+          {error ? <div className="alert">{error}</div> : null}
 
-        <section className="grid gap-6 lg:grid-cols-2">
-          <SignupTrend
-            title="Daily sign-ups (last 14 days)"
-            entries={dailyEntries}
-            emptyMessage="No recent sign-ups recorded."
-          />
-          <SignupTrend
-            title="Monthly sign-ups (last 12 months)"
-            entries={monthlyEntries}
-            emptyMessage="No sign-up activity logged in this period."
-          />
-        </section>
-      </main>
+          <section className="metric-grid">
+            <MetricCard
+              title="Total users"
+              value={
+                metrics?.totals?.users !== undefined
+                  ? metrics.totals.users.toLocaleString()
+                  : "—"
+              }
+            />
+            <MetricCard
+              title="New (24h)"
+              value={metrics?.new_users?.last_24_hours ?? "—"}
+              subtitle="Users registered in the past 24 hours."
+              tone="success"
+            />
+            <MetricCard
+              title="New (7 days)"
+              value={metrics?.new_users?.last_7_days ?? "—"}
+              subtitle="Sign-ups in the last 7 days."
+            />
+            <MetricCard
+              title="Active (30 days)"
+              value={metrics?.active_users?.last_30_days ?? "—"}
+              subtitle="Users who logged in at least once."
+              tone="warning"
+            />
+          </section>
 
-      <footer className="mx-auto mt-12 w-full max-w-6xl border-t border-slate-200 pt-6 text-xs text-slate-500">
-        Data powered by Liberty Social API. Generated at{" "}
-        {lastFetched ? dayjs(lastFetched).format("HH:mm:ss") : "—"}.
-      </footer>
+          <section className="trend-grid">
+            <SignupTrend
+              title="Daily sign-ups (last 14 days)"
+              entries={dailyEntries}
+              emptyMessage="No recent sign-ups recorded."
+            />
+            <SignupTrend
+              title="Monthly sign-ups (last 12 months)"
+              entries={monthlyEntries}
+              emptyMessage="No sign-up activity logged in this period."
+            />
+          </section>
+        </main>
+
+        <footer className="dashboard-footer">
+          Data powered by Liberty Social API. Generated at{" "}
+          {lastFetched ? dayjs(lastFetched).format("HH:mm:ss") : "—"}.
+        </footer>
+      </div>
     </div>
   );
 }
