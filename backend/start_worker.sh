@@ -1,14 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "Starting health endpoint and Celery worker..."
+echo "Starting health endpoint on port ${PORT:-8000} and Celery worker..."
 
-# Default port that App Runner probes
-export PORT="${PORT:-8000}"
+PORT="${PORT:-8000}"
 
-# --- tiny health server ---
+# Launch tiny HTTP server first and give it a second to bind
 python - <<'PY' &
-import os, threading
+import os, threading, time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 class HealthHandler(BaseHTTPRequestHandler):
@@ -17,16 +16,19 @@ class HealthHandler(BaseHTTPRequestHandler):
             self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
         else:
             self.send_response(404); self.end_headers()
-    def log_message(self, *args, **kwargs):
-        pass
+    def log_message(self, *args, **kwargs): pass
 
-def serve():
-    HTTPServer(("", int(os.getenv("PORT", "8000"))), HealthHandler).serve_forever()
+def run_server():
+    server = HTTPServer(("", int(os.getenv("PORT", "8000"))), HealthHandler)
+    print(f"Health server listening on port {server.server_port}")
+    server.serve_forever()
 
-threading.Thread(target=serve, daemon=True).start()
+thread = threading.Thread(target=run_server, daemon=True)
+thread.start()
+time.sleep(2)  # give it time to bind
 PY
 
-# --- run celery ---
+# Start Celery from the venv
 exec ./venv/bin/celery -A liberty_social worker \
   --loglevel=info \
   --uid nobody --gid nobody \
