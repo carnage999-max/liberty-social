@@ -1,7 +1,16 @@
+import logging
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.contrib.contenttypes.models import ContentType
+
 from .models import Reaction, Comment, Notification, Post
+from .realtime import notification_group_name
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=Comment)
@@ -22,7 +31,7 @@ def comment_notification(sender, instance, created, **kwargs):
                 object_id=post.id
             )
     except Exception:
-        pass
+        logger.exception("Failed to create comment notification", exc_info=True)
 
 
 @receiver(post_save, sender=Reaction)
@@ -55,4 +64,35 @@ def reaction_notification(sender, instance, created, **kwargs):
                     object_id=target.id
                 )
     except Exception:
-        pass
+        logger.exception("Failed to create reaction notification", exc_info=True)
+
+
+@receiver(post_save, sender=Notification)
+def dispatch_notification(sender, instance, created, **kwargs):
+    if not created:
+        return
+
+    channel_layer = get_channel_layer()
+    if channel_layer:
+        try:
+            from .serializers import NotificationSerializer
+
+            payload = NotificationSerializer(instance).data
+            async_to_sync(channel_layer.group_send)(
+                notification_group_name(instance.recipient_id),
+                {"type": "notification.created", "data": payload},
+            )
+        except Exception:
+            logger.exception(
+                "Failed to broadcast notification %s via websocket", instance.pk
+            )
+
+    if getattr(settings, "PUSH_NOTIFICATIONS_ENABLED", False):
+        try:
+            from .tasks import deliver_push_notification
+
+            deliver_push_notification.delay(instance.pk)
+        except Exception:
+            logger.exception(
+                "Failed to enqueue push notification for %s", instance.pk
+            )

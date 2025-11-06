@@ -9,12 +9,16 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework import status
 from django.db.models import Q
 from django.utils import timezone
-from .models import Post, Comment, Reaction, Bookmark
-from .serializers import PostSerializer, CommentSerializer, ReactionSerializer, NotificationSerializer
-from .serializers import BookmarkSerializer
+from .models import Post, Comment, Reaction, Bookmark, Notification, DeviceToken
+from .serializers import (
+    PostSerializer,
+    CommentSerializer,
+    ReactionSerializer,
+    NotificationSerializer,
+    BookmarkSerializer,
+    DeviceTokenSerializer,
+)
 from users.models import Friends
-from .models import Notification
-
 
 class PostViewSet(ModelViewSet):
 	queryset = Post.objects.all()
@@ -115,6 +119,26 @@ class BookmarkViewSet(ModelViewSet):
 
 	def perform_create(self, serializer):
 		serializer.save(user=self.request.user)
+
+	def destroy(self, request, *args, **kwargs):
+		instance = self.get_object()
+		if instance.user != request.user:
+			return Response(status=status.HTTP_403_FORBIDDEN)
+		instance.delete()
+		return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DeviceTokenViewSet(ModelViewSet):
+	queryset = DeviceToken.objects.all()
+	serializer_class = DeviceTokenSerializer
+	permission_classes = [IsAuthenticated]
+	http_method_names = ["get", "post", "delete"]
+
+	def get_queryset(self):
+		return DeviceToken.objects.filter(user=self.request.user)
+
+	def perform_create(self, serializer):
+		serializer.save()
 
 	def destroy(self, request, *args, **kwargs):
 		instance = self.get_object()

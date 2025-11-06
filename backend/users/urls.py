@@ -14,6 +14,7 @@ from .views import (
     UserSettingsView,
     UserView,
     UserOverviewView,
+    UserMetricsView,
 )
 
 router = DefaultRouter()
@@ -41,4 +42,5 @@ urlpatterns = [
         UserOverviewView.as_view(),
         name="user-overview",
     ),
+    path("metrics/summary/", UserMetricsView.as_view(), name="user-metrics"),
 ]

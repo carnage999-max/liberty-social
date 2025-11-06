@@ -19,6 +19,8 @@ from urllib.parse import urlparse, parse_qsl
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+REDIS_URL = config("REDIS_URL", default="redis://127.0.0.1:6379/0")
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -47,6 +49,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "users",
     "main",
+    "channels",
     "rest_framework",
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
@@ -83,6 +86,16 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "liberty_social.wsgi.application"
+ASGI_APPLICATION = "liberty_social.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [REDIS_URL],
+        },
+    }
+}
 
 
 # Database
@@ -207,3 +220,15 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 FRONTEND_URL = config("FRONTEND_URL")
+
+PUSH_NOTIFICATIONS_ENABLED = config(
+    "PUSH_NOTIFICATIONS_ENABLED", default=False, cast=bool
+)
+FIREBASE_SERVER_KEY = config("FIREBASE_SERVER_KEY", default="")
+
+CELERY_BROKER_URL = config("CELERY_BROKER_URL", default=REDIS_URL)
+CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TASK_SOFT_TIME_LIMIT = 30

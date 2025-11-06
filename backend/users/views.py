@@ -4,9 +4,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, action
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Q
+from django.db.models import Count
+from django.db.models.functions import TruncDate, TruncMonth
+from django.utils import timezone
+from datetime import timedelta
 from .models import BlockedUsers, FriendRequest, Friends, User, UserSettings
 from .serializers import (
     BlockedUsersSerializer,
@@ -607,3 +611,67 @@ class ProfilePictureUploadView(APIView):
         user.profile_image_url = url
         user.save()
         return Response({"profile_image_url": url})
+
+
+class UserMetricsView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def get(self, request):
+        now = timezone.now()
+        last_24_hours = now - timedelta(hours=24)
+        last_7_days = now - timedelta(days=7)
+        last_30_days = now - timedelta(days=30)
+        last_12_months = now - timedelta(days=365)
+
+        total_users = User.objects.count()
+        new_last_24_hours = User.objects.filter(date_joined__gte=last_24_hours).count()
+        new_last_7_days = User.objects.filter(date_joined__gte=last_7_days).count()
+        new_last_30_days = User.objects.filter(date_joined__gte=last_30_days).count()
+
+        active_last_7_days = User.objects.filter(last_login__gte=last_7_days).count()
+        active_last_30_days = User.objects.filter(last_login__gte=last_30_days).count()
+
+        signups_per_day_qs = (
+            User.objects.filter(date_joined__gte=now - timedelta(days=14))
+            .annotate(day=TruncDate("date_joined"))
+            .values("day")
+            .annotate(count=Count("id"))
+            .order_by("day")
+        )
+        signups_per_day = [
+            {"date": entry["day"].isoformat(), "count": entry["count"]}
+            for entry in signups_per_day_qs
+        ]
+
+        signups_per_month_qs = (
+            User.objects.filter(date_joined__gte=last_12_months)
+            .annotate(month=TruncMonth("date_joined"))
+            .values("month")
+            .annotate(count=Count("id"))
+            .order_by("month")
+        )
+        signups_per_month = [
+            {
+                "month": entry["month"].date().replace(day=1).isoformat(),
+                "count": entry["count"],
+            }
+            for entry in signups_per_month_qs
+        ]
+
+        return Response(
+            {
+                "generated_at": now.isoformat(),
+                "totals": {"users": total_users},
+                "new_users": {
+                    "last_24_hours": new_last_24_hours,
+                    "last_7_days": new_last_7_days,
+                    "last_30_days": new_last_30_days,
+                },
+                "active_users": {
+                    "last_7_days": active_last_7_days,
+                    "last_30_days": active_last_30_days,
+                },
+                "signups_per_day": signups_per_day,
+                "signups_per_month": signups_per_month,
+            }
+        )

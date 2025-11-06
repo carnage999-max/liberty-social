@@ -2,7 +2,16 @@ from rest_framework import serializers
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.contenttypes.models import ContentType
-from .models import Post, Comment, Reaction, Notification, PostMedia, CommentMedia
+from django.utils import timezone
+from .models import (
+    Post,
+    Comment,
+    Reaction,
+    Notification,
+    PostMedia,
+    CommentMedia,
+    DeviceToken,
+)
 from users.serializers import UserSerializer
 
 
@@ -311,3 +320,30 @@ class BookmarkSerializer(serializers.ModelSerializer):
         model = __import__('main.models', fromlist=['Bookmark']).Bookmark
         fields = ['id', 'user', 'post', 'created_at']
         read_only_fields = ['id', 'user', 'created_at']
+
+
+class DeviceTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DeviceToken
+        fields = ["id", "token", "platform", "created_at", "last_seen_at"]
+        read_only_fields = ["id", "created_at", "last_seen_at"]
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required.")
+
+        token = validated_data["token"]
+        platform = validated_data["platform"]
+        user = request.user
+
+        device, created = DeviceToken.objects.get_or_create(
+            token=token,
+            defaults={"user": user, "platform": platform},
+        )
+        if not created:
+            device.user = user
+            device.platform = platform
+            device.last_seen_at = timezone.now()
+            device.save(update_fields=["user", "platform", "last_seen_at"])
+        return device

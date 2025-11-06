@@ -117,3 +117,27 @@ class Notification(models.Model):
 
 	def __str__(self):
 		return f"Notification to {self.recipient} - {self.actor} {self.verb}"
+
+
+class DeviceToken(models.Model):
+	PLATFORM_CHOICES = (
+		("ios", "iOS"),
+		("android", "Android"),
+		("web", "Web"),
+	)
+
+	user = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		on_delete=models.CASCADE,
+		related_name="device_tokens",
+	)
+	token = models.CharField(max_length=255, unique=True)
+	platform = models.CharField(max_length=10, choices=PLATFORM_CHOICES)
+	created_at = models.DateTimeField(auto_now_add=True)
+	last_seen_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ["-last_seen_at"]
+
+	def __str__(self):
+		return f"DeviceToken({self.user_id}, {self.platform})"

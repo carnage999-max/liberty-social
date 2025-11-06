@@ -9,6 +9,7 @@ from .views import (
     NewsFeedView,
     NotificationViewSet,
     BookmarkViewSet,
+    DeviceTokenViewSet,
 )
 from .views_uploads import UploadImageView
 
@@ -18,6 +19,7 @@ router.register("comments", CommentViewSet, basename="comments")
 router.register("reactions", ReactionViewSet, basename="reactions")
 router.register("notifications", NotificationViewSet, basename="notifications")
 router.register("bookmarks", BookmarkViewSet, basename="bookmarks")
+router.register("device-tokens", DeviceTokenViewSet, basename="device-tokens")
 
 urlpatterns = [
     path("", include(router.urls)),

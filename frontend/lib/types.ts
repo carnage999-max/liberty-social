@@ -190,6 +190,14 @@ export interface Notification {
   target_comment_preview?: string | null;
 }
 
+export interface DeviceToken {
+  id: number;
+  token: string;
+  platform: "ios" | "android" | "web";
+  created_at: string;
+  last_seen_at: string;
+}
+
 // ----------------------
 // BOOKMARKS
 // ----------------------

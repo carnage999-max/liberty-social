@@ -1,5 +1,14 @@
 from django.contrib import admin
-from .models import Post, Comment, Reaction, Notification, PostMedia, Bookmark, CommentMedia
+from .models import (
+    Post,
+    Comment,
+    Reaction,
+    Notification,
+    PostMedia,
+    Bookmark,
+    CommentMedia,
+    DeviceToken,
+)
 
 
 @admin.register(Post)
@@ -40,3 +49,10 @@ class CommentMediaAdmin(admin.ModelAdmin):
 @admin.register(Bookmark)
 class BookmarkAdmin(admin.ModelAdmin):
 	list_display = ('id', 'user', 'post', 'created_at')
+
+
+@admin.register(DeviceToken)
+class DeviceTokenAdmin(admin.ModelAdmin):
+	list_display = ('id', 'user', 'platform', 'last_seen_at')
+	search_fields = ('user__email', 'user__username', 'token')
+	list_filter = ('platform',)

@@ -7,5 +7,5 @@ echo "Collecting static files..."
 echo "Running migrations..."
 ./venv/bin/python manage.py migrate --noinput
 
-echo "Starting Gunicorn..."
-./venv/bin/gunicorn liberty_social.wsgi:application --bind 0.0.0.0:8000 --workers 3
+echo "Starting Daphne (ASGI)..."
+./venv/bin/daphne -b 0.0.0.0 -p 8000 liberty_social.asgi:application
