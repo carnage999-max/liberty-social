@@ -74,3 +74,13 @@ Troubleshooting Tips
 - Use CloudWatch logs for App Runner to debug boot or runtime errors.
 - Ensure the database security group allows inbound connections from App Runner (App Runner uses AWS-managed VPC endpoints or a custom VPC connector).
 - If media uploads fail, verify AWS credentials and bucket policies attached to the role used by App Runner.
+
+Real-time & Push Checklist
+--------------------------
+1. Provision a single Redis instance (Elasticache or self-hosted) and share its URL via `REDIS_URL` / `CELERY_BROKER_URL` between the API and worker services.
+2. Store Firebase secrets in Secrets Manager:
+   - `FIREBASE_SERVER_KEY` (used by Celery to call FCM)
+   - `PUSH_NOTIFICATIONS_ENABLED=True`
+3. Configure the frontend build with the **public** Firebase config and `NEXT_PUBLIC_WS_BASE_URL` so browsers can connect to `/ws/notifications/` and register their FCM token.
+4. Deploy the worker App Runner service with `backend/start_worker.sh` as the start command; it exposes `/health` for App Runner and starts Celery with auto-retries for `deliver_push_notification`.
+5. Smoke-test by triggering a comment/reaction: the browser should receive a websocket event instantly, and (after granting Notification permission) an FCM push.

@@ -11,6 +11,7 @@ import { useToast } from "@/components/Toast";
 import Image from "next/image";
 import { usePaginatedResource } from "@/hooks/usePaginatedResource";
 import { useNotifications } from "@/hooks/useNotifications";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 const NAV_LINKS = [
   {
@@ -127,6 +128,7 @@ export default function AppShell({ children }: AppShellProps) {
     }
   );
   const { unreadCount: notificationUnreadCount } = useNotifications();
+  usePushNotifications();
 
   const openCreateModal = useCallback(() => {
     setIsCreateModalOpen(true);

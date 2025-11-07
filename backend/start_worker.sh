@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path in ("/", "/health", "/_health"):
-            self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
+            self.send_response(200); self.end_headers();g self.wfile.write(b"ok")
         else:
             self.send_response(404); self.end_headers()
     def log_message(self, *args, **kwargs): pass

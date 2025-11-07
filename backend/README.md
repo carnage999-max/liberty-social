@@ -97,6 +97,23 @@ Notes & next steps
 - The project includes basic privacy enforcement and block handling. Consider adding notifications, rate-limiting for friend requests, pagination, and more comprehensive tests for production readiness.
 - Before running migrations on a production DB, backup your database. The migration converting raw UUID relationship fields into proper ForeignKeys includes a data backfill step and should be reviewed on a staging copy first.
 
+Real-time notifications & push
+------------------------------
+
+1. **Channels / Redis**
+   - `REDIS_URL` powers Django Channels and Celery. Point it to the same Redis instance the worker uses.
+   - ASGI (`liberty_social/asgi.py`) exposes `/ws/notifications/` and authenticates with JWT access tokens supplied via header or `?token=<access>` query parameter.
+   - Frontend clients may override the socket origin with `NEXT_PUBLIC_WS_BASE_URL` (falls back to the API origin).
+
+2. **Celery push worker**
+   - Set `PUSH_NOTIFICATIONS_ENABLED=True` plus `FIREBASE_SERVER_KEY=<your-server-key>` so `main.tasks.deliver_push_notification` can talk to FCM.
+   - Ensure the Celery worker process (e.g., `start_worker.sh` on AWS App Runner) receives the same `.env` with DB, Redis, and Firebase secrets.
+
+3. **Browser/mobile registration**
+   - Web clients call `POST /api/device-tokens/` automatically after granting Notification permission; mobile apps can POST their Expo/FCM token with `{"token": "<value>", "platform": "ios" | "android" | "web"}`.
+   - Tokens are deduplicated server-side, so refreshing a browser just updates `last_seen_at`.
+   - Every new `Notification` row triggers two fan-outs via `main.signals.dispatch_notification`: one over Channels (real-time UI updates) and another to Celery for push delivery.
+
 Reaction model migration (important)
 
 - The `Reaction` model was converted from a simple ForeignKey to `Post` into a generic relation (ContentType + object_id) so reactions can target multiple object types (posts, comments, etc.).
