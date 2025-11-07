@@ -80,6 +80,7 @@ export function usePushNotifications() {
   useEffect(() => {
     if (!user || !accessToken) return;
     if (typeof window === "undefined") return;
+    const userId = user.id;
 
     let cancelled = false;
 
@@ -106,7 +107,7 @@ export function usePushNotifications() {
         if (!token || cancelled) return;
 
         const stored = readStoredToken();
-        if (stored?.token === token && stored?.userId === user.id) {
+        if (stored?.token === token && stored?.userId === userId) {
           return;
         }
 
@@ -116,7 +117,7 @@ export function usePushNotifications() {
           { token: accessToken, cache: "no-store" }
         );
 
-        writeStoredToken({ token, userId: user.id });
+        writeStoredToken({ token, userId });
       } catch (err) {
         console.error("[push] Failed to register device token", err);
       }
