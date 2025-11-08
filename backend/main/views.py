@@ -9,6 +9,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework import status
 from django.db.models import Q
 from django.utils import timezone
+from django.conf import settings
 from .models import Post, Comment, Reaction, Bookmark, Notification, DeviceToken
 from .serializers import (
     PostSerializer,
@@ -146,6 +147,31 @@ class DeviceTokenViewSet(ModelViewSet):
 			return Response(status=status.HTTP_403_FORBIDDEN)
 		instance.delete()
 		return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FirebaseConfigView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, _request):
+        config = {
+            "apiKey": settings.FIREBASE_WEB_API_KEY,
+            "authDomain": settings.FIREBASE_WEB_AUTH_DOMAIN,
+            "projectId": settings.FIREBASE_WEB_PROJECT_ID,
+            "storageBucket": settings.FIREBASE_WEB_STORAGE_BUCKET,
+            "messagingSenderId": settings.FIREBASE_WEB_MESSAGING_SENDER_ID,
+            "appId": settings.FIREBASE_WEB_APP_ID,
+            "measurementId": settings.FIREBASE_WEB_MEASUREMENT_ID,
+        }
+        filtered = {key: value for key, value in config.items() if value}
+        if not filtered:
+            return Response(
+                {"detail": "Firebase config unavailable."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        payload = {"config": filtered}
+        if settings.FIREBASE_WEB_VAPID_KEY:
+            payload["vapidKey"] = settings.FIREBASE_WEB_VAPID_KEY
+        return Response(payload)
 
 
 class NewsFeedView(APIView):

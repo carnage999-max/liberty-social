@@ -1,5 +1,7 @@
 "use client";
 
+import { API_BASE } from "@/lib/api";
+
 export type FirebaseWebConfig = {
   apiKey: string;
   authDomain?: string;
@@ -48,6 +50,9 @@ const SDK_SOURCES = [
 
 let messagingPromise: Promise<FirebaseMessagingInstance | null> | null = null;
 const loadedScripts = new Set<string>();
+let remoteConfigPromise:
+  | Promise<{ config: FirebaseWebConfig; vapidKey?: string } | null>
+  | null = null;
 
 function loadScript(src: string) {
   if (typeof window === "undefined") {
@@ -78,7 +83,7 @@ function loadScript(src: string) {
   });
 }
 
-export function getFirebaseWebConfig(): FirebaseWebConfig | null {
+function getEnvFirebaseWebConfig(): FirebaseWebConfig | null {
   const missing = REQUIRED_ENV_VARS.filter(
     (envVar) => !process.env[envVar] || !process.env[envVar]?.trim()
   );
@@ -164,4 +169,53 @@ export function buildFirebaseServiceWorkerSrc(config: FirebaseWebConfig): string
     }
   });
   return `/firebase-messaging-sw.js?${params.toString()}`;
+}
+
+async function fetchFirebaseConfigFromBackend() {
+  if (typeof window === "undefined") return null;
+  if (!remoteConfigPromise) {
+    const endpoint = API_BASE
+      ? `${API_BASE}/firebase-config/`
+      : "/api/firebase-config/";
+    remoteConfigPromise = fetch(endpoint, {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json()) as {
+          config: FirebaseWebConfig;
+          vapidKey?: string;
+        };
+      })
+      .catch((error) => {
+        console.warn("[push] Failed to fetch Firebase config", error);
+        return null;
+      });
+  }
+  return remoteConfigPromise;
+}
+
+export async function resolveFirebaseClientConfig(): Promise<{
+  config: FirebaseWebConfig;
+  vapidKey: string | null;
+} | null> {
+  const envConfig = getEnvFirebaseWebConfig();
+  const envVapid = getFirebaseVapidKey();
+  if (envConfig && envVapid) {
+    return { config: envConfig, vapidKey: envVapid };
+  }
+
+  const remote = await fetchFirebaseConfigFromBackend();
+  if (!remote) {
+    if (envConfig) {
+      return { config: envConfig, vapidKey: envVapid };
+    }
+    return null;
+  }
+
+  return {
+    config: envConfig ?? remote.config,
+    vapidKey: envVapid ?? remote.vapidKey ?? null,
+  };
 }

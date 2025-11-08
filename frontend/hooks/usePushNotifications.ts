@@ -7,8 +7,7 @@ import type { FirebaseWebConfig } from "@/lib/firebase-web";
 import {
   buildFirebaseServiceWorkerSrc,
   ensureFirebaseMessaging,
-  getFirebaseVapidKey,
-  getFirebaseWebConfig,
+  resolveFirebaseClientConfig,
 } from "@/lib/firebase-web";
 
 const STORAGE_KEY = "liberty_push_token_v1";
@@ -85,10 +84,16 @@ export function usePushNotifications() {
     let cancelled = false;
 
     async function enablePush() {
-      const config = getFirebaseWebConfig();
-      if (!config) return;
-      const vapidKey = getFirebaseVapidKey();
-      if (!vapidKey) return;
+      const resolved = await resolveFirebaseClientConfig();
+      if (!resolved) {
+        console.warn("[push] Firebase configuration unavailable");
+        return;
+      }
+      const { config, vapidKey } = resolved;
+      if (!vapidKey) {
+        console.warn("[push] Missing Firebase VAPID key");
+        return;
+      }
 
       const permissionGranted = await requestNotificationPermission();
       if (!permissionGranted || cancelled) return;

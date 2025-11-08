@@ -10,6 +10,7 @@ from .views import (
     NotificationViewSet,
     BookmarkViewSet,
     DeviceTokenViewSet,
+    FirebaseConfigView,
 )
 from .views_uploads import UploadImageView
 
@@ -26,4 +27,5 @@ urlpatterns = [
     path("feed/", NewsFeedView.as_view(), name="newsfeed"),
     path("feedback/", FeedbackView.as_view(), name="feedback"),
     path("uploads/images/", UploadImageView.as_view(), name="upload-image"),
+    path("firebase-config/", FirebaseConfigView.as_view(), name="firebase-config"),
 ]

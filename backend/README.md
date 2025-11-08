@@ -115,6 +115,9 @@ Real-time notifications & push
    - Tokens are deduplicated server-side, so refreshing a browser just updates `last_seen_at`.
    - Every new `Notification` row triggers two fan-outs via `main.signals.dispatch_notification`: one over Channels (real-time UI updates) and another to Celery for push delivery.
 
+4. **Firebase web config endpoint**
+   - Provide the public Firebase web credentials via backend env vars (`FIREBASE_WEB_API_KEY`, `FIREBASE_WEB_APP_ID`, `FIREBASE_WEB_MESSAGING_SENDER_ID`, `FIREBASE_WEB_PROJECT_ID`, `FIREBASE_WEB_AUTH_DOMAIN`, `FIREBASE_WEB_STORAGE_BUCKET`, `FIREBASE_WEB_MEASUREMENT_ID`, `FIREBASE_WEB_VAPID_KEY`). The `/api/firebase-config/` endpoint shares these with the frontend at runtime so builds aren’t blocked on compile-time envs.
+
 Reaction model migration (important)
 
 - The `Reaction` model was converted from a simple ForeignKey to `Post` into a generic relation (ContentType + object_id) so reactions can target multiple object types (posts, comments, etc.).
