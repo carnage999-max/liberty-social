@@ -88,10 +88,6 @@ function getEnvFirebaseWebConfig(): FirebaseWebConfig | null {
     (envVar) => !process.env[envVar] || !process.env[envVar]?.trim()
   );
   if (missing.length > 0) {
-    console.warn(
-      "[push] Skipping Firebase initialisation. Missing env vars:",
-      missing.join(", ")
-    );
     return null;
   }
 
