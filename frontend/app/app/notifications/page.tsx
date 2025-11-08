@@ -62,6 +62,12 @@ export default function NotificationsPage() {
       return "commented on your post";
     } else if (notification.verb === "reacted") {
       return "reacted to your post";
+    } else if (notification.verb === "comment_replied") {
+      return "replied to your comment";
+    } else if (notification.verb === "friend_request") {
+      return "sent you a friend request";
+    } else if (notification.verb === "friend_request_accepted") {
+      return "accepted your friend request";
     }
     return notification.verb;
   };
@@ -170,6 +176,5 @@ export default function NotificationsPage() {
     </div>
   );
 }
-
 
 

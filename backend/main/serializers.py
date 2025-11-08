@@ -297,10 +297,17 @@ class NotificationSerializer(serializers.ModelSerializer):
         return None
 
     def get_target_comment_preview(self, obj):
-        """Get a preview of the comment if this is a comment notification"""
-        if obj.verb == 'commented' and obj.content_type and obj.content_type.model == 'post':
-            # For comment notifications, we need to get the latest comment by the actor
-            try:
+        """Get a preview of the comment if this is a comment or reply notification"""
+        try:
+            if obj.content_type and obj.content_type.model == "comment":
+                comment = obj.target
+                if comment and getattr(comment, "content", None):
+                    preview = comment.content[:100]
+                    if len(comment.content) > 100:
+                        preview += "..."
+                    return preview
+
+            if obj.verb == 'commented' and obj.content_type and obj.content_type.model == 'post':
                 post = Post.objects.get(id=obj.object_id)
                 comment = post.comments.filter(author=obj.actor).order_by('-created_at').first()
                 if comment and comment.content:
@@ -308,8 +315,8 @@ class NotificationSerializer(serializers.ModelSerializer):
                     if len(comment.content) > 100:
                         preview += "..."
                     return preview
-            except:
-                pass
+        except Exception:
+            pass
         return None
 
 

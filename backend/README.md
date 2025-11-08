@@ -106,7 +106,8 @@ Real-time notifications & push
    - Frontend clients may override the socket origin with `NEXT_PUBLIC_WS_BASE_URL` (falls back to the API origin).
 
 2. **Celery push worker**
-   - Set `PUSH_NOTIFICATIONS_ENABLED=True` plus `FIREBASE_SERVER_KEY=<your-server-key>` so `main.tasks.deliver_push_notification` can talk to FCM.
+   - Set `PUSH_NOTIFICATIONS_ENABLED=True`, `FIREBASE_PROJECT_ID=<firebase-project-id>`, and `FIREBASE_CREDENTIALS_JSON=<service-account-json or base64>` so `main.tasks.deliver_push_notification` can call Firebase Cloud Messaging HTTP v1.
+   - The JSON can be stored directly (escaped) or base64‑encoded; the task caches the credential and automatically refreshes OAuth tokens.
    - Ensure the Celery worker process (e.g., `start_worker.sh` on AWS App Runner) receives the same `.env` with DB, Redis, and Firebase secrets.
 
 3. **Browser/mobile registration**

@@ -19,4 +19,4 @@ The web app now listens for in-app events over WebSockets and can also opt brows
    - `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` (optional)
    - `NEXT_PUBLIC_FIREBASE_VAPID_KEY` (Web Push certificate key from Firebase console)
 3. Deploy `public/firebase-messaging-sw.js` with the site (App Router automatically serves it from `/firebase-messaging-sw.js`).
-4. Browsers that grant permission will register their FCM token via `/api/device-tokens/` so the Celery worker can fan out FCM payloads.
+4. Browsers that grant permission will register their FCM token via `/api/device-tokens/` so the Celery worker (configured with `FIREBASE_PROJECT_ID` + `FIREBASE_CREDENTIALS_JSON`) can fan out FCM payloads.

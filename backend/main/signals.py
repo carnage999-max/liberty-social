@@ -9,6 +9,7 @@ from django.dispatch import receiver
 
 from .models import Reaction, Comment, Notification, Post
 from .realtime import notification_group_name
+from users.models import FriendRequest
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,16 @@ def comment_notification(sender, instance, created, **kwargs):
                 verb='commented',
                 content_type=post_content_type,
                 object_id=post.id
+            )
+        parent = getattr(instance, "parent", None)
+        if parent and parent.author and parent.author not in {instance.author, owner}:
+            comment_content_type = ContentType.objects.get_for_model(Comment)
+            Notification.objects.create(
+                recipient=parent.author,
+                actor=instance.author,
+                verb='comment_replied',
+                content_type=comment_content_type,
+                object_id=instance.id,
             )
     except Exception:
         logger.exception("Failed to create comment notification", exc_info=True)
@@ -65,6 +76,44 @@ def reaction_notification(sender, instance, created, **kwargs):
                 )
     except Exception:
         logger.exception("Failed to create reaction notification", exc_info=True)
+
+
+@receiver(post_save, sender=FriendRequest)
+def friend_request_notifications(sender, instance, created, **kwargs):
+    try:
+        friend_request_ct = ContentType.objects.get_for_model(FriendRequest)
+        if created and instance.to_user != instance.from_user:
+            Notification.objects.create(
+                recipient=instance.to_user,
+                actor=instance.from_user,
+                verb="friend_request",
+                content_type=friend_request_ct,
+                object_id=instance.id,
+            )
+            return
+
+        if (
+            not created
+            and instance.status == "accepted"
+            and instance.to_user != instance.from_user
+        ):
+            already_sent = Notification.objects.filter(
+                recipient=instance.from_user,
+                actor=instance.to_user,
+                verb="friend_request_accepted",
+                content_type=friend_request_ct,
+                object_id=instance.id,
+            ).exists()
+            if not already_sent:
+                Notification.objects.create(
+                    recipient=instance.from_user,
+                    actor=instance.to_user,
+                    verb="friend_request_accepted",
+                    content_type=friend_request_ct,
+                    object_id=instance.id,
+                )
+    except Exception:
+        logger.exception("Failed to create friend request notification", exc_info=True)
 
 
 @receiver(post_save, sender=Notification)

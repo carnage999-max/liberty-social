@@ -1,14 +1,121 @@
-from typing import Sequence
+import base64
+import json
+import logging
+from pathlib import Path
+from threading import Lock
+from typing import Optional
 
 from celery import shared_task
 from django.conf import settings
+from google.auth.transport.requests import AuthorizedSession
+from google.oauth2 import service_account
 
 from .models import Notification
 
+logger = logging.getLogger(__name__)
 
-def _chunk_tokens(tokens: Sequence[str], size: int = 900):
-    for index in range(0, len(tokens), size):
-        yield tokens[index : index + size]
+_SESSION_LOCK = Lock()
+_AUTHORIZED_SESSION: Optional[AuthorizedSession] = None
+_SESSION_PROJECT_ID: Optional[str] = None
+
+
+def _load_service_account_info() -> Optional[dict]:
+    raw_value = (getattr(settings, "FIREBASE_CREDENTIALS_JSON", "") or "").strip()
+    if not raw_value:
+        return None
+
+    candidate = None
+    if raw_value.startswith("{"):
+        candidate = raw_value
+    else:
+        # Try base64 decode first (useful when storing JSON blobs in env vars).
+        try:
+            decoded = base64.b64decode(raw_value).decode("utf-8")
+            if decoded.strip().startswith("{"):
+                candidate = decoded
+        except Exception:
+            candidate = None
+        if candidate is None:
+            path = Path(raw_value)
+            if path.exists():
+                candidate = path.read_text()
+    if not candidate:
+        logger.error(
+            "FIREBASE_CREDENTIALS_JSON is not valid JSON, base64, or a readable file"
+        )
+        return None
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        logger.exception("Failed to parse FIREBASE_CREDENTIALS_JSON")
+        return None
+
+
+def _get_authorized_session() -> tuple[Optional[AuthorizedSession], Optional[str]]:
+    project_id = (getattr(settings, "FIREBASE_PROJECT_ID", "") or "").strip()
+    if not project_id:
+        return None, None
+
+    global _AUTHORIZED_SESSION, _SESSION_PROJECT_ID
+    with _SESSION_LOCK:
+        if _AUTHORIZED_SESSION and _SESSION_PROJECT_ID == project_id:
+            return _AUTHORIZED_SESSION, project_id
+
+        info = _load_service_account_info()
+        if not info:
+            return None, None
+
+        try:
+            credentials = service_account.Credentials.from_service_account_info(
+                info,
+                scopes=["https://www.googleapis.com/auth/firebase.messaging"],
+            )
+        except Exception:
+            logger.exception("Failed to build Firebase service account credentials")
+            return None, None
+
+        session = AuthorizedSession(credentials)
+        _AUTHORIZED_SESSION = session
+        _SESSION_PROJECT_ID = project_id
+        return session, project_id
+
+
+def _is_token_invalid(error_payload: Optional[dict]) -> bool:
+    if not error_payload:
+        return False
+    error = error_payload.get("error", {})
+    details = error.get("details") or []
+    for detail in details:
+        if (
+            detail.get("@type")
+            == "type.googleapis.com/google.firebase.fcm.v1.FcmError"
+            and detail.get("errorCode") in {"UNREGISTERED", "INVALID_ARGUMENT"}
+        ):
+            return True
+    message = (error.get("message") or "").lower()
+    if "requested entity was not found" in message:
+        return True
+    if "registration token is not a valid fcm registration token" in message:
+        return True
+    return False
+
+
+def _build_message_payload(
+    token: str, notification_payload: dict, title: str, body: str
+) -> dict:
+    serialized = json.dumps(notification_payload)
+    return {
+        "token": token,
+        "notification": {"title": title, "body": body},
+        "data": {"notification": serialized},
+        "webpush": {
+            "notification": {
+                "title": title,
+                "body": body,
+                "icon": "/icon.png",
+            }
+        },
+    }
 
 
 @shared_task(
@@ -22,8 +129,12 @@ def deliver_push_notification(self, notification_id: int):
     """Send a push notification via FCM for a newly created Notification."""
     if not getattr(settings, "PUSH_NOTIFICATIONS_ENABLED", False):
         return
-    server_key = getattr(settings, "FIREBASE_SERVER_KEY", "")
-    if not server_key:
+
+    session, project_id = _get_authorized_session()
+    if not session or not project_id:
+        logger.warning(
+            "Push notifications enabled but Firebase credentials/project ID missing"
+        )
         return
 
     try:
@@ -47,34 +158,40 @@ def deliver_push_notification(self, notification_id: int):
 
     payload = NotificationSerializer(notification).data
 
-    try:
-        from pyfcm import FCMNotification
-    except Exception as exc:  # pragma: no cover - pyfcm import failure
-        raise self.retry(exc=exc)
-
-    push_service = FCMNotification(api_key=server_key)
     message_title = "Liberty Social"
     message_body = f"{actor_label} {verb}"
+    endpoint = f"https://fcm.googleapis.com/v1/projects/{project_id}/messages:send"
+    invalid_tokens = []
 
-    for batch in _chunk_tokens(tokens):
-        result = push_service.notify_multiple_devices(
-            registration_ids=list(batch),
-            message_title=message_title,
-            message_body=message_body,
-            sound="default",
-            data_message={"notification": payload},
+    for token in tokens:
+        message = _build_message_payload(token, payload, message_title, message_body)
+        try:
+            response = session.post(
+                endpoint, json={"message": message}, timeout=10  # seconds
+            )
+        except Exception as exc:
+            raise self.retry(exc=exc)
+
+        if response.ok:
+            continue
+
+        try:
+            error_body = response.json()
+        except ValueError:
+            error_body = None
+
+        if _is_token_invalid(error_body):
+            invalid_tokens.append(token)
+            continue
+
+        logger.warning(
+            "Failed to deliver push notification %s to token %s: %s",
+            notification_id,
+            token,
+            error_body or response.text,
         )
-        # pyfcm returns a dict. If it contains failures caused by invalid tokens,
-        # prune them so they cannot cause repeated failures.
-        if result and isinstance(result, dict):
-            invalid_tokens = []
-            responses = result.get("results") or []
-            for token, response in zip(batch, responses):
-                if not isinstance(response, dict):
-                    continue
-                if response.get("error") in {"NotRegistered", "InvalidRegistration"}:
-                    invalid_tokens.append(token)
-                if response.get("registration_id"):
-                    invalid_tokens.append(token)
-            if invalid_tokens:
-                recipient.device_tokens.filter(token__in=invalid_tokens).delete()
+        if response.status_code >= 500:
+            raise self.retry(exc=Exception(response.text))
+
+    if invalid_tokens:
+        recipient.device_tokens.filter(token__in=invalid_tokens).delete()
