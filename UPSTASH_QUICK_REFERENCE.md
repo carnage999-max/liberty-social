@@ -6,6 +6,8 @@
 rediss://default:<password>@<endpoint>.upstash.io:6379/0
 ```
 
+**Note:** For Celery, the settings automatically add `ssl_cert_reqs=none` to the URL. You don't need to add this manually.
+
 ## Environment Variables
 
 ```bash

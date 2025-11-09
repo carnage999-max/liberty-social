@@ -46,14 +46,17 @@ In your App Runner service configuration (or Secrets Manager), set:
 
 ```bash
 REDIS_URL=rediss://default:<password>@<endpoint>.upstash.io:6379/0
-CELERY_BROKER_URL=rediss://default:<password>@<endpoint>.upstash.io:6379/0
-CELERY_RESULT_BACKEND=rediss://default:<password>@<endpoint>.upstash.io:6379/0
+# Optionally set these explicitly (they default to REDIS_URL):
+# CELERY_BROKER_URL=rediss://default:<password>@<endpoint>.upstash.io:6379/0
+# CELERY_RESULT_BACKEND=rediss://default:<password>@<endpoint>.upstash.io:6379/0
 ```
 
 **Example:**
 ```bash
 REDIS_URL=rediss://default:AbC123XyZ@default-abc123.upstash.io:6379/0
 ```
+
+**Important:** The Django settings automatically add `ssl_cert_reqs=none` to the Redis URL when using `rediss://` for Celery. This is required by Celery's Redis backend. You don't need to add this parameter manually - it's handled automatically by the `get_redis_url_with_ssl()` function in `settings.py`.
 
 ### 4. Verify Configuration
 
@@ -161,12 +164,17 @@ curl -H "Authorization: Bearer YOUR_TOKEN" \
 - SSL certificate verification errors
 - Connection timeouts
 - `rediss://` URL not working
+- Celery worker failing with "ssl_cert_reqs parameter missing" error
 
 **Solutions:**
 1. Ensure you're using `rediss://` (with double 's') not `redis://`
 2. Verify the endpoint URL is correct
 3. Check that your Python environment has up-to-date SSL certificates
-4. If using a custom CA, configure it in the CHANNEL_LAYERS config
+4. **For Celery errors**: The settings automatically add `ssl_cert_reqs=none` to Redis URLs when using `rediss://`. If you're still getting errors:
+   - Verify the `get_redis_url_with_ssl()` function is working correctly
+   - Check that `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND` have the SSL parameter
+   - Ensure `CELERY_BROKER_TRANSPORT_OPTIONS` is set correctly in settings
+5. If using a custom CA, configure it in the CHANNEL_LAYERS config
 
 ### Connection Pool Exhausted
 

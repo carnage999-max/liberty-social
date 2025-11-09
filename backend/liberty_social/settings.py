@@ -22,6 +22,29 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 REDIS_URL = config("REDIS_URL", default="redis://127.0.0.1:6379/0")
 
 
+def get_redis_url_with_ssl():
+    """
+    Parse REDIS_URL and add SSL parameters if using rediss:// (TLS).
+    Celery requires explicit ssl_cert_reqs parameter when using rediss:// URLs.
+    """
+    redis_url = REDIS_URL
+    if redis_url.startswith("rediss://"):
+        # Parse the URL
+        parsed = urlparse(redis_url)
+        # Check if ssl_cert_reqs is already in the query string
+        query_params = parse_qsl(parsed.query)
+        has_ssl_cert_reqs = any(key == "ssl_cert_reqs" for key, _ in query_params)
+        
+        if not has_ssl_cert_reqs:
+            # Add ssl_cert_reqs=none for Upstash (CERT_NONE)
+            # For production with proper certificates, you might want to use 'required'
+            # but Upstash works fine with 'none' for certificate validation
+            separator = "&" if parsed.query else "?"
+            redis_url = f"{redis_url}{separator}ssl_cert_reqs=none"
+    
+    return redis_url
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -242,9 +265,48 @@ FIREBASE_WEB_STORAGE_BUCKET = config("FIREBASE_WEB_STORAGE_BUCKET", default="")
 FIREBASE_WEB_MEASUREMENT_ID = config("FIREBASE_WEB_MEASUREMENT_ID", default="")
 FIREBASE_WEB_VAPID_KEY = config("FIREBASE_WEB_VAPID_KEY", default="")
 
-CELERY_BROKER_URL = config("CELERY_BROKER_URL", default=REDIS_URL)
-CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
+# Get Redis URL with SSL parameters for Celery (if using rediss://)
+CELERY_REDIS_URL = get_redis_url_with_ssl()
+
+# Get broker URL from config, defaulting to REDIS_URL with SSL params
+broker_url_from_config = config("CELERY_BROKER_URL", default=None)
+if broker_url_from_config is None:
+    # Use the Redis URL with SSL params added
+    CELERY_BROKER_URL = CELERY_REDIS_URL
+else:
+    # User explicitly set CELERY_BROKER_URL, ensure it has SSL params if needed
+    CELERY_BROKER_URL = broker_url_from_config
+    if CELERY_BROKER_URL.startswith("rediss://"):
+        parsed = urlparse(CELERY_BROKER_URL)
+        query_params = parse_qsl(parsed.query)
+        if not any(key == "ssl_cert_reqs" for key, _ in query_params):
+            separator = "&" if parsed.query else "?"
+            CELERY_BROKER_URL = f"{CELERY_BROKER_URL}{separator}ssl_cert_reqs=none"
+
+# Get result backend from config, defaulting to broker URL
+result_backend_from_config = config("CELERY_RESULT_BACKEND", default=None)
+if result_backend_from_config is None:
+    CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+else:
+    CELERY_RESULT_BACKEND = result_backend_from_config
+    if CELERY_RESULT_BACKEND.startswith("rediss://"):
+        parsed = urlparse(CELERY_RESULT_BACKEND)
+        query_params = parse_qsl(parsed.query)
+        if not any(key == "ssl_cert_reqs" for key, _ in query_params):
+            separator = "&" if parsed.query else "?"
+            CELERY_RESULT_BACKEND = f"{CELERY_RESULT_BACKEND}{separator}ssl_cert_reqs=none"
+
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_SOFT_TIME_LIMIT = 30
+
+# Additional Celery Redis configuration for SSL
+# This ensures proper SSL handling for Upstash Redis
+# Note: ssl_cert_reqs in the URL takes precedence, but we set transport options as well
+CELERY_BROKER_TRANSPORT_OPTIONS = {}
+if CELERY_BROKER_URL.startswith("rediss://"):
+    # Set SSL options for broker transport
+    # 'none' means CERT_NONE (no certificate verification)
+    # For Upstash, this works fine. For stricter security, use 'required'
+    CELERY_BROKER_TRANSPORT_OPTIONS["ssl_cert_reqs"] = "none"
