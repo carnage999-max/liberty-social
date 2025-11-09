@@ -77,7 +77,10 @@ Troubleshooting Tips
 
 Real-time & Push Checklist
 --------------------------
-1. Provision a single Redis instance (Elasticache or self-hosted) and share its URL via `REDIS_URL` / `CELERY_BROKER_URL` between the API and worker services.
+1. Provision a single Redis instance (Upstash, ElastiCache, or self-hosted) and share its URL via `REDIS_URL` / `CELERY_BROKER_URL` between the API and worker services.
+   - **Upstash**: Use the Redis endpoint URL (TLS) from the Upstash dashboard. Format: `rediss://default:<password>@<endpoint>.upstash.io:6379/0`
+   - **ElastiCache**: Requires VPC connector configuration in App Runner
+   - No VPC configuration needed for Upstash as it's publicly accessible over TLS
 2. Store Firebase secrets in Secrets Manager:
    - `PUSH_NOTIFICATIONS_ENABLED=True`
    - `FIREBASE_PROJECT_ID=<firebase-project-id>`

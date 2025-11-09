@@ -11,6 +11,8 @@ from .views import (
     BookmarkViewSet,
     DeviceTokenViewSet,
     FirebaseConfigView,
+    RedisHealthView,
+    WebSocketDiagnosticView,
 )
 from .views_uploads import UploadImageView
 
@@ -28,4 +30,6 @@ urlpatterns = [
     path("feedback/", FeedbackView.as_view(), name="feedback"),
     path("uploads/images/", UploadImageView.as_view(), name="upload-image"),
     path("firebase-config/", FirebaseConfigView.as_view(), name="firebase-config"),
+    path("redis-health/", RedisHealthView.as_view(), name="redis-health"),
+    path("ws-diagnostic/", WebSocketDiagnosticView.as_view(), name="ws-diagnostic"),
 ]

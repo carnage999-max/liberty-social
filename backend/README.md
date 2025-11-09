@@ -102,6 +102,8 @@ Real-time notifications & push
 
 1. **Channels / Redis**
    - `REDIS_URL` powers Django Channels and Celery. Point it to the same Redis instance the worker uses.
+   - **Upstash Redis**: When using Upstash, use the TLS endpoint URL (starts with `rediss://`). Example: `rediss://default:<password>@<endpoint>.upstash.io:6379/0`
+   - The `channels_redis` library automatically handles TLS when the URL starts with `rediss://`.
    - ASGI (`liberty_social/asgi.py`) exposes `/ws/notifications/` and authenticates with JWT access tokens supplied via header or `?token=<access>` query parameter.
    - Frontend clients may override the socket origin with `NEXT_PUBLIC_WS_BASE_URL` (falls back to the API origin).
 

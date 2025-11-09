@@ -93,6 +93,11 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [REDIS_URL],
+            # Upstash requires TLS/SSL - channels_redis automatically handles this
+            # when REDIS_URL starts with 'rediss://'
+            # Additional SSL settings can be added here if needed:
+            # "ssl": True,
+            # "ssl_cert_reqs": "required",
         },
     }
 }
