@@ -1,3 +1,2 @@
-def notification_group_name(user_id: int) -> str:
-    """Return the channel layer group name for a user's notifications stream."""
-    return f"notifications.user.{user_id}"
+def conversation_group_name(conversation_id: str) -> str:
+    return f"chat.conversation.{conversation_id}"

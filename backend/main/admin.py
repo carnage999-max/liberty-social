@@ -8,6 +8,9 @@ from .models import (
     Bookmark,
     CommentMedia,
     DeviceToken,
+    Conversation,
+    ConversationParticipant,
+    Message,
 )
 
 
@@ -56,3 +59,26 @@ class DeviceTokenAdmin(admin.ModelAdmin):
 	list_display = ('id', 'user', 'platform', 'last_seen_at')
 	search_fields = ('user__email', 'user__username', 'token')
 	list_filter = ('platform',)
+
+
+@admin.register(Conversation)
+class ConversationAdmin(admin.ModelAdmin):
+    list_display = ("id", "title", "is_group", "created_by", "last_message_at")
+    search_fields = ("title", "participants__user__username", "participants__user__email")
+    list_filter = ("is_group",)
+    autocomplete_fields = ("created_by",)
+
+
+@admin.register(ConversationParticipant)
+class ConversationParticipantAdmin(admin.ModelAdmin):
+    list_display = ("conversation", "user", "role", "joined_at", "last_read_at")
+    search_fields = ("conversation__title", "user__username", "user__email")
+    autocomplete_fields = ("conversation", "user")
+    list_filter = ("role",)
+
+
+@admin.register(Message)
+class MessageAdmin(admin.ModelAdmin):
+    list_display = ("id", "conversation", "sender", "created_at", "is_deleted")
+    search_fields = ("content", "sender__username", "sender__email")
+    autocomplete_fields = ("conversation", "sender", "reply_to")

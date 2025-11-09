@@ -68,6 +68,8 @@ export default function NotificationsPage() {
       return "sent you a friend request";
     } else if (notification.verb === "friend_request_accepted") {
       return "accepted your friend request";
+    } else if (notification.verb === "messaged") {
+      return "sent you a message";
     }
     return notification.verb;
   };
@@ -176,5 +178,4 @@ export default function NotificationsPage() {
     </div>
   );
 }
-
 

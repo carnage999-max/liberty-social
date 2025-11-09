@@ -1,14 +1,11 @@
 import logging
 
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from .models import Reaction, Comment, Notification, Post
-from .realtime import notification_group_name
 from users.models import FriendRequest
 
 logger = logging.getLogger(__name__)
@@ -120,21 +117,6 @@ def friend_request_notifications(sender, instance, created, **kwargs):
 def dispatch_notification(sender, instance, created, **kwargs):
     if not created:
         return
-
-    channel_layer = get_channel_layer()
-    if channel_layer:
-        try:
-            from .serializers import NotificationSerializer
-
-            payload = NotificationSerializer(instance).data
-            async_to_sync(channel_layer.group_send)(
-                notification_group_name(instance.recipient_id),
-                {"type": "notification.created", "data": payload},
-            )
-        except Exception:
-            logger.exception(
-                "Failed to broadcast notification %s via websocket", instance.pk
-            )
 
     if getattr(settings, "PUSH_NOTIFICATIONS_ENABLED", False):
         try:

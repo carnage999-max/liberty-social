@@ -64,23 +64,59 @@ function extractNotification(payload) {
   };
 }
 
+function broadcastToClients(message) {
+  self.clients
+    .matchAll({ type: "window", includeUncontrolled: true })
+    .then((clientList) => {
+      clientList.forEach((client) => {
+        client.postMessage(message);
+      });
+    });
+}
+
+function showNotification(notification) {
+  const options = {
+    body: notification.body,
+    icon: "/icon.png",
+    data: {
+      url:
+        notification.data?.url ||
+        notification.data?.target_url ||
+        "/app/notifications",
+      raw: notification.data,
+    },
+  };
+  self.registration.showNotification(notification.title, options);
+}
+
 if (messaging) {
   messaging.onBackgroundMessage((payload) => {
     const notification = extractNotification(payload);
-    const options = {
-      body: notification.body,
-      icon: "/icon.png",
-      data: {
-        url:
-          notification.data?.url ||
-          notification.data?.target_url ||
-          "/app/notifications",
-        raw: notification.data,
-      },
-    };
-    self.registration.showNotification(notification.title, options);
+    showNotification(notification);
+    broadcastToClients({
+      type: "notification.push",
+      payload: notification,
+    });
   });
 }
+
+self.addEventListener("push", (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const data = event.data?.json();
+        const notification = extractNotification(data || {});
+        showNotification(notification);
+        broadcastToClients({
+          type: "notification.push",
+          payload: notification,
+        });
+      } catch (err) {
+        console.warn("[push-sw] Failed to handle generic push event", err);
+      }
+    })()
+  );
+});
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();

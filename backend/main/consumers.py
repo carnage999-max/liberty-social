@@ -1,80 +1,58 @@
-import logging
+import json
 
+from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
+from django.contrib.auth.models import AnonymousUser
 
-from .realtime import notification_group_name
+from .models import ConversationParticipant
+from .realtime import conversation_group_name
 
-logger = logging.getLogger(__name__)
 
-
-class NotificationConsumer(AsyncJsonWebsocketConsumer):
-    """Streams real-time notifications to an authenticated user."""
+class ChatConsumer(AsyncJsonWebsocketConsumer):
+    """Streams real-time chat events for a conversation."""
 
     async def connect(self):
-        client = (
-            self.scope.get("client", ["unknown"])[0]
-            if self.scope.get("client")
-            else "unknown"
-        )
-        logger.info(f"WebSocket connection attempt from {client}")
-
         user = self.scope.get("user")
-        if not user or user.is_anonymous:
-            logger.warning(
-                f"WebSocket connection rejected: anonymous user from {client}"
-            )
+        if not user or isinstance(user, AnonymousUser) or user.is_anonymous:
             await self.close(code=4401)
             return
 
-        try:
-            self.user = user
-            self.group_name = notification_group_name(user.id)
-            logger.info(
-                f"WebSocket connecting user {user.id} to group {self.group_name}"
-            )
+        conversation_id = self.scope["url_route"]["kwargs"].get("conversation_id")
+        if not conversation_id:
+            await self.close(code=4400)
+            return
 
-            # Test channel layer availability
-            if not self.channel_layer:
-                logger.error("No channel layer available for WebSocket connection")
-                await self.close(code=4500)
-                return
+        has_access = await self._user_in_conversation(user.id, conversation_id)
+        if not has_access:
+            await self.close(code=4403)
+            return
 
-            await self.channel_layer.group_add(self.group_name, self.channel_name)
-            await self.accept()
-            logger.info(f"WebSocket connected for user {user.id}")
-            await self.send_json({"type": "connection.ack"})
-        except Exception as e:
-            logger.exception(f"Error during WebSocket connect for user {user.id}: {e}")
-            try:
-                await self.close(code=4500)
-            except Exception:
-                pass
+        self.conversation_id = str(conversation_id)
+        self.group_name = conversation_group_name(self.conversation_id)
+
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+        await self.send_json({"type": "connection.ack", "conversation": self.conversation_id})
 
     async def disconnect(self, code):
-        user_id = getattr(self, "user", None)
-        user_id = user_id.id if user_id else "unknown"
-        logger.info(f"WebSocket disconnected for user {user_id} with code {code}")
-
         if hasattr(self, "group_name"):
-            try:
-                await self.channel_layer.group_discard(
-                    self.group_name, self.channel_name
-                )
-            except Exception as e:
-                logger.exception(f"Error during WebSocket disconnect cleanup: {e}")
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive_json(self, content, **kwargs):
         message_type = content.get("type")
         if message_type == "ping":
             await self.send_json({"type": "pong"})
 
-    async def notification_created(self, event):
-        try:
-            await self.send_json(
-                {
-                    "type": "notification.created",
-                    "payload": event.get("data", {}),
-                }
-            )
-        except Exception as e:
-            logger.exception(f"Error sending notification via WebSocket: {e}")
+    async def chat_message(self, event):
+        await self.send_json(
+            {
+                "type": "message.created",
+                "payload": event.get("data"),
+            }
+        )
+
+    @sync_to_async
+    def _user_in_conversation(self, user_id, conversation_id):
+        return ConversationParticipant.objects.filter(
+            conversation_id=conversation_id, user_id=user_id
+        ).exists()

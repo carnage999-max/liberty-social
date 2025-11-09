@@ -10,6 +10,7 @@ from .views import (
     NotificationViewSet,
     BookmarkViewSet,
     DeviceTokenViewSet,
+    ConversationViewSet,
     FirebaseConfigView,
     RedisHealthView,
     WebSocketDiagnosticView,
@@ -23,6 +24,7 @@ router.register("reactions", ReactionViewSet, basename="reactions")
 router.register("notifications", NotificationViewSet, basename="notifications")
 router.register("bookmarks", BookmarkViewSet, basename="bookmarks")
 router.register("device-tokens", DeviceTokenViewSet, basename="device-tokens")
+router.register("conversations", ConversationViewSet, basename="conversations")
 
 urlpatterns = [
     path("", include(router.urls)),

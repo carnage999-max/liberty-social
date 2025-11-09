@@ -3,6 +3,8 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
+from django.contrib.auth import get_user_model
+
 from .models import (
     Post,
     Comment,
@@ -11,6 +13,9 @@ from .models import (
     PostMedia,
     CommentMedia,
     DeviceToken,
+    Conversation,
+    ConversationParticipant,
+    Message,
 )
 from users.serializers import UserSerializer
 
@@ -354,3 +359,128 @@ class DeviceTokenSerializer(serializers.ModelSerializer):
             device.last_seen_at = timezone.now()
             device.save(update_fields=["user", "platform", "last_seen_at"])
         return device
+
+
+class ConversationParticipantSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = ConversationParticipant
+        fields = ["id", "user", "role", "joined_at", "last_read_at"]
+        read_only_fields = fields
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender = UserSerializer(read_only=True)
+    reply_to = serializers.PrimaryKeyRelatedField(
+        queryset=Message.objects.all(), allow_null=True, required=False
+    )
+
+    class Meta:
+        model = Message
+        fields = [
+            "id",
+            "conversation",
+            "sender",
+            "content",
+            "media_url",
+            "reply_to",
+            "is_deleted",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "conversation",
+            "sender",
+            "is_deleted",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class ConversationSerializer(serializers.ModelSerializer):
+    participants = ConversationParticipantSerializer(many=True, read_only=True)
+    created_by = UserSerializer(read_only=True)
+    last_message = serializers.SerializerMethodField()
+    participant_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        write_only=True,
+        required=False,
+        help_text="UUIDs of users to add to the conversation (excluding yourself).",
+    )
+
+    class Meta:
+        model = Conversation
+        fields = [
+            "id",
+            "title",
+            "is_group",
+            "created_by",
+            "created_at",
+            "updated_at",
+            "last_message_at",
+            "participants",
+            "last_message",
+            "participant_ids",
+        ]
+        read_only_fields = [
+            "id",
+            "created_by",
+            "created_at",
+            "updated_at",
+            "last_message_at",
+            "participants",
+            "last_message",
+        ]
+
+    def validate_participant_ids(self, value):
+        ids = [str(v) for v in value if v]
+        if not ids:
+            return ids
+        User = get_user_model()
+        found = set(str(u) for u in User.objects.filter(id__in=ids).values_list("id", flat=True))
+        missing = set(ids) - found
+        if missing:
+            raise serializers.ValidationError(f"Unknown user IDs: {', '.join(missing)}")
+        return ids
+
+    def create(self, validated_data):
+        participant_ids = validated_data.pop("participant_ids", [])
+        request = self.context.get("request")
+        creator = request.user if request else None
+        is_group = validated_data.get("is_group", False)
+        total_participants = set(participant_ids)
+        if creator:
+            total_participants.add(str(creator.id))
+        if not is_group and len(total_participants) != 2:
+            raise serializers.ValidationError(
+                "Direct conversations must include exactly two participants."
+            )
+        conversation = Conversation.objects.create(created_by=creator, **validated_data)
+
+        participant_ids = set(participant_ids)
+        if creator:
+            participant_ids.add(str(creator.id))
+
+        User = get_user_model()
+        users = User.objects.filter(id__in=participant_ids)
+        batch = [
+            ConversationParticipant(
+                conversation=conversation,
+                user=user,
+                role="admin" if creator and user.id == creator.id else "member",
+            )
+            for user in users
+        ]
+        ConversationParticipant.objects.bulk_create(batch, ignore_conflicts=True)
+        return conversation
+
+    def get_last_message(self, obj):
+        message = (
+            getattr(obj, "messages", None)
+            and obj.messages.order_by("-created_at").select_related("sender").first()
+        )
+        if not message:
+            return None
+        return MessageSerializer(message, context=self.context).data

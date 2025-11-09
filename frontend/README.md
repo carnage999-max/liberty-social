@@ -6,9 +6,8 @@
 
 The web app now listens for in-app events over WebSockets and can also opt browsers into Firebase Cloud Messaging push notifications.
 
-1. **API + WebSocket endpoints**
+1. **API endpoint**
    - `NEXT_PUBLIC_API_BASE_URL=https://<api-host>/api`
-   - `NEXT_PUBLIC_WS_BASE_URL=wss://<api-host>`
 2. **Firebase web credentials**
    - `NEXT_PUBLIC_FIREBASE_API_KEY`
    - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`

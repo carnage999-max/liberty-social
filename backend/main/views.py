@@ -1,3 +1,6 @@
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from django.contrib.contenttypes.models import ContentType
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -10,7 +13,18 @@ from rest_framework import status
 from django.db.models import Q
 from django.utils import timezone
 from django.conf import settings
-from .models import Post, Comment, Reaction, Bookmark, Notification, DeviceToken
+from .models import (
+    Post,
+    Comment,
+    Reaction,
+    Bookmark,
+    Notification,
+    DeviceToken,
+    Conversation,
+    ConversationParticipant,
+    Message,
+)
+from .realtime import conversation_group_name
 from .serializers import (
     PostSerializer,
     CommentSerializer,
@@ -18,6 +32,8 @@ from .serializers import (
     NotificationSerializer,
     BookmarkSerializer,
     DeviceTokenSerializer,
+    ConversationSerializer,
+    MessageSerializer,
 )
 from users.models import Friends
 
@@ -150,6 +166,127 @@ class DeviceTokenViewSet(ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class ConversationViewSet(ModelViewSet):
+    serializer_class = ConversationSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post", "patch", "delete"]
+
+    def get_queryset(self):
+        user = self.request.user
+        return (
+            Conversation.objects.filter(participants__user=user)
+            .select_related("created_by")
+            .prefetch_related("participants__user")
+            .distinct()
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_destroy(self, instance):
+        if instance.created_by != self.request.user:
+            raise PermissionDenied("Only the creator can delete a conversation.")
+        instance.delete()
+
+    def _ensure_participant(self, conversation):
+        if not conversation.participants.filter(user=self.request.user).exists():
+            raise PermissionDenied("You are not a participant of this conversation.")
+        return conversation
+
+    @action(detail=True, methods=["get"], url_path="messages")
+    def list_messages(self, request, pk=None):
+        conversation = self._ensure_participant(self.get_object())
+        paginator = PageNumberPagination()
+        paginator.page_size = int(request.query_params.get("page_size", 25))
+        qs = (
+            conversation.messages.select_related("sender")
+            .order_by("-created_at")
+        )
+        page = paginator.paginate_queryset(qs, request)
+        serializer = MessageSerializer(page, many=True, context=self.get_serializer_context())
+        return paginator.get_paginated_response(serializer.data)
+
+    @list_messages.mapping.post
+    def send_message(self, request, pk=None):
+        conversation = self._ensure_participant(self.get_object())
+        content = (request.data.get("content") or "").strip()
+        media_url = request.data.get("media_url")
+        reply_to_id = request.data.get("reply_to")
+
+        if not content and not media_url:
+            return Response(
+                {"detail": "Message content or media_url is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reply_to = None
+        if reply_to_id:
+            try:
+                reply_to = conversation.messages.get(id=reply_to_id)
+            except Message.DoesNotExist:
+                return Response(
+                    {"detail": "Reply target not found in this conversation."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        message = Message.objects.create(
+            conversation=conversation,
+            sender=request.user,
+            content=content,
+            media_url=media_url,
+            reply_to=reply_to,
+        )
+        ConversationParticipant.objects.filter(
+            conversation=conversation, user=request.user
+        ).update(last_read_at=timezone.now())
+        Conversation.objects.filter(id=conversation.id).update(
+            last_message_at=message.created_at
+        )
+
+        recipients = conversation.participants.exclude(user=request.user).select_related("user")
+        if recipients:
+            conversation_ct = ContentType.objects.get_for_model(Conversation)
+            Notification.objects.bulk_create(
+                [
+                    Notification(
+                        recipient=participant.user,
+                        actor=request.user,
+                        verb="messaged",
+                        content_type=conversation_ct,
+                        object_id=conversation.id,
+                    )
+                    for participant in recipients
+                ]
+            )
+
+        serializer = MessageSerializer(message, context=self.get_serializer_context())
+
+        layer = get_channel_layer()
+        if layer:
+            try:
+                async_to_sync(layer.group_send)(
+                    conversation_group_name(str(conversation.id)),
+                    {"type": "chat_message", "data": serializer.data},
+                )
+            except Exception:
+                pass
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="mark-read")
+    def mark_read(self, request, pk=None):
+        conversation = self._ensure_participant(self.get_object())
+        updated_count = ConversationParticipant.objects.filter(
+            conversation=conversation, user=request.user
+        ).update(last_read_at=timezone.now())
+        return Response({"updated": updated_count})
+
+
 class FirebaseConfigView(APIView):
     permission_classes = [AllowAny]
 
@@ -257,14 +394,12 @@ class WebSocketDiagnosticView(APIView):
 
         try:
             from channels.layers import get_channel_layer
-            from main.realtime import notification_group_name
 
             layer = get_channel_layer()
             if layer:
                 diagnostics["channel_layer_available"] = True
                 diagnostics["redis_configured"] = True
 
-                # Test Redis connection
                 try:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
@@ -272,10 +407,6 @@ class WebSocketDiagnosticView(APIView):
                         result = loop.run_until_complete(layer.test())
                         diagnostics["redis_connected"] = True
                         diagnostics["redis_test_result"] = result
-
-                        # Test group name generation
-                        group_name = notification_group_name(request.user.id)
-                        diagnostics["notification_group_name"] = group_name
                     except Exception as e:
                         diagnostics["redis_error"] = str(e)
                         logger.exception("Redis connection test failed")

@@ -141,3 +141,87 @@ class DeviceToken(models.Model):
 
 	def __str__(self):
 		return f"DeviceToken({self.user_id}, {self.platform})"
+
+
+class Conversation(models.Model):
+    """Represents a direct or group chat."""
+
+    id = models.BigAutoField(primary_key=True)
+    title = models.CharField(max_length=255, blank=True, null=True)
+    is_group = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="conversations_created",
+        on_delete=models.CASCADE,
+    )
+    last_message_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-last_message_at", "-updated_at"]
+
+    def __str__(self):
+        if self.title:
+            return self.title
+        return f"Conversation {self.id}"
+
+
+class ConversationParticipant(models.Model):
+    """Links users to conversations and tracks read state."""
+
+    ROLE_CHOICES = (
+        ("member", "Member"),
+        ("admin", "Admin"),
+    )
+
+    conversation = models.ForeignKey(
+        Conversation, related_name="participants", on_delete=models.CASCADE
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="conversation_memberships",
+        on_delete=models.CASCADE,
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="member")
+    joined_at = models.DateTimeField(auto_now_add=True)
+    last_read_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ("conversation", "user")
+        ordering = ["-joined_at"]
+
+    def __str__(self):
+        return f"{self.user} in {self.conversation_id}"
+
+
+class Message(models.Model):
+    """Individual messages inside a conversation."""
+
+    id = models.BigAutoField(primary_key=True)
+    conversation = models.ForeignKey(
+        Conversation, related_name="messages", on_delete=models.CASCADE
+    )
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="messages_sent",
+        on_delete=models.CASCADE,
+    )
+    content = models.TextField(blank=True)
+    media_url = models.URLField(blank=True, null=True)
+    reply_to = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="replies"
+    )
+    is_deleted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["conversation", "-created_at"]),
+            models.Index(fields=["sender", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"Message {self.id} in {self.conversation_id}"
