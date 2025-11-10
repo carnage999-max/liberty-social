@@ -17,6 +17,7 @@ export type FirebaseMessagingInstance = {
     vapidKey: string;
     serviceWorkerRegistration: ServiceWorkerRegistration;
   }): Promise<string | null>;
+  onMessage?: (callback: (payload: any) => void) => () => void;
 };
 
 type FirebaseMessagingFactory = {
