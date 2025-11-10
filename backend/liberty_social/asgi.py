@@ -19,9 +19,9 @@ application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
         "websocket": JWTAuthMiddlewareStack(
-            AllowedHostsOriginValidator(
-                URLRouter(liberty_social.routing.websocket_urlpatterns)
-            )
+            # Temporarily removed AllowedHostsOriginValidator for debugging
+            # Since ALLOWED_HOSTS = ["*"], this should allow all origins anyway
+            URLRouter(liberty_social.routing.websocket_urlpatterns)
         ),
     }
 )

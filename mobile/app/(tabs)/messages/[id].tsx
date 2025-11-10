@@ -80,9 +80,11 @@ export default function ConversationDetailScreen() {
   };
 
   // WebSocket connection
+  // Convert id to number if it's a string
+  const conversationId = id ? (typeof id === 'string' ? parseInt(id, 10) : Number(id)) : null;
   const { isConnected } = useChatWebSocket({
-    conversationId: id || '',
-    enabled: !!id,
+    conversationId: conversationId || 0,
+    enabled: !!conversationId && !isNaN(conversationId),
     onMessage: (message: Message) => {
       setMessages((prev) => {
         // Check if message already exists (avoid duplicates)

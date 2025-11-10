@@ -50,6 +50,8 @@ export function useChatWebSocket({
       wsBase = wsBase.replace(/\/api$/, '');
       const wsUrl = `${wsBase}/ws/chat/${conversationId}/?token=${token}`;
 
+      console.log('[WebSocket] Connecting to:', wsUrl.replace(/token=[^&]+/, 'token=***'));
+
       // Close existing connection if any
       if (wsRef.current) {
         wsRef.current.close();
@@ -94,7 +96,26 @@ export function useChatWebSocket({
       };
 
       ws.onclose = (event) => {
-        console.log('[WebSocket] Disconnected', event.code, event.reason);
+        const closeCode = event.code;
+        const closeReason = event.reason || 'No reason provided';
+        console.log('[WebSocket] Disconnected', {
+          code: closeCode,
+          reason: closeReason,
+          conversationId,
+          wasClean: event.wasClean,
+        });
+        
+        // Log specific error codes
+        if (closeCode === 4401) {
+          console.error('[WebSocket] Authentication failed (401 Unauthorized)');
+        } else if (closeCode === 4403) {
+          console.error('[WebSocket] Access denied (403 Forbidden) - User may not be a participant in this conversation');
+        } else if (closeCode === 4400) {
+          console.error('[WebSocket] Bad request (400) - Invalid conversation ID');
+        } else if (closeCode === 1006) {
+          console.error('[WebSocket] Abnormal closure - Connection lost without close frame');
+        }
+        
         setIsConnected(false);
         onDisconnect?.();
 
