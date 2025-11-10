@@ -294,9 +294,9 @@ export default function FriendsScreen() {
     return (
       <View style={styles.container}>
         <AppNavbar 
-          title="Friends" 
-          showLogo={false} 
-          showProfileImage={false}
+          title="Friends"
+          showProfileImage={false} 
+          showLogo={false}
           customRightButton={
             <TouchableOpacity
               onPress={() => router.push('/(tabs)/friend-requests')}
@@ -320,7 +320,7 @@ export default function FriendsScreen() {
   return (
     <View style={styles.container}>
       <AppNavbar 
-        title="Friends" 
+        title="Friends"
         showProfileImage={false}
         customRightButton={
           <TouchableOpacity

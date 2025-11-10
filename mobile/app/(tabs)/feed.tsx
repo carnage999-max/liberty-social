@@ -1014,7 +1014,7 @@ export default function FeedScreen() {
   if (loading && posts.length === 0) {
     return (
       <View style={styles.container}>
-        <AppNavbar />
+        <AppNavbar showProfileImage={false} />
         <FlatList
           data={[1, 2, 3, 4, 5]}
           renderItem={() => <SkeletonPost />}

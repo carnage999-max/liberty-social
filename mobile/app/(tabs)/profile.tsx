@@ -13,8 +13,9 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAlert } from '../../contexts/AlertContext';
+import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
-import { UserProfileOverview, Post, Friend, PaginatedResponse } from '../../types';
+import { UserProfileOverview, Post, Friend, PaginatedResponse, Conversation } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
@@ -28,6 +29,7 @@ export default function ProfileScreen() {
   const { colors, isDark } = useTheme();
   const { user: currentUser } = useAuth();
   const { showError } = useAlert();
+  const { showSuccess, showError: showToastError } = useToast();
   const router = useRouter();
   const params = useLocalSearchParams();
   const [profile, setProfile] = useState<UserProfileOverview | null>(null);
@@ -41,6 +43,7 @@ export default function ProfileScreen() {
   const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
   const [loadedTabs, setLoadedTabs] = useState<Set<ProfileTab>>(new Set());
+  const [startingConversation, setStartingConversation] = useState(false);
 
   // If userId is provided in params, view that user's profile; otherwise view own profile
   const userId = params.userId ? Number(params.userId) : currentUser?.id;
@@ -78,6 +81,58 @@ export default function ProfileScreen() {
       setRefreshing(false);
     }
   };
+
+  const handleStartConversation = useCallback(async () => {
+    if (!userId || isOwnProfile) return;
+    
+    try {
+      setStartingConversation(true);
+      // Ensure userId is a string (UUID)
+      const friendId = String(userId);
+      
+      // Check if conversation already exists
+      const existingConversations = await apiClient.get<PaginatedResponse<Conversation>>('/conversations/');
+      const existing = existingConversations.results.find((conv) => {
+        if (conv.is_group) return false;
+        return conv.participants.some((p) => String(p.user.id) === friendId);
+      });
+
+      if (existing) {
+        router.push(`/(tabs)/messages/${existing.id}`);
+        return;
+      }
+
+      // Create new conversation
+      const conversation = await apiClient.post<Conversation>('/conversations/', {
+        is_group: false,
+        participant_ids: [friendId],
+      });
+
+      showSuccess('Conversation started');
+      router.push(`/(tabs)/messages/${conversation.id}`);
+    } catch (error: any) {
+      console.error('Failed to start conversation:', error);
+      let errorMessage = 'Failed to start conversation';
+      if (error?.response?.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.non_field_errors) {
+          errorMessage = Array.isArray(error.response.data.non_field_errors)
+            ? error.response.data.non_field_errors[0]
+            : error.response.data.non_field_errors;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      showToastError(errorMessage);
+    } finally {
+      setStartingConversation(false);
+    }
+  }, [userId, isOwnProfile, router, showSuccess, showToastError]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -331,6 +386,24 @@ export default function ProfileScreen() {
       fontSize: 13,
       color: colors.textSecondary,
     },
+    messageButtonContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    messageButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      borderRadius: 12,
+      gap: 8,
+    },
+    messageButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#FFFFFF',
+    },
   }), [colors, isDark]);
 
   // Only show full page skeleton on initial load when profile is null
@@ -338,9 +411,10 @@ export default function ProfileScreen() {
     return (
       <View style={styles.container}>
         <AppNavbar 
-          title={isOwnProfile ? "Profile" : "Profile"} 
-          showLogo={false} 
+          title={isOwnProfile ? "Profile" : "Profile"}
           showProfileImage={false} 
+          showMessageIcon={false}
+          showLogo={false} 
           showSettingsIcon={isOwnProfile} 
         />
         <SkeletonProfile />
@@ -522,9 +596,10 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <AppNavbar 
-        title={isOwnProfile ? "Profile" : fullName || username || "Profile"} 
-        showLogo={false} 
+        title={isOwnProfile ? "Profile" : fullName || username || "Profile"}
         showProfileImage={false} 
+        showMessageIcon={false}
+        showLogo={false} 
         showSettingsIcon={isOwnProfile} 
       />
       <ScrollView
@@ -580,6 +655,19 @@ export default function ProfileScreen() {
               )}
             </View>
           </View>
+
+          {!isOwnProfile && profile?.relationship?.is_friend && (
+            <View style={styles.messageButtonContainer}>
+              <TouchableOpacity
+                style={[styles.messageButton, { backgroundColor: colors.primary }]}
+                onPress={handleStartConversation}
+                disabled={startingConversation}
+              >
+                <Ionicons name="chatbubbles-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.messageButtonText}>Message</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <View style={styles.statsContainer}>
             <View style={styles.stat}>

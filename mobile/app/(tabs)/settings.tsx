@@ -382,7 +382,7 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <AppNavbar title="Settings" />
+      <AppNavbar title="Settings" showProfileImage={false} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
       {settings.map((section) => (
         <View key={section.title} style={styles.section}>

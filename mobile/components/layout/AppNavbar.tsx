@@ -19,6 +19,7 @@ interface AppNavbarProps {
   showProfileImage?: boolean;
   showSettingsIcon?: boolean;
   showBackButton?: boolean;
+  showMessageIcon?: boolean;
   onBackPress?: () => void;
   customRightButton?: ReactNode;
 }
@@ -29,6 +30,7 @@ export default function AppNavbar({
   showProfileImage = true,
   showSettingsIcon = false,
   showBackButton = false,
+  showMessageIcon = true,
   onBackPress,
   customRightButton,
 }: AppNavbarProps = {}) {
@@ -165,6 +167,15 @@ export default function AppNavbar({
           customRightButton
         ) : (
           <>
+            {showMessageIcon && (
+              <TouchableOpacity
+                style={styles.profileButton}
+                onPress={() => handleNavigate('/(tabs)/messages')}
+              >
+                <Ionicons name="chatbubbles-outline" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+
             {showProfileImage && (
               <TouchableOpacity
                 style={styles.profileButton}

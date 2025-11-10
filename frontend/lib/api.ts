@@ -2,6 +2,16 @@
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "";
 
+export function resolveRemoteUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  // Remove leading slash if present
+  const cleanUrl = url.startsWith("/") ? url.slice(1) : url;
+  return `${API_BASE.replace("/api", "")}/${cleanUrl}`;
+}
+
 type Options = {
   headers?: Record<string, string>;
   token?: string | null;
@@ -52,7 +62,7 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
-export async function apiPost(path: string, body?: unknown, opts: Options = {}) {
+export async function apiPost<T = any>(path: string, body?: unknown, opts: Options = {}): Promise<T> {
   const url = `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
   const res = await fetch(url, {
     method: "POST",
@@ -64,7 +74,7 @@ export async function apiPost(path: string, body?: unknown, opts: Options = {}) 
     signal: opts.signal,
   });
   if (!res.ok) throw await toApiError(res);
-  return safeJson(res);
+  return safeJson<T>(res);
 }
 
 export async function apiGet<T = any>(

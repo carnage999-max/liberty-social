@@ -481,6 +481,8 @@ class ConversationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Direct conversations must include exactly two participants."
             )
+        # Remove created_by from validated_data if it exists to avoid duplicate
+        validated_data.pop("created_by", None)
         conversation = Conversation.objects.create(created_by=creator, **validated_data)
 
         participant_ids = set(participant_ids)

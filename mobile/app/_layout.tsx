@@ -4,9 +4,11 @@ import { AuthProvider } from '../contexts/AuthContext';
 import { AlertProvider } from '../contexts/AlertContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import { StatusBar } from 'expo-status-bar';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 function RootLayoutNav() {
   const { isDark } = useTheme();
+  usePushNotifications();
 
   return (
     <>

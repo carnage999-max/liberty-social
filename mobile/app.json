@@ -32,7 +32,24 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-font"
-    ]
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0B3D91",
+          "sounds": []
+        }
+      ]
+    ],
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#0B3D91"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "af063308-b482-4d48-8149-c1cef1a1dd13"
+      }
+    }
   }
 }

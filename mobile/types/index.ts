@@ -168,3 +168,34 @@ export interface BlockedUser {
   created_at: string;
 }
 
+export interface Message {
+  id: number;
+  conversation: number;
+  sender: User;
+  content: string;
+  media_url?: string | null;
+  reply_to?: number | null;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationParticipant {
+  id: number;
+  user: User;
+  role: 'member' | 'admin';
+  joined_at: string;
+  last_read_at?: string | null;
+}
+
+export interface Conversation {
+  id: number;
+  title?: string | null;
+  is_group: boolean;
+  created_by: User;
+  created_at: string;
+  updated_at: string;
+  last_message_at?: string | null;
+  participants: ConversationParticipant[];
+  last_message?: Message | null;
+}

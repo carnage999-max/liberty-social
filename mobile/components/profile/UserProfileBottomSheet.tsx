@@ -18,6 +18,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAlert } from '../../contexts/AlertContext';
 import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
+import { Conversation, PaginatedResponse } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
@@ -87,6 +88,7 @@ export default function UserProfileBottomSheet({
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'photos'>('overview');
   const [actionLoading, setActionLoading] = useState(false);
+  const [startingConversation, setStartingConversation] = useState(false);
   const [optionsMenuVisible, setOptionsMenuVisible] = useState(false);
   const optionsMenuTranslateY = useRef(new RNAnimated.Value(0)).current;
 
@@ -227,6 +229,60 @@ export default function UserProfileBottomSheet({
       showError('Failed to accept request');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!userId) return;
+    
+    try {
+      setStartingConversation(true);
+      // Ensure userId is a string (UUID)
+      const friendId = String(userId);
+      
+      // Check if conversation already exists
+      const existingConversations = await apiClient.get<PaginatedResponse<Conversation>>('/conversations/');
+      const existing = existingConversations.results.find((conv) => {
+        if (conv.is_group) return false;
+        return conv.participants.some((p) => String(p.user.id) === friendId);
+      });
+
+      if (existing) {
+        onClose();
+        router.push(`/(tabs)/messages/${existing.id}`);
+        return;
+      }
+
+      // Create new conversation
+      const conversation = await apiClient.post<Conversation>('/conversations/', {
+        is_group: false,
+        participant_ids: [friendId],
+      });
+
+      onClose();
+      showSuccess('Conversation started');
+      router.push(`/(tabs)/messages/${conversation.id}`);
+    } catch (error: any) {
+      console.error('Failed to start conversation:', error);
+      let errorMessage = 'Failed to start conversation';
+      if (error?.response?.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.non_field_errors) {
+          errorMessage = Array.isArray(error.response.data.non_field_errors)
+            ? error.response.data.non_field_errors[0]
+            : error.response.data.non_field_errors;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      showError(errorMessage);
+    } finally {
+      setStartingConversation(false);
     }
   };
 
@@ -399,10 +455,14 @@ export default function UserProfileBottomSheet({
       justifyContent: 'center',
     },
     actionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
       paddingHorizontal: 24,
       paddingVertical: 12,
       borderRadius: 24,
       backgroundColor: colors.primary,
+      gap: 8,
     },
     actionButtonSecondary: {
       backgroundColor: 'transparent',
@@ -580,6 +640,17 @@ export default function UserProfileBottomSheet({
 
     return (
       <View style={styles.actionsContainer}>
+        {relationship.is_friend && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleSendMessage}
+            disabled={startingConversation || actionLoading}
+          >
+            <Ionicons name="chatbubbles-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>Send Message</Text>
+          </TouchableOpacity>
+        )}
+
         {relationship.incoming_request && (
           <TouchableOpacity
             style={styles.actionButton}
