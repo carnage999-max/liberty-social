@@ -7,24 +7,27 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   FlatList,
   RefreshControl,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAlert } from '../../contexts/AlertContext';
 import { apiClient } from '../../utils/api';
 import { UserProfileOverview, Post, Friend, PaginatedResponse } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR, resolveMediaUrls } from '../../utils/url';
+import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
+import { SkeletonProfile, SkeletonFriend, Skeleton } from '../../components/common/Skeleton';
 
 type ProfileTab = 'posts' | 'photos' | 'friends';
 
 export default function ProfileScreen() {
   const { colors, isDark } = useTheme();
   const { user: currentUser } = useAuth();
+  const { showError } = useAlert();
   const router = useRouter();
   const params = useLocalSearchParams();
   const [profile, setProfile] = useState<UserProfileOverview | null>(null);
@@ -33,6 +36,11 @@ export default function ProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
+  const [loadedTabs, setLoadedTabs] = useState<Set<ProfileTab>>(new Set());
 
   // If userId is provided in params, view that user's profile; otherwise view own profile
   const userId = params.userId ? Number(params.userId) : currentUser?.id;
@@ -40,8 +48,12 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (userId) {
-      loadProfile();
-      if (activeTab === 'friends') {
+      // Only load profile on initial mount or when userId changes
+      if (!profile) {
+        loadProfile();
+      }
+      // Load tab-specific data when switching tabs
+      if (activeTab === 'friends' && !loadedTabs.has('friends')) {
         loadFriends();
       }
     }
@@ -51,14 +63,16 @@ export default function ProfileScreen() {
     if (!userId) return;
     
     try {
-      if (!refreshing) {
+      if (!refreshing && !profile) {
         setLoading(true);
       }
       const data = await apiClient.get<UserProfileOverview>(`/auth/user/${userId}/overview/`);
       setProfile(data);
+      // Mark posts and photos as loaded since they come with the profile
+      setLoadedTabs(prev => new Set([...prev, 'posts', 'photos']));
     } catch (error) {
       console.error('Error loading profile:', error);
-      Alert.alert('Error', 'Failed to load user profile');
+      showError('Failed to load user profile');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -71,7 +85,7 @@ export default function ProfileScreen() {
     if (activeTab === 'friends' && isOwnProfile) {
       loadFriends();
     }
-  }, [activeTab, isOwnProfile]);
+  }, [activeTab, isOwnProfile, profile]);
 
   const loadFriends = async () => {
     if (!userId || !isOwnProfile) return; // Only load friends for own profile
@@ -80,6 +94,7 @@ export default function ProfileScreen() {
       setLoadingFriends(true);
       const response = await apiClient.get<PaginatedResponse<Friend>>('/auth/friends/');
       setFriends(response.results || []);
+      setLoadedTabs(prev => new Set([...prev, 'friends']));
     } catch (error) {
       console.error('Error loading friends:', error);
     } finally {
@@ -318,10 +333,17 @@ export default function ProfileScreen() {
     },
   }), [colors, isDark]);
 
-  if (loading) {
+  // Only show full page skeleton on initial load when profile is null
+  if (loading && !profile) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.container}>
+        <AppNavbar 
+          title={isOwnProfile ? "Profile" : "Profile"} 
+          showLogo={false} 
+          showProfileImage={false} 
+          showSettingsIcon={isOwnProfile} 
+        />
+        <SkeletonProfile />
       </View>
     );
   }
@@ -332,6 +354,21 @@ export default function ProfileScreen() {
   const avatarSource = avatarUri ? { uri: avatarUri } : DEFAULT_AVATAR;
 
   const renderPosts = () => {
+    // Show skeleton loading only if profile is still loading initially
+    if (loading && !profile) {
+      return (
+        <View style={styles.contentContainer}>
+          <View style={styles.postsGrid}>
+            {[1, 2, 3, 4, 5, 6].map((item) => (
+              <View key={item} style={styles.postItem}>
+                <Skeleton width="100%" height="100%" borderRadius={0} />
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
     if (posts.length === 0) {
       return (
         <View style={styles.emptyContainer}>
@@ -371,6 +408,21 @@ export default function ProfileScreen() {
   };
 
   const renderPhotos = () => {
+    // Show skeleton loading only if profile is still loading initially
+    if (loading && !profile) {
+      return (
+        <View style={styles.contentContainer}>
+          <View style={styles.postsGrid}>
+            {[1, 2, 3, 4, 5, 6].map((item) => (
+              <View key={item} style={styles.postItem}>
+                <Skeleton width="100%" height="100%" borderRadius={0} />
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
     if (photos.length === 0) {
       return (
         <View style={styles.emptyContainer}>
@@ -404,8 +456,10 @@ export default function ProfileScreen() {
   const renderFriends = () => {
     if (loadingFriends) {
       return (
-        <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+        <View style={styles.friendsList}>
+          {[1, 2, 3, 4, 5].map((item) => (
+            <SkeletonFriend key={item} />
+          ))}
         </View>
       );
     }
@@ -445,7 +499,10 @@ export default function ProfileScreen() {
             <TouchableOpacity
               key={friend.id}
               style={styles.friendItem}
-              onPress={() => router.push(`/(tabs)/profile?userId=${friendUser.id}`)}
+              onPress={() => {
+                setSelectedUserId(friendUser.id);
+                setProfileBottomSheetVisible(true);
+              }}
             >
               <Image source={friendAvatarSource} style={styles.friendAvatar} />
               <View style={styles.friendInfo}>
@@ -561,7 +618,7 @@ export default function ProfileScreen() {
             style={[styles.tab, activeTab === 'friends' && styles.tabActive]}
             onPress={() => {
               setActiveTab('friends');
-              if (isOwnProfile && friends.length === 0) {
+              if (isOwnProfile && !loadedTabs.has('friends')) {
                 loadFriends();
               }
             }}
@@ -578,6 +635,15 @@ export default function ProfileScreen() {
           {activeTab === 'friends' && renderFriends()}
         </View>
       </ScrollView>
+
+      <UserProfileBottomSheet
+        visible={profileBottomSheetVisible}
+        userId={selectedUserId}
+        onClose={() => {
+          setProfileBottomSheetVisible(false);
+          setSelectedUserId(null);
+        }}
+      />
     </View>
   );
 }

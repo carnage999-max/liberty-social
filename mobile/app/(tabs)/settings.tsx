@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -14,6 +13,8 @@ import {
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAlert } from '../../contexts/AlertContext';
+import { useToast } from '../../contexts/ToastContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
@@ -42,6 +43,8 @@ type SettingSection = {
 export default function SettingsScreen() {
   const { colors, isDark, mode, setMode } = useTheme();
   const { user, logout } = useAuth();
+  const { showConfirm, showSuccess, showError } = useAlert();
+  const { showSuccess: showToastSuccess, showError: showToastError } = useToast();
   const router = useRouter();
   const [bugReportVisible, setBugReportVisible] = useState(false);
   const [bugMessage, setBugMessage] = useState('');
@@ -49,52 +52,43 @@ export default function SettingsScreen() {
   const [sendingBugReport, setSendingBugReport] = useState(false);
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
+    showConfirm(
       'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/(auth)/login');
-          },
-        },
-      ]
+      async () => {
+        await logout();
+        router.replace('/(auth)');
+      },
+      undefined,
+      'Logout',
+      true // destructive action
     );
   };
 
   const handleDownloadData = () => {
-    Alert.alert(
-      'Download Your Data',
+    showConfirm(
       'Your data will be prepared and sent to your email address.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Request Download',
-          onPress: () => {
-            Alert.alert('Success', 'Your data download request has been received. You will receive an email shortly.');
-          },
-        },
-      ]
+      () => {
+        showSuccess('Your data download request has been received. You will receive an email shortly.');
+      },
+      undefined,
+      'Download Your Data'
     );
   };
 
-  const handleChangePassword = () => {
-    Alert.alert(
-      'Change Password',
-      'You will receive a password reset link via email.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Send Reset Link',
-          onPress: () => {
-            Alert.alert('Success', 'Password reset link has been sent to your email.');
-          },
-        },
-      ]
+  const handleChangePassword = async () => {
+    showConfirm(
+      'You will receive a password change link via email. Click the link in the email to change your password.',
+      async () => {
+        try {
+          await apiClient.post('/auth/request-password-change/');
+          showToastSuccess('Password change link has been sent to your email.');
+        } catch (error: any) {
+          const errorMessage = error?.response?.data?.detail || 'Failed to send password change link. Please try again.';
+          showToastError(errorMessage);
+        }
+      },
+      undefined,
+      'Change Password'
     );
   };
 
@@ -112,7 +106,7 @@ export default function SettingsScreen() {
 
   const handleSubmitBugReport = async () => {
     if (!bugMessage.trim()) {
-      Alert.alert('Error', 'Please enter a bug description');
+      showError('Please enter a bug description');
       return;
     }
 
@@ -135,12 +129,12 @@ export default function SettingsScreen() {
 
       await apiClient.post('/feedback/', formData);
       
-      Alert.alert('Success', 'Bug report submitted successfully. Thank you!');
+      showSuccess('Bug report submitted successfully. Thank you!');
       setBugMessage('');
       setBugScreenshot(null);
       setBugReportVisible(false);
     } catch (error) {
-      Alert.alert('Error', 'Failed to submit bug report. Please try again.');
+      showError('Failed to submit bug report. Please try again.');
     } finally {
       setSendingBugReport(false);
     }

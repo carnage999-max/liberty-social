@@ -8,12 +8,13 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
   TextInput,
-  Alert,
   ActivityIndicator,
   PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../utils/api';
+import { useAlert } from '../../contexts/AlertContext';
+import { useToast } from '../../contexts/ToastContext';
 import type { Comment } from '../../types';
 
 export interface CommentActionsMenuProps {
@@ -29,6 +30,8 @@ const CommentActionsMenu: React.FC<CommentActionsMenuProps> = ({
   onCommentUpdated,
   onCommentDeleted,
 }) => {
+  const { showError, showConfirm } = useAlert();
+  const { showSuccess } = useToast();
   const [menuVisible, setMenuVisible] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [pending, setPending] = useState(false);
@@ -96,36 +99,33 @@ const CommentActionsMenu: React.FC<CommentActionsMenuProps> = ({
   const handleDelete = async () => {
     toggleMenu(false);
     const isReply = !!comment.parent;
-    Alert.alert(
-      isReply ? 'Delete Reply' : 'Delete Comment',
+    showConfirm(
       isReply ? 'Are you sure you want to delete this reply?' : 'Are you sure you want to delete this comment?',
-      [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          setPending(true);
-          try {
-            await apiClient.delete(`/comments/${comment.id}/`);
-            onCommentDeleted(comment.id);
-          } catch (error) {
-            console.error('Error deleting comment:', error);
-            Alert.alert('Unable to delete', 'Please try again later.');
-          } finally {
-            setPending(false);
-          }
-        },
+      async () => {
+        setPending(true);
+        try {
+          await apiClient.delete(`/comments/${comment.id}/`);
+          onCommentDeleted(comment.id);
+          showSuccess(isReply ? 'Reply deleted' : 'Comment deleted');
+        } catch (error) {
+          console.error('Error deleting comment:', error);
+          showError('Unable to delete. Please try again later.');
+        } finally {
+          setPending(false);
+        }
       },
-    ]);
+      undefined,
+      isReply ? 'Delete Reply' : 'Delete Comment',
+      true // destructive action
+    );
   };
 
   const handleEditSubmit = async () => {
     const trimmed = editContent.trim();
     if (!trimmed) {
-      Alert.alert(
-        comment.parent ? 'Edit Reply' : 'Edit Comment',
-        comment.parent ? 'Reply content cannot be empty.' : 'Comment content cannot be empty.'
+      showError(
+        comment.parent ? 'Reply content cannot be empty.' : 'Comment content cannot be empty.',
+        comment.parent ? 'Edit Reply' : 'Edit Comment'
       );
       return;
     }
@@ -137,9 +137,10 @@ const CommentActionsMenu: React.FC<CommentActionsMenuProps> = ({
       });
       onCommentUpdated({ ...comment, ...updated, content: trimmed });
       closeAll();
+      showSuccess(comment.parent ? 'Reply updated' : 'Comment updated');
     } catch (error) {
       console.error('Error updating comment:', error);
-      Alert.alert('Unable to update comment', 'Please try again later.');
+      showError('Unable to update comment. Please try again later.');
     } finally {
       setPending(false);
     }

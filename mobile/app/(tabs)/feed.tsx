@@ -8,13 +8,13 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   ImageSourcePropType,
   Share,
   Animated,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAlert } from '../../contexts/AlertContext';
 import { apiClient } from '../../utils/api';
 import { Post, PaginatedResponse, User, Reaction, ReactionType } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +26,7 @@ import AppNavbar from '../../components/layout/AppNavbar';
 import PostActionsMenu from '../../components/feed/PostActionsMenu';
 import ReactionPicker from '../../components/feed/ReactionPicker';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
+import { SkeletonPost, Skeleton } from '../../components/common/Skeleton';
 import {
   resolveMediaUrls,
   resolveRemoteUrl,
@@ -103,6 +104,7 @@ const normalizePost = (post: Post | FeedPost): FeedPost => {
 export default function FeedScreen() {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
+  const { showError, showInfo } = useAlert();
   const router = useRouter();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,7 +145,28 @@ export default function FeedScreen() {
         setLoading(true);
       }
 
-      const endpoint = url || '/feed/';
+      // If url is a full URL (absolute), extract just the path and query string
+      let endpoint = url || '/feed/';
+      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        try {
+          const urlObj = new URL(url);
+          endpoint = urlObj.pathname + urlObj.search;
+          // Remove /api prefix if present (since baseURL already includes it)
+          if (endpoint.startsWith('/api')) {
+            endpoint = endpoint.substring(4);
+          }
+        } catch (e) {
+          // If URL parsing fails, try to extract path manually
+          const match = url.match(/\/api(\/.*)/);
+          if (match) {
+            endpoint = match[1];
+          } else {
+            // Fallback: use the original url but ensure it starts with /
+            endpoint = url.startsWith('/') ? url : `/${url}`;
+          }
+        }
+      }
+
       const response = await apiClient.get<PaginatedResponse<Post>>(endpoint);
       
       const rawResults = Array.isArray(response?.results)
@@ -244,7 +267,7 @@ export default function FeedScreen() {
 
   const handleReactionLongPress = (post: FeedPost, event: any) => {
     if (!user) {
-      Alert.alert('Sign in required', 'Please log in to react to posts.');
+      showInfo('Please log in to react to posts.', 'Sign in required');
       return;
     }
     // Get button position from layout event
@@ -384,7 +407,7 @@ export default function FeedScreen() {
       }
     } catch (error) {
       console.error('Error updating reaction:', error);
-      Alert.alert('Unable to update reaction', 'Please try again in a moment.');
+      showError('Please try again in a moment.', 'Unable to update reaction');
       setPosts(previousPosts);
     } finally {
       setReactionBusy((prev) => ({ ...prev, [postId]: false }));
@@ -393,7 +416,7 @@ export default function FeedScreen() {
 
   const handleToggleLike = async (post: FeedPost) => {
     if (!user) {
-      Alert.alert('Sign in required', 'Please log in to react to posts.');
+      showInfo('Please log in to react to posts.', 'Sign in required');
       return;
     }
 
@@ -422,7 +445,7 @@ export default function FeedScreen() {
       });
     } catch (error) {
       console.error('Error sharing post:', error);
-      Alert.alert('Unable to share', 'Please try again later.');
+      showError('Please try again later.', 'Unable to share');
     }
   };
 
@@ -957,8 +980,14 @@ export default function FeedScreen() {
 
   if (loading && posts.length === 0) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.container}>
+        <AppNavbar />
+        <FlatList
+          data={[1, 2, 3, 4, 5]}
+          renderItem={() => <SkeletonPost />}
+          keyExtractor={(item) => item.toString()}
+          showsVerticalScrollIndicator={false}
+        />
       </View>
     );
   }
@@ -981,7 +1010,7 @@ export default function FeedScreen() {
           ListFooterComponent={
             loadingSuggestions ? (
               <View style={styles.storyLoading}>
-                <ActivityIndicator size="small" color={colors.primary} />
+                <Skeleton width={60} height={60} borderRadius={30} />
               </View>
             ) : null
           }
@@ -1094,7 +1123,7 @@ export default function FeedScreen() {
           loadingMore || reachedEnd ? (
             <View style={styles.footerContainer}>
               {loadingMore ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <SkeletonPost />
               ) : (
                 <Text style={[styles.footerText, { color: colors.textSecondary }]}>Refresh to see new stuff</Text>
               )}

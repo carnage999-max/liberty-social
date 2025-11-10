@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,14 @@ import {
   Modal,
   Dimensions,
   ActivityIndicator,
-  Alert,
+  TouchableWithoutFeedback,
+  Animated as RNAnimated,
+  PanResponder,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAlert } from '../../contexts/AlertContext';
+import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -76,14 +80,58 @@ export default function UserProfileBottomSheet({
 }: UserProfileBottomSheetProps) {
   const { colors, isDark } = useTheme();
   const { user: currentUser } = useAuth();
+  const { showError: showAlertError, showConfirm } = useAlert();
+  const { showSuccess, showError } = useToast();
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfileOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'photos'>('overview');
   const [actionLoading, setActionLoading] = useState(false);
+  const [optionsMenuVisible, setOptionsMenuVisible] = useState(false);
+  const optionsMenuTranslateY = useRef(new RNAnimated.Value(0)).current;
 
   const translateY = useSharedValue(0);
   const context = useSharedValue({ y: 0 });
+
+  const optionsMenuPanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 12,
+      onPanResponderMove: (_, gesture) => {
+        if (gesture.dy > 0) {
+          optionsMenuTranslateY.setValue(gesture.dy);
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dy > 100) {
+          toggleOptionsMenu(false);
+        } else {
+          RNAnimated.spring(optionsMenuTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  const toggleOptionsMenu = (visible: boolean) => {
+    if (visible) {
+      setOptionsMenuVisible(true);
+      RNAnimated.spring(optionsMenuTranslateY, {
+        toValue: 0,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      RNAnimated.timing(optionsMenuTranslateY, {
+        toValue: 300,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setOptionsMenuVisible(false);
+        optionsMenuTranslateY.setValue(0);
+      });
+    }
+  };
 
   useEffect(() => {
     if (visible && userId) {
@@ -103,7 +151,7 @@ export default function UserProfileBottomSheet({
       setProfile(data);
     } catch (error) {
       console.error('Error loading profile:', error);
-      Alert.alert('Error', 'Failed to load user profile');
+      showAlertError('Failed to load user profile');
       onClose();
     } finally {
       setLoading(false);
@@ -143,10 +191,10 @@ export default function UserProfileBottomSheet({
     try {
       setActionLoading(true);
       await apiClient.post('/auth/friend-requests/', { to_user_id: userId });
-      Alert.alert('Success', 'Friend request sent');
+      showSuccess('Friend request sent');
       loadProfile();
     } catch (error) {
-      Alert.alert('Error', 'Failed to send friend request');
+      showError('Failed to send friend request');
     } finally {
       setActionLoading(false);
     }
@@ -158,10 +206,10 @@ export default function UserProfileBottomSheet({
     try {
       setActionLoading(true);
       await apiClient.post(`/auth/friend-requests/${requestId}/cancel/`);
-      Alert.alert('Success', 'Friend request cancelled');
+      showSuccess('Friend request cancelled');
       loadProfile();
     } catch (error) {
-      Alert.alert('Error', 'Failed to cancel request');
+      showError('Failed to cancel request');
     } finally {
       setActionLoading(false);
     }
@@ -173,82 +221,74 @@ export default function UserProfileBottomSheet({
     try {
       setActionLoading(true);
       await apiClient.post(`/auth/friend-requests/${requestId}/accept-friend-request/`);
-      Alert.alert('Success', 'You are now friends');
+      showSuccess('You are now friends');
       loadProfile();
     } catch (error) {
-      Alert.alert('Error', 'Failed to accept request');
+      showError('Failed to accept request');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleUnfriend = () => {
+    toggleOptionsMenu(false);
     const friendId = profile?.relationship?.friend_entry_id;
     if (!friendId) return;
-    Alert.alert(
-      'Unfriend User',
+    showConfirm(
       'Are you sure you want to unfriend this user?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unfriend',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setActionLoading(true);
-              await apiClient.delete(`/auth/friends/${friendId}/`);
-              Alert.alert('Success', 'Friend removed');
-              loadProfile();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to unfriend user');
-            } finally {
-              setActionLoading(false);
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          setActionLoading(true);
+          await apiClient.delete(`/auth/friends/${friendId}/`);
+          showSuccess('Friend removed');
+          loadProfile();
+        } catch (error) {
+          showError('Failed to unfriend user');
+        } finally {
+          setActionLoading(false);
+        }
+      },
+      undefined,
+      'Unfriend User',
+      true // destructive action
     );
   };
 
   const handleBlock = () => {
+    toggleOptionsMenu(false);
     if (!userId) return;
-    Alert.alert(
-      'Block User',
+    showConfirm(
       'Are you sure you want to block this user?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Block',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setActionLoading(true);
-              // Backend expects blocked_user as string UUID (matches frontend and README)
-              const userIdString = String(userId);
-              await apiClient.post('/auth/blocks/', { blocked_user: userIdString });
-              Alert.alert('Success', 'User blocked');
-              handleClose();
-            } catch (error: any) {
-              console.error('Block user error:', error);
-              console.error('Error response:', error.response?.data);
-              console.error('User ID:', userId, 'Type:', typeof userId);
-              const errorMessage = error.response?.data?.message || 
-                                  error.response?.data?.blocked_user?.[0] ||
-                                  error.response?.data?.blocked_user_id?.[0] ||
-                                  'Failed to block user';
-              Alert.alert('Error', errorMessage);
-            } finally {
-              setActionLoading(false);
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          setActionLoading(true);
+          // Backend expects blocked_user as string UUID (matches frontend and README)
+          const userIdString = String(userId);
+          await apiClient.post('/auth/blocks/', { blocked_user: userIdString });
+          showSuccess('User blocked');
+          handleClose();
+        } catch (error: any) {
+          console.error('Block user error:', error);
+          console.error('Error response:', error.response?.data);
+          console.error('User ID:', userId, 'Type:', typeof userId);
+          const errorMessage = error.response?.data?.message || 
+                              error.response?.data?.blocked_user?.[0] ||
+                              error.response?.data?.blocked_user_id?.[0] ||
+                              'Failed to block user';
+          showError(errorMessage);
+        } finally {
+          setActionLoading(false);
+        }
+      },
+      undefined,
+      'Block User',
+      true // destructive action
     );
   };
 
-  const displayName = profile?.user?.username ||
-    `${profile?.user?.first_name} ${profile?.user?.last_name}`.trim() ||
-    'User';
+  // Prioritize first name + last name, fall back to username if unavailable
+  const fullName = `${profile?.user?.first_name || ''} ${profile?.user?.last_name || ''}`.trim();
+  const displayName = fullName || profile?.user?.username || 'User';
 
   const avatarUri = profile?.user?.profile_image_url
     ? resolveRemoteUrl(profile.user.profile_image_url)
@@ -284,47 +324,72 @@ export default function UserProfileBottomSheet({
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingBottom: 16,
+      paddingTop: 8,
+      paddingBottom: 12,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
     closeButton: {
       padding: 8,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
     },
     content: {
       flex: 1,
     },
     scrollContent: {
-      padding: 20,
+      paddingBottom: 20,
     },
     profileHeader: {
-      alignItems: 'center',
-      marginBottom: 24,
+      padding: 20,
+      paddingBottom: 12,
+    },
+    profileTopSection: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    avatarContainer: {
+      position: 'relative',
+      marginRight: 20,
     },
     avatar: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
+      width: 90,
+      height: 90,
+      borderRadius: 45,
       backgroundColor: colors.border,
-      marginBottom: 16,
+    },
+    profileInfo: {
+      flex: 1,
+      paddingTop: 8,
     },
     name: {
-      fontSize: 24,
+      fontSize: 20,
       fontWeight: '700',
       color: colors.text,
       marginBottom: 4,
     },
     username: {
-      fontSize: 16,
+      fontSize: 15,
       color: colors.textSecondary,
       marginBottom: 8,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 4,
+    },
+    infoText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginLeft: 6,
     },
     bio: {
       fontSize: 14,
       color: colors.text,
-      textAlign: 'center',
-      marginTop: 8,
       lineHeight: 20,
+      marginTop: 12,
+      marginBottom: 8,
     },
     actionsContainer: {
       flexDirection: 'row',
@@ -357,52 +422,27 @@ export default function UserProfileBottomSheet({
     },
     tabsContainer: {
       flexDirection: 'row',
-      gap: 8,
-      marginBottom: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.background,
     },
     tab: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: colors.border,
+      flex: 1,
+      paddingVertical: 14,
+      alignItems: 'center',
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
     },
     tabActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      borderBottomColor: colors.primary,
     },
     tabText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: colors.textSecondary,
     },
     tabTextActive: {
-      color: '#FFFFFF',
-    },
-    statsContainer: {
-      flexDirection: 'row',
-      gap: 12,
-      marginTop: 20,
-    },
-    statCard: {
-      flex: 1,
-      padding: 16,
-      borderRadius: 12,
-      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: 'center',
-    },
-    statValue: {
-      fontSize: 24,
-      fontWeight: '700',
-      color: colors.text,
-      marginBottom: 4,
-    },
-    statLabel: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      textTransform: 'uppercase',
+      color: colors.primary,
     },
     loadingContainer: {
       flex: 1,
@@ -417,7 +457,7 @@ export default function UserProfileBottomSheet({
       marginTop: 20,
     },
     postsContainer: {
-      gap: 16,
+      gap: 12,
     },
     postCard: {
       padding: 16,
@@ -425,6 +465,7 @@ export default function UserProfileBottomSheet({
       backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
       borderWidth: 1,
       borderColor: colors.border,
+      marginBottom: 12,
     },
     postContent: {
       fontSize: 14,
@@ -464,6 +505,50 @@ export default function UserProfileBottomSheet({
       height: (Dimensions.get('window').width - 64) / 3,
       borderRadius: 8,
     },
+    optionsBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    optionsSheet: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingBottom: 26,
+      paddingHorizontal: 20,
+      borderTopWidth: 1,
+      borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    },
+    optionsSheetHandle: {
+      alignItems: 'center',
+      paddingVertical: 12,
+    },
+    optionsSheetContent: {
+      gap: 10,
+    },
+    optionsSheetTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      marginBottom: 10,
+    },
+    optionsSheetAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      paddingVertical: 14,
+    },
+    optionsSheetActionDestructive: {
+      borderTopWidth: 1,
+      borderTopColor: 'rgba(255, 77, 79, 0.2)',
+      marginTop: 6,
+      paddingTop: 18,
+    },
+    optionsSheetActionText: {
+      fontSize: 15,
+      fontWeight: '600',
+    },
   });
 
   const renderActions = () => {
@@ -491,18 +576,10 @@ export default function UserProfileBottomSheet({
       );
     }
 
+    const hasDangerousActions = relationship.is_friend || true; // Always show options menu if we can block
+
     return (
       <View style={styles.actionsContainer}>
-        {relationship.is_friend && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.actionButtonDanger]}
-            onPress={handleUnfriend}
-            disabled={actionLoading}
-          >
-            <Text style={styles.actionButtonText}>Unfriend</Text>
-          </TouchableOpacity>
-        )}
-
         {relationship.incoming_request && (
           <TouchableOpacity
             style={styles.actionButton}
@@ -535,15 +612,15 @@ export default function UserProfileBottomSheet({
           </TouchableOpacity>
         )}
 
-        <TouchableOpacity
-          style={[styles.actionButton, styles.actionButtonSecondary]}
-          onPress={handleBlock}
-          disabled={actionLoading}
-        >
-          <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>
-            Block
-          </Text>
-        </TouchableOpacity>
+        {hasDangerousActions && (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonSecondary]}
+            onPress={() => toggleOptionsMenu(true)}
+            disabled={actionLoading}
+          >
+            <Ionicons name="ellipsis-horizontal" size={20} color={colors.text} />
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -585,13 +662,31 @@ export default function UserProfileBottomSheet({
                 ) : profile ? (
                   <>
                     <View style={styles.profileHeader}>
-                      <Image source={avatarSource} style={styles.avatar} />
-                      {profile.user.username && (
-                        <Text style={styles.username}>@{profile.user.username}</Text>
-                      )}
-                      {profile.user.bio && (
-                        <Text style={styles.bio}>{profile.user.bio}</Text>
-                      )}
+                      <View style={styles.profileTopSection}>
+                        <View style={styles.avatarContainer}>
+                          <Image source={avatarSource} style={styles.avatar} />
+                        </View>
+                        <View style={styles.profileInfo}>
+                          <Text style={styles.name}>{displayName}</Text>
+                          {profile.user.username && (
+                            <Text style={styles.username}>@{profile.user.username}</Text>
+                          )}
+                          {profile.user.date_joined && (
+                            <View style={styles.infoRow}>
+                              <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+                              <Text style={styles.infoText}>
+                                {new Date(profile.user.date_joined).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                })}
+                              </Text>
+                            </View>
+                          )}
+                          {profile.user.bio && (
+                            <Text style={styles.bio}>{profile.user.bio}</Text>
+                          )}
+                        </View>
+                      </View>
                       {renderActions()}
                     </View>
 
@@ -624,83 +719,119 @@ export default function UserProfileBottomSheet({
                       </TouchableOpacity>
                     </View>
 
-                    {activeTab === 'overview' && (
-                      <View style={styles.statsContainer}>
-                        <View style={styles.statCard}>
-                          <Text style={styles.statValue}>
-                            {profile.can_view_posts ? profile.stats.post_count : '—'}
+                    <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+                      {activeTab === 'overview' && (
+                        <>
+                          <Text style={[styles.emptyText, { textAlign: 'left', marginTop: 0, marginBottom: 12, fontSize: 16, fontWeight: '600' }]}>
+                            Recent Activity
                           </Text>
-                          <Text style={styles.statLabel}>Posts</Text>
-                        </View>
-                        <View style={styles.statCard}>
-                          <Text style={styles.statValue}>
-                            {profile.can_view_friend_count ? profile.stats.friend_count : '—'}
-                          </Text>
-                          <Text style={styles.statLabel}>Friends</Text>
-                        </View>
-                      </View>
-                    )}
+                          {profile.recent_posts && profile.recent_posts.length > 0 ? (
+                            <View style={styles.postsContainer}>
+                              {profile.recent_posts.slice(0, 3).map((post) => {
+                                const postDate = post.created_at 
+                                  ? new Date(post.created_at).toLocaleDateString('en-US', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                    })
+                                  : '';
 
-                    {activeTab === 'posts' && (
-                      <View style={styles.postsContainer}>
-                        {profile.can_view_posts ? (
-                          profile.recent_posts.length > 0 ? (
-                            profile.recent_posts.map((post) => {
-                              const postDate = post.created_at 
-                                ? new Date(post.created_at).toLocaleDateString('en-US', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                  })
-                                : '';
-
-                              return (
-                                <View key={post.id} style={styles.postCard}>
-                                  <Text style={styles.postContent} numberOfLines={3}>
-                                    {post.content}
-                                  </Text>
-                                  <View style={styles.postFooter}>
-                                    <Text style={styles.postDate}>{postDate}</Text>
-                                    <TouchableOpacity
-                                      style={styles.seePostButton}
-                                      onPress={() => {
-                                        handleClose();
-                                        router.push(`/(tabs)/feed/${post.id}`);
-                                      }}
-                                    >
-                                      <Text style={styles.seePostButtonText}>See post</Text>
-                                      <Ionicons name="chevron-forward" size={16} color={colors.primary} />
-                                    </TouchableOpacity>
+                                return (
+                                  <View key={post.id} style={styles.postCard}>
+                                    <Text style={styles.postContent} numberOfLines={3}>
+                                      {post.content}
+                                    </Text>
+                                    <View style={styles.postFooter}>
+                                      <Text style={styles.postDate}>{postDate}</Text>
+                                      <TouchableOpacity
+                                        style={styles.seePostButton}
+                                        onPress={() => {
+                                          handleClose();
+                                          router.push(`/(tabs)/feed/${post.id}`);
+                                        }}
+                                      >
+                                        <Text style={styles.seePostButtonText}>See post</Text>
+                                        <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                                      </TouchableOpacity>
+                                    </View>
                                   </View>
-                                </View>
-                              );
-                            })
+                                );
+                              })}
+                            </View>
                           ) : (
-                            <Text style={styles.emptyText}>No posts yet</Text>
-                          )
-                        ) : (
-                          <Text style={styles.emptyText}>Posts are private</Text>
-                        )}
-                      </View>
-                    )}
+                            <Text style={styles.emptyText}>No recent activity</Text>
+                          )}
+                        </>
+                      )}
 
-                    {activeTab === 'photos' && (
-                      <View style={styles.photosGrid}>
-                        {profile.can_view_posts && profile.stats.photos.length > 0 ? (
-                          profile.stats.photos.map((url, index) => (
-                            <Image
-                              key={index}
-                              source={{ uri: resolveRemoteUrl(url) }}
-                              style={styles.photoImage}
-                            />
-                          ))
-                        ) : (
-                          <Text style={styles.emptyText}>
-                            {profile.can_view_posts ? 'No photos yet' : 'Photos are private'}
-                          </Text>
-                        )}
-                      </View>
-                    )}
+                      {activeTab === 'posts' && (
+                        <>
+                          {profile.can_view_posts ? (
+                            profile.recent_posts.length > 0 ? (
+                              <View style={styles.postsContainer}>
+                                {profile.recent_posts.map((post) => {
+                                  const postDate = post.created_at 
+                                    ? new Date(post.created_at).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                      })
+                                    : '';
+
+                                  return (
+                                    <View key={post.id} style={styles.postCard}>
+                                      <Text style={styles.postContent} numberOfLines={3}>
+                                        {post.content}
+                                      </Text>
+                                      <View style={styles.postFooter}>
+                                        <Text style={styles.postDate}>{postDate}</Text>
+                                        <TouchableOpacity
+                                          style={styles.seePostButton}
+                                          onPress={() => {
+                                            handleClose();
+                                            router.push(`/(tabs)/feed/${post.id}`);
+                                          }}
+                                        >
+                                          <Text style={styles.seePostButtonText}>See post</Text>
+                                          <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                                        </TouchableOpacity>
+                                      </View>
+                                    </View>
+                                  );
+                                })}
+                              </View>
+                            ) : (
+                              <Text style={styles.emptyText}>No posts yet</Text>
+                            )
+                          ) : (
+                            <Text style={styles.emptyText}>Posts are private</Text>
+                          )}
+                        </>
+                      )}
+
+                      {activeTab === 'photos' && (
+                        <>
+                          {profile.can_view_posts && profile.stats.photos.length > 0 ? (
+                            <View style={styles.photosGrid}>
+                              {profile.stats.photos.map((url, index) => {
+                                const photoUri = resolveRemoteUrl(url);
+                                return photoUri ? (
+                                  <Image
+                                    key={index}
+                                    source={{ uri: photoUri }}
+                                    style={styles.photoImage}
+                                  />
+                                ) : null;
+                              })}
+                            </View>
+                          ) : (
+                            <Text style={styles.emptyText}>
+                              {profile.can_view_posts ? 'No photos yet' : 'Photos are private'}
+                            </Text>
+                          )}
+                        </>
+                      )}
+                    </View>
                   </>
                 ) : (
                   <Text style={styles.emptyText}>Profile not available</Text>
@@ -708,8 +839,65 @@ export default function UserProfileBottomSheet({
             </ScrollView>
           </Animated.View>
         </GestureDetector>
+
+        {/* Options Menu Modal */}
+        <Modal
+          transparent
+          visible={optionsMenuVisible}
+          animationType="fade"
+          onRequestClose={() => toggleOptionsMenu(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => toggleOptionsMenu(false)}>
+            <View style={styles.optionsBackdrop} />
+          </TouchableWithoutFeedback>
+          <RNAnimated.View
+            style={[
+              styles.optionsSheet,
+              {
+                transform: [{ translateY: optionsMenuTranslateY }],
+                backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+              },
+            ]}
+            accessibilityViewIsModal
+            {...optionsMenuPanResponder.panHandlers}
+          >
+            <TouchableOpacity
+              style={styles.optionsSheetHandle}
+              activeOpacity={0.8}
+              onPress={() => toggleOptionsMenu(false)}
+            >
+              <View style={[styles.dragIndicator, { backgroundColor: colors.border }]} />
+            </TouchableOpacity>
+            <View style={styles.optionsSheetContent}>
+              <Text style={[styles.optionsSheetTitle, { color: colors.text }]}>Options</Text>
+              
+              {profile?.relationship?.is_friend && (
+                <TouchableOpacity
+                  style={styles.optionsSheetAction}
+                  onPress={handleUnfriend}
+                  disabled={actionLoading}
+                >
+                  <Ionicons name="person-remove-outline" size={20} color={colors.secondary} />
+                  <Text style={[styles.optionsSheetActionText, { color: colors.secondary }]}>
+                    Unfriend
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[styles.optionsSheetAction, styles.optionsSheetActionDestructive]}
+                onPress={handleBlock}
+                disabled={actionLoading}
+              >
+                <Ionicons name="ban-outline" size={20} color={colors.secondary} />
+                <Text style={[styles.optionsSheetActionText, { color: colors.secondary }]}>
+                  Block User
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </RNAnimated.View>
+        </Modal>
       </GestureHandlerRootView>
     </Modal>
   );
 }
-

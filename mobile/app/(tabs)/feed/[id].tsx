@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../contexts/ToastContext';
 import { apiClient } from '../../../utils/api';
 import { Post, Comment, Reaction } from '../../../types';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +39,7 @@ import ReactionPicker from '../../../components/feed/ReactionPicker';
 import CommentActionsMenu from '../../../components/feed/CommentActionsMenu';
 import type { ReactionType } from '../../../types';
 import UserProfileBottomSheet from '../../../components/profile/UserProfileBottomSheet';
+import { SkeletonPost } from '../../../components/common/Skeleton';
 
 type NormalizedPost = Post & {
   mediaUrls: string[];
@@ -122,6 +124,7 @@ export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
+  const { showError, showSuccess, showInfo } = useToast();
   const router = useRouter();
   const [post, setPost] = useState<NormalizedPost | null>(null);
   const [loading, setLoading] = useState(true);
@@ -152,7 +155,7 @@ export default function PostDetailScreen() {
       const data = await apiClient.get<Post>(`/posts/${id}/`);
       setPost(ensureNormalizedPost(data));
     } catch (error) {
-      console.error('Error loading post:', error);
+      // Error loading post - user will see empty state
     } finally {
       setLoading(false);
     }
@@ -192,8 +195,7 @@ export default function PostDetailScreen() {
               uploadedUrls.push(...uploadResponse.urls);
             }
           } catch (uploadError) {
-            console.error('Error uploading image:', uploadError);
-            Alert.alert('Upload Error', 'Failed to upload image. Please try again.');
+            showError('Failed to upload image. Please try again.');
           }
         }
 
@@ -238,8 +240,7 @@ export default function PostDetailScreen() {
       setCommentText('');
       setCommentMedias(prev => ({ ...prev, new: [] }));
     } catch (error) {
-      console.error('Error posting comment:', error);
-      Alert.alert('Error', 'Failed to post comment. Please try again.');
+      showError('Failed to post comment. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -328,8 +329,7 @@ export default function PostDetailScreen() {
       message: shareMessage,
       title: 'Share post',
     }).catch((error) => {
-      console.error('Error sharing post:', error);
-      Alert.alert('Unable to share', 'Please try again later.');
+      showError('Unable to share. Please try again later.');
     });
   }, [post]);
 
@@ -359,7 +359,7 @@ export default function PostDetailScreen() {
   const handleToggleReaction = useCallback(async (commentId?: number) => {
     if (!post || !user || reactionPending) {
       if (!user) {
-        Alert.alert('Sign in required', 'Please sign in to react.');
+        showInfo('Please sign in to react.');
       }
       return;
     }
@@ -478,8 +478,7 @@ export default function PostDetailScreen() {
           });
         }
       } catch (error) {
-        console.error('Error updating reaction:', error);
-        Alert.alert('Unable to react', 'Please try again later.');
+        showError('Unable to react. Please try again later.');
         setPost(previousPost);
       } finally {
         setReactionPending(false);
@@ -550,8 +549,7 @@ export default function PostDetailScreen() {
         );
       }
     } catch (error) {
-      console.error('Error updating reaction:', error);
-      Alert.alert('Unable to react', 'Please try again later.');
+      showError('Unable to react. Please try again later.');
       setPost(previousPost);
     } finally {
       setReactionPending(false);
@@ -560,7 +558,7 @@ export default function PostDetailScreen() {
 
   const handleCommentReactionLongPress = (commentId: number, event: any) => {
     if (!user) {
-      Alert.alert('Sign in required', 'Please log in to react to comments.');
+      showInfo('Please log in to react to comments.');
       return;
     }
     const { pageX, pageY } = event.nativeEvent;
@@ -571,7 +569,7 @@ export default function PostDetailScreen() {
 
   const handlePostReactionLongPress = (event: any) => {
     if (!user) {
-      Alert.alert('Sign in required', 'Please log in to react to posts.');
+      showInfo('Please log in to react to posts.');
       return;
     }
     const { pageX, pageY } = event.nativeEvent;
@@ -608,8 +606,7 @@ export default function PostDetailScreen() {
       setPost(ensureNormalizedPost(data));
       animateLikeState();
     } catch (error) {
-      console.error('Error updating post reaction:', error);
-      Alert.alert('Unable to react', 'Please try again later.');
+      showError('Unable to react. Please try again later.');
       setPost(previousPost);
     } finally {
       setReactionPending(false);
@@ -662,8 +659,7 @@ export default function PostDetailScreen() {
       const data = await apiClient.get<Post>(`/posts/${id}/`);
       setPost(ensureNormalizedPost(data));
     } catch (error) {
-      console.error('Error updating comment reaction:', error);
-      Alert.alert('Unable to react', 'Please try again later.');
+      showError('Unable to react. Please try again later.');
       setPost(previousPost);
     } finally {
       setReactionPending(false);
@@ -691,7 +687,7 @@ export default function PostDetailScreen() {
   const handleStartReply = useCallback(
     (commentId: number) => {
       if (!user) {
-        Alert.alert('Sign in required', 'Please sign in to reply to comments.');
+        showInfo('Please sign in to reply to comments.');
         return;
       }
       // Only allow replying to top-level comments
@@ -737,13 +733,13 @@ export default function PostDetailScreen() {
         return;
       }
       if (!user) {
-        Alert.alert('Sign in required', 'Please sign in to reply to comments.');
+        showInfo('Please sign in to reply to comments.');
         return;
       }
       const draft = (replyDrafts[parentCommentId] || '').trim();
       const hasAttachments = (commentMedias[parentCommentId] || []).length > 0;
       if (!draft && !hasAttachments) {
-        Alert.alert('Add a reply', 'Share a thought before sending your reply.');
+        showInfo('Share a thought before sending your reply.');
         return;
       }
       if (replySubmitting[parentCommentId]) {
@@ -767,8 +763,7 @@ export default function PostDetailScreen() {
                 uploadedUrls.push(...uploadResponse.urls);
               }
             } catch (uploadError) {
-              console.error('Error uploading image:', uploadError);
-              Alert.alert('Upload Error', 'Failed to upload image. Please try again.');
+              showError('Failed to upload image. Please try again.');
             }
           }
 
@@ -840,8 +835,7 @@ export default function PostDetailScreen() {
         });
         handleCancelReply(parentCommentId);
       } catch (error) {
-        console.error('Error posting reply:', error);
-        Alert.alert('Unable to reply', 'Please try again later.');
+        showError('Unable to reply. Please try again later.');
       } finally {
         setReplySubmitting((prev) => {
           if (prev[parentCommentId] === undefined) {
@@ -860,7 +854,7 @@ export default function PostDetailScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Please grant camera roll permissions to add images.');
+        showInfo('Please grant camera roll permissions to add images.');
         return;
       }
 
@@ -883,7 +877,7 @@ export default function PostDetailScreen() {
         // Ensure we only accept images. Different SDKs expose different fields.
         const isImage = (asset as any).type === 'image' || (asset as any).mediaType === 'image' || /\.(jpe?g|png|gif|webp)$/i.test(asset.uri || '');
         if (!isImage) {
-          Alert.alert('Only images supported', 'Please select an image file.');
+          showInfo('Please select an image file.');
           return;
         }
         const formData = new FormData();
@@ -912,13 +906,11 @@ export default function PostDetailScreen() {
             ...(safePrev as any),
             [key]: [...existing, { formData, uri: asset.uri }],
           } as any;
-          console.log('Added media, next commentMedias:', next);
           return next;
         });
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      showError('Failed to pick image. Please try again.');
     }
   }, []);
 
@@ -1658,8 +1650,14 @@ export default function PostDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.container}>
+        <AppNavbar showBackButton={true} showLogo={false} showProfileImage={false} />
+        <ScrollView
+          style={[styles.contentScroll, { backgroundColor: colors.background }]}
+          contentContainerStyle={styles.contentScrollContent}
+        >
+          <SkeletonPost />
+        </ScrollView>
       </View>
     );
   }

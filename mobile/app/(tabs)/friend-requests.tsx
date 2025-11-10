@@ -7,11 +7,11 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
 import { FriendRequest, PaginatedResponse, User } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,7 @@ import { useRouter } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
+import { SkeletonFriend } from '../../components/common/Skeleton';
 
 type Tab = 'incoming' | 'outgoing' | 'all';
 
@@ -30,6 +31,7 @@ interface FriendRequestWithUser extends FriendRequest {
 export default function FriendRequestsScreen() {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
+  const { showSuccess, showError } = useToast();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('incoming');
   const [requests, setRequests] = useState<FriendRequestWithUser[]>([]);
@@ -53,8 +55,7 @@ export default function FriendRequestsScreen() {
       setRequests(response.results || []);
       setNext(response.next);
     } catch (error) {
-      console.error('Error loading friend requests:', error);
-      Alert.alert('Error', 'Failed to load friend requests');
+      showError('Failed to load friend requests');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -67,7 +68,6 @@ export default function FriendRequestsScreen() {
       const results = (response as any)?.results ?? (Array.isArray(response) ? response : []);
       setSuggestions(Array.isArray(results) ? results.slice(0, 12) : []);
     } catch (error) {
-      console.error('Error loading suggestions:', error);
       setSuggestions([]);
     }
   }, []);
@@ -96,17 +96,16 @@ export default function FriendRequestsScreen() {
       
       const message =
         action === 'accept'
-          ? 'Friend request accepted.'
+          ? 'Friend request accepted'
           : action === 'decline'
-          ? 'Friend request declined.'
-          : 'Friend request cancelled.';
-      Alert.alert('Success', message);
+          ? 'Friend request declined'
+          : 'Friend request cancelled';
+      showSuccess(message);
       
       await loadFriendRequests();
       await loadSuggestions(); // Refresh suggestions after action
     } catch (error) {
-      console.error('Error handling friend request:', error);
-      Alert.alert('Error', 'Failed to process friend request');
+      showError('Failed to process friend request');
     } finally {
       setActionLoading(null);
     }
@@ -118,12 +117,11 @@ export default function FriendRequestsScreen() {
       await apiClient.post('/auth/friend-requests/', {
         to_user: String(userId),
       });
-      Alert.alert('Success', 'Friend request sent.');
+      showSuccess('Friend request sent');
       await loadSuggestions(); // Remove from suggestions after sending
       await loadFriendRequests(); // Refresh to show in sent tab
     } catch (error) {
-      console.error('Error sending friend request:', error);
-      Alert.alert('Error', 'Failed to send friend request');
+      showError('Failed to send friend request');
     } finally {
       setSendingRequest(null);
     }
@@ -380,6 +378,7 @@ export default function FriendRequestsScreen() {
       justifyContent: 'center',
       alignItems: 'center',
       padding: 32,
+      minHeight: 400,
     },
     emptyText: {
       fontSize: 16,
@@ -449,9 +448,13 @@ export default function FriendRequestsScreen() {
     return (
       <View style={styles.container}>
         <AppNavbar title="Friend Requests" showLogo={false} showProfileImage={false} showBackButton={true} onBackPress={() => router.push('/(tabs)/friends')} />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <FlatList
+          data={[1, 2, 3, 4, 5]}
+          renderItem={() => <SkeletonFriend />}
+          keyExtractor={(item) => item.toString()}
+          contentContainerStyle={{ padding: 16 }}
+          showsVerticalScrollIndicator={false}
+        />
       </View>
     );
   }
@@ -525,7 +528,13 @@ export default function FriendRequestsScreen() {
             </>
           ) : null
         }
-        contentContainerStyle={{ paddingVertical: 8, paddingBottom: 32 }}
+        contentContainerStyle={{ 
+          paddingVertical: 8, 
+          paddingBottom: 100,
+          flexGrow: 1,
+        }}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
       />
 
       <UserProfileBottomSheet

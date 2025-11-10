@@ -7,13 +7,14 @@ import {
   TouchableOpacity,
   Switch,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { useAlert } from '../../../contexts/AlertContext';
 import { apiClient } from '../../../utils/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AppNavbar from '../../../components/layout/AppNavbar';
+import { SkeletonPrivacy } from '../../../components/common/SkeletonPrivacy';
 
 // Backend response interface
 interface BackendPrivacySettings {
@@ -32,6 +33,7 @@ interface PrivacySettings {
 
 export default function PrivacySettingsScreen() {
   const { colors, isDark } = useTheme();
+  const { showSuccess, showError } = useAlert();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -107,10 +109,10 @@ export default function PrivacySettingsScreen() {
       const backendData = mapMobileToBackend(updatedSettings);
       await apiClient.patch('/auth/settings/', backendData);
       setSettings(updatedSettings);
-      Alert.alert('Success', 'Privacy settings updated');
+      showSuccess('Privacy settings updated');
     } catch (error) {
       console.error('Error saving privacy settings:', error);
-      Alert.alert('Error', 'Failed to update privacy settings');
+      showError('Failed to update privacy settings');
     } finally {
       setSaving(false);
     }
@@ -259,9 +261,7 @@ export default function PrivacySettingsScreen() {
           showBackButton={true}
           onBackPress={() => router.push('/(tabs)/settings')}
         />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <SkeletonPrivacy />
       </View>
     );
   }

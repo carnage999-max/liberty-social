@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
+import { SkeletonFriend } from '../../components/common/Skeleton';
 
 export default function FriendsScreen() {
   const { colors, isDark } = useTheme();
@@ -258,8 +259,27 @@ export default function FriendsScreen() {
 
   if (loading && friends.length === 0) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.container}>
+        <AppNavbar 
+          title="Friends" 
+          showLogo={false} 
+          showProfileImage={false}
+          customRightButton={
+            <TouchableOpacity
+              onPress={() => router.push('/(tabs)/friend-requests')}
+              style={styles.addFriendButton}
+            >
+              <Ionicons name="person-add-outline" size={20} color={colors.text} />
+            </TouchableOpacity>
+          }
+        />
+        <FlatList
+          data={[1, 2, 3, 4, 5]}
+          renderItem={() => <SkeletonFriend />}
+          keyExtractor={(item) => item.toString()}
+          contentContainerStyle={{ padding: 16 }}
+          showsVerticalScrollIndicator={false}
+        />
       </View>
     );
   }

@@ -1,6 +1,8 @@
 import { Slot } from 'expo-router';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { AuthProvider } from '../contexts/AuthContext';
+import { AlertProvider } from '../contexts/AlertContext';
+import { ToastProvider } from '../contexts/ToastContext';
 import { StatusBar } from 'expo-status-bar';
 
 function RootLayoutNav() {
@@ -18,7 +20,11 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RootLayoutNav />
+        <AlertProvider>
+          <ToastProvider>
+            <RootLayoutNav />
+          </ToastProvider>
+        </AlertProvider>
       </AuthProvider>
     </ThemeProvider>
   );

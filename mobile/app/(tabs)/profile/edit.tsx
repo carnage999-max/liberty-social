@@ -7,23 +7,24 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../contexts/ToastContext';
 import { apiClient } from '../../../utils/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AppNavbar from '../../../components/layout/AppNavbar';
 import * as ImagePicker from 'expo-image-picker';
-import { resolveRemoteUrl } from '../../../utils/url';
+import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../../utils/url';
 
 export default function EditProfileScreen() {
   const { colors, isDark } = useTheme();
   const { user, updateUser } = useAuth();
+  const { showSuccess, showError } = useToast();
   const router = useRouter();
   
   const [firstName, setFirstName] = useState(user?.first_name || '');
@@ -82,11 +83,10 @@ export default function EditProfileScreen() {
       const updatedUser = await apiClient.patch(`/auth/user/${user?.id}/`, updateData);
       updateUser(updatedUser);
 
-      Alert.alert('Success', 'Profile updated successfully!');
-      router.back();
+      showSuccess('Profile updated successfully!');
+      router.replace('/(tabs)/profile');
     } catch (error: any) {
-      console.error('Error updating profile:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to update profile');
+      showError(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setSaving(false);
     }
@@ -99,6 +99,7 @@ export default function EditProfileScreen() {
     },
     scrollContent: {
       padding: 16,
+      paddingBottom: 100, // Extra padding to ensure bio field is visible when keyboard is active
     },
     avatarContainer: {
       alignItems: 'center',
@@ -168,10 +169,16 @@ export default function EditProfileScreen() {
   return (
     <KeyboardAvoidingView 
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <AppNavbar title="Edit Profile" showLogo={false} showProfileImage={false} showBackButton={true} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={true}
+      >
         <View style={styles.avatarContainer}>
           <Image source={avatarSource} style={styles.avatar} />
           <TouchableOpacity style={styles.changePhotoButton} onPress={handlePickImage}>

@@ -6,12 +6,12 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
 import { useRouter } from 'expo-router';
 import { Visibility } from '../../types';
@@ -29,6 +29,7 @@ const formatVisibilityLabel = (value: Visibility) =>
 
 export default function CreatePostScreen() {
   const { colors, isDark } = useTheme();
+  const { showSuccess, showError } = useToast();
   const router = useRouter();
 
   const [content, setContent] = useState('');
@@ -38,7 +39,7 @@ export default function CreatePostScreen() {
 
   const handlePickImages = async () => {
     if (selectedImages.length >= 6) {
-      Alert.alert('Maximum reached', 'You can upload up to 6 images per post.');
+      showError('You can upload up to 6 images per post.');
       return;
     }
 
@@ -66,8 +67,7 @@ export default function CreatePostScreen() {
         setSelectedImages(prev => [...prev, ...newImages]);
       }
     } catch (error) {
-      console.error('Error picking images:', error);
-      Alert.alert('Error', 'Failed to pick images. Please try again.');
+      showError('Failed to pick images. Please try again.');
     }
   };
 
@@ -79,7 +79,7 @@ export default function CreatePostScreen() {
     const trimmedContent = content.trim();
 
     if (!trimmedContent) {
-      Alert.alert('Missing content', 'Please enter something to post.');
+      showError('Please enter something to post.');
       return;
     }
 
@@ -97,7 +97,7 @@ export default function CreatePostScreen() {
               uploadedUrls.push(...uploadResponse.urls);
             }
           } catch (uploadError) {
-            console.error('Error uploading image:', uploadError);
+            // Silently continue - user will see error if post creation fails
           }
         }
       }
@@ -123,20 +123,15 @@ export default function CreatePostScreen() {
       setSelectedImages([]);
       setVisibility('public');
 
-      Alert.alert('Success', 'Your post has been published!', [
-        {
-          text: 'View feed',
-          onPress: () => router.replace('/(tabs)/feed'),
-        },
-        { text: 'Stay here' },
-      ]);
+      showSuccess('Your post has been published!');
+      router.replace('/(tabs)/feed');
     } catch (error: any) {
       const detail =
         error?.response?.data?.detail ||
         error?.response?.data?.message ||
         'Something went wrong while creating the post.';
 
-      Alert.alert('Unable to create post', detail);
+      showError(detail);
     } finally {
       setSubmitting(false);
     }

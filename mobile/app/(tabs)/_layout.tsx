@@ -8,13 +8,68 @@ import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import type { ParamListBase } from '@react-navigation/native';
 import type { BottomTabNavigationEventMap } from '@react-navigation/bottom-tabs';
 import type { NavigationHelpers } from '@react-navigation/native';
+import { useState, useEffect } from 'react';
+import { apiClient } from '../../utils/api';
+import { Notification, PaginatedResponse, FriendRequest } from '../../types';
 
 export default function TabsLayout() {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [friendRequestCount, setFriendRequestCount] = useState(0);
 
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 0;
+
+  // Fetch unread notification count
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await apiClient.get<PaginatedResponse<Notification>>('/notifications/');
+        const unread = response.results.filter((n) => n.unread).length;
+        setUnreadCount(unread);
+      } catch (error) {
+        // Error fetching notifications - silently fail
+      }
+    };
+
+    fetchUnreadCount();
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Fetch incoming friend requests count
+  useEffect(() => {
+    if (!user) {
+      setFriendRequestCount(0);
+      return;
+    }
+
+    const fetchFriendRequestCount = async () => {
+      try {
+        const response = await apiClient.get<PaginatedResponse<FriendRequest>>(
+          '/auth/friend-requests/',
+          { params: { direction: 'incoming' } }
+        );
+        // Count only pending incoming requests
+        const pending = response.results.filter((r) => r.status === 'pending').length;
+        setFriendRequestCount(pending);
+      } catch (error) {
+        // Error fetching friend requests - silently fail
+      }
+    };
+
+    fetchFriendRequestCount();
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchFriendRequestCount, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const styles = StyleSheet.create({
     tabBarContainer: {
@@ -51,6 +106,25 @@ export default function TabsLayout() {
     tabLabel: {
       fontSize: 11,
       fontWeight: '600',
+    },
+    badge: {
+      position: 'absolute',
+      top: -2,
+      right: -2,
+      backgroundColor: '#FF4D4F',
+      borderRadius: 10,
+      minWidth: 18,
+      height: 18,
+      paddingHorizontal: 5,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+    },
+    badgeText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '700',
     },
   });
 
@@ -162,20 +236,35 @@ export default function TabsLayout() {
                       },
                     ]}
                   >
-                    <Ionicons
-                      name={iconName}
-                      size={route.name === 'create-post' ? 26 : 24}
-                      color={
-                        route.name === 'create-post'
-                          ? isFocused
-                            ? '#FFFFFF'
-                            : colors.primary
-                          : isFocused
-                          ? colors.primary
-                          : colors.textSecondary
-                      }
-                      onPress={onPress}
-                    />
+                    <TouchableOpacity onPress={onPress} style={{ position: 'relative' }}>
+                      <Ionicons
+                        name={iconName}
+                        size={route.name === 'create-post' ? 26 : 24}
+                        color={
+                          route.name === 'create-post'
+                            ? isFocused
+                              ? '#FFFFFF'
+                              : colors.primary
+                            : isFocused
+                            ? colors.primary
+                            : colors.textSecondary
+                        }
+                      />
+                      {route.name === 'notifications' && unreadCount > 0 && (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </Text>
+                        </View>
+                      )}
+                      {route.name === 'friends' && friendRequestCount > 0 && (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>
+                            {friendRequestCount > 99 ? '99+' : friendRequestCount}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
                   </View>
                   <Text
                     onPress={onPress}

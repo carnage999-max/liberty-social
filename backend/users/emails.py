@@ -70,3 +70,14 @@ def send_password_reset_email(user, reset_url):
     return send_templated_email(
         "password_reset", context, "Reset your Liberty Social password", user.email
     )
+
+
+def send_password_change_request_email(user, change_url):
+    """Send a password change request email to an authenticated user."""
+    context = {
+        "user": user,
+        "change_url": change_url,
+    }
+    return send_templated_email(
+        "password_change_request", context, "Change your Liberty Social password", user.email
+    )

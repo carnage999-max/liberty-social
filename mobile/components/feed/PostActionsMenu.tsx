@@ -8,12 +8,13 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
   TextInput,
-  Alert,
   ActivityIndicator,
   PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../utils/api';
+import { useAlert } from '../../contexts/AlertContext';
+import { useToast } from '../../contexts/ToastContext';
 import type { Post } from '../../types';
 
 export interface PostActionsMenuProps<TPost extends Post> {
@@ -31,6 +32,8 @@ const PostActionsMenu = <TPost extends Post>({
   onPostDeleted,
   normalizePost,
 }: PostActionsMenuProps<TPost>) => {
+  const { showConfirm, showError } = useAlert();
+  const { showSuccess } = useToast();
   const [menuVisible, setMenuVisible] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [pending, setPending] = useState(false);
@@ -103,6 +106,7 @@ const PostActionsMenu = <TPost extends Post>({
       if (post.bookmarked && post.bookmark_id) {
         await apiClient.delete(`/bookmarks/${post.bookmark_id}/`);
         onPostUpdated(normalizePost({ ...post, bookmarked: false, bookmark_id: null }));
+        showSuccess('Bookmark removed');
       } else {
         const result = await apiClient.post<{ id?: number }>(`/bookmarks/`, {
           post: post.id,
@@ -111,10 +115,11 @@ const PostActionsMenu = <TPost extends Post>({
         onPostUpdated(
           normalizePost({ ...post, bookmarked: true, bookmark_id: bookmarkId })
         );
+        showSuccess('Post bookmarked');
       }
     } catch (error) {
       console.error('Error updating bookmark:', error);
-      Alert.alert('Unable to update bookmark', 'Please try again later.');
+      showError('Please try again later.', 'Unable to update bookmark');
     } finally {
       setPending(false);
     }
@@ -122,47 +127,60 @@ const PostActionsMenu = <TPost extends Post>({
 
   const handleDelete = async () => {
     toggleMenu(false);
-    Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          setPending(true);
-          try {
-            await apiClient.delete(`/posts/${post.id}/`);
-            onPostDeleted(post.id);
-          } catch (error) {
-            console.error('Error deleting post:', error);
-            Alert.alert('Unable to delete', 'Please try again later.');
-          } finally {
-            setPending(false);
-          }
-        },
+    showConfirm(
+      'Are you sure you want to delete this post?',
+      async () => {
+        setPending(true);
+        try {
+          await apiClient.delete(`/posts/${post.id}/`);
+          onPostDeleted(post.id);
+          showSuccess('Post deleted');
+        } catch (error) {
+          console.error('Error deleting post:', error);
+          showError('Please try again later.', 'Unable to delete');
+        } finally {
+          setPending(false);
+        }
       },
-    ]);
+      undefined,
+      'Delete Post',
+      true // destructive action
+    );
   };
 
   const handleEditSubmit = async () => {
     const trimmed = editContent.trim();
     if (!trimmed) {
-      Alert.alert('Edit Post', 'Post content cannot be empty.');
+      showError('Post content cannot be empty.', 'Edit Post');
       return;
     }
 
-    setPending(true);
-    try {
-      const updated = await apiClient.patch<Post>(`/posts/${post.id}/`, {
-        content: trimmed,
-      });
-      onPostUpdated(normalizePost({ ...post, ...updated, content: trimmed }));
-      closeAll();
-    } catch (error) {
-      console.error('Error updating post:', error);
-      Alert.alert('Unable to update post', 'Please try again later.');
-    } finally {
-      setPending(false);
-    }
+    // Show confirm dialog before editing
+    showConfirm(
+      'Are you sure you want to edit this post? The post will be marked as edited and the change will be visible to all viewers.',
+      async () => {
+        setPending(true);
+        try {
+          const updated = await apiClient.patch<Post>(`/posts/${post.id}/`, {
+            content: trimmed,
+          });
+          onPostUpdated(normalizePost({ ...post, ...updated, content: trimmed }));
+          closeAll();
+          showSuccess('Post updated successfully');
+        } catch (error) {
+          console.error('Error updating post:', error);
+          showError('Please try again later.', 'Unable to update post');
+        } finally {
+          setPending(false);
+        }
+      },
+      () => {
+        // Cancel - do nothing, just close the edit modal
+        closeAll();
+      },
+      'Edit Post',
+      false // not destructive, just informational
+    );
   };
 
   return (
@@ -276,7 +294,14 @@ const PostActionsMenu = <TPost extends Post>({
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.editButton, styles.editSave]}
-              onPress={handleEditSubmit}
+              onPress={() => {
+                // Close edit modal first, then show confirm dialog
+                setEditVisible(false);
+                // Use setTimeout to ensure modal closes before showing confirm
+                setTimeout(() => {
+                  handleEditSubmit();
+                }, 300);
+              }}
               disabled={pending}
             >
               {pending ? (

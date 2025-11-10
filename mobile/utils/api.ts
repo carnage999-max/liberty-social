@@ -19,8 +19,11 @@ class ApiClient {
       async (config) => {
         const token = await storage.getAccessToken();
         if (token) {
+          // Ensure Authorization header is set for both relative and absolute URLs
           config.headers.Authorization = `Bearer ${token}`;
         }
+        // If config.url is absolute, ensure we still use the baseURL for auth
+        // but axios will use the absolute URL directly
         return config;
       },
       (error) => Promise.reject(error)

@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .password_reset_view import PasswordResetView, PasswordResetConfirmView
+from .password_change_request_view import RequestPasswordChangeView
 from .views import (
     BlockedUsersViewset,
     ChangePasswordView,
@@ -36,6 +37,7 @@ urlpatterns = [
     path("password-reset/", PasswordResetView.as_view(), name="password-reset"),
     path("password-reset/confirm/", PasswordResetConfirmView.as_view(), name="password-reset-confirm"),
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
+    path("request-password-change/", RequestPasswordChangeView.as_view(), name="request-password-change"),
     path("settings/", UserSettingsView.as_view(), name="user-settings"),
     path(
         "user/<uuid:user_id>/overview/",

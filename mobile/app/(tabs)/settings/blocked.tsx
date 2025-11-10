@@ -7,15 +7,16 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { useTheme } from '../../../contexts/ThemeContext';
+import { useAlert } from '../../../contexts/AlertContext';
 import { apiClient } from '../../../utils/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AppNavbar from '../../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../../utils/url';
+import { SkeletonFriend } from '../../../components/common/Skeleton';
 
 interface BlockedUser {
   id: number;
@@ -52,6 +53,7 @@ interface UserDetails {
 
 export default function BlockedUsersScreen() {
   const { colors, isDark } = useTheme();
+  const { showError, showConfirm, showSuccess } = useAlert();
   const router = useRouter();
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [userDetails, setUserDetails] = useState<Record<string, UserDetails>>({});
@@ -66,7 +68,6 @@ export default function BlockedUsersScreen() {
     try {
       setLoading(true);
       const response = await apiClient.get<{ results: BlockedUser[] }>('/auth/blocks/');
-      console.log('Blocked users response:', JSON.stringify(response, null, 2));
       
       // Fetch user details for each blocked user ID
       const userIds = response.results
@@ -83,7 +84,7 @@ export default function BlockedUsersScreen() {
               const overviewData = await apiClient.get<UserOverviewResponse>(`/auth/user/${userId}/overview/`);
               userDetailsMap[userId] = overviewData.user;
             } catch (error) {
-              console.error(`Error loading user ${userId}:`, error);
+              // Error loading user details - silently continue
             }
           })
         );
@@ -94,8 +95,7 @@ export default function BlockedUsersScreen() {
       // Set blocked users after user details are loaded
       setBlockedUsers(response.results || []);
     } catch (error) {
-      console.error('Error loading blocked users:', error);
-      Alert.alert('Error', 'Failed to load blocked users');
+      showError('Failed to load blocked users');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -103,28 +103,19 @@ export default function BlockedUsersScreen() {
   };
 
   const handleUnblock = (blockRecordId: number, username: string) => {
-    Alert.alert(
-      'Unblock User',
+    showConfirm(
       `Are you sure you want to unblock ${username}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unblock',
-          style: 'default',
-          onPress: async () => {
-            try {
-              console.log('Unblocking user with block record ID:', blockRecordId);
-              await apiClient.delete(`/auth/blocks/${blockRecordId}/`);
-              setBlockedUsers(prev => prev.filter(item => item.id !== blockRecordId));
-              Alert.alert('Success', `${username} has been unblocked`);
-            } catch (error: any) {
-              console.error('Unblock error:', error);
-              console.error('Error response:', error.response?.data);
-              Alert.alert('Error', error.response?.data?.message || 'Failed to unblock user');
-            }
-          },
-        },
-      ]
+      async () => {
+        try {
+          await apiClient.delete(`/auth/blocks/${blockRecordId}/`);
+          setBlockedUsers(prev => prev.filter(item => item.id !== blockRecordId));
+          showSuccess(`${username} has been unblocked`);
+        } catch (error: any) {
+          showError(error.response?.data?.message || 'Failed to unblock user');
+        }
+      },
+      undefined,
+      'Unblock User'
     );
   };
 
@@ -142,8 +133,6 @@ export default function BlockedUsersScreen() {
     const user = typeof item.blocked_user === 'object' 
       ? item.blocked_user 
       : userDetails[blockedUserId || ''];
-    
-    console.log('Rendering blocked user:', item.id, 'Blocked user ID:', blockedUserId, 'User data:', user);
     
     // Build display name with proper fallbacks
     let displayName = 'User';
@@ -262,9 +251,13 @@ export default function BlockedUsersScreen() {
           showBackButton={true}
           onBackPress={() => router.push('/(tabs)/settings')}
         />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <FlatList
+          data={[1, 2, 3, 4, 5]}
+          renderItem={() => <SkeletonFriend />}
+          keyExtractor={(item) => item.toString()}
+          contentContainerStyle={{ padding: 16 }}
+          showsVerticalScrollIndicator={false}
+        />
       </View>
     );
   }

@@ -10,20 +10,25 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
 import { Notification, PaginatedResponse } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
+import { SkeletonNotification } from '../../components/common/Skeleton';
 
 export default function NotificationsScreen() {
   const { colors, isDark } = useTheme();
+  const { showSuccess, showError } = useToast();
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [next, setNext] = useState<string | null>(null);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [markingRead, setMarkingRead] = useState<number | null>(null);
 
   const loadNotifications = async () => {
     try {
@@ -61,7 +66,28 @@ export default function NotificationsScreen() {
     }
   };
 
-  const handleNotificationPress = (notification: Notification) => {
+  const handleNotificationPress = async (notification: Notification) => {
+    // Mark as read if unread
+    if (notification.unread) {
+      try {
+        setMarkingRead(notification.id);
+        await apiClient.post(`/notifications/${notification.id}/mark_read/`);
+        // Update local state
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notification.id ? { ...n, unread: false } : n
+          )
+        );
+        showSuccess('Notification marked as read');
+      } catch (error) {
+        console.error('Error marking notification as read:', error);
+        showError('Failed to mark notification as read');
+      } finally {
+        setMarkingRead(null);
+      }
+    }
+
+    // Navigate to the relevant page
     if (notification.object_id) {
       if (notification.verb === 'commented' || notification.verb === 'reacted') {
         router.push(`/(tabs)/feed/${notification.object_id}`);
@@ -71,11 +97,56 @@ export default function NotificationsScreen() {
     }
   };
 
-  const renderNotification = ({ item }: { item: Notification }) => {
-    const displayName = item.actor.username || 
-      `${item.actor.first_name} ${item.actor.last_name}` || 
-      item.actor.email || 
+  const unreadCount = notifications.filter((n) => n.unread).length;
+
+  const handleMarkAllRead = async () => {
+    if (unreadCount === 0) return;
+
+    try {
+      setMarkingAll(true);
+      await apiClient.post('/notifications/mark_all_read/');
+      // Update local state
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, unread: false }))
+      );
+      showSuccess('All notifications marked as read');
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      showError('Failed to mark all notifications as read');
+    } finally {
+      setMarkingAll(false);
+    }
+  };
+
+  const getNotificationMessage = (notification: Notification) => {
+    const displayName = notification.actor.username || 
+      `${notification.actor.first_name} ${notification.actor.last_name}` || 
+      notification.actor.email || 
       'Someone';
+
+    const verb = notification.verb.toLowerCase();
+    
+    if (verb === 'commented' || verb === 'comment_replied') {
+      const preview = notification.target_comment_preview || notification.target_post_preview;
+      if (preview) {
+        return `${displayName} ${verb === 'comment_replied' ? 'replied to your comment' : 'commented'} on your post: "${preview}"`;
+      }
+      return `${displayName} ${verb === 'comment_replied' ? 'replied to your comment' : 'commented'} on your post`;
+    } else if (verb === 'reacted') {
+      const preview = notification.target_post_preview;
+      if (preview) {
+        return `${displayName} reacted to your post: "${preview}"`;
+      }
+      return `${displayName} reacted to your post`;
+    } else if (verb === 'followed') {
+      return `${displayName} started following you`;
+    }
+    
+    return `${displayName} ${notification.verb}`;
+  };
+
+  const renderNotification = ({ item }: { item: Notification }) => {
+    const notificationMessage = getNotificationMessage(item);
 
     return (
       <TouchableOpacity
@@ -88,6 +159,7 @@ export default function NotificationsScreen() {
           }
         ]}
         onPress={() => handleNotificationPress(item)}
+        disabled={markingRead === item.id}
       >
         <Image
           source={
@@ -99,7 +171,7 @@ export default function NotificationsScreen() {
         />
         <View style={styles.notificationContent}>
           <Text style={[styles.notificationText, { color: colors.text }]}>
-            <Text style={styles.name}>{displayName}</Text> {item.verb}
+            {notificationMessage}
           </Text>
           <Text style={[styles.time, { color: colors.textSecondary }]}>
             {new Date(item.created_at).toLocaleString()}
@@ -174,12 +246,52 @@ export default function NotificationsScreen() {
       color: colors.textSecondary,
       textAlign: 'center',
     },
+    headerContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerContent: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    unreadCountText: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    markAllButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+    },
+    markAllButtonText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    listContent: {
+      paddingTop: 8,
+      paddingBottom: 100, // Extra padding to ensure all items are visible
+      paddingHorizontal: 0,
+      flexGrow: 1,
+    },
+    listContentEmpty: {
+      flex: 1,
+    },
   });
 
   if (loading && notifications.length === 0) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={styles.container}>
+        <AppNavbar />
+        <FlatList
+          data={[1, 2, 3, 4, 5]}
+          renderItem={() => <SkeletonNotification />}
+          keyExtractor={(item) => item.toString()}
+          showsVerticalScrollIndicator={false}
+        />
       </View>
     );
   }
@@ -187,6 +299,30 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.container}>
       <AppNavbar title="Notifications" />
+
+      {/* Header with unread count and mark all as read button */}
+      {notifications.length > 0 && (
+        <View style={[styles.headerContainer, { backgroundColor: colors.background }]}>
+          <View style={styles.headerContent}>
+            <Text style={[styles.unreadCountText, { color: colors.text }]}>
+              {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
+            </Text>
+            {unreadCount > 0 && (
+              <TouchableOpacity
+                style={[styles.markAllButton, { backgroundColor: colors.primary }]}
+                onPress={handleMarkAllRead}
+                disabled={markingAll}
+              >
+                {markingAll ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.markAllButtonText}>Mark all as read</Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
 
       <FlatList
         data={notifications}
@@ -205,7 +341,11 @@ export default function NotificationsScreen() {
             <Text style={styles.emptyText}>No notifications yet</Text>
           </View>
         }
-        contentContainerStyle={{ paddingVertical: 8, paddingBottom: 32 }}
+        contentContainerStyle={[
+          styles.listContent,
+          notifications.length === 0 && styles.listContentEmpty,
+        ]}
+        showsVerticalScrollIndicator={false}
       />
     </View>
   );
