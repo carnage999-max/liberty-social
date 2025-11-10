@@ -991,13 +991,13 @@ export default function PostDetailScreen() {
     // Get total reaction count
     const totalReactionCount = (comment.reactions || []).length;
     
-    // Reaction emoji mapping
-    const reactionEmojis: Record<string, string> = {
-      like: '👍',
-      love: '❤️',
-      haha: '😂',
-      sad: '😢',
-      angry: '😡',
+    // Reaction image mapping
+    const reactionImages: Record<string, any> = {
+      like: require('../../../assets/reactions_assets/like.png'),
+      love: require('../../../assets/reactions_assets/love.png'),
+      haha: require('../../../assets/reactions_assets/laugh.png'),
+      sad: require('../../../assets/reactions_assets/sad.png'),
+      angry: require('../../../assets/reactions_assets/angry.png'),
     };
 
     const isTopLevelComment = depth === 0;
@@ -1123,7 +1123,11 @@ export default function PostDetailScreen() {
                   disabled={reactionPending}
                 >
                   {currentReactionType ? (
-                    <Text style={styles.commentReactionEmoji}>{reactionEmojis[currentReactionType] || '👍'}</Text>
+                    <Image 
+                      source={reactionImages[currentReactionType] || reactionImages.like} 
+                      style={styles.commentReactionImage} 
+                      resizeMode="contain"
+                    />
                   ) : (
                     <Ionicons
                       name="heart-outline"
@@ -1442,8 +1446,9 @@ export default function PostDetailScreen() {
       fontWeight: '500',
       color: colors.textSecondary,
     },
-    reactionEmoji: {
-      fontSize: 22,
+    reactionImage: {
+      width: 22,
+      height: 22,
     },
     commentsSection: {
       paddingTop: 8,
@@ -1514,8 +1519,9 @@ export default function PostDetailScreen() {
       flex: 1,
       color: colors.text,
     },
-    commentReactionEmoji: {
-      fontSize: 18,
+    commentReactionImage: {
+      width: 18,
+      height: 18,
     },
     commentText: {
       fontSize: 14,
@@ -1681,13 +1687,13 @@ export default function PostDetailScreen() {
   const hasReacted = !!currentReaction;
   const reactionType = currentReaction?.reaction_type;
   
-  const reactionEmojis: Record<string, string> = {
-    like: '👍',
-    love: '❤️',
-    haha: '😂',
-    wow: '😮',
-    sad: '😢',
-    angry: '😠',
+  const reactionImages: Record<string, any> = {
+    like: require('../../../assets/reactions_assets/like.png'),
+    love: require('../../../assets/reactions_assets/love.png'),
+    haha: require('../../../assets/reactions_assets/laugh.png'),
+    wow: require('../../../assets/reactions_assets/wow.png'),
+    sad: require('../../../assets/reactions_assets/sad.png'),
+    angry: require('../../../assets/reactions_assets/angry.png'),
   };
   
   const totalReactions = (post.reactions || []).length;
@@ -1791,7 +1797,11 @@ export default function PostDetailScreen() {
                 >
                   {hasReacted && reactionType ? (
                     <Animated.View style={{ transform: [{ scale: likeAnimation }] }}>
-                      <Text style={styles.reactionEmoji}>{reactionEmojis[reactionType] || '👍'}</Text>
+                      <Image 
+                        source={reactionImages[reactionType] || reactionImages.like} 
+                        style={styles.reactionImage} 
+                        resizeMode="contain"
+                      />
                     </Animated.View>
                   ) : (
                     <Animated.View style={{ transform: [{ scale: likeAnimation }] }}>

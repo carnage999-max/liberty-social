@@ -116,3 +116,16 @@ class BlockedUsers(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} blocked {self.blocked_user}"
+
+
+class DismissedSuggestion(models.Model):
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name='dismissed_suggestions')
+    dismissed_user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name='dismissed_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (('user', 'dismissed_user'),)
+        indexes = [models.Index(fields=['user', 'dismissed_user'])]
+
+    def __str__(self) -> str:
+        return f"{self.user} dismissed {self.dismissed_user}"

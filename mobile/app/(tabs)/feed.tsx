@@ -488,13 +488,13 @@ export default function FeedScreen() {
     const likeProcessing = !!reactionBusy[item.id];
     const likeAnimation = getLikeAnimation(item.id);
     
-    // Reaction emoji mapping
-    const reactionEmojis: Record<string, string> = {
-      like: '👍',
-      love: '❤️',
-      haha: '😂',
-      sad: '😢',
-      angry: '😡',
+    // Reaction image mapping
+    const reactionImages: Record<string, any> = {
+      like: require('../../assets/reactions_assets/like.png'),
+      love: require('../../assets/reactions_assets/love.png'),
+      haha: require('../../assets/reactions_assets/laugh.png'),
+      sad: require('../../assets/reactions_assets/sad.png'),
+      angry: require('../../assets/reactions_assets/angry.png'),
     };
 
     return (
@@ -579,7 +579,11 @@ export default function FeedScreen() {
             disabled={likeProcessing}
           >
             {hasReacted && reactionType ? (
-              <Text style={styles.reactionEmoji}>{reactionEmojis[reactionType] || '👍'}</Text>
+              <Image 
+                source={reactionImages[reactionType] || reactionImages.like} 
+                style={styles.reactionImage} 
+                resizeMode="contain"
+              />
             ) : (
               <Ionicons
                 name="heart-outline"
@@ -609,6 +613,18 @@ export default function FeedScreen() {
         </View>
       </View>
     );
+  };
+
+  const handleDismissSuggestion = async (userId: string | number) => {
+    try {
+      await apiClient.post('/auth/dismissed-suggestions/', {
+        dismissed_user_id: userId,
+      });
+      // Remove from local suggestions
+      setSuggestions((prev) => prev.filter((user) => user.id !== userId));
+    } catch (error) {
+      // Silently fail - suggestion will be filtered out on next load
+    }
   };
 
   const renderSuggestion = ({ item }: { item: SuggestionItem }) => {
@@ -646,18 +662,26 @@ export default function FeedScreen() {
       : PLACEHOLDER_AVATAR;
 
     return (
-      <TouchableOpacity
-        style={styles.storyItem}
-        onPress={() => {
-          setSelectedUserId(item.user.id);
-          setProfileBottomSheetVisible(true);
-        }}
-      >
-        <Image source={avatarSource} style={styles.storyAvatar} />
-        <Text style={[styles.storyName, { color: colors.text }]} numberOfLines={1}>
-          {displayName}
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.storyItem}>
+        <TouchableOpacity
+          onPress={() => {
+            setSelectedUserId(item.user.id);
+            setProfileBottomSheetVisible(true);
+          }}
+        >
+          <Image source={avatarSource} style={styles.storyAvatar} />
+          <Text style={[styles.storyName, { color: colors.text }]} numberOfLines={1}>
+            {displayName}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.dismissButton}
+          onPress={() => handleDismissSuggestion(item.user.id)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -729,6 +753,14 @@ export default function FeedScreen() {
       fontSize: 12,
       fontWeight: '600',
       textAlign: 'center',
+    },
+    dismissButton: {
+      position: 'absolute',
+      top: -4,
+      right: -4,
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+      borderRadius: 12,
+      padding: 2,
     },
     storyEmptyText: {
       marginTop: 8,
@@ -818,8 +850,9 @@ export default function FeedScreen() {
       width: '100%',
       height: '100%',
     },
-    reactionEmoji: {
-      fontSize: 20,
+    reactionImage: {
+      width: 20,
+      height: 20,
     },
     suggestionsHeader: {
       paddingHorizontal: 20,

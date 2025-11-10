@@ -118,6 +118,29 @@ def dispatch_notification(sender, instance, created, **kwargs):
     if not created:
         return
 
+    # Broadcast via WebSocket for mobile app
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        from .realtime import notification_group_name
+        from .serializers import NotificationSerializer
+
+        layer = get_channel_layer()
+        if layer:
+            serializer = NotificationSerializer(instance)
+            async_to_sync(layer.group_send)(
+                notification_group_name(str(instance.recipient.id)),
+                {
+                    "type": "notification_created",
+                    "data": serializer.data,
+                },
+            )
+    except Exception:
+        logger.exception(
+            "Failed to broadcast notification via WebSocket for %s", instance.pk
+        )
+
+    # Queue push notification for web/mobile
     if getattr(settings, "PUSH_NOTIFICATIONS_ENABLED", False):
         try:
             from .tasks import deliver_push_notification

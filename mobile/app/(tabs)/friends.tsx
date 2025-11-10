@@ -100,6 +100,18 @@ export default function FriendsScreen() {
     );
   };
 
+  const handleDismissSuggestion = async (userId: string | number) => {
+    try {
+      await apiClient.post('/auth/dismissed-suggestions/', {
+        dismissed_user_id: userId,
+      });
+      // Remove from local suggestions
+      setSuggestions((prev) => prev.filter((user) => user.id !== userId));
+    } catch (error) {
+      // Silently fail - suggestion will be filtered out on next load
+    }
+  };
+
   const renderSuggestion = ({ item }: { item: User }) => {
     const displayName = item.username || 
       `${item.first_name} ${item.last_name}`.trim() || 
@@ -112,7 +124,7 @@ export default function FriendsScreen() {
     const avatarSource = avatarUri ? { uri: avatarUri } : DEFAULT_AVATAR;
 
     return (
-      <TouchableOpacity
+      <View
         style={[
           styles.suggestionContainer,
           { 
@@ -120,26 +132,37 @@ export default function FriendsScreen() {
             borderColor: colors.border,
           }
         ]}
-        onPress={() => {
-          setSelectedUserId(item.id);
-          setProfileBottomSheetVisible(true);
-        }}
       >
-        <Image
-          source={avatarSource}
-          style={styles.suggestionAvatar}
-        />
-        <View style={styles.suggestionInfo}>
-          <Text style={[styles.suggestionName, { color: colors.text }]} numberOfLines={1}>
-            {displayName}
-          </Text>
-          {item.username && (
-            <Text style={[styles.suggestionUsername, { color: colors.textSecondary }]} numberOfLines={1}>
-              @{item.username}
+        <TouchableOpacity
+          style={styles.suggestionUserInfo}
+          onPress={() => {
+            setSelectedUserId(item.id);
+            setProfileBottomSheetVisible(true);
+          }}
+        >
+          <Image
+            source={avatarSource}
+            style={styles.suggestionAvatar}
+          />
+          <View style={styles.suggestionInfo}>
+            <Text style={[styles.suggestionName, { color: colors.text }]} numberOfLines={1}>
+              {displayName}
             </Text>
-          )}
-        </View>
-      </TouchableOpacity>
+            {item.username && (
+              <Text style={[styles.suggestionUsername, { color: colors.textSecondary }]} numberOfLines={1}>
+                @{item.username}
+              </Text>
+            )}
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.dismissButton}
+          onPress={() => handleDismissSuggestion(item.id)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -212,11 +235,17 @@ export default function FriendsScreen() {
     suggestionContainer: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'space-between',
       padding: 12,
       marginHorizontal: 16,
       marginVertical: 4,
       borderRadius: 12,
       borderWidth: 1,
+    },
+    suggestionUserInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
     },
     suggestionAvatar: {
       width: 52,
@@ -235,6 +264,10 @@ export default function FriendsScreen() {
     },
     suggestionUsername: {
       fontSize: 13,
+    },
+    dismissButton: {
+      padding: 4,
+      marginLeft: 8,
     },
     friendsCountContainer: {
       paddingHorizontal: 16,

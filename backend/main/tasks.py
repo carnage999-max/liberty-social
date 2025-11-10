@@ -101,21 +101,43 @@ def _is_token_invalid(error_payload: Optional[dict]) -> bool:
 
 
 def _build_message_payload(
-    token: str, notification_payload: dict, title: str, body: str
+    token: str, notification_payload: dict, title: str, body: str, platform: str = "web"
 ) -> dict:
     serialized = json.dumps(notification_payload)
-    return {
+    base_payload = {
         "token": token,
-        "notification": {"title": title, "body": body},
         "data": {"notification": serialized},
-        "webpush": {
+    }
+
+    # For web platform, use webpush configuration
+    if platform == "web":
+        target_url = notification_payload.get("target_url", "/app/notifications")
+        # Ensure absolute URL for web push
+        frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+        if frontend_url and not target_url.startswith("http"):
+            target_url = f"{frontend_url}{target_url}"
+        
+        # Web push requires both notification and webpush fields
+        base_payload["notification"] = {
+            "title": title,
+            "body": body,
+        }
+        base_payload["webpush"] = {
             "notification": {
                 "title": title,
                 "body": body,
                 "icon": "/icon.png",
-            }
-        },
-    }
+                "badge": "/icon.png",
+            },
+            "fcm_options": {
+                "link": target_url
+            },
+        }
+    else:
+        # For mobile platforms (iOS/Android), use notification field
+        base_payload["notification"] = {"title": title, "body": body}
+
+    return base_payload
 
 
 @shared_task(
@@ -146,9 +168,24 @@ def deliver_push_notification(self, notification_id: int):
         return
 
     recipient = notification.recipient
-    tokens = list(recipient.device_tokens.values_list("token", flat=True))
-    if not tokens:
+    # Get tokens with platform info for proper payload formatting
+    device_tokens = list(
+        recipient.device_tokens.values_list("token", "platform", flat=False)
+    )
+    if not device_tokens:
+        logger.info(
+            "No device tokens found for user %s (notification %s)",
+            recipient.id,
+            notification_id,
+        )
         return
+    
+    logger.info(
+        "Sending push notification %s to user %s with %d device token(s)",
+        notification_id,
+        recipient.id,
+        len(device_tokens),
+    )
 
     actor = notification.actor
     actor_label = actor.get_full_name() or actor.username or actor.email or "Someone"
@@ -163,8 +200,10 @@ def deliver_push_notification(self, notification_id: int):
     endpoint = f"https://fcm.googleapis.com/v1/projects/{project_id}/messages:send"
     invalid_tokens = []
 
-    for token in tokens:
-        message = _build_message_payload(token, payload, message_title, message_body)
+    for token, platform in device_tokens:
+        message = _build_message_payload(
+            token, payload, message_title, message_body, platform
+        )
         try:
             response = session.post(
                 endpoint, json={"message": message}, timeout=10  # seconds
@@ -173,6 +212,12 @@ def deliver_push_notification(self, notification_id: int):
             raise self.retry(exc=exc)
 
         if response.ok:
+            logger.info(
+                "Successfully delivered push notification %s to token %s (platform: %s)",
+                notification_id,
+                token[:20] + "...",
+                platform,
+            )
             continue
 
         try:
@@ -181,13 +226,21 @@ def deliver_push_notification(self, notification_id: int):
             error_body = None
 
         if _is_token_invalid(error_body):
+            logger.warning(
+                "Invalid token detected for notification %s (platform: %s): %s",
+                notification_id,
+                platform,
+                error_body or response.text,
+            )
             invalid_tokens.append(token)
             continue
 
-        logger.warning(
-            "Failed to deliver push notification %s to token %s: %s",
+        logger.error(
+            "Failed to deliver push notification %s to token %s (platform: %s): Status %s, Response: %s",
             notification_id,
-            token,
+            token[:20] + "...",
+            platform,
+            response.status_code,
             error_body or response.text,
         )
         if response.status_code >= 500:

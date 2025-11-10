@@ -8,6 +8,7 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Dimensions,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -15,12 +16,12 @@ import type { ReactionType } from '../../types';
 
 const REACTION_TYPES: ReactionType[] = ['like', 'love', 'haha', 'sad', 'angry'];
 
-const REACTION_EMOJIS: Record<ReactionType, string> = {
-  like: '👍',
-  love: '❤️',
-  haha: '😂',
-  sad: '😢',
-  angry: '😡',
+const REACTION_IMAGES: Record<ReactionType, any> = {
+  like: require('../../assets/reactions_assets/like.png'),
+  love: require('../../assets/reactions_assets/love.png'),
+  haha: require('../../assets/reactions_assets/laugh.png'),
+  sad: require('../../assets/reactions_assets/sad.png'),
+  angry: require('../../assets/reactions_assets/angry.png'),
 };
 
 const REACTION_LABELS: Record<ReactionType, string> = {
@@ -143,8 +144,9 @@ export default function ReactionPicker({
     reactionButtonActive: {
       backgroundColor: isDark ? 'rgba(79, 142, 247, 0.2)' : 'rgba(79, 142, 247, 0.1)',
     },
-    reactionEmoji: {
-      fontSize: 28,
+    reactionImage: {
+      width: 36,
+      height: 36,
     },
     reactionLabel: {
       position: 'absolute',
@@ -190,7 +192,7 @@ export default function ReactionPicker({
                 onPress={() => handleSelect(type)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.reactionEmoji}>{REACTION_EMOJIS[type]}</Text>
+                <Image source={REACTION_IMAGES[type]} style={styles.reactionImage} resizeMode="contain" />
               </TouchableOpacity>
             ))}
           </Animated.View>

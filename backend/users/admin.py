@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, UserSettings, FriendRequest, Friends, BlockedUsers
+from .models import User, UserSettings, FriendRequest, Friends, BlockedUsers, DismissedSuggestion
 
 
 @admin.register(User)
@@ -28,3 +28,8 @@ class FriendsAdmin(admin.ModelAdmin):
 @admin.register(BlockedUsers)
 class BlockedUsersAdmin(admin.ModelAdmin):
 	list_display = ('user', 'blocked_user', 'created_at')
+
+
+@admin.register(DismissedSuggestion)
+class DismissedSuggestionAdmin(admin.ModelAdmin):
+	list_display = ('user', 'dismissed_user', 'created_at')

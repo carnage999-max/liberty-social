@@ -264,11 +264,12 @@ class NotificationSerializer(serializers.ModelSerializer):
     target_post_id = serializers.SerializerMethodField()
     target_post_preview = serializers.SerializerMethodField()
     target_comment_preview = serializers.SerializerMethodField()
+    target_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
-        fields = ['id', 'actor', 'verb', 'content_type', 'object_id', 'unread', 'created_at', 'target_post_id', 'target_post_preview', 'target_comment_preview']
-        read_only_fields = ['id', 'actor', 'verb', 'content_type', 'object_id', 'created_at', 'target_post_id', 'target_post_preview', 'target_comment_preview']
+        fields = ['id', 'actor', 'verb', 'content_type', 'object_id', 'unread', 'created_at', 'target_post_id', 'target_post_preview', 'target_comment_preview', 'target_url']
+        read_only_fields = ['id', 'actor', 'verb', 'content_type', 'object_id', 'created_at', 'target_post_id', 'target_post_preview', 'target_comment_preview', 'target_url']
 
     def get_target_post_id(self, obj):
         """Get the post ID that this notification relates to"""
@@ -323,6 +324,29 @@ class NotificationSerializer(serializers.ModelSerializer):
         except Exception:
             pass
         return None
+
+    def get_target_url(self, obj):
+        """Get the URL to navigate to when clicking the notification"""
+        try:
+            if obj.content_type and obj.object_id:
+                # If target is a Post, link to the post
+                if obj.content_type.model == 'post':
+                    return f"/app/feed/{obj.object_id}"
+                # If target is a Comment, link to the post with the comment
+                elif obj.content_type.model == 'comment':
+                    comment = obj.target
+                    if comment and hasattr(comment, 'post'):
+                        return f"/app/feed/{comment.post.id}"
+                # If target is a FriendRequest, link to friend requests
+                elif obj.content_type.model == 'friendrequest':
+                    return "/app/friend-requests"
+                # If target is a Conversation, link to the conversation
+                elif obj.content_type.model == 'conversation':
+                    return f"/app/messages/{obj.object_id}"
+        except Exception:
+            pass
+        # Default to notifications page
+        return "/app/notifications"
 
 
 class BookmarkSerializer(serializers.ModelSerializer):

@@ -11,7 +11,7 @@ from django.db.models import Count
 from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
 from datetime import timedelta
-from .models import BlockedUsers, FriendRequest, Friends, User, UserSettings
+from .models import BlockedUsers, DismissedSuggestion, FriendRequest, Friends, User, UserSettings
 from .serializers import (
     BlockedUsersSerializer,
     ChangePasswordSerializer,
@@ -420,6 +420,9 @@ class FriendsViewset(ModelViewSet):
         blocked_me_ids = BlockedUsers.objects.filter(blocked_user=user).values_list(
             "user_id", flat=True
         )
+        dismissed_ids = DismissedSuggestion.objects.filter(user=user).values_list(
+            "dismissed_user_id", flat=True
+        )
 
         exclude_ids = (
             set(friend_ids)
@@ -428,6 +431,7 @@ class FriendsViewset(ModelViewSet):
             | set(incoming_requests)
             | set(blocked_ids)
             | set(blocked_me_ids)
+            | set(dismissed_ids)
             | {user.id}
         )
 
@@ -550,6 +554,80 @@ class BlockedUsersViewset(ModelViewSet):
 
             raise PermissionDenied("Not authorized to unblock this user.")
         instance.delete()
+
+
+class DismissedSuggestionViewset(ModelViewSet):
+    queryset = DismissedSuggestion.objects.all()
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["post", "delete"]
+
+    def get_queryset(self):
+        return super().get_queryset().filter(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        dismissed_user_id = request.data.get("dismissed_user_id")
+        
+        if not dismissed_user_id:
+            return Response(
+                {"detail": "dismissed_user_id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            dismissed_user = User.objects.get(id=dismissed_user_id)
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if dismissed_user.id == user.id:
+            return Response(
+                {"detail": "Cannot dismiss yourself."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        dismissed_suggestion, created = DismissedSuggestion.objects.get_or_create(
+            user=user,
+            dismissed_user=dismissed_user
+        )
+        
+        if created:
+            return Response(
+                {"detail": "Suggestion dismissed."},
+                status=status.HTTP_201_CREATED
+            )
+        else:
+            return Response(
+                {"detail": "Suggestion already dismissed."},
+                status=status.HTTP_200_OK
+            )
+
+    def destroy(self, request, *args, **kwargs):
+        dismissed_user_id = request.data.get("dismissed_user_id") or kwargs.get("pk")
+        
+        if not dismissed_user_id:
+            return Response(
+                {"detail": "dismissed_user_id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            dismissed_suggestion = DismissedSuggestion.objects.get(
+                user=request.user,
+                dismissed_user_id=dismissed_user_id
+            )
+            dismissed_suggestion.delete()
+            return Response(
+                {"detail": "Dismissal removed."},
+                status=status.HTTP_200_OK
+            )
+        except DismissedSuggestion.DoesNotExist:
+            return Response(
+                {"detail": "Dismissed suggestion not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 
 class UserSettingsView(APIView):

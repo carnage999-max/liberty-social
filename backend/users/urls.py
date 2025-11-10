@@ -6,6 +6,7 @@ from .password_change_request_view import RequestPasswordChangeView
 from .views import (
     BlockedUsersViewset,
     ChangePasswordView,
+    DismissedSuggestionViewset,
     FriendRequestViewset,
     FriendsViewset,
     LoginUserview,
@@ -25,6 +26,7 @@ router.register("user", UserView, basename="user")
 router.register("friends", FriendsViewset, basename="friends")
 router.register("friend-requests", FriendRequestViewset, basename="friend-requests")
 router.register("blocks", BlockedUsersViewset, basename="blocks")
+router.register("dismissed-suggestions", DismissedSuggestionViewset, basename="dismissed-suggestions")
 
 urlpatterns = [
     path("", include(router.urls)),

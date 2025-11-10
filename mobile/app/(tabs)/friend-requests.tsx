@@ -200,6 +200,18 @@ export default function FriendRequestsScreen() {
     );
   };
 
+  const handleDismissSuggestion = async (userId: string | number) => {
+    try {
+      await apiClient.post('/auth/dismissed-suggestions/', {
+        dismissed_user_id: userId,
+      });
+      // Remove from local suggestions
+      setSuggestions((prev) => prev.filter((user) => user.id !== userId));
+    } catch (error) {
+      // Silently fail - suggestion will be filtered out on next load
+    }
+  };
+
   const renderSuggestion = ({ item }: { item: User }) => {
     const displayName = item.username ||
       `${item.first_name || ''} ${item.last_name || ''}`.trim() ||
@@ -242,17 +254,26 @@ export default function FriendRequestsScreen() {
             )}
           </View>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.sendRequestButton, { backgroundColor: colors.primary }]}
-          onPress={() => handleSendRequest(item.id)}
-          disabled={isSending}
-        >
-          {isSending ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.sendRequestButtonText}>Send Request</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.suggestionActions}>
+          <TouchableOpacity
+            style={[styles.sendRequestButton, { backgroundColor: colors.primary }]}
+            onPress={() => handleSendRequest(item.id)}
+            disabled={isSending}
+          >
+            {isSending ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.sendRequestButtonText}>Send Request</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.dismissButton}
+            onPress={() => handleDismissSuggestion(item.id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -441,6 +462,14 @@ export default function FriendRequestsScreen() {
       fontSize: 13,
       fontWeight: '600',
       color: '#FFFFFF',
+    },
+    suggestionActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    dismissButton: {
+      padding: 4,
     },
   }), [colors, isDark]);
 
