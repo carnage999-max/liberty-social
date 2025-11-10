@@ -110,7 +110,13 @@ Real-time notifications & push
 2. **Celery push worker**
    - Set `PUSH_NOTIFICATIONS_ENABLED=True`, `FIREBASE_PROJECT_ID=<firebase-project-id>`, and `FIREBASE_CREDENTIALS_JSON=<service-account-json or base64>` so `main.tasks.deliver_push_notification` can call Firebase Cloud Messaging HTTP v1.
    - The JSON can be stored directly (escaped) or base64‑encoded; the task caches the credential and automatically refreshes OAuth tokens.
-   - Ensure the Celery worker process (e.g., `start_worker.sh` on AWS App Runner) receives the same `.env` with DB, Redis, and Firebase secrets.
+   - **CRITICAL**: Ensure the Celery worker process (e.g., `start_worker.sh` on AWS App Runner) receives the same `.env` with:
+     - **Database connection**: `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` (must match API service)
+     - **Redis connection**: `REDIS_URL` (or `CELERY_BROKER_URL` and `CELERY_RESULT_BACKEND`) - must match API service
+     - **Django settings**: `SECRET_KEY` (must match API service), `DEBUG`, `ALLOWED_HOSTS`
+     - **Firebase credentials**: `FIREBASE_PROJECT_ID`, `FIREBASE_CREDENTIALS_JSON`
+     - **Frontend URL**: `FRONTEND_URL` (required for web push notification links)
+   - See `CELERY_WORKER_ENV_VARS.md` for a complete checklist.
 
 3. **Browser/mobile registration**
    - Web clients call `POST /api/device-tokens/` automatically after granting Notification permission; mobile apps can POST their Expo/FCM token with `{"token": "<value>", "platform": "ios" | "android" | "web"}`.
@@ -118,7 +124,13 @@ Real-time notifications & push
    - Every new `Notification` row triggers two fan-outs via `main.signals.dispatch_notification`: one over Channels (real-time UI updates) and another to Celery for push delivery.
 
 4. **Firebase web config endpoint**
-   - Provide the public Firebase web credentials via backend env vars (`FIREBASE_WEB_API_KEY`, `FIREBASE_WEB_APP_ID`, `FIREBASE_WEB_MESSAGING_SENDER_ID`, `FIREBASE_WEB_PROJECT_ID`, `FIREBASE_WEB_AUTH_DOMAIN`, `FIREBASE_WEB_STORAGE_BUCKET`, `FIREBASE_WEB_MEASUREMENT_ID`, `FIREBASE_WEB_VAPID_KEY`). The `/api/firebase-config/` endpoint shares these with the frontend at runtime so builds aren’t blocked on compile-time envs.
+   - Provide the public Firebase web credentials via backend env vars (`FIREBASE_WEB_API_KEY`, `FIREBASE_WEB_APP_ID`, `FIREBASE_WEB_MESSAGING_SENDER_ID`, `FIREBASE_WEB_PROJECT_ID`, `FIREBASE_WEB_AUTH_DOMAIN`, `FIREBASE_WEB_STORAGE_BUCKET`, `FIREBASE_WEB_MEASUREMENT_ID`, `FIREBASE_WEB_VAPID_KEY`). The `/api/firebase-config/` endpoint shares these with the frontend at runtime so builds aren't blocked on compile-time envs.
+
+5. **Testing push notifications**
+   - Use `POST /api/test-push-notification/` (requires authentication) to manually trigger a test push notification.
+   - This endpoint creates a test notification for the authenticated user and queues it for push delivery.
+   - Returns diagnostic information including device tokens, Firebase configuration status, and task queue status.
+   - Check Celery worker logs after calling this endpoint to see delivery status and any errors.
 
 Reaction model migration (important)
 

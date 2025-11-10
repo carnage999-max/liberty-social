@@ -436,6 +436,91 @@ class WebSocketDiagnosticView(APIView):
         return Response(diagnostics, status=status_code)
 
 
+class TestPushNotificationView(APIView):
+    """Test endpoint to manually trigger a push notification for debugging."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        import logging
+        from django.conf import settings
+        from .tasks import deliver_push_notification
+
+        logger = logging.getLogger(__name__)
+
+        user = request.user
+        diagnostics = {
+            "user_id": str(user.id),
+            "user_email": user.email,
+            "push_notifications_enabled": getattr(
+                settings, "PUSH_NOTIFICATIONS_ENABLED", False
+            ),
+            "firebase_project_id": getattr(settings, "FIREBASE_PROJECT_ID", ""),
+            "firebase_credentials_configured": bool(
+                getattr(settings, "FIREBASE_CREDENTIALS_JSON", "")
+            ),
+            "frontend_url": getattr(settings, "FRONTEND_URL", ""),
+            "device_tokens": [],
+            "notification_created": False,
+            "notification_id": None,
+            "task_queued": False,
+            "task_id": None,
+            "error": None,
+        }
+
+        try:
+            # Get user's device tokens
+            device_tokens = DeviceToken.objects.filter(user=user).values(
+                "id", "token", "platform", "created_at", "last_seen_at"
+            )
+            diagnostics["device_tokens"] = list(device_tokens)
+            diagnostics["device_token_count"] = len(diagnostics["device_tokens"])
+
+            if not diagnostics["push_notifications_enabled"]:
+                diagnostics["error"] = "Push notifications are not enabled"
+                return Response(diagnostics, status=status.HTTP_400_BAD_REQUEST)
+
+            if not diagnostics["firebase_credentials_configured"]:
+                diagnostics["error"] = "Firebase credentials are not configured"
+                return Response(diagnostics, status=status.HTTP_400_BAD_REQUEST)
+
+            if not diagnostics["device_tokens"]:
+                diagnostics["error"] = "No device tokens found for this user"
+                return Response(diagnostics, status=status.HTTP_400_BAD_REQUEST)
+
+            # Create a test notification
+            test_notification = Notification.objects.create(
+                recipient=user,
+                actor=user,  # User notifies themselves for testing
+                verb="test",
+                unread=True,
+            )
+            diagnostics["notification_created"] = True
+            diagnostics["notification_id"] = test_notification.id
+
+            # Queue the push notification task
+            try:
+                task_result = deliver_push_notification.delay(test_notification.id)
+                diagnostics["task_queued"] = True
+                diagnostics["task_id"] = str(task_result.id)
+            except Exception as e:
+                diagnostics["error"] = f"Failed to queue task: {str(e)}"
+                logger.exception("Failed to queue push notification task")
+                return Response(diagnostics, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            diagnostics["message"] = (
+                f"Test notification created (ID: {test_notification.id}) and push task queued. "
+                f"Check Celery worker logs for delivery status."
+            )
+
+            return Response(diagnostics, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            diagnostics["error"] = str(e)
+            logger.exception("Error in test push notification endpoint")
+            return Response(diagnostics, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class NewsFeedView(APIView):
     permission_classes = [IsAuthenticated]
 
