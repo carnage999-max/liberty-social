@@ -146,6 +146,7 @@ DATABASES = {
         "PORT": 5432,
         "OPTIONS": {
             "connect_timeout": "10",
+            "sslmode": "require",
         },
         "CONN_MAX_AGE": 600,
     }

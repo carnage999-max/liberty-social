@@ -41,9 +41,9 @@ time.sleep(2)  # ensure listener is ready before Celery starts
 PY
 
 # Start Celery (still from venv)
+# Note: Removed --uid nobody --gid nobody to avoid PostgreSQL certificate permission issues
 exec ./venv/bin/celery -A liberty_social worker \
   --loglevel=info \
-  --uid nobody --gid nobody \
   --concurrency="${CELERY_WORKER_CONCURRENCY:-2}" \
   --max-tasks-per-child="${CELERY_MAX_TASKS_PER_CHILD:-500}" \
   --prefetch-multiplier="${CELERY_PREFETCH_MULTIPLIER:-4}" \
