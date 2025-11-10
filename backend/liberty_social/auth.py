@@ -20,7 +20,13 @@ class JWTAuthMiddleware:
         # Debug logging
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"WebSocket connection attempt - token present: {bool(token)}, path: {scope.get('path', 'unknown')}")
+        
+        # Get origin from headers
+        headers = dict(scope.get("headers", []))
+        origin = headers.get(b"origin")
+        origin_str = origin.decode() if origin else "no origin header"
+        
+        logger.info(f"WebSocket connection attempt - token present: {bool(token)}, path: {scope.get('path', 'unknown')}, origin: {origin_str}")
 
         if token:
             user = await self._get_user(token)
