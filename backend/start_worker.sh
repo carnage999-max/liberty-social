@@ -4,6 +4,12 @@ set -euo pipefail
 PORT="${PORT:-8000}"
 echo "Starting health endpoint on port $PORT and Celery worker..."
 
+# Disable PostgreSQL client certificate requirements for Neon
+export PGSSLMODE=require
+export PGSSLROOTCERT=""
+export PGSSLCERT=""
+export PGSSLKEY=""
+
 # Path to Python inside your virtual environment
 PYTHON="./venv/bin/python"
 

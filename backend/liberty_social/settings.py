@@ -144,7 +144,10 @@ DATABASES = {
         "PASSWORD": config("DB_PASSWORD"),
         "HOST": config("DB_HOST"),
         "PORT": 5432,
-        "OPTIONS": {"sslmode": "require"},
+        "OPTIONS": {
+            "connect_timeout": "10",
+        },
+        "CONN_MAX_AGE": 600,
     }
 }
 
