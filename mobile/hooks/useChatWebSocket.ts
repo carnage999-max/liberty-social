@@ -43,14 +43,16 @@ export function useChatWebSocket({
         return;
       }
 
-      // Construct WebSocket URL
+      // Construct WebSocket URL - match frontend implementation
       const apiBase = getApiBase();
       // Convert HTTP/HTTPS to WS/WSS and remove /api suffix
       let wsBase = apiBase.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
-      wsBase = wsBase.replace(/\/api$/, '');
+      wsBase = wsBase.replace('/api', ''); // Match frontend: replace first occurrence
+      // Don't URL encode - backend expects raw token in query string (matches frontend)
       const wsUrl = `${wsBase}/ws/chat/${conversationId}/?token=${token}`;
 
       console.log('[WebSocket] Connecting to:', wsUrl.replace(/token=[^&]+/, 'token=***'));
+      console.log('[WebSocket] Token length:', token.length);
 
       // Close existing connection if any
       if (wsRef.current) {

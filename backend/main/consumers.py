@@ -12,18 +12,30 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     """Streams real-time chat events for a conversation."""
 
     async def connect(self):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         user = self.scope.get("user")
+        logger.info(f"ChatConsumer.connect - user: {user}, is_anonymous: {isinstance(user, AnonymousUser) if user else 'no user'}")
+        
         if not user or isinstance(user, AnonymousUser) or user.is_anonymous:
+            logger.warning("ChatConsumer.connect - Unauthorized (401)")
             await self.close(code=4401)
             return
 
         conversation_id = self.scope["url_route"]["kwargs"].get("conversation_id")
+        logger.info(f"ChatConsumer.connect - conversation_id: {conversation_id}")
+        
         if not conversation_id:
+            logger.warning("ChatConsumer.connect - Bad request (400) - missing conversation_id")
             await self.close(code=4400)
             return
 
         has_access = await self._user_in_conversation(user.id, conversation_id)
+        logger.info(f"ChatConsumer.connect - user {user.id} has access to conversation {conversation_id}: {has_access}")
+        
         if not has_access:
+            logger.warning(f"ChatConsumer.connect - Forbidden (403) - user {user.id} not a participant in conversation {conversation_id}")
             await self.close(code=4403)
             return
 

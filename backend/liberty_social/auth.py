@@ -17,14 +17,22 @@ class JWTAuthMiddleware:
         scope = dict(scope)
         token = self._get_token_from_scope(scope)
 
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"WebSocket connection attempt - token present: {bool(token)}, path: {scope.get('path', 'unknown')}")
+
         if token:
             user = await self._get_user(token)
             if user:
                 scope["user"] = user
+                logger.info(f"WebSocket authenticated user: {user.id}")
             else:
                 scope["user"] = AnonymousUser()
+                logger.warning("WebSocket token invalid or expired")
         else:
             scope.setdefault("user", AnonymousUser())
+            logger.warning("WebSocket connection without token")
 
         return await self.inner(scope, receive, send)
 
