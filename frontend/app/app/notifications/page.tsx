@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiPost } from "@/lib/api";
 import type { Notification } from "@/lib/types";
 import { useNotifications } from "@/hooks/useNotifications";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
 
@@ -22,36 +22,56 @@ export default function NotificationsPage() {
     loadingMore,
     refresh,
     count,
+    unreadCount,
   } = useNotifications();
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [markingAll, setMarkingAll] = useState(false);
 
-  const handleMarkRead = async (notificationId: number, e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-    if (!accessToken) return;
+  const handleMarkRead = useCallback(
+    async (notificationId: number, e?: React.MouseEvent) => {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      if (!accessToken) return;
+      try {
+        setUpdatingId(notificationId);
+        await apiPost(`/notifications/${notificationId}/mark_read/`, undefined, {
+          token: accessToken,
+          cache: "no-store",
+        });
+        await refresh();
+      } catch (err) {
+        console.error(err);
+        toast.show("Unable to mark notification. Please try again.", "error");
+      } finally {
+        setUpdatingId(null);
+      }
+    },
+    [accessToken, refresh, toast]
+  );
+
+  const handleMarkAllRead = async () => {
+    if (!accessToken || unreadCount === 0) return;
     try {
-      setUpdatingId(notificationId);
-      await apiPost(`/notifications/${notificationId}/mark_read/`, undefined, {
+      setMarkingAll(true);
+      await apiPost("/notifications/mark_all_read/", undefined, {
         token: accessToken,
         cache: "no-store",
       });
       await refresh();
     } catch (err) {
       console.error(err);
-      toast.show("Unable to mark notification. Please try again.", "error");
+      toast.show("Unable to mark all notifications. Please try again.", "error");
     } finally {
-      setUpdatingId(null);
+      setMarkingAll(false);
     }
   };
 
-  const handleNotificationClick = (notification: Notification) => {
-    // Mark as read if unread
+  const handleNotificationClick = async (notification: Notification) => {
     if (notification.unread) {
-      handleMarkRead(notification.id);
+      await handleMarkRead(notification.id);
     }
-    // Navigate to the post
     if (notification.target_post_id) {
       router.push(`/app/feed/${notification.target_post_id}`);
     }
@@ -76,11 +96,28 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold text-gray-300">Notifications</h1>
-        <p className="text-sm text-gray-500">
-          {count === 0 ? "Nothing new right now." : `${count} notification${count === 1 ? "" : "s"}`}
-        </p>
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-300">Notifications</h1>
+          <p className="text-sm text-gray-500">
+            {count === 0 ? "Nothing new right now." : `${count} notification${count === 1 ? "" : "s"}`}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={refresh}
+            className="rounded-full border border-white/40 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-white/20"
+          >
+            Refresh
+          </button>
+          <button
+            onClick={handleMarkAllRead}
+            disabled={!accessToken || unreadCount === 0 || markingAll}
+            className="rounded-full border border-[var(--color-deep-navy)] px-4 py-1.5 text-sm font-semibold text-[var(--color-deep-navy)] transition hover:bg-[var(--color-deep-navy)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {markingAll ? "Marking..." : unreadCount ? `Mark all as read (${unreadCount})` : "All caught up"}
+          </button>
+        </div>
       </header>
 
       {loading ? (
@@ -178,4 +215,3 @@ export default function NotificationsPage() {
     </div>
   );
 }
-

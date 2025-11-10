@@ -128,6 +128,18 @@ export default function AppShell({ children }: AppShellProps) {
     }
   );
   const { unreadCount: notificationUnreadCount } = useNotifications();
+
+  const getBadgeCount = useCallback(
+    (href: string) => {
+      if (href === "/app/friend-requests") return incomingFriendRequests;
+      if (href === "/app/notifications") return notificationUnreadCount;
+      return 0;
+    },
+    [incomingFriendRequests, notificationUnreadCount]
+  );
+
+  const notificationBadgeLabel =
+    notificationUnreadCount > 99 ? "99+" : String(notificationUnreadCount);
   usePushNotifications();
 
   const openCreateModal = useCallback(() => {
@@ -271,6 +283,27 @@ export default function AppShell({ children }: AppShellProps) {
               )}
             </button>
             <button
+              type="button"
+              onClick={() => handleNavigate("/app/notifications")}
+              aria-label="View notifications"
+              className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {notificationUnreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
+                  {notificationBadgeLabel}
+                </span>
+              )}
+            </button>
+            <button
                 type="button"
                 onClick={() => {
                   if (!user) {
@@ -327,6 +360,27 @@ export default function AppShell({ children }: AppShellProps) {
             <div className="flex items-center gap-3">
               <button
                 type="button"
+                onClick={() => handleNavigate("/app/notifications")}
+                aria-label="View notifications"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/30"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {notificationUnreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
+                    {notificationBadgeLabel}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   if (myProfileHref) router.push(myProfileHref);
                   else handleNavigate("/app/settings");
@@ -374,7 +428,7 @@ export default function AppShell({ children }: AppShellProps) {
               <ul className="space-y-2 text-sm font-medium">
                 {NAV_LINKS.map((link) => {
                   const active = pathname?.startsWith(link.href);
-                  const badgeCount = link.href === "/app/friend-requests" ? incomingFriendRequests : 0;
+                  const badgeCount = getBadgeCount(link.href);
                   const badgeLabel = badgeCount > 99 ? "99+" : String(badgeCount);
                   return (
                     <li key={link.href}>
@@ -458,15 +512,10 @@ export default function AppShell({ children }: AppShellProps) {
                     Navigation
                   </p>
                   <ul className="space-y-2 text-sm font-medium text-[var(--color-deep-navy)]">
-                    {NAV_LINKS.map((link) => {
-                      const active = pathname?.startsWith(link.href);
-                      let badgeCount = 0;
-                      if (link.href === "/app/friend-requests") {
-                        badgeCount = incomingFriendRequests;
-                      } else if (link.href === "/app/notifications") {
-                        badgeCount = notificationUnreadCount;
-                      }
-                      const badgeLabel = badgeCount > 99 ? "99+" : String(badgeCount);
+                {NAV_LINKS.map((link) => {
+                  const active = pathname?.startsWith(link.href);
+                  const badgeCount = getBadgeCount(link.href);
+                  const badgeLabel = badgeCount > 99 ? "99+" : String(badgeCount);
                       return (
                         <li key={link.href}>
                           <button

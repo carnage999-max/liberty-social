@@ -126,6 +126,13 @@ class NotificationViewSet(ModelViewSet):
         n.save()
         return Response({"status": "ok"})
 
+    @action(detail=False, methods=["post"], url_path="mark_all_read")
+    def mark_all_read(self, request):
+        updated = Notification.objects.filter(
+            recipient=request.user, unread=True
+        ).update(unread=False)
+        return Response({"updated": updated})
+
 
 class BookmarkViewSet(ModelViewSet):
     queryset = Bookmark.objects.all()
