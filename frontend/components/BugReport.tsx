@@ -49,7 +49,7 @@ export default function ReportBug() {
                     setMessage("");
                     setScreenshot(null);
                 }}
-                className="fixed bottom-24 right-6 bg-(--color-gold) text-(--color-deeper-navy) rounded-full w-14 h-14 shadow-metallic hover:scale-105 transition-transform flex items-center justify-center text-2xl z-50"
+                className="fixed bottom-24 left-6 bg-(--color-gold) text-(--color-deeper-navy) rounded-full w-14 h-14 shadow-metallic hover:scale-105 transition-transform flex items-center justify-center text-2xl z-50"
                 aria-label="Report Bug"
                 title="Report a bug"
             >

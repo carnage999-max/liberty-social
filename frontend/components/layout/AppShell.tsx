@@ -1004,105 +1004,12 @@ function CreatePostModal({
 }
 
 function FloatingCreateButton({ onOpen }: { onOpen: () => void }) {
-  const pointerStart = useRef({ x: 0, y: 0 });
-  const posStart = useRef({ x: 0, y: 0 });
-  const draggingRef = useRef(false);
-  const movedRef = useRef(false);
-
-  const [ready, setReady] = useState(false);
-  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 16, y: 160 });
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const buttonSize = 64;
-    const clampPosition = (prev: { x: number; y: number }) => ({
-      x: Math.min(Math.max(16, prev.x), Math.max(16, window.innerWidth - buttonSize - 16)),
-      y: Math.min(Math.max(16, prev.y), Math.max(16, window.innerHeight - buttonSize - 16)),
-    });
-
-    const frame = requestAnimationFrame(() => {
-      setPosition(
-        clampPosition({
-          x: window.innerWidth - buttonSize - 16,
-          y: window.innerHeight - buttonSize - 24,
-        })
-      );
-      setReady(true);
-    });
-
-    const handleResize = () => {
-      setPosition((prev) => clampPosition(prev));
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, []);
-
-  const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    pointerStart.current = { x: event.clientX, y: event.clientY };
-    posStart.current = { x: rect.left, y: rect.top };
-    draggingRef.current = true;
-    movedRef.current = false;
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (!draggingRef.current) return;
-    event.preventDefault();
-    const deltaX = event.clientX - pointerStart.current.x;
-    const deltaY = event.clientY - pointerStart.current.y;
-    if (!movedRef.current && (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4)) {
-      movedRef.current = true;
-    }
-    const button = event.currentTarget;
-    const rect = button.getBoundingClientRect();
-    const buttonWidth = rect.width;
-    const buttonHeight = rect.height;
-    const minX = 16;
-    const maxX = Math.max(minX, window.innerWidth - buttonWidth - 16);
-    const minY = 16;
-    const maxY = Math.max(minY, window.innerHeight - buttonHeight - 24);
-    const nextX = Math.min(Math.max(posStart.current.x + deltaX, minX), maxX);
-    const nextY = Math.min(Math.max(posStart.current.y + deltaY, minY), maxY);
-    setPosition({ x: nextX, y: nextY });
-  };
-
-  const finishDrag = (event: React.PointerEvent<HTMLButtonElement>, shouldTrigger = true) => {
-    if (!draggingRef.current) return;
-    event.preventDefault();
-    draggingRef.current = false;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    if (shouldTrigger && !movedRef.current) {
-      onOpen();
-    }
-    movedRef.current = false;
-  };
-
-  if (!ready) return null;
-
   return (
     <button
       type="button"
       aria-label="Create post"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={(event) => finishDrag(event, true)}
-      onPointerCancel={(event) => finishDrag(event, false)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onOpen();
-        }
-      }}
-      style={{ left: `${position.x}px`, top: `${position.y}px` }}
-      className="fixed z-40 flex h-14 w-14 items-center justify-center rounded-full btn-primary text-white shadow-metallic transition hover:scale-105 active:scale-95 touch-action-none cursor-grab active:cursor-grabbing"
+      onClick={onOpen}
+      className="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full btn-primary text-white shadow-metallic transition hover:scale-105 active:scale-95"
     >
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
