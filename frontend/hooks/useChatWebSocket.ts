@@ -29,6 +29,7 @@ export function useChatWebSocket({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const enabledRef = useRef(enabled);
+  const isConnectedRef = useRef(false);
 
   // Update enabled ref when it changes
   useEffect(() => {
@@ -53,6 +54,7 @@ export function useChatWebSocket({
       ws.onopen = () => {
         console.log("[WebSocket] Connected to conversation", conversationId);
         setIsConnected(true);
+        isConnectedRef.current = true;
         setReconnectAttempts(0);
         onConnect?.();
 
@@ -88,19 +90,42 @@ export function useChatWebSocket({
       };
 
       ws.onerror = (error) => {
-        console.error("[WebSocket] Error:", error);
-        onError?.(new Error("WebSocket connection error"));
+        // WebSocket error events don't provide detailed error info
+        // The error object is typically empty, so we check readyState instead
+        if (ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+          // Only log if we're not already handling the close event
+          console.warn("[WebSocket] Connection error occurred");
+        }
+        // Don't call onError here - let onclose handle it to avoid duplicate error handling
       };
 
       ws.onclose = (event) => {
-        console.log("[WebSocket] Disconnected", event.code, event.reason);
+        const wasConnected = isConnectedRef.current;
         setIsConnected(false);
+        isConnectedRef.current = false;
+        
+        // Only log disconnections if we were actually connected
+        if (wasConnected) {
+          console.log("[WebSocket] Disconnected", event.code, event.reason || "No reason provided");
+        }
+        
         onDisconnect?.();
 
         // Clear ping interval
         if (pingIntervalRef.current) {
           clearInterval(pingIntervalRef.current);
           pingIntervalRef.current = null;
+        }
+
+        // Report error for abnormal closures (not normal closure, going away, or abnormal closure)
+        // Code 1006 (abnormal closure) is common and usually just means connection was lost
+        // Only report errors for protocol/extension errors (1002, 1003, 1007, etc.)
+        if (event.code !== 1000 && event.code !== 1001 && event.code !== 1006) {
+          // These are actual errors that should be reported
+          onError?.(new Error(`WebSocket closed unexpectedly: ${event.code} ${event.reason || ""}`));
+        } else if (event.code === 1006 && wasConnected) {
+          // 1006 is common (network hiccup) - just log as warning if we were connected
+          console.warn("[WebSocket] Connection lost (code 1006) - will attempt to reconnect");
         }
 
         // Attempt to reconnect if enabled and not a normal closure
@@ -142,6 +167,7 @@ export function useChatWebSocket({
       wsRef.current = null;
     }
     setIsConnected(false);
+    isConnectedRef.current = false;
   }, []);
 
   useEffect(() => {

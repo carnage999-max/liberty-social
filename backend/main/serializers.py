@@ -433,23 +433,31 @@ class MessageSerializer(serializers.ModelSerializer):
         ]
 
     def get_reaction_summary(self, obj):
-        base = {choice[0]: 0 for choice in Reaction.TYPE_CHOICES}
-        total = 0
-        if hasattr(obj, "_prefetched_objects_cache") and "reactions" in obj._prefetched_objects_cache:
-            reactions_iterable = obj._prefetched_objects_cache["reactions"]
-        else:
-            reactions_manager = getattr(obj, "reactions", None)
-            if reactions_manager is not None:
-                reactions_iterable = reactions_manager.all()
+        try:
+            base = {choice[0]: 0 for choice in Reaction.TYPE_CHOICES}
+            total = 0
+            if hasattr(obj, "_prefetched_objects_cache") and "reactions" in obj._prefetched_objects_cache:
+                reactions_iterable = obj._prefetched_objects_cache["reactions"]
             else:
-                reactions_iterable = Reaction.objects.filter(
-                    content_type=ContentType.objects.get_for_model(Message),
-                    object_id=obj.id
-                ).select_related("user")
-        for reaction in reactions_iterable:
-            base[reaction.reaction_type] += 1
-            total += 1
-        return {"total": total, "by_type": base}
+                reactions_manager = getattr(obj, "reactions", None)
+                if reactions_manager is not None:
+                    reactions_iterable = reactions_manager.all()
+                else:
+                    reactions_iterable = Reaction.objects.filter(
+                        content_type=ContentType.objects.get_for_model(Message),
+                        object_id=obj.id
+                    ).select_related("user")
+            for reaction in reactions_iterable:
+                if reaction.reaction_type in base:
+                    base[reaction.reaction_type] += 1
+                    total += 1
+            return {"total": total, "by_type": base}
+        except Exception as e:
+            # Return empty summary if there's an error
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting reaction summary for message {obj.id}: {str(e)}")
+            return {"total": 0, "by_type": {choice[0]: 0 for choice in Reaction.TYPE_CHOICES}}
 
 
 class ConversationSerializer(serializers.ModelSerializer):

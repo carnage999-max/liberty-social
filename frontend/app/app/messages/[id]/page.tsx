@@ -54,10 +54,15 @@ export default function ConversationDetailPage() {
   const [reactionPendingId, setReactionPendingId] = useState<number | null>(null);
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageIdRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressMessageIdRef = useRef<number | null>(null);
+  const shouldAutoScrollRef = useRef(true);
+  const scrollPositionRef = useRef<number | null>(null);
 
   const loadConversation = async () => {
     if (!accessToken || !conversationId) return;
@@ -76,6 +81,15 @@ export default function ConversationDetailPage() {
   const loadMessages = async (silent = false) => {
     if (!accessToken || !conversationId) return;
     try {
+      // Save scroll position before reload if silent
+      if (silent && messagesContainerRef.current) {
+        scrollPositionRef.current = messagesContainerRef.current.scrollTop;
+        // Check if user is near bottom (within 200px)
+        const container = messagesContainerRef.current;
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+        shouldAutoScrollRef.current = isNearBottom;
+      }
+      
       if (!silent) setLoading(true);
       const response = await apiGet<PaginatedResponse<Message>>(
         `/conversations/${conversationId}/messages/`,
@@ -89,6 +103,15 @@ export default function ConversationDetailPage() {
       
       if (newMessages.length > 0) {
         lastMessageIdRef.current = newMessages[newMessages.length - 1].id;
+      }
+      
+      // Restore scroll position if silent reload and user was scrolled up
+      if (silent && scrollPositionRef.current !== null && !shouldAutoScrollRef.current) {
+        setTimeout(() => {
+          if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = scrollPositionRef.current!;
+          }
+        }, 50);
       }
     } catch (error) {
       if (!silent) toast.show("Failed to load messages", "error");
@@ -124,9 +147,13 @@ export default function ConversationDetailPage() {
         }
         const updated = [...prev, message];
         lastMessageIdRef.current = message.id;
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
+        
+        // Only auto-scroll if user is near bottom
+        if (shouldAutoScrollRef.current) {
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          }, 100);
+        }
         return updated;
       });
       markAsRead();
@@ -174,7 +201,10 @@ export default function ConversationDetailPage() {
   useEffect(() => {
     if (pollingEnabled && conversationId && accessToken) {
       pollingIntervalRef.current = setInterval(() => {
-        loadMessages(true);
+        // Only poll if user is near bottom (don't interrupt if reading old messages)
+        if (shouldAutoScrollRef.current) {
+          loadMessages(true);
+        }
       }, 5000);
     } else {
       if (pollingIntervalRef.current) {
@@ -197,6 +227,11 @@ export default function ConversationDetailPage() {
       loadConversation();
       loadMessages();
       markAsRead();
+      // Auto-scroll to bottom on initial load only
+      shouldAutoScrollRef.current = true;
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      }, 200);
     }
   }, [conversationId, accessToken]);
 
@@ -206,7 +241,10 @@ export default function ConversationDetailPage() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         markAsRead();
-        loadMessages(true);
+        // Only reload messages if user is near bottom (don't interrupt if reading old messages)
+        if (shouldAutoScrollRef.current) {
+          loadMessages(true);
+        }
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -215,9 +253,27 @@ export default function ConversationDetailPage() {
     };
   }, [conversationId, accessToken]);
 
-  // Auto-scroll to bottom when messages change
+  // Track scroll position to determine if we should auto-scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+      shouldAutoScrollRef.current = isNearBottom;
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll to bottom when messages change, but only if user is near bottom
+  useEffect(() => {
+    if (shouldAutoScrollRef.current) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    }
   }, [messages]);
 
   const handleFileSelect = () => {
@@ -468,7 +524,7 @@ export default function ConversationDetailPage() {
   return (
     <>
       <div className="flex flex-col h-[calc(100vh-200px)] sm:h-[calc(100vh-120px)]">
-        <header className="flex items-center gap-4 p-4 border-b bg-white shadow-sm">
+        <header className="flex items-center gap-4 p-4 border-b bg-white shadow-sm sticky top-0 z-30 flex-shrink-0">
           <button
             onClick={() => router.back()}
             className="text-gray-700 hover:text-gray-900 p-2 font-medium"
@@ -478,7 +534,10 @@ export default function ConversationDetailPage() {
           <h1 className="text-xl font-bold flex-1 text-gray-900">{getConversationTitle()}</h1>
         </header>
 
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 bg-gray-50">
+        <div 
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 bg-gray-50"
+        >
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full space-y-4">
               <p className="text-gray-500">No messages yet</p>
@@ -533,11 +592,40 @@ export default function ConversationDetailPage() {
                       )}
                       <div className="relative w-full min-w-0">
                         <div
-                          className={`rounded-lg p-3 w-full min-w-0 overflow-visible ${
+                          className={`rounded-lg p-3 w-full min-w-0 ${
                             isOwn
                               ? "bg-blue-600 text-white"
                               : "bg-white text-gray-900 border border-gray-200"
                           }`}
+                          style={{ overflow: 'visible', position: 'relative', zIndex: 1 }}
+                          onTouchStart={(e) => {
+                            // Mobile long-press to show reaction picker
+                            if (window.innerWidth <= 768) {
+                              longPressMessageIdRef.current = message.id;
+                              longPressTimerRef.current = window.setTimeout(() => {
+                                if (longPressMessageIdRef.current === message.id) {
+                                  setOpenReactionPickerId(message.id);
+                                  // Prevent default context menu
+                                  e.preventDefault();
+                                }
+                              }, 500); // 500ms long press
+                            }
+                          }}
+                          onTouchEnd={() => {
+                            if (longPressTimerRef.current) {
+                              clearTimeout(longPressTimerRef.current);
+                              longPressTimerRef.current = null;
+                            }
+                            longPressMessageIdRef.current = null;
+                          }}
+                          onTouchMove={() => {
+                            // Cancel long press if user moves finger
+                            if (longPressTimerRef.current) {
+                              clearTimeout(longPressTimerRef.current);
+                              longPressTimerRef.current = null;
+                            }
+                            longPressMessageIdRef.current = null;
+                          }}
                         >
                           {isEditing ? (
                             <div className="space-y-2">
@@ -605,28 +693,60 @@ export default function ConversationDetailPage() {
                                 </p>
                               )}
                               {/* Reactions display inside message bubble - starting from inner edge */}
-                              {message.reactions && message.reactions.length > 0 && (
-                                <div className={`mt-2 flex items-center gap-1 flex-wrap ${isOwn ? "justify-start" : "justify-start"}`}>
-                                  {Object.entries(
-                                    message.reactions.reduce((acc, r) => {
-                                      acc[r.reaction_type] = (acc[r.reaction_type] || 0) + 1;
-                                      return acc;
-                                    }, {} as Record<ReactionType, number>)
-                                  ).map(([type, count]) => (
-                                    <span
-                                      key={type}
-                                      className={`text-xs rounded-full px-2 py-1 flex items-center gap-1 flex-shrink-0 ${
-                                        isOwn
-                                          ? "bg-white/90 border border-white/60 text-blue-600 shadow-sm"
-                                          : "bg-gray-100 border border-gray-300 text-gray-700"
-                                      }`}
-                                    >
-                                      <span className="text-sm">{REACTION_EMOJIS[type as ReactionType]}</span>
-                                      <span className="font-semibold text-xs">{count}</span>
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
+                              {(() => {
+                                // Get reactions from either reaction_summary or reactions array
+                                let reactionCounts: Record<ReactionType, number> = {
+                                  like: 0,
+                                  love: 0,
+                                  haha: 0,
+                                  sad: 0,
+                                  angry: 0,
+                                };
+                                
+                                if (message.reaction_summary && message.reaction_summary.total > 0) {
+                                  // Use reaction_summary if available
+                                  reactionCounts = { ...message.reaction_summary.by_type };
+                                } else if (message.reactions && message.reactions.length > 0) {
+                                  // Fallback to reactions array
+                                  message.reactions.forEach((r) => {
+                                    if (r.reaction_type && reactionCounts[r.reaction_type] !== undefined) {
+                                      reactionCounts[r.reaction_type] = (reactionCounts[r.reaction_type] || 0) + 1;
+                                    }
+                                  });
+                                }
+                                
+                                const hasReactions = Object.values(reactionCounts).some(count => count > 0);
+                                
+                                if (!hasReactions) return null;
+                                
+                                return (
+                                  <div className={`mt-2 flex items-center gap-1.5 flex-wrap w-full ${isOwn ? "justify-start" : "justify-start"}`}>
+                                    {Object.entries(reactionCounts)
+                                      .filter(([_, count]) => count > 0)
+                                      .map(([type, count]) => (
+                                        <span
+                                          key={type}
+                                          className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold flex-shrink-0"
+                                          style={isOwn ? { 
+                                            backgroundColor: '#ffffff',
+                                            color: '#1e40af',
+                                            border: '2px solid rgba(255, 255, 255, 0.9)',
+                                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                                            zIndex: 10,
+                                            position: 'relative'
+                                          } : {
+                                            backgroundColor: '#f3f4f6',
+                                            color: '#1f2937',
+                                            border: '1px solid #d1d5db'
+                                          }}
+                                        >
+                                          <span className="text-base leading-none">{REACTION_EMOJIS[type as ReactionType]}</span>
+                                          <span className="leading-none font-bold">{count}</span>
+                                        </span>
+                                      ))}
+                                  </div>
+                                );
+                              })()}
                             </>
                           )}
                         </div>
@@ -701,9 +821,13 @@ export default function ConversationDetailPage() {
                               </button>
                               {openReactionPickerId === message.id && (
                                 <div 
-                                  className={`absolute bottom-full mb-2 z-20 ${isOwn ? "right-0" : "left-0"}`}
+                                  className="absolute bottom-full mb-2 z-20"
                                   style={isOwn ? {
                                     right: 0,
+                                    transform: 'translateX(0)',
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                    width: 'max-content',
                                     maxWidth: "min(100vw - 2rem, 300px)"
                                   } : {
                                     left: 0,
