@@ -213,6 +213,8 @@ class Message(models.Model):
         "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="replies"
     )
     is_deleted = models.BooleanField(default=False)
+    edited_at = models.DateTimeField(null=True, blank=True)
+    reactions = GenericRelation('main.Reaction', related_query_name='message')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

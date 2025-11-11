@@ -10,6 +10,7 @@ import { useToast } from "@/components/Toast";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { useAuth } from "@/lib/auth-context";
 import ProfileImageModal from "@/components/profile/ProfileImageModal";
+import ImageGallery from "@/components/ImageGallery";
 import { apiDelete, apiGet, apiPost, ApiError } from "@/lib/api";
 import type { Post, UserProfileOverview } from "@/lib/types";
 import { UserActionsMenu } from "@/components/profile/UserActionsMenu";
@@ -63,6 +64,13 @@ export default function UserProfilePage() {
     onConfirm: () => {},
   });
   const [profileImageModalOpen, setProfileImageModalOpen] = useState(false);
+  const [imageGallery, setImageGallery] = useState<{
+    images: string[];
+    currentIndex: number;
+    title?: string;
+    caption?: string;
+    timestamp?: string;
+  } | null>(null);
 
   const fetchOverview = useCallback(async (signal?: AbortSignal) => {
     if (!accessToken || !profileId) return;
@@ -390,7 +398,19 @@ export default function UserProfilePage() {
         className="rounded-[18px] border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur-sm"
       >
         <header className="mb-3 flex items-start gap-3">
-          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+          <button
+            type="button"
+            onClick={() => {
+              if (post.author.profile_image_url) {
+                setImageGallery({
+                  images: [post.author.profile_image_url],
+                  currentIndex: 0,
+                  title: authorLabel,
+                });
+              }
+            }}
+            className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
+          >
             {post.author.profile_image_url ? (
               <Image
                 src={post.author.profile_image_url}
@@ -404,7 +424,7 @@ export default function UserProfilePage() {
                 {(authorLabel || "U")[0]?.toUpperCase() || "U"}
               </span>
             )}
-          </div>
+          </button>
           <div>
             <p className="text-sm font-semibold text-gray-900">{authorLabel}</p>
             <p className="text-xs text-gray-500">{createdAt}</p>
@@ -419,14 +439,29 @@ export default function UserProfilePage() {
             ].join(" ")}
           >
             {mediaUrls.slice(0, 9).map((url, index) => (
-              <Image
+              <button
                 key={`${post.id}-media-${index}`}
-                src={url}
-                alt={`Post media ${index + 1}`}
-                width={320}
-                height={240}
-                className="h-full w-full rounded-lg border border-gray-200 object-cover"
-              />
+                type="button"
+                onClick={() =>
+                  setImageGallery({
+                    images: mediaUrls,
+                    currentIndex: index,
+                    title: authorLabel,
+                    caption: post.content || undefined,
+                    timestamp: post.created_at,
+                  })
+                }
+                className="group relative overflow-hidden rounded-lg border border-gray-200 bg-gray-50 transition hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
+              >
+                <Image
+                  src={url}
+                  alt={`Post media ${index + 1}`}
+                  width={320}
+                  height={240}
+                  className="h-full w-full object-cover"
+                />
+                <span className="absolute inset-0 bg-black/0 transition group-hover:bg-black/10" />
+              </button>
             ))}
           </div>
         )}
@@ -485,8 +520,18 @@ export default function UserProfilePage() {
                       {isSelf ? (
                         <button
                           type="button"
-                          onClick={() => setProfileImageModalOpen(true)}
-                          className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-(--color-deep-navy)/30 bg-gray-100 sm:h-28 sm:w-28"
+                          onClick={() => {
+                            if (overview.user.profile_image_url) {
+                              setImageGallery({
+                                images: [overview.user.profile_image_url],
+                                currentIndex: 0,
+                                title: displayName,
+                              });
+                            } else {
+                              setProfileImageModalOpen(true);
+                            }
+                          }}
+                          className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-(--color-deep-navy)/30 bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 sm:h-28 sm:w-28"
                         >
                           {overview.user.profile_image_url ? (
                             <Image
@@ -503,7 +548,19 @@ export default function UserProfilePage() {
                           )}
                         </button>
                       ) : (
-                        <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-(--color-deep-navy)/30 bg-gray-100 sm:h-28 sm:w-28">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (overview.user.profile_image_url) {
+                              setImageGallery({
+                                images: [overview.user.profile_image_url],
+                                currentIndex: 0,
+                                title: displayName,
+                              });
+                            }
+                          }}
+                          className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-(--color-deep-navy)/30 bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 sm:h-28 sm:w-28"
+                        >
                           {overview.user.profile_image_url ? (
                             <Image
                               src={overview.user.profile_image_url}
@@ -517,7 +574,7 @@ export default function UserProfilePage() {
                               {(displayName || "U").charAt(0).toUpperCase()}
                             </span>
                           )}
-                        </div>
+                        </button>
                       )}
                     <div>
                       <h1 className="text-2xl font-bold text-(--color-deep-navy) sm:text-3xl">{displayName}</h1>
@@ -620,14 +677,27 @@ export default function UserProfilePage() {
                           </div>
                           <div className="mt-4 grid gap-3 sm:grid-cols-3">
                             {photos.map((url, index) => (
-                              <Image
+                              <button
                                 key={`photo-${index}`}
-                                src={url}
-                                alt={`Photo ${index + 1}`}
-                                width={320}
-                                height={320}
-                                className="h-40 w-full rounded-xl border border-gray-200 object-cover"
-                              />
+                                type="button"
+                                onClick={() =>
+                                  setImageGallery({
+                                    images: photos,
+                                    currentIndex: index,
+                                    title: displayName,
+                                  })
+                                }
+                                className="group relative overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
+                              >
+                                <Image
+                                  src={url}
+                                  alt={`Photo ${index + 1}`}
+                                  width={320}
+                                  height={320}
+                                  className="h-40 w-full object-cover"
+                                />
+                                <span className="absolute inset-0 bg-black/0 transition group-hover:bg-black/10" />
+                              </button>
                             ))}
                           </div>
                         </>
@@ -690,6 +760,26 @@ export default function UserProfilePage() {
         currentImageUrl={overview?.user?.profile_image_url}
         userId={overview?.user?.id}
       />
-      </RequireAuth>
-    );
-  }
+      {imageGallery && (
+        <ImageGallery
+          open={true}
+          onClose={() => setImageGallery(null)}
+          images={imageGallery.images}
+          currentIndex={imageGallery.currentIndex}
+          onNavigate={(direction) => {
+            if (imageGallery.images.length <= 1) return;
+            const delta = direction === "prev" ? -1 : 1;
+            const nextIndex = (imageGallery.currentIndex + delta + imageGallery.images.length) % imageGallery.images.length;
+            setImageGallery((prev) => prev ? { ...prev, currentIndex: nextIndex } : null);
+          }}
+          onSelect={(index) => {
+            setImageGallery((prev) => prev ? { ...prev, currentIndex: index } : null);
+          }}
+          title={imageGallery.title}
+          caption={imageGallery.caption}
+          timestamp={imageGallery.timestamp}
+        />
+      )}
+    </RequireAuth>
+  );
+}

@@ -7,6 +7,7 @@ import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
+import ImageGallery from "@/components/ImageGallery";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -74,6 +75,10 @@ export default function FeedPage() {
   const pendingReactionsRef = useRef<Set<number>>(new Set());
   const [gallery, setGallery] = useState<{ postId: number; index: number } | null>(null);
   const [openReactionPickerPostId, setOpenReactionPickerPostId] = useState<number | null>(null);
+  const [profileImageGallery, setProfileImageGallery] = useState<{
+    image: string;
+    title?: string;
+  } | null>(null);
 
   useEffect(() => {
     pendingReactionsRef.current = pendingReactions;
@@ -391,10 +396,36 @@ export default function FeedPage() {
               <header className="mb-4 flex items-start justify-between gap-3">
                 {profileHref ? (
                   <Link href={profileHref} className="flex items-center gap-3 transition hover:opacity-90">
-                    <AuthorMeta authorLabel={authorLabel} createdAt={post.created_at} avatarUrl={post.author.profile_image_url} />
+                    <AuthorMeta
+                      authorLabel={authorLabel}
+                      createdAt={post.created_at}
+                      avatarUrl={post.author.profile_image_url}
+                      onAvatarClick={
+                        post.author.profile_image_url
+                          ? () =>
+                              setProfileImageGallery({
+                                image: post.author.profile_image_url!,
+                                title: authorLabel || undefined,
+                              })
+                          : undefined
+                      }
+                    />
                   </Link>
                 ) : (
-                  <AuthorMeta authorLabel={authorLabel} createdAt={post.created_at} avatarUrl={post.author.profile_image_url} />
+                  <AuthorMeta
+                    authorLabel={authorLabel}
+                    createdAt={post.created_at}
+                    avatarUrl={post.author.profile_image_url}
+                    onAvatarClick={
+                      post.author.profile_image_url
+                        ? () =>
+                            setProfileImageGallery({
+                              image: post.author.profile_image_url!,
+                              title: authorLabel || undefined,
+                            })
+                        : undefined
+                    }
+                  />
                 )}
                 <PostActionsMenu
                   post={post}
@@ -574,154 +605,62 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {gallery && (
-        <GalleryModal
-          posts={posts}
-          state={gallery}
-          onClose={closeGallery}
-          onNavigate={handleGalleryNavigate}
-          onSelect={(index) => setGallery((prev) => (prev ? { ...prev, index } : prev))}
+      {gallery && (() => {
+        const activePost = posts.find((post) => post.id === gallery.postId);
+        if (!activePost) return null;
+        const media = Array.isArray(activePost.media) ? activePost.media.filter(Boolean) : [];
+        if (media.length === 0) return null;
+        const authorLabel =
+          activePost.author.username ||
+          [activePost.author.first_name, activePost.author.last_name].filter(Boolean).join(" ") ||
+          activePost.author.email ||
+          "Post image";
+        return (
+          <ImageGallery
+            open={true}
+            onClose={closeGallery}
+            images={media}
+            currentIndex={gallery.index}
+            onNavigate={handleGalleryNavigate}
+            onSelect={(index) => setGallery((prev) => (prev ? { ...prev, index } : prev))}
+            title={authorLabel}
+            timestamp={activePost.created_at}
+            caption={activePost.content || undefined}
+          />
+        );
+      })()}
+      {profileImageGallery && (
+        <ImageGallery
+          open={true}
+          onClose={() => setProfileImageGallery(null)}
+          images={[profileImageGallery.image]}
+          currentIndex={0}
+          title={profileImageGallery.title}
         />
       )}
     </>
   );
 }
 
-type GalleryModalProps = {
-  posts: FeedPost[];
-  state: { postId: number; index: number };
-  onClose: () => void;
-  onNavigate: (direction: "prev" | "next") => void;
-  onSelect: (index: number) => void;
-};
-
-function GalleryModal({ posts, state, onClose, onNavigate, onSelect }: GalleryModalProps) {
-  const activePost = posts.find((post) => post.id === state.postId);
-  const media = activePost && Array.isArray(activePost.media) ? activePost.media.filter(Boolean) : [];
-  const authorLabel =
-    activePost?.author.username ||
-    [activePost?.author.first_name, activePost?.author.last_name].filter(Boolean).join(" ") ||
-    activePost?.author.email ||
-    "Post image";
-
-  if (!activePost || media.length === 0) return null;
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-10 sm:px-6"
-    >
-      <div className="relative flex max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white/95 shadow-2xl backdrop-blur">
-        <header className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <div>
-            <p className="text-sm font-semibold text-gray-800">{authorLabel}</p>
-            <p className="text-xs text-gray-500">
-              {new Date(activePost.created_at).toLocaleString()}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close gallery"
-            className="rounded-full bg-gray-100 p-2 text-gray-500 transition hover:bg-gray-200 hover:text-gray-700"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M6 6l12 12M6 18L18 6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        </header>
-
-        <div className="relative flex flex-1 items-center justify-center bg-gray-900">
-          <button
-            type="button"
-            onClick={() => onNavigate("prev")}
-            aria-label="Previous image"
-            className="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-lg transition hover:bg-white"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M15 18l-6-6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-
-          <div className="relative h-full w-full min-h-[260px] sm:min-h-[360px]">
-            <Image
-              key={media[state.index]}
-              src={media[state.index]}
-              alt={`Gallery image ${state.index + 1}`}
-              fill
-              sizes="(min-width: 1024px) 768px, 90vw"
-              priority
-              className="object-contain"
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onNavigate("next")}
-            aria-label="Next image"
-            className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-lg transition hover:bg-white"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M9 18l6-6-6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </div>
-
-        <footer className="flex flex-col gap-4 px-6 py-4">
-          <div className="flex items-center justify-center gap-2">
-            {media.map((_, index) => (
-              <button
-                key={`dot-${index}`}
-                type="button"
-                aria-label={`View image ${index + 1}`}
-                onClick={() => onSelect(index)}
-                className={[
-                  "h-2.5 rounded-full transition",
-                  index === state.index
-                    ? "w-6 bg-[var(--color-primary)]"
-                    : "w-2.5 bg-gray-300 hover:bg-gray-400",
-                ].join(" ")}
-              />
-            ))}
-          </div>
-          <p className="text-center text-xs text-gray-500">
-            {state.index + 1} of {media.length}
-          </p>
-        </footer>
-      </div>
-    </div>
-  );
-}
 function AuthorMeta({
   authorLabel,
   createdAt,
   avatarUrl,
+  onAvatarClick,
 }: {
   authorLabel: string | null | undefined;
   createdAt: string;
   avatarUrl?: string | null;
+  onAvatarClick?: () => void;
 }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+      <button
+        type="button"
+        onClick={onAvatarClick}
+        disabled={!avatarUrl || !onAvatarClick}
+        className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 disabled:cursor-default disabled:hover:opacity-100"
+      >
         {avatarUrl ? (
           <Image
             src={avatarUrl}
@@ -735,7 +674,7 @@ function AuthorMeta({
             {(authorLabel || "U")?.[0]?.toUpperCase() || "U"}
           </span>
         )}
-      </div>
+      </button>
       <div className="min-w-0">
         <p className="text-sm font-semibold text-gray-900">{authorLabel}</p>
         <p className="text-xs text-gray-500">{new Date(createdAt).toLocaleString()}</p>

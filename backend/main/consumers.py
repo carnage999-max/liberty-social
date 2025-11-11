@@ -63,6 +63,22 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             }
         )
 
+    async def message_updated(self, event):
+        await self.send_json(
+            {
+                "type": "message.updated",
+                "payload": event.get("data"),
+            }
+        )
+
+    async def message_deleted(self, event):
+        await self.send_json(
+            {
+                "type": "message.deleted",
+                "payload": event.get("data"),
+            }
+        )
+
     @sync_to_async
     def _user_in_conversation(self, user_id, conversation_id):
         return ConversationParticipant.objects.filter(

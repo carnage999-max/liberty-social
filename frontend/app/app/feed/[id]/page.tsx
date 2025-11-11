@@ -9,6 +9,7 @@ import { useToast } from "@/components/Toast";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
+import ImageGallery from "@/components/ImageGallery";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -140,6 +141,10 @@ export default function PostDetailPage() {
   const [replySubmitting, setReplySubmitting] = useState<Record<number, boolean>>({});
   const [expandedReplies, setExpandedReplies] = useState<Set<number>>(new Set());
   const [deleteCommentId, setDeleteCommentId] = useState<number | null>(null);
+  const [profileImageGallery, setProfileImageGallery] = useState<{
+    image: string;
+    title?: string;
+  } | null>(null);
 
   const handlePostMenuUpdated = useCallback(
     (updated: Post) => {
@@ -1022,7 +1027,24 @@ export default function PostDetailPage() {
               <>
                 <header className="mb-5 flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (post.author.profile_image_url) {
+                          const authorLabel =
+                            post.author.username ||
+                            [post.author.first_name, post.author.last_name].filter(Boolean).join(" ") ||
+                            post.author.email ||
+                            "Profile";
+                          setProfileImageGallery({
+                            image: post.author.profile_image_url,
+                            title: authorLabel,
+                          });
+                        }
+                      }}
+                      disabled={!post.author.profile_image_url}
+                      className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 disabled:cursor-default disabled:hover:opacity-100"
+                    >
                       {post.author.profile_image_url ? (
                         <Image
                           src={post.author.profile_image_url}
@@ -1037,7 +1059,7 @@ export default function PostDetailPage() {
                             post.author.email)?.[0]?.toUpperCase() || "U"}
                         </span>
                       )}
-                    </div>
+                    </button>
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
                         {post.author.username ||
@@ -1347,7 +1369,24 @@ export default function PostDetailPage() {
 
                         const renderAuthor = (
                           <div className="flex items-start gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gray-100">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (comment.author.profile_image_url) {
+                                  const authorLabel =
+                                    comment.author.username ||
+                                    [comment.author.first_name, comment.author.last_name].filter(Boolean).join(" ") ||
+                                    comment.author.email ||
+                                    "Profile";
+                                  setProfileImageGallery({
+                                    image: comment.author.profile_image_url,
+                                    title: authorLabel,
+                                  });
+                                }
+                              }}
+                              disabled={!comment.author.profile_image_url}
+                              className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 disabled:cursor-default disabled:hover:opacity-100"
+                            >
                               {comment.author.profile_image_url ? (
                                 <Image
                                   src={comment.author.profile_image_url}
@@ -1361,7 +1400,7 @@ export default function PostDetailPage() {
                                   {(comment.author.username || comment.author.email)?.[0]?.toUpperCase() || "U"}
                                 </span>
                               )}
-                            </div>
+                            </button>
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-gray-800">
                                 {comment.author.username || `${comment.author.first_name} ${comment.author.last_name}`}
@@ -1617,6 +1656,20 @@ export default function PostDetailPage() {
                                           <Link
                                             href={replyProfileHref}
                                             className="flex items-start gap-2 transition hover:opacity-90"
+                                            onClick={(e) => {
+                                              if (reply.author.profile_image_url) {
+                                                e.preventDefault();
+                                                const authorLabel =
+                                                  reply.author.username ||
+                                                  [reply.author.first_name, reply.author.last_name].filter(Boolean).join(" ") ||
+                                                  reply.author.email ||
+                                                  "Profile";
+                                                setProfileImageGallery({
+                                                  image: reply.author.profile_image_url,
+                                                  title: authorLabel,
+                                                });
+                                              }
+                                            }}
                                           >
                                             <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gray-100">
                                               {reply.author.profile_image_url ? (
@@ -1635,11 +1688,38 @@ export default function PostDetailPage() {
                                             </div>
                                           </Link>
                                         ) : (
-                                          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gray-100">
-                                            <span className="text-xs font-semibold text-gray-600">
-                                              {(reply.author.username || reply.author.email)?.[0]?.toUpperCase() || "U"}
-                                            </span>
-                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (reply.author.profile_image_url) {
+                                                const authorLabel =
+                                                  reply.author.username ||
+                                                  [reply.author.first_name, reply.author.last_name].filter(Boolean).join(" ") ||
+                                                  reply.author.email ||
+                                                  "Profile";
+                                                setProfileImageGallery({
+                                                  image: reply.author.profile_image_url,
+                                                  title: authorLabel,
+                                                });
+                                              }
+                                            }}
+                                            disabled={!reply.author.profile_image_url}
+                                            className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 disabled:cursor-default disabled:hover:opacity-100"
+                                          >
+                                            {reply.author.profile_image_url ? (
+                                              <Image
+                                                src={reply.author.profile_image_url}
+                                                alt={reply.author.username || reply.author.email || "Profile"}
+                                                width={32}
+                                                height={32}
+                                                className="h-full w-full object-cover"
+                                              />
+                                            ) : (
+                                              <span className="text-xs font-semibold text-gray-600">
+                                                {(reply.author.username || reply.author.email)?.[0]?.toUpperCase() || "U"}
+                                              </span>
+                                            )}
+                                          </button>
                                         )}
                                         <div className="min-w-0 flex-1">
                                           <div className="flex items-center gap-2">
@@ -1871,13 +1951,29 @@ export default function PostDetailPage() {
         </div>
       </section>
       {gallery && activeGalleryMedia.length > 0 && galleryMeta && (
-        <GalleryModal
-          media={activeGalleryMedia}
-          state={gallery}
-          meta={galleryMeta}
+        <ImageGallery
+          open={true}
           onClose={handleCloseGallery}
+          images={activeGalleryMedia}
+          currentIndex={gallery.index}
           onNavigate={handleGalleryNavigate}
           onSelect={handleGallerySelect}
+          title={galleryMeta.title}
+          timestamp={galleryMeta.timestamp}
+          caption={
+            gallery.type === "post"
+              ? post?.content || undefined
+              : (post?.comments ?? []).find((c) => c.id === gallery.commentId)?.content || undefined
+          }
+        />
+      )}
+      {profileImageGallery && (
+        <ImageGallery
+          open={true}
+          onClose={() => setProfileImageGallery(null)}
+          images={[profileImageGallery.image]}
+          currentIndex={0}
+          title={profileImageGallery.title}
         />
       )}
       <ConfirmationDialog
@@ -1898,97 +1994,3 @@ export default function PostDetailPage() {
   );
 }
 
-type GalleryModalProps = {
-  media: string[];
-  state: GalleryState;
-  meta: { title: string; timestamp: string } | null;
-  onClose: () => void;
-  onNavigate: (direction: "prev" | "next") => void;
-  onSelect: (index: number) => void;
-};
-
-function GalleryModal({ media, state, meta, onClose, onNavigate, onSelect }: GalleryModalProps) {
-  if (!meta) return null;
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-10 sm:px-6"
-    >
-      <div className="relative flex max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white/95 shadow-2xl backdrop-blur">
-        <header className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <div>
-            <p className="text-sm font-semibold text-gray-800">{meta.title}</p>
-            <p className="text-xs text-gray-500">{new Date(meta.timestamp).toLocaleString()}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close gallery"
-            className="rounded-full bg-gray-100 p-2 text-gray-500 transition hover:bg-gray-200 hover:text-gray-700"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </header>
-
-        <div className="relative flex flex-1 items-center justify-center bg-gray-900">
-          <button
-            type="button"
-            onClick={() => onNavigate("prev")}
-            aria-label="Previous image"
-            className="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-lg transition hover:bg-white"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-
-          <div className="relative h-full w-full min-h-[260px] sm:min-h-[360px]">
-            <Image
-              key={media[state.index]}
-              src={media[state.index]}
-              alt={`Gallery media ${state.index + 1}`}
-              fill
-              priority
-              sizes="(min-width: 1024px) 768px, 90vw"
-              className="object-contain"
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onNavigate("next")}
-            aria-label="Next image"
-            className="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-gray-700 shadow-lg transition hover:bg-white"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        </div>
-
-        <footer className="flex flex-col gap-4 px-6 py-4">
-          <div className="flex items-center justify-center gap-2">
-            {media.map((_, index) => (
-              <button
-                key={`gallery-dot-${index}`}
-                type="button"
-                aria-label={`View image ${index + 1}`}
-                onClick={() => onSelect(index)}
-                className={[
-                  "h-2.5 rounded-full transition",
-                  index === state.index ? "w-6 bg-[var(--color-primary)]" : "w-2.5 bg-gray-300 hover:bg-gray-400",
-                ].join(" ")}
-              />
-            ))}
-          </div>
-          <p className="text-center text-xs text-gray-500">
-            {state.index + 1} of {media.length}
-          </p>
-        </footer>
-      </div>
-    </div>
-  );
-}

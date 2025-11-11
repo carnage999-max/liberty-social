@@ -212,6 +212,7 @@ class ConversationViewSet(ModelViewSet):
         paginator.page_size = int(request.query_params.get("page_size", 25))
         qs = (
             conversation.messages.select_related("sender")
+            .prefetch_related("reactions__user")
             .order_by("-created_at")
         )
         page = paginator.paginate_queryset(qs, request)
@@ -292,6 +293,74 @@ class ConversationViewSet(ModelViewSet):
             conversation=conversation, user=request.user
         ).update(last_read_at=timezone.now())
         return Response({"updated": updated_count})
+
+    @action(detail=True, methods=["patch", "delete"], url_path="messages/(?P<message_id>[^/.]+)")
+    def message_action(self, request, pk=None, message_id=None):
+        """Edit or delete a message."""
+        conversation = self._ensure_participant(self.get_object())
+        try:
+            message = conversation.messages.get(id=message_id)
+        except Message.DoesNotExist:
+            return Response(
+                {"detail": "Message not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if message.sender != request.user:
+            return Response(
+                {"detail": "You can only edit or delete your own messages."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if request.method == "PATCH":
+            # Edit message
+            content = request.data.get("content", "").strip()
+            if not content:
+                return Response(
+                    {"detail": "Message content cannot be empty."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            message.content = content
+            message.edited_at = timezone.now()
+            message.save(update_fields=["content", "edited_at", "updated_at"])
+
+            serializer = MessageSerializer(message, context=self.get_serializer_context())
+
+            # Broadcast update via WebSocket
+            layer = get_channel_layer()
+            if layer:
+                try:
+                    async_to_sync(layer.group_send)(
+                        conversation_group_name(str(conversation.id)),
+                        {"type": "message_updated", "data": serializer.data},
+                    )
+                except Exception:
+                    pass
+
+            return Response(serializer.data)
+
+        elif request.method == "DELETE":
+            # Delete message (soft delete)
+            message.is_deleted = True
+            message.save(update_fields=["is_deleted", "updated_at"])
+            # Refresh to get reactions
+            message.refresh_from_db()
+            message.reactions.prefetch_related("user")
+
+            serializer = MessageSerializer(message, context=self.get_serializer_context())
+
+            # Broadcast deletion via WebSocket
+            layer = get_channel_layer()
+            if layer:
+                try:
+                    async_to_sync(layer.group_send)(
+                        conversation_group_name(str(conversation.id)),
+                        {"type": "message_deleted", "data": serializer.data},
+                    )
+                except Exception:
+                    pass
+
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class FirebaseConfigView(APIView):

@@ -69,7 +69,7 @@ export function ReactionPicker({ onSelect, onClose, currentReaction }: ReactionP
   return (
     <div
       ref={pickerRef}
-      className="absolute bottom-full left-0 z-50 mb-2 flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 shadow-xl"
+      className="absolute bottom-full z-50 mb-2 flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 shadow-xl"
       role="menu"
       aria-label="Reaction picker"
       style={{ animation: "fadeIn 0.15s ease-out" }}

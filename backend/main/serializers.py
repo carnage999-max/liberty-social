@@ -22,13 +22,14 @@ from users.serializers import UserSerializer
 
 class ReactionSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
-    # accept either post or comment id
+    # accept either post, comment, or message id
     post = serializers.PrimaryKeyRelatedField(queryset=Post.objects.all(), required=False, write_only=True)
     comment = serializers.PrimaryKeyRelatedField(queryset=Comment.objects.all(), required=False, write_only=True)
+    message = serializers.PrimaryKeyRelatedField(queryset=Message.objects.all(), required=False, write_only=True)
 
     class Meta:
         model = Reaction
-        fields = ["id", "post", "comment", "user", "reaction_type", "created_at"]
+        fields = ["id", "post", "comment", "message", "user", "reaction_type", "created_at"]
         read_only_fields = ["id", "user", "created_at"]
 
     def create(self, validated_data):
@@ -40,16 +41,20 @@ class ReactionSerializer(serializers.ModelSerializer):
 
         post = validated_data.pop('post', None)
         comment = validated_data.pop('comment', None)
+        message = validated_data.pop('message', None)
 
-        if post is None and comment is None:
-            raise serializers.ValidationError("Either 'post' or 'comment' must be provided.")
-        if post is not None and comment is not None:
-            raise serializers.ValidationError("Provide only one of 'post' or 'comment'.")
+        provided = [x for x in [post, comment, message] if x is not None]
+        if len(provided) == 0:
+            raise serializers.ValidationError("Either 'post', 'comment', or 'message' must be provided.")
+        if len(provided) > 1:
+            raise serializers.ValidationError("Provide only one of 'post', 'comment', or 'message'.")
 
         if post is not None:
             content_obj = post
-        else:
+        elif comment is not None:
             content_obj = comment
+        else:
+            content_obj = message
 
         # remove existing reaction by this user on this object
         ct = ContentType.objects.get_for_model(content_obj.__class__)
@@ -399,6 +404,8 @@ class MessageSerializer(serializers.ModelSerializer):
     reply_to = serializers.PrimaryKeyRelatedField(
         queryset=Message.objects.all(), allow_null=True, required=False
     )
+    reactions = ReactionSerializer(many=True, read_only=True)
+    reaction_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -410,6 +417,9 @@ class MessageSerializer(serializers.ModelSerializer):
             "media_url",
             "reply_to",
             "is_deleted",
+            "edited_at",
+            "reactions",
+            "reaction_summary",
             "created_at",
             "updated_at",
         ]
@@ -421,6 +431,25 @@ class MessageSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def get_reaction_summary(self, obj):
+        base = {choice[0]: 0 for choice in Reaction.TYPE_CHOICES}
+        total = 0
+        if hasattr(obj, "_prefetched_objects_cache") and "reactions" in obj._prefetched_objects_cache:
+            reactions_iterable = obj._prefetched_objects_cache["reactions"]
+        else:
+            reactions_manager = getattr(obj, "reactions", None)
+            if reactions_manager is not None:
+                reactions_iterable = reactions_manager.all()
+            else:
+                reactions_iterable = Reaction.objects.filter(
+                    content_type=ContentType.objects.get_for_model(Message),
+                    object_id=obj.id
+                ).select_related("user")
+        for reaction in reactions_iterable:
+            base[reaction.reaction_type] += 1
+            total += 1
+        return {"total": total, "by_type": base}
 
 
 class ConversationSerializer(serializers.ModelSerializer):

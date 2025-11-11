@@ -237,6 +237,9 @@ export interface Message {
   media_url?: string | null;
   reply_to?: number | null;
   is_deleted: boolean;
+  edited_at?: string | null;
+  reactions?: Reaction[];
+  reaction_summary?: ReactionSummary;
   created_at: string;
   updated_at: string;
 }

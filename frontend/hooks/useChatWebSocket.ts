@@ -73,6 +73,12 @@ export function useChatWebSocket({
           } else if (data.type === "message.created") {
             const message = data.payload as Message;
             onMessage?.(message);
+          } else if (data.type === "message.updated") {
+            const message = data.payload as Message;
+            window.dispatchEvent(new CustomEvent("message.updated", { detail: message }));
+          } else if (data.type === "message.deleted") {
+            const message = data.payload as Message;
+            window.dispatchEvent(new CustomEvent("message.deleted", { detail: message }));
           } else if (data.type === "pong") {
             // Heartbeat response
           }
