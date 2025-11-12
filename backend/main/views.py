@@ -314,13 +314,17 @@ class PageViewSet(ModelViewSet):
         admin.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=["post"], url_path="admin-invites")
+    @action(detail=True, methods=["post"], url_path="invite-admin")
     def send_invite(self, request, pk=None):
         page = self.get_object()
         if not _page_admin_entry(page, request.user):
             raise PermissionDenied("Only page admins can send invites.")
+        
+        # Accept both invitee_id and email for flexibility
         invitee_id = request.data.get("invitee_id")
+        email = request.data.get("email")
         role = request.data.get("role", "admin")
+        
         if role not in dict(PageAdmin.ROLE_CHOICES):
             role = "admin"
         if role == "owner":
@@ -328,18 +332,37 @@ class PageViewSet(ModelViewSet):
                 {"detail": "Cannot assign owner role via invite."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
         user_model = get_user_model()
-        try:
-            invitee = user_model.objects.get(id=invitee_id)
-        except user_model.DoesNotExist:
+        invitee = None
+        
+        # Lookup user by ID first, then by email
+        if invitee_id:
+            try:
+                invitee = user_model.objects.get(id=invitee_id)
+            except user_model.DoesNotExist:
+                return Response(
+                    {"detail": "Invitee not found."}, status=status.HTTP_404_NOT_FOUND
+                )
+        elif email:
+            try:
+                invitee = user_model.objects.get(email=email)
+            except user_model.DoesNotExist:
+                return Response(
+                    {"detail": "User with this email not found."}, status=status.HTTP_404_NOT_FOUND
+                )
+        else:
             return Response(
-                {"detail": "Invitee not found."}, status=status.HTTP_404_NOT_FOUND
+                {"detail": "Either invitee_id or email must be provided."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
+        
         if PageAdmin.objects.filter(page=page, user=invitee).exists():
             return Response(
                 {"detail": "User is already an admin for this page."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
         invite = PageAdminInvite.objects.create(
             page=page,
             inviter=request.user,
