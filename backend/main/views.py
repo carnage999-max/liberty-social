@@ -105,7 +105,9 @@ class PostViewSet(ModelViewSet):
         )
         mine = self.request.query_params.get("mine")
         if mine is not None and str(mine).lower() in ("1", "true", "yes"):
-            managed_pages = PageAdmin.objects.filter(user=self.request.user).values_list("page_id", flat=True)
+            managed_pages = PageAdmin.objects.filter(
+                user=self.request.user
+            ).values_list("page_id", flat=True)
             return qs.filter(Q(author=self.request.user) | Q(page_id__in=managed_pages))
         return qs
 
@@ -319,12 +321,12 @@ class PageViewSet(ModelViewSet):
         page = self.get_object()
         if not _page_admin_entry(page, request.user):
             raise PermissionDenied("Only page admins can send invites.")
-        
+
         # Accept both invitee_id and email for flexibility
         invitee_id = request.data.get("invitee_id")
         email = request.data.get("email")
         role = request.data.get("role", "admin")
-        
+
         if role not in dict(PageAdmin.ROLE_CHOICES):
             role = "admin"
         if role == "owner":
@@ -332,10 +334,10 @@ class PageViewSet(ModelViewSet):
                 {"detail": "Cannot assign owner role via invite."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         user_model = get_user_model()
         invitee = None
-        
+
         # Lookup user by ID first, then by email
         if invitee_id:
             try:
@@ -349,20 +351,21 @@ class PageViewSet(ModelViewSet):
                 invitee = user_model.objects.get(email=email)
             except user_model.DoesNotExist:
                 return Response(
-                    {"detail": "User with this email not found."}, status=status.HTTP_404_NOT_FOUND
+                    {"detail": "User with this email not found."},
+                    status=status.HTTP_404_NOT_FOUND,
                 )
         else:
             return Response(
                 {"detail": "Either invitee_id or email must be provided."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         if PageAdmin.objects.filter(page=page, user=invitee).exists():
             return Response(
                 {"detail": "User is already an admin for this page."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         invite = PageAdminInvite.objects.create(
             page=page,
             inviter=request.user,
@@ -444,9 +447,12 @@ class PageAdminInviteViewSet(ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         invite = self.get_object()
-        if invite.inviter != request.user and not PageAdmin.objects.filter(
-            page=invite.page, user=request.user, role="owner"
-        ).exists():
+        if (
+            invite.inviter != request.user
+            and not PageAdmin.objects.filter(
+                page=invite.page, user=request.user, role="owner"
+            ).exists()
+        ):
             raise PermissionDenied("You cannot cancel this invite.")
         invite.status = "cancelled"
         invite.responded_at = timezone.now()
@@ -534,7 +540,9 @@ class ConversationViewSet(ModelViewSet):
             .order_by("-created_at")
         )
         page = paginator.paginate_queryset(qs, request)
-        serializer = MessageSerializer(page, many=True, context=self.get_serializer_context())
+        serializer = MessageSerializer(
+            page, many=True, context=self.get_serializer_context()
+        )
         return paginator.get_paginated_response(serializer.data)
 
     @list_messages.mapping.post
@@ -574,7 +582,9 @@ class ConversationViewSet(ModelViewSet):
             last_message_at=message.created_at
         )
 
-        recipients = conversation.participants.exclude(user=request.user).select_related("user")
+        recipients = conversation.participants.exclude(
+            user=request.user
+        ).select_related("user")
         if recipients:
             conversation_ct = ContentType.objects.get_for_model(Conversation)
             Notification.objects.bulk_create(
@@ -612,7 +622,11 @@ class ConversationViewSet(ModelViewSet):
         ).update(last_read_at=timezone.now())
         return Response({"updated": updated_count})
 
-    @action(detail=True, methods=["patch", "delete"], url_path="messages/(?P<message_id>[^/.]+)")
+    @action(
+        detail=True,
+        methods=["patch", "delete"],
+        url_path="messages/(?P<message_id>[^/.]+)",
+    )
     def message_action(self, request, pk=None, message_id=None):
         """Edit or delete a message."""
         conversation = self._ensure_participant(self.get_object())
@@ -642,7 +656,9 @@ class ConversationViewSet(ModelViewSet):
             message.edited_at = timezone.now()
             message.save(update_fields=["content", "edited_at", "updated_at"])
 
-            serializer = MessageSerializer(message, context=self.get_serializer_context())
+            serializer = MessageSerializer(
+                message, context=self.get_serializer_context()
+            )
 
             # Broadcast update via WebSocket
             layer = get_channel_layer()
@@ -665,7 +681,9 @@ class ConversationViewSet(ModelViewSet):
             message.refresh_from_db()
             message.reactions.prefetch_related("user")
 
-            serializer = MessageSerializer(message, context=self.get_serializer_context())
+            serializer = MessageSerializer(
+                message, context=self.get_serializer_context()
+            )
 
             # Broadcast deletion via WebSocket
             layer = get_channel_layer()
@@ -864,7 +882,9 @@ class TestPushNotificationView(APIView):
             except Exception as e:
                 diagnostics["error"] = f"Failed to queue task: {str(e)}"
                 logger.exception("Failed to queue push notification task")
-                return Response(diagnostics, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response(
+                    diagnostics, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
             diagnostics["message"] = (
                 f"Test notification created (ID: {test_notification.id}) and push task queued. "

@@ -47,17 +47,15 @@ export function EmojiPickerPopper({
       // Calculate available space
       const spaceAbove = triggerRect.top;
       const spaceBelow = viewportHeight - triggerRect.bottom;
-      const spaceLeft = triggerRect.left;
-      const spaceRight = viewportWidth - triggerRect.right;
 
       let top = 0;
       let left = 0;
 
-      // Position vertically: prefer above, fallback to below
-      if (spaceAbove > pickerHeight + 10) {
-        top = triggerRect.top - pickerHeight - 10;
-      } else if (spaceBelow > pickerHeight + 10) {
+      // Position vertically: prefer below first (more common), fallback to above
+      if (spaceBelow > pickerHeight + 10) {
         top = triggerRect.bottom + 10;
+      } else if (spaceAbove > pickerHeight + 10) {
+        top = triggerRect.top - pickerHeight - 10;
       } else {
         // Center vertically if not enough space
         top = Math.max(
@@ -69,15 +67,14 @@ export function EmojiPickerPopper({
         );
       }
 
-      // Position horizontally: prefer right-aligned with trigger, fallback to left
-      if (spaceRight >= pickerWidth) {
-        left = triggerRect.right - pickerWidth;
-      } else if (spaceLeft >= pickerWidth) {
-        left = triggerRect.left;
-      } else {
-        // Center horizontally if not enough space
-        left = Math.max(10, Math.min(triggerRect.left + triggerRect.width / 2 - pickerWidth / 2, viewportWidth - pickerWidth - 10));
-      }
+      // Position horizontally: right-align with trigger, or center if not enough space
+      left = Math.max(
+        10,
+        Math.min(
+          triggerRect.right - pickerWidth,
+          viewportWidth - pickerWidth - 10
+        )
+      );
 
       const maxWidth = Math.max(150, Math.min(pickerWidth, viewportWidth - 20));
 
@@ -89,7 +86,7 @@ export function EmojiPickerPopper({
     };
 
     // Update position when opened
-    updatePosition();
+    setTimeout(updatePosition, 0);
 
     // Update position on scroll or resize
     window.addEventListener("scroll", updatePosition, true);
