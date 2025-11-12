@@ -173,8 +173,8 @@ export default function PageDetail() {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-3xl border border-(--color-border) bg-white/80 shadow">
-        <div className="relative h-48 w-full overflow-hidden rounded-t-3xl bg-(--color-soft-bg)">
+      <section className="rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="relative h-48 w-full bg-gray-100">
           {page.cover_image_url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -184,9 +184,9 @@ export default function PageDetail() {
             />
           )}
         </div>
-        <div className="-mt-14 flex flex-col gap-4 px-6 pb-6 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-4 px-6 pt-6 pb-6 md:flex-row md:items-start md:justify-between">
           <div className="flex gap-4">
-            <div className="h-24 w-24 overflow-hidden rounded-2xl border-4 border-white bg-(--color-soft-bg)">
+            <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-gray-100 shadow-md">
               {page.profile_image_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -195,34 +195,34 @@ export default function PageDetail() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-(--color-deep-navy)">
+                <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-gray-700">
                   {page.name.slice(0, 1).toUpperCase()}
                 </div>
               )}
             </div>
-            <div>
+            <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-semibold text-(--color-deep-navy)">{page.name}</h1>
+                <h1 className="text-2xl font-semibold text-black">{page.name}</h1>
                 {page.is_verified && (
-                  <span className="rounded-full bg-(--color-primary-light) px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-(--color-primary)">
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-600">
                     Verified
                   </span>
                 )}
               </div>
-              <p className="text-sm text-(--color-muted) capitalize">{page.category}</p>
-              <p className="text-sm text-(--color-muted)">
+              <p className="text-sm text-gray-600 capitalize">{page.category}</p>
+              <p className="text-sm text-gray-600">
                 {page.follower_count || 0} follower{(page.follower_count || 0) === 1 ? "" : "s"}
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 md:flex-shrink-0">
             <button
               type="button"
               onClick={toggleFollow}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                 isFollowing
-                  ? "border border-(--color-border) text-(--color-deep-navy) hover:border-(--color-deep-navy)"
-                  : "bg-(--color-deep-navy) text-white hover:bg-(--color-deeper-navy)"
+                  ? "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  : "bg-black text-white hover:bg-gray-900"
               }`}
             >
               {isFollowing ? "Following" : "Follow"}
@@ -231,7 +231,7 @@ export default function PageDetail() {
               <button
                 type="button"
                 onClick={handleEditClick}
-                className="rounded-full border border-(--color-border) px-4 py-2 text-sm font-semibold text-(--color-deep-navy) transition hover:bg-gray-100"
+                className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               >
                 Edit
               </button>
@@ -241,16 +241,16 @@ export default function PageDetail() {
       </section>
 
       <section className="grid gap-6 md:grid-cols-3">
-        <div className="space-y-4 rounded-3xl border border-(--color-border) bg-white/70 p-5 shadow md:col-span-2">
-          <h2 className="text-lg font-semibold text-(--color-deep-navy)">About</h2>
-          <p className="text-sm text-(--color-muted) whitespace-pre-line">
+        <div className="space-y-4 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:col-span-2">
+          <h2 className="text-lg font-semibold text-black">About</h2>
+          <p className="text-sm text-gray-700 whitespace-pre-line">
             {page.description || "No description provided yet."}
           </p>
-          <div className="grid gap-3 text-sm text-(--color-deep-navy)">
+          <div className="grid gap-3 text-sm text-gray-700">
             {page.website_url && (
               <div>
                 Website:{" "}
-                <a href={page.website_url} target="_blank" rel="noreferrer" className="text-(--color-primary)">
+                <a href={page.website_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
                   {page.website_url}
                 </a>
               </div>
@@ -260,28 +260,28 @@ export default function PageDetail() {
           </div>
         </div>
 
-        <div className="space-y-3 rounded-3xl border border-(--color-border) bg-white/70 p-5 shadow">
+        <div className="space-y-3 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-(--color-deep-navy)">Admins</h2>
+            <h2 className="text-lg font-semibold text-black">Admins</h2>
             {canManage && (
               <Link
                 href="/app/admin-invites"
-                className="text-sm font-semibold text-(--color-primary) hover:underline"
+                className="text-sm font-semibold text-blue-600 hover:underline"
               >
                 Manage
               </Link>
             )}
           </div>
           {admins.length === 0 ? (
-            <p className="text-sm text-(--color-muted)">Admin details unavailable.</p>
+            <p className="text-sm text-gray-600">Admin details unavailable.</p>
           ) : (
             <ul className="space-y-2">
               {admins.map((admin) => (
-                <li key={admin.id} className="flex items-center justify-between rounded-2xl bg-(--color-soft-bg) px-3 py-2 text-sm">
-                  <span className="font-semibold text-(--color-deep-navy)">
+                <li key={admin.id} className="flex items-center justify-between rounded-2xl bg-gray-50 px-3 py-2 text-sm">
+                  <span className="font-semibold text-gray-900">
                     {admin.user.first_name} {admin.user.last_name || ""}
                   </span>
-                  <span className="text-xs uppercase text-(--color-muted)">{admin.role}</span>
+                  <span className="text-xs uppercase text-gray-600">{admin.role}</span>
                 </li>
               ))}
             </ul>
