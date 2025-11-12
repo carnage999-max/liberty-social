@@ -9,6 +9,10 @@ class Post(models.Model):
 		("friends", "friends"),
 		("only_me", "only_me"),
 	)
+	AUTHOR_TYPE_CHOICES = (
+		("user", "user"),
+		("page", "page"),
+	)
 
 	author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='posts')
 	content = models.TextField()
@@ -16,6 +20,8 @@ class Post(models.Model):
 	edited_at = models.DateTimeField(null=True, blank=True)
 	deleted_at = models.DateTimeField(null=True, blank=True)
 	visibility = models.CharField(max_length=10, choices=VISIBILITY, default='public')
+	author_type = models.CharField(max_length=10, choices=AUTHOR_TYPE_CHOICES, default='user')
+	page = models.ForeignKey('main.Page', on_delete=models.CASCADE, related_name='posts', blank=True, null=True)
 	created_at = models.DateTimeField(auto_now_add=True)
 	updated_at = models.DateTimeField(auto_now=True)
 	reactions = GenericRelation('main.Reaction', related_query_name='post')
@@ -23,8 +29,14 @@ class Post(models.Model):
 	class Meta:
 		ordering = ['-created_at']
 
+	def clean(self):
+		if self.author_type == 'page' and not self.page_id:
+			raise ValueError("Page-authored posts must reference a page.")
+		if self.author_type == 'user' and self.page_id:
+			raise ValueError("User-authored posts cannot reference a page.")
+
 	def __str__(self):
-		return f"Post {self.id} by {self.author}"
+		return f"Post {self.id} ({self.author_type})"
 
 
 class Comment(models.Model):
@@ -227,3 +239,123 @@ class Message(models.Model):
 
     def __str__(self):
         return f"Message {self.id} in {self.conversation_id}"
+
+
+class Page(models.Model):
+	CATEGORY_CHOICES = (
+		("business", "business"),
+		("community", "community"),
+		("brand", "brand"),
+		("other", "other"),
+	)
+
+	name = models.CharField(max_length=255)
+	description = models.TextField(blank=True)
+	category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default="other")
+	website_url = models.URLField(blank=True, null=True)
+	phone = models.CharField(max_length=50, blank=True, null=True)
+	email = models.EmailField(blank=True, null=True)
+	profile_image_url = models.URLField(blank=True, null=True)
+	cover_image_url = models.URLField(blank=True, null=True)
+	is_verified = models.BooleanField(default=False)
+	is_active = models.BooleanField(default=True)
+	created_by = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		related_name="pages_created",
+		on_delete=models.CASCADE,
+	)
+	created_at = models.DateTimeField(auto_now_add=True)
+	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		ordering = ["name"]
+
+	def __str__(self):
+		return self.name
+
+
+class PageAdmin(models.Model):
+	ROLE_CHOICES = (
+		("owner", "owner"),
+		("admin", "admin"),
+		("editor", "editor"),
+		("moderator", "moderator"),
+	)
+
+	page = models.ForeignKey(Page, related_name="admins", on_delete=models.CASCADE)
+	user = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		related_name="page_admin_roles",
+		on_delete=models.CASCADE,
+	)
+	role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="admin")
+	added_by = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		related_name="page_admins_added",
+		on_delete=models.CASCADE,
+	)
+	added_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		unique_together = ("page", "user")
+		ordering = ["-added_at"]
+
+	def __str__(self):
+		return f"{self.user} as {self.role} on {self.page}"
+
+
+class PageAdminInvite(models.Model):
+	STATUS_CHOICES = (
+		("pending", "pending"),
+		("accepted", "accepted"),
+		("declined", "declined"),
+		("cancelled", "cancelled"),
+	)
+
+	ROLE_CHOICES = tuple(choice for choice in PageAdmin.ROLE_CHOICES if choice[0] != "owner")
+
+	page = models.ForeignKey(Page, related_name="admin_invites", on_delete=models.CASCADE)
+	inviter = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		related_name="page_admin_invites_sent",
+		on_delete=models.CASCADE,
+	)
+	invitee = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		related_name="page_admin_invites",
+		on_delete=models.CASCADE,
+	)
+	status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+	role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="admin")
+	invited_at = models.DateTimeField(auto_now_add=True)
+	responded_at = models.DateTimeField(blank=True, null=True)
+
+	class Meta:
+		constraints = [
+			models.UniqueConstraint(
+				fields=["page", "invitee"],
+				condition=models.Q(status="pending"),
+				name="unique_pending_invite_per_user",
+			)
+		]
+		ordering = ["-invited_at"]
+
+	def __str__(self):
+		return f"Invite {self.page} -> {self.invitee} ({self.status})"
+
+
+class PageFollower(models.Model):
+	page = models.ForeignKey(Page, related_name="followers", on_delete=models.CASCADE)
+	user = models.ForeignKey(
+		settings.AUTH_USER_MODEL,
+		related_name="followed_pages",
+		on_delete=models.CASCADE,
+	)
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		unique_together = ("page", "user")
+		ordering = ["-created_at"]
+
+	def __str__(self):
+		return f"{self.user} follows {self.page}"

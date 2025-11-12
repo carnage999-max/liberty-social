@@ -16,6 +16,10 @@ from .models import (
     Conversation,
     ConversationParticipant,
     Message,
+    Page,
+    PageAdmin,
+    PageAdminInvite,
+    PageFollower,
 )
 from users.serializers import UserSerializer
 
@@ -62,6 +66,111 @@ class ReactionSerializer(serializers.ModelSerializer):
 
         reaction = Reaction.objects.create(content_type=ct, object_id=content_obj.id, user=user, reaction_type=validated_data.get('reaction_type', 'like'))
         return reaction
+
+
+class PageSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Page
+        fields = [
+            "id",
+            "name",
+            "category",
+            "profile_image_url",
+            "cover_image_url",
+            "is_verified",
+        ]
+
+
+class PageSerializer(PageSummarySerializer):
+    created_by = UserSerializer(read_only=True)
+    follower_count = serializers.SerializerMethodField()
+    admin_count = serializers.SerializerMethodField()
+    is_following = serializers.SerializerMethodField()
+
+    class Meta(PageSummarySerializer.Meta):
+        model = Page
+        fields = PageSummarySerializer.Meta.fields + [
+            "description",
+            "website_url",
+            "phone",
+            "email",
+            "is_active",
+            "created_by",
+            "created_at",
+            "updated_at",
+            "follower_count",
+            "admin_count",
+            "is_following",
+        ]
+        read_only_fields = [
+            "id",
+            "created_by",
+            "created_at",
+            "updated_at",
+            "follower_count",
+            "admin_count",
+            "is_verified",
+            "is_following",
+        ]
+
+    def get_request_user(self):
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            return request.user
+        return None
+
+    def get_follower_count(self, obj):
+        return getattr(obj, "_followers_count", None) or obj.followers.count()
+
+    def get_admin_count(self, obj):
+        return getattr(obj, "_admins_count", None) or obj.admins.count()
+
+    def get_is_following(self, obj):
+        user = self.get_request_user()
+        if not user or not user.is_authenticated:
+            return False
+        if hasattr(obj, "_prefetched_objects_cache") and "followers" in obj._prefetched_objects_cache:
+            return any(follower.user_id == user.id for follower in obj._prefetched_objects_cache["followers"])
+        return obj.followers.filter(user=user).exists()
+
+
+class PageAdminSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    added_by = UserSerializer(read_only=True)
+
+    class Meta:
+        model = PageAdmin
+        fields = ["id", "page", "user", "role", "added_by", "added_at"]
+        read_only_fields = ["id", "page", "user", "added_by", "added_at"]
+
+
+class PageAdminInviteSerializer(serializers.ModelSerializer):
+    page = PageSummarySerializer(read_only=True)
+    inviter = UserSerializer(read_only=True)
+    invitee = UserSerializer(read_only=True)
+
+    class Meta:
+        model = PageAdminInvite
+        fields = [
+            "id",
+            "page",
+            "inviter",
+            "invitee",
+            "role",
+            "status",
+            "invited_at",
+            "responded_at",
+        ]
+        read_only_fields = fields
+
+
+class PageFollowerSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = PageFollower
+        fields = ["id", "page", "user", "created_at"]
+        read_only_fields = fields
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -194,6 +303,15 @@ class CommentSerializer(serializers.ModelSerializer):
 
 class PostSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
+    page = PageSummarySerializer(read_only=True)
+    page_id = serializers.PrimaryKeyRelatedField(
+        queryset=Page.objects.filter(is_active=True),
+        required=False,
+        allow_null=True,
+        write_only=True,
+        source="page",
+    )
+    author_type = serializers.CharField(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
     reactions = ReactionSerializer(many=True, read_only=True)
     media = serializers.SerializerMethodField()
@@ -207,6 +325,9 @@ class PostSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "author",
+            "author_type",
+            "page",
+            "page_id",
             "content",
             "media",
             "media_urls",
@@ -221,6 +342,8 @@ class PostSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "author",
+            "author_type",
+            "page",
             "created_at",
             "updated_at",
             "comments",
@@ -234,6 +357,8 @@ class PostSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and getattr(request, 'user', None):
             validated_data['author'] = request.user
+        page = validated_data.get("page")
+        validated_data["author_type"] = "page" if page else "user"
         media_urls = validated_data.pop('media_urls', [])
         post = super().create(validated_data)
         for index, url in enumerate(media_urls):

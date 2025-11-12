@@ -11,6 +11,8 @@ from .views import (
     BookmarkViewSet,
     DeviceTokenViewSet,
     ConversationViewSet,
+    PageViewSet,
+    PageAdminInviteViewSet,
     FirebaseConfigView,
     RedisHealthView,
     WebSocketDiagnosticView,
@@ -26,6 +28,8 @@ router.register("notifications", NotificationViewSet, basename="notifications")
 router.register("bookmarks", BookmarkViewSet, basename="bookmarks")
 router.register("device-tokens", DeviceTokenViewSet, basename="device-tokens")
 router.register("conversations", ConversationViewSet, basename="conversations")
+router.register("pages", PageViewSet, basename="pages")
+router.register("admin-invites", PageAdminInviteViewSet, basename="admin-invites")
 
 urlpatterns = [
     path("", include(router.urls)),

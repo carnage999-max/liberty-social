@@ -130,6 +130,8 @@ export type Visibility = "public" | "friends" | "only_me";
 export interface Post {
   id: number;
   author: User;
+  author_type: "user" | "page";
+  page?: PageSummary | null;
   content: string;
   media?: string[] | null;
   media_urls?: string[];
@@ -140,6 +142,57 @@ export interface Post {
   reactions: Reaction[];
   bookmarked?: boolean;
   bookmark_id?: number | null;
+}
+
+// ----------------------
+// PAGES
+// ----------------------
+
+export type PageRole = "owner" | "admin" | "editor" | "moderator";
+
+export interface PageSummary {
+  id: number;
+  name: string;
+  category: string;
+  profile_image_url?: string | null;
+  cover_image_url?: string | null;
+  is_verified?: boolean;
+}
+
+export interface Page extends PageSummary {
+  description?: string;
+  website_url?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  is_active: boolean;
+  created_by: User;
+  created_at: string;
+  updated_at: string;
+  follower_count?: number;
+  admin_count?: number;
+  is_following?: boolean;
+}
+
+export interface PageAdmin {
+  id: number;
+  page: number;
+  user: User;
+  role: PageRole;
+  added_by: User;
+  added_at: string;
+}
+
+export type PageInviteStatus = "pending" | "accepted" | "declined" | "cancelled";
+
+export interface PageAdminInvite {
+  id: number;
+  page: PageSummary;
+  inviter: User;
+  invitee: User;
+  role: Exclude<PageRole, "owner">;
+  status: PageInviteStatus;
+  invited_at: string;
+  responded_at?: string | null;
 }
 
 export type ReactionSummary = {

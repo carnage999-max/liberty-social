@@ -3,6 +3,7 @@ import logging
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from redis import asyncio as redis_async
 from rest_framework.viewsets import ModelViewSet
@@ -27,6 +28,10 @@ from .models import (
     Conversation,
     ConversationParticipant,
     Message,
+    Page,
+    PageAdmin,
+    PageAdminInvite,
+    PageFollower,
 )
 from .realtime import conversation_group_name
 from .serializers import (
@@ -38,6 +43,10 @@ from .serializers import (
     DeviceTokenSerializer,
     ConversationSerializer,
     MessageSerializer,
+    PageSerializer,
+    PageAdminSerializer,
+    PageAdminInviteSerializer,
+    PageFollowerSerializer,
 )
 from users.models import Friends
 
@@ -65,6 +74,15 @@ def _check_redis_connection(redis_url: str):
         loop.close()
 
 
+def _page_admin_entry(page: Page, user, roles=None):
+    if not user or not user.is_authenticated:
+        return None
+    qs = PageAdmin.objects.filter(page=page, user=user)
+    if roles:
+        qs = qs.filter(role__in=roles)
+    return qs.first()
+
+
 class PostViewSet(ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
@@ -73,7 +91,7 @@ class PostViewSet(ModelViewSet):
     def get_queryset(self):
         qs = (
             Post.objects.filter(deleted_at__isnull=True)
-            .select_related("author")
+            .select_related("author", "page")
             .prefetch_related(
                 "comments__author",
                 "comments__media",
@@ -87,20 +105,33 @@ class PostViewSet(ModelViewSet):
         )
         mine = self.request.query_params.get("mine")
         if mine is not None and str(mine).lower() in ("1", "true", "yes"):
-            return qs.filter(author=self.request.user)
+            managed_pages = PageAdmin.objects.filter(user=self.request.user).values_list("page_id", flat=True)
+            return qs.filter(Q(author=self.request.user) | Q(page_id__in=managed_pages))
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        page = serializer.validated_data.get("page")
+        if page:
+            if not _page_admin_entry(page, self.request.user):
+                raise PermissionDenied("You do not manage this page.")
+            serializer.save(author=self.request.user, author_type="page")
+        else:
+            serializer.save(author=self.request.user, author_type="user")
 
     def perform_update(self, serializer):
         instance = serializer.instance
-        if instance.author != self.request.user:
+        if instance.author_type == "page":
+            if not _page_admin_entry(instance.page, self.request.user):
+                raise PermissionDenied("You are not allowed to edit this page post.")
+        elif instance.author != self.request.user:
             raise PermissionDenied("You are not allowed to edit this post.")
         serializer.save(edited_at=timezone.now())
 
     def perform_destroy(self, instance):
-        if instance.author != self.request.user:
+        if instance.author_type == "page":
+            if not _page_admin_entry(instance.page, self.request.user):
+                raise PermissionDenied("You are not allowed to delete this page post.")
+        elif instance.author != self.request.user:
             raise PermissionDenied("You are not allowed to delete this post.")
         instance.deleted_at = timezone.now()
         instance.save()
@@ -198,6 +229,243 @@ class DeviceTokenViewSet(ModelViewSet):
             return Response(status=status.HTTP_403_FORBIDDEN)
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PageViewSet(ModelViewSet):
+    serializer_class = PageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = (
+            Page.objects.filter(is_active=True)
+            .select_related("created_by")
+            .prefetch_related("followers", "admins__user")
+        )
+        query = self.request.query_params.get("q")
+        if query:
+            qs = qs.filter(name__icontains=query)
+        category = self.request.query_params.get("category")
+        if category:
+            qs = qs.filter(category=category)
+        return qs
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["request"] = self.request
+        return context
+
+    def perform_create(self, serializer):
+        page = serializer.save(created_by=self.request.user)
+        PageAdmin.objects.create(
+            page=page,
+            user=self.request.user,
+            role="owner",
+            added_by=self.request.user,
+        )
+
+    def perform_update(self, serializer):
+        page = serializer.instance
+        if not _page_admin_entry(page, self.request.user):
+            raise PermissionDenied("You are not allowed to update this page.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if not PageAdmin.objects.filter(
+            page=instance, user=self.request.user, role="owner"
+        ).exists():
+            raise PermissionDenied("Only the page owner can deactivate this page.")
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])
+
+    @action(detail=False, methods=["get"], url_path="mine")
+    def mine(self, request):
+        page_ids = PageAdmin.objects.filter(user=request.user).values_list(
+            "page_id", flat=True
+        )
+        pages = self.get_queryset().filter(id__in=page_ids)
+        serializer = self.get_serializer(pages, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="admins")
+    def list_admins(self, request, pk=None):
+        page = self.get_object()
+        if not _page_admin_entry(page, request.user):
+            raise PermissionDenied("Only page admins can view this list.")
+        admins = page.admins.select_related("user", "added_by")
+        serializer = PageAdminSerializer(admins, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["delete"], url_path="admins/(?P<user_id>[^/.]+)")
+    def remove_admin(self, request, pk=None, user_id=None):
+        page = self.get_object()
+        owner_entry = PageAdmin.objects.filter(
+            page=page, user=request.user, role="owner"
+        ).first()
+        if not owner_entry:
+            raise PermissionDenied("Only the page owner can remove admins.")
+        admin = page.admins.filter(user__id=user_id).first()
+        if not admin:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        if admin.role == "owner":
+            return Response(
+                {"detail": "Cannot remove the page owner."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        admin.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="admin-invites")
+    def send_invite(self, request, pk=None):
+        page = self.get_object()
+        if not _page_admin_entry(page, request.user):
+            raise PermissionDenied("Only page admins can send invites.")
+        invitee_id = request.data.get("invitee_id")
+        role = request.data.get("role", "admin")
+        if role not in dict(PageAdmin.ROLE_CHOICES):
+            role = "admin"
+        if role == "owner":
+            return Response(
+                {"detail": "Cannot assign owner role via invite."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user_model = get_user_model()
+        try:
+            invitee = user_model.objects.get(id=invitee_id)
+        except user_model.DoesNotExist:
+            return Response(
+                {"detail": "Invitee not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        if PageAdmin.objects.filter(page=page, user=invitee).exists():
+            return Response(
+                {"detail": "User is already an admin for this page."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        invite = PageAdminInvite.objects.create(
+            page=page,
+            inviter=request.user,
+            invitee=invitee,
+            role=role,
+        )
+        serializer = PageAdminInviteSerializer(invite)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"], url_path="admin-invites")
+    def list_invites(self, request, pk=None):
+        page = self.get_object()
+        if not _page_admin_entry(page, request.user):
+            raise PermissionDenied("Only page admins can view invites.")
+        invites = page.admin_invites.select_related("invitee", "inviter")
+        serializer = PageAdminInviteSerializer(invites, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="follow")
+    def follow(self, request, pk=None):
+        page = self.get_object()
+        follower, created = PageFollower.objects.get_or_create(
+            page=page, user=request.user
+        )
+        following = True
+        if not created:
+            follower.delete()
+            following = False
+        return Response(
+            {
+                "following": following,
+                "follower_count": page.followers.count(),
+            }
+        )
+
+    @action(detail=True, methods=["get"], url_path="followers")
+    def followers(self, request, pk=None):
+        page = self.get_object()
+        followers = page.followers.select_related("user")
+        serializer = PageFollowerSerializer(followers, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get", "post"], url_path="posts")
+    def page_posts(self, request, pk=None):
+        page = self.get_object()
+        if request.method.lower() == "get":
+            posts = page.posts.filter(deleted_at__isnull=True).select_related(
+                "author", "page"
+            )
+            paginator = PageNumberPagination()
+            paginated = paginator.paginate_queryset(posts, request)
+            target = paginated if paginated is not None else posts
+            serializer = PostSerializer(
+                target, many=True, context=self.get_serializer_context()
+            )
+            if paginated is not None:
+                return paginator.get_paginated_response(serializer.data)
+            return Response(serializer.data)
+
+        if not _page_admin_entry(page, request.user):
+            raise PermissionDenied("Only page admins can post as the page.")
+        serializer = PostSerializer(
+            data=request.data, context=self.get_serializer_context()
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save(author=request.user, page=page, author_type="page")
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class PageAdminInviteViewSet(ModelViewSet):
+    serializer_class = PageAdminInviteSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "delete", "post"]
+
+    def get_queryset(self):
+        return PageAdminInvite.objects.filter(invitee=self.request.user).select_related(
+            "page", "inviter", "invitee"
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        invite = self.get_object()
+        if invite.inviter != request.user and not PageAdmin.objects.filter(
+            page=invite.page, user=request.user, role="owner"
+        ).exists():
+            raise PermissionDenied("You cannot cancel this invite.")
+        invite.status = "cancelled"
+        invite.responded_at = timezone.now()
+        invite.save(update_fields=["status", "responded_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"])
+    def accept(self, request, pk=None):
+        invite = self.get_object()
+        if invite.invitee != request.user:
+            raise PermissionDenied("This invite was not addressed to you.")
+        if invite.status != "pending":
+            return Response(
+                {"detail": "Invite already processed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        PageAdmin.objects.update_or_create(
+            page=invite.page,
+            user=request.user,
+            defaults={"role": invite.role, "added_by": invite.inviter},
+        )
+        invite.status = "accepted"
+        invite.responded_at = timezone.now()
+        invite.save(update_fields=["status", "responded_at"])
+        serializer = self.get_serializer(invite)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def decline(self, request, pk=None):
+        invite = self.get_object()
+        if invite.invitee != request.user:
+            raise PermissionDenied("This invite was not addressed to you.")
+        if invite.status != "pending":
+            return Response(
+                {"detail": "Invite already processed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        invite.status = "declined"
+        invite.responded_at = timezone.now()
+        invite.save(update_fields=["status", "responded_at"])
+        serializer = self.get_serializer(invite)
+        return Response(serializer.data)
 
 
 class ConversationViewSet(ModelViewSet):
