@@ -1,6 +1,10 @@
+import asyncio
+import logging
+
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.contrib.contenttypes.models import ContentType
+from redis import asyncio as redis_async
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -36,6 +40,29 @@ from .serializers import (
     MessageSerializer,
 )
 from users.models import Friends
+
+
+async def _ping_redis_async(redis_url: str) -> None:
+    client = redis_async.Redis.from_url(redis_url)
+    try:
+        await client.ping()
+    finally:
+        await client.close()
+
+
+def _check_redis_connection(redis_url: str):
+    """Return (connected, error_message)."""
+    if not redis_url:
+        return False, "REDIS_URL is not configured"
+
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(_ping_redis_async(redis_url))
+        return True, None
+    except Exception as exc:
+        return False, str(exc)
+    finally:
+        loop.close()
 
 
 class PostViewSet(ModelViewSet):
@@ -394,9 +421,6 @@ class RedisHealthView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        import asyncio
-        import logging
-
         logger = logging.getLogger(__name__)
 
         diagnostics = {
@@ -407,35 +431,23 @@ class RedisHealthView(APIView):
         }
 
         try:
-            from channels.layers import get_channel_layer
-
             layer = get_channel_layer()
-            if layer:
-                diagnostics["channel_layer_available"] = True
-                diagnostics["redis_configured"] = True
-
-                # Test Redis connection
-                try:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    try:
-                        # Test connection by sending a test message
-                        result = loop.run_until_complete(layer.test())
-                        diagnostics["redis_connected"] = True
-                        diagnostics["redis_test_result"] = result
-                    except Exception as e:
-                        diagnostics["redis_error"] = str(e)
-                        logger.exception("Redis connection test failed")
-                    finally:
-                        loop.close()
-                except Exception as e:
-                    diagnostics["error"] = f"AsyncIO error: {str(e)}"
-                    logger.exception("Error testing Redis connection")
-            else:
+            if not layer:
                 diagnostics["error"] = "No channel layer configured"
+                status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+                return Response(diagnostics, status=status_code)
+
+            diagnostics["channel_layer_available"] = True
+            diagnostics["redis_configured"] = True
+
+            redis_url = getattr(settings, "REDIS_URL", "")
+            connected, error = _check_redis_connection(redis_url)
+            diagnostics["redis_connected"] = connected
+            if error:
+                diagnostics["redis_error"] = error
         except Exception as e:
             diagnostics["error"] = str(e)
-            logger.exception("Error getting channel layer")
+            logger.exception("Error checking Redis health")
 
         status_code = (
             status.HTTP_200_OK
@@ -451,10 +463,6 @@ class WebSocketDiagnosticView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        import asyncio
-        import logging
-        from django.conf import settings
-
         logger = logging.getLogger(__name__)
 
         diagnostics = {
@@ -469,33 +477,23 @@ class WebSocketDiagnosticView(APIView):
         }
 
         try:
-            from channels.layers import get_channel_layer
-
             layer = get_channel_layer()
-            if layer:
-                diagnostics["channel_layer_available"] = True
-                diagnostics["redis_configured"] = True
-
-                try:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    try:
-                        result = loop.run_until_complete(layer.test())
-                        diagnostics["redis_connected"] = True
-                        diagnostics["redis_test_result"] = result
-                    except Exception as e:
-                        diagnostics["redis_error"] = str(e)
-                        logger.exception("Redis connection test failed")
-                    finally:
-                        loop.close()
-                except Exception as e:
-                    diagnostics["error"] = f"AsyncIO error: {str(e)}"
-                    logger.exception("Error testing Redis connection")
-            else:
+            if not layer:
                 diagnostics["error"] = "No channel layer configured"
+                status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+                return Response(diagnostics, status=status_code)
+
+            diagnostics["channel_layer_available"] = True
+            diagnostics["redis_configured"] = True
+
+            redis_url = getattr(settings, "REDIS_URL", "")
+            connected, error = _check_redis_connection(redis_url)
+            diagnostics["redis_connected"] = connected
+            if error:
+                diagnostics["redis_error"] = error
         except Exception as e:
             diagnostics["error"] = str(e)
-            logger.exception("Error getting channel layer")
+            logger.exception("Error running WebSocket diagnostics")
 
         status_code = (
             status.HTTP_200_OK
