@@ -53,6 +53,7 @@ export default function ConversationDetailPage() {
   const [openReactionPickerId, setOpenReactionPickerId] = useState<number | null>(null);
   const [reactionPendingId, setReactionPendingId] = useState<number | null>(null);
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -252,6 +253,16 @@ export default function ConversationDetailPage() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [conversationId, accessToken]);
+
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Track scroll position to determine if we should auto-scroll
   useEffect(() => {
@@ -524,7 +535,7 @@ export default function ConversationDetailPage() {
   return (
     <>
       <div className="flex flex-col h-[calc(100vh-200px)] sm:h-[calc(100vh-120px)]">
-        <header className="flex items-center gap-4 p-4 border-b bg-white shadow-sm sticky top-0 z-30 flex-shrink-0">
+        <header className="flex items-center gap-4 p-4 border-b bg-white shadow-sm sticky z-20 flex-shrink-0" style={{ top: '64px' }}>
           <button
             onClick={() => router.back()}
             className="text-gray-700 hover:text-gray-900 p-2 font-medium"
@@ -751,10 +762,14 @@ export default function ConversationDetailPage() {
                           )}
                         </div>
 
-                        {/* Message actions (hover menu) */}
+                        {/* Message actions (hover menu on desktop, always visible on mobile) */}
                         {!isEditing && (
                           <div
-                            className={`absolute ${isOwn ? "right-0" : "left-0"} top-full mt-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10`}
+                            className={`absolute ${isOwn ? "right-0" : "left-0"} top-full mt-1 flex gap-1 z-10 ${
+                              isMobile 
+                                ? "opacity-100" 
+                                : "opacity-0 group-hover:opacity-100"
+                            } transition-opacity`}
                           >
                             {isOwn && (
                               <div className="relative">
