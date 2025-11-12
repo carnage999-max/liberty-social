@@ -772,7 +772,7 @@ export default function ConversationDetailPage() {
                           <div
                             className={`absolute ${isOwn ? "right-0" : "left-0"} top-full mt-1 flex gap-1 z-10 ${
                               isMobile 
-                                ? "opacity-100" 
+                                ? "opacity-100 mb-6" 
                                 : "opacity-0 group-hover:opacity-100"
                             } transition-opacity`}
                           >
@@ -866,9 +866,9 @@ export default function ConversationDetailPage() {
                         )}
                       </div>
                       <p
-                        className={`text-xs mt-1 px-1 ${
+                        className={`text-xs px-1 ${
                           isOwn ? "text-gray-500 text-right" : "text-gray-400"
-                        }`}
+                        } ${isMobile ? "mt-8" : "mt-1"}`}
                       >
                         {formatTime(message.created_at)}
                       </p>
