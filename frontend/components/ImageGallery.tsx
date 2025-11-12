@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 
 export interface ImageGalleryProps {
@@ -26,20 +26,82 @@ export default function ImageGallery({
   caption,
   timestamp,
 }: ImageGalleryProps) {
+  const originalOverflowRef = useRef<string | null>(null);
+  const originalHtmlOverflowRef = useRef<string | null>(null);
+
+  // Function to restore scrolling - more aggressive approach
+  const restoreScrolling = useCallback(() => {
+    // Restore body overflow - use setProperty to ensure it works
+    if (originalOverflowRef.current !== null && originalOverflowRef.current !== "") {
+      document.body.style.setProperty("overflow", originalOverflowRef.current, "important");
+    } else {
+      document.body.style.removeProperty("overflow");
+    }
+    
+    // Also check and restore html overflow (some browsers need this)
+    if (originalHtmlOverflowRef.current !== null && originalHtmlOverflowRef.current !== "") {
+      document.documentElement.style.setProperty("overflow", originalHtmlOverflowRef.current, "important");
+    } else {
+      document.documentElement.style.removeProperty("overflow");
+    }
+    
+    // Force a reflow to ensure the change takes effect
+    void document.body.offsetHeight;
+    
+    // Double-check: if overflow is still hidden, force it to auto
+    const bodyComputed = window.getComputedStyle(document.body).overflow;
+    const htmlComputed = window.getComputedStyle(document.documentElement).overflow;
+    if (bodyComputed === "hidden") {
+      document.body.style.setProperty("overflow", "auto", "important");
+    }
+    if (htmlComputed === "hidden") {
+      document.documentElement.style.setProperty("overflow", "auto", "important");
+    }
+  }, []);
+
+  // Wrapper for onClose that ensures scrolling is restored
+  const handleClose = useCallback(() => {
+    // Restore scrolling immediately
+    restoreScrolling();
+    // Also restore after a small delay to ensure it sticks
+    setTimeout(() => {
+      restoreScrolling();
+    }, 0);
+    onClose();
+  }, [onClose, restoreScrolling]);
+
   useEffect(() => {
-    if (!open) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (open) {
+      // Save original overflow values
+      originalOverflowRef.current = document.body.style.overflow || null;
+      originalHtmlOverflowRef.current = document.documentElement.style.overflow || null;
+      
+      // Lock scrolling on both body and html
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+    } else {
+      // Restore scrolling when gallery is closed
+      restoreScrolling();
+      // Also restore after a small delay
+      setTimeout(() => {
+        restoreScrolling();
+      }, 0);
+    }
+
     return () => {
-      document.body.style.overflow = originalOverflow;
+      // Cleanup: always restore scrolling on unmount
+      restoreScrolling();
+      setTimeout(() => {
+        restoreScrolling();
+      }, 0);
     };
-  }, [open]);
+  }, [open, restoreScrolling]);
 
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        handleClose();
       } else if (e.key === "ArrowLeft" && onNavigate) {
         onNavigate("prev");
       } else if (e.key === "ArrowRight" && onNavigate) {
@@ -48,7 +110,19 @@ export default function ImageGallery({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose, onNavigate]);
+  }, [open, handleClose, onNavigate]);
+
+  // Backup: Ensure scrolling is restored when component is not open
+  // This runs even if the component returns null early
+  useEffect(() => {
+    if (!open) {
+      // When gallery is closed, ensure scrolling is restored
+      const timeoutId = setTimeout(() => {
+        restoreScrolling();
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [open, restoreScrolling]);
 
   if (!open || images.length === 0) return null;
 
@@ -82,7 +156,7 @@ export default function ImageGallery({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 py-10 sm:px-6"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
-          onClose();
+          handleClose();
         }
       }}
     >
@@ -157,7 +231,7 @@ export default function ImageGallery({
           {/* Close Button */}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close gallery"
             className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80 hover:scale-110"
           >

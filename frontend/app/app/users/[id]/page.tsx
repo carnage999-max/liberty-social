@@ -576,8 +576,20 @@ export default function UserProfilePage() {
                           )}
                         </button>
                       )}
-                    <div>
-                      <h1 className="text-2xl font-bold text-(--color-deep-navy) sm:text-3xl">{displayName}</h1>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h1 className="text-2xl font-bold text-(--color-deep-navy) sm:text-3xl">{displayName}</h1>
+                        {/* Mobile: Show menu next to name */}
+                        {!isSelf && overview && (
+                          <div className="sm:hidden">
+                            <UserActionsMenu
+                              overview={overview}
+                              accessToken={accessToken}
+                              onUpdated={fetchOverview}
+                            />
+                          </div>
+                        )}
+                      </div>
                       {usernameTag && <p className="text-sm text-gray-500">{usernameTag}</p>}
                       {memberSince && (
                         <p className="mt-2 text-xs text-gray-400">Member since {memberSince}</p>
@@ -592,12 +604,15 @@ export default function UserProfilePage() {
                     <div className="flex flex-col items-start gap-3 sm:items-end">
                     <div className="flex items-center gap-2">
                       {renderPrimaryActions()}
+                      {/* Desktop: Show menu in actions area */}
                       {!isSelf && overview && (
-                        <UserActionsMenu
-                          overview={overview}
-                          accessToken={accessToken}
-                          onUpdated={fetchOverview}
-                        />
+                        <div className="hidden sm:block">
+                          <UserActionsMenu
+                            overview={overview}
+                            accessToken={accessToken}
+                            onUpdated={fetchOverview}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>

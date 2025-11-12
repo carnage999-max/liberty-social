@@ -191,24 +191,40 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* Mobile dropdown */}
+      {/* Mobile dropdown - fixed overlay that appears where user is */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 md:hidden"
+          onClick={() => setOpen(false)}
+        />
+      )}
       <div
         id="mobile-menu"
         ref={menuRef}
         className={[
-          "md:hidden overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out",
+          "md:hidden fixed top-0 left-0 right-0 z-40 transition-transform duration-300 ease-out",
           open
-            ? "max-h-64 opacity-100 translate-y-0"
-            : "max-h-0 opacity-0 -translate-y-1",
+            ? "translate-y-0"
+            : "-translate-y-full",
         ].join(" ")}
+        style={{
+          paddingTop: "calc(var(--navbar-height, 80px) + 1rem)",
+        }}
       >
-          <div className="mt-3 rounded-xl bg-white/90 backdrop-blur-md shadow-md p-3">
+          <div className="mx-4 rounded-xl bg-white/95 backdrop-blur-md shadow-xl p-4 max-h-[calc(100vh-120px)] overflow-y-auto">
             <Link
               href="/app"
               onClick={() => setOpen(false)}
               className="block w-full text-left px-4 py-3 rounded-lg btn-primary"
             >
               Communities
+            </Link>
+            <Link
+              href="/app/reels"
+              onClick={() => setOpen(false)}
+              className="mt-2 block w-full text-left px-4 py-3 rounded-lg btn-primary"
+            >
+              Reels
             </Link>
           {showProfile ? (
             <>

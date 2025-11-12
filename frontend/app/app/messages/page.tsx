@@ -91,8 +91,9 @@ export default function MessagesPage() {
   const getConversationTitle = (conversation: Conversation): string => {
     if (conversation.title) return conversation.title;
     if (conversation.is_group) return "Group Chat";
+    // Find the other participant (not the current user)
     const otherParticipant = conversation.participants.find(
-      (p) => p.user.id !== conversation.created_by.id
+      (p) => p.user.id !== user?.id
     );
     if (otherParticipant) {
       const u = otherParticipant.user;
@@ -105,8 +106,9 @@ export default function MessagesPage() {
 
   const getConversationAvatar = (conversation: Conversation): string | null => {
     if (conversation.is_group) return null;
+    // Find the other participant (not the current user)
     const otherParticipant = conversation.participants.find(
-      (p) => p.user.id !== conversation.created_by.id
+      (p) => p.user.id !== user?.id
     );
     if (otherParticipant?.user.profile_image_url) {
       return resolveRemoteUrl(otherParticipant.user.profile_image_url);
@@ -176,7 +178,12 @@ export default function MessagesPage() {
             const title = getConversationTitle(conversation);
             const avatarUrl = getConversationAvatar(conversation);
             const lastMessage = conversation.last_message;
-            const lastMessageText = lastMessage?.content || "No messages yet";
+            // Show "Attachment" if last message has media but no content
+            const lastMessageText = lastMessage?.content 
+              ? lastMessage.content 
+              : lastMessage?.media_url 
+                ? "Attachment" 
+                : "No messages yet";
             const lastMessageTime = formatTime(conversation.last_message_at);
 
             return (
@@ -252,43 +259,56 @@ export default function MessagesPage() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {friends.map((friend) => {
-                  const friendUser = friend.friend;
-                  const displayName =
-                    friendUser.first_name && friendUser.last_name
-                      ? `${friendUser.first_name} ${friendUser.last_name}`
-                      : friendUser.username || friendUser.email.split("@")[0];
-                  const avatarUrl = friendUser.profile_image_url
-                    ? resolveRemoteUrl(friendUser.profile_image_url)
-                    : null;
+              <>
+                {friends.filter((friend) => friend.friend.id !== user?.id).length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No other friends to message</p>
+                    <p className="text-sm text-gray-400 mt-2">
+                      Add more friends to start conversations
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {friends
+                      .filter((friend) => friend.friend.id !== user?.id) // Filter out current user
+                      .map((friend) => {
+                    const friendUser = friend.friend;
+                    const displayName =
+                      friendUser.first_name && friendUser.last_name
+                        ? `${friendUser.first_name} ${friendUser.last_name}`
+                        : friendUser.username || friendUser.email.split("@")[0];
+                    const avatarUrl = friendUser.profile_image_url
+                      ? resolveRemoteUrl(friendUser.profile_image_url)
+                      : null;
 
-                  return (
-                    <button
-                      key={friend.id}
-                      onClick={() => handleStartConversation(friendUser.id)}
-                      disabled={creatingConversation}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left disabled:opacity-50"
-                    >
-                      <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
-                        {avatarUrl ? (
-                          <Image
-                            src={avatarUrl}
-                            alt={displayName}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-gray-500">👤</span>
-                          </div>
-                        )}
-                      </div>
-                      <span className="font-medium">{displayName}</span>
-                    </button>
-                  );
-                })}
-              </div>
+                    return (
+                      <button
+                        key={friend.id}
+                        onClick={() => handleStartConversation(friendUser.id)}
+                        disabled={creatingConversation}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left disabled:opacity-50"
+                      >
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+                          {avatarUrl ? (
+                            <Image
+                              src={avatarUrl}
+                              alt={displayName}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-gray-500">👤</span>
+                            </div>
+                          )}
+                        </div>
+                        <span className="font-medium">{displayName}</span>
+                      </button>
+                    );
+                  })}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

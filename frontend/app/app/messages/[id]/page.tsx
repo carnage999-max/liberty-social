@@ -85,9 +85,9 @@ export default function ConversationDetailPage() {
       // Save scroll position before reload if silent
       if (silent && messagesContainerRef.current) {
         scrollPositionRef.current = messagesContainerRef.current.scrollTop;
-        // Check if user is near bottom (within 200px)
+        // Check if user is near bottom (within 50px - stricter threshold)
         const container = messagesContainerRef.current;
-        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
         shouldAutoScrollRef.current = isNearBottom;
       }
       
@@ -149,10 +149,10 @@ export default function ConversationDetailPage() {
         const updated = [...prev, message];
         lastMessageIdRef.current = message.id;
         
-        // Only auto-scroll if user is near bottom
+        // Only auto-scroll if user is near bottom (smooth scroll)
         if (shouldAutoScrollRef.current) {
           setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
           }, 100);
         }
         return updated;
@@ -228,10 +228,10 @@ export default function ConversationDetailPage() {
       loadConversation();
       loadMessages();
       markAsRead();
-      // Auto-scroll to bottom on initial load only
+      // Auto-scroll to bottom on initial load only (smooth)
       shouldAutoScrollRef.current = true;
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
       }, 200);
     }
   }, [conversationId, accessToken]);
@@ -270,7 +270,8 @@ export default function ConversationDetailPage() {
     if (!container) return;
 
     const handleScroll = () => {
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+      // Stricter threshold - only auto-scroll if user is very close to bottom (50px)
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
       shouldAutoScrollRef.current = isNearBottom;
     };
 
@@ -278,14 +279,8 @@ export default function ConversationDetailPage() {
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Auto-scroll to bottom when messages change, but only if user is near bottom
-  useEffect(() => {
-    if (shouldAutoScrollRef.current) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-    }
-  }, [messages]);
+  // Don't auto-scroll on every messages array change - only for new messages via WebSocket
+  // This prevents aggressive scrolling when messages are updated/edited/deleted
 
   const handleFileSelect = () => {
     fileInputRef.current?.click();
@@ -409,6 +404,11 @@ export default function ConversationDetailPage() {
 
   const handleDeleteMessage = async (messageId: number) => {
     if (!accessToken || !conversationId) return;
+
+    // Confirmation dialog
+    if (!window.confirm("Are you sure you want to delete this message?")) {
+      return;
+    }
 
     try {
       await apiDelete(`/conversations/${conversationId}/messages/${messageId}/`, {
@@ -580,7 +580,12 @@ export default function ConversationDetailPage() {
                     className={`flex gap-2 group ${isOwn ? "justify-end" : "justify-start"} w-full min-w-0`}
                   >
                     {!isOwn && (
-                      <div className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/app/users/${message.sender.id}`)}
+                        className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
+                        title={`View ${message.sender.first_name || message.sender.username || "User"}'s profile`}
+                      >
                         {avatarUrl ? (
                           <Image
                             src={avatarUrl}
@@ -593,7 +598,7 @@ export default function ConversationDetailPage() {
                             <span className="text-gray-500 text-sm">👤</span>
                           </div>
                         )}
-                      </div>
+                      </button>
                     )}
                     <div className={`max-w-[75%] sm:max-w-[60%] min-w-0 ${isOwn ? "flex flex-col items-end" : ""}`}>
                       {!isOwn && (

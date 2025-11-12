@@ -105,7 +105,7 @@ export function UserActionsMenu({ overview, accessToken, onUpdated }: UserAction
       </button>
 
       {menuOpen && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-48 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+        <div className="absolute left-0 sm:right-0 sm:left-auto top-full z-30 mt-1 w-48 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
           {relationship?.is_friend && (
             <button
               type="button"
