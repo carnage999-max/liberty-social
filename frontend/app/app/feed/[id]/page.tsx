@@ -9,6 +9,7 @@ import { useToast } from "@/components/Toast";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
+import { EmojiPickerPopper } from "@/components/EmojiPickerPopper";
 import ImageGallery from "@/components/ImageGallery";
 import Image from "next/image";
 import Link from "next/link";
@@ -130,11 +131,15 @@ export default function PostDetailPage() {
   const [commentReactionPendingId, setCommentReactionPendingId] = useState<number | null>(null);
   const [commentSort, setCommentSort] = useState<"recent" | "popular" | "oldest">("recent");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const commentEmojiButtonRef = useRef<HTMLButtonElement | null>(null);
+  const replyEmojiButtonsRef = useRef<Record<number, HTMLButtonElement | null>>({});
   const attachmentsSnapshotRef = useRef<MediaAttachment[]>([]);
   const [reactionPending, setReactionPending] = useState(false);
   const [openReactionPicker, setOpenReactionPicker] = useState(false);
   const [showReactionBreakdown, setShowReactionBreakdown] = useState(false);
   const [openCommentReactionPickerId, setOpenCommentReactionPickerId] = useState<number | null>(null);
+  const [commentEmojiPickerOpen, setCommentEmojiPickerOpen] = useState(false);
+  const [replyEmojiPickerOpen, setReplyEmojiPickerOpen] = useState<Record<number, boolean>>({});
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyContent, setReplyContent] = useState<Record<number, string>>({});
   const [replyAttachments, setReplyAttachments] = useState<Record<number, MediaAttachment[]>>({});
@@ -1222,21 +1227,6 @@ export default function PostDetailPage() {
                       className="w-full resize-none rounded-xl border border-gray-200 bg-white/80 px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
                     />
 
-                    {emojiPaletteOpen && (
-                      <div className="mt-3 flex flex-wrap gap-2 rounded-xl border border-gray-100 bg-white/95 p-2 shadow-sm">
-                        {EMOJI_OPTIONS.map((emoji) => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => handleEmojiInsert(emoji)}
-                            className="text-xl transition hover:scale-110"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
                     {commentAttachments.length > 0 && (
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         {commentAttachments.map((item) => (
@@ -1271,16 +1261,28 @@ export default function PostDetailPage() {
                     )}
 
                     <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setEmojiPaletteOpen((prev) => !prev)}
-                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-[var(--color-primary)]"
-                      >
-                        <span role="img" aria-hidden>
-                          🙂
-                        </span>
-                        Emoji
-                      </button>
+                      <div className="relative">
+                        <button
+                          ref={commentEmojiButtonRef}
+                          type="button"
+                          onClick={() => setCommentEmojiPickerOpen(!commentEmojiPickerOpen)}
+                          className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:border-[var(--color-primary)]"
+                        >
+                          <span role="img" aria-hidden>
+                            🙂
+                          </span>
+                          Emoji
+                        </button>
+                        <EmojiPickerPopper
+                          open={commentEmojiPickerOpen}
+                          onSelect={(emoji) => {
+                            setCommentContent((prev) => prev + emoji);
+                            setCommentEmojiPickerOpen(false);
+                          }}
+                          onClose={() => setCommentEmojiPickerOpen(false)}
+                          triggerRef={commentEmojiButtonRef}
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={handleSelectAttachment}
@@ -1867,15 +1869,17 @@ export default function PostDetailPage() {
                             {replyingToId === comment.id && (
                               <div className="mt-4 ml-8 rounded-lg border border-gray-200 bg-white/80 p-3">
                                 <form onSubmit={(e) => handleReplySubmit(comment.id, e)}>
-                                  <textarea
-                                    rows={2}
-                                    value={replyContent[comment.id] || ""}
-                                    onChange={(event) => {
-                                      setReplyContent((prev) => ({ ...prev, [comment.id]: event.target.value }));
-                                    }}
-                                    placeholder="Write a reply..."
-                                    className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-                                  />
+                                  <div className="relative">
+                                    <textarea
+                                      rows={2}
+                                      value={replyContent[comment.id] || ""}
+                                      onChange={(event) => {
+                                        setReplyContent((prev) => ({ ...prev, [comment.id]: event.target.value }));
+                                      }}
+                                      placeholder="Write a reply..."
+                                      className="w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                                    />
+                                  </div>
                                   
                                   {replyAttachments[comment.id] && replyAttachments[comment.id].length > 0 && (
                                     <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
@@ -1905,6 +1909,45 @@ export default function PostDetailPage() {
                                   )}
 
                                   <div className="mt-3 flex items-center gap-2">
+                                    <div className="relative">
+                                      <button
+                                        ref={(el) => {
+                                          if (el) replyEmojiButtonsRef.current[comment.id] = el;
+                                        }}
+                                        type="button"
+                                        onClick={() => {
+                                          setReplyEmojiPickerOpen((prev) => ({
+                                            ...prev,
+                                            [comment.id]: !prev[comment.id],
+                                          }));
+                                        }}
+                                        className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 transition hover:border-[var(--color-primary)]"
+                                      >
+                                        😀
+                                      </button>
+                                      <EmojiPickerPopper
+                                        open={replyEmojiPickerOpen[comment.id] || false}
+                                        onSelect={(emoji) => {
+                                          setReplyContent((prev) => ({
+                                            ...prev,
+                                            [comment.id]: (prev[comment.id] || "") + emoji,
+                                          }));
+                                          setReplyEmojiPickerOpen((prev) => ({
+                                            ...prev,
+                                            [comment.id]: false,
+                                          }));
+                                        }}
+                                        onClose={() => {
+                                          setReplyEmojiPickerOpen((prev) => ({
+                                            ...prev,
+                                            [comment.id]: false,
+                                          }));
+                                        }}
+                                        triggerRef={{
+                                          current: replyEmojiButtonsRef.current[comment.id],
+                                        }}
+                                      />
+                                    </div>
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -1917,7 +1960,7 @@ export default function PostDetailPage() {
                                       }}
                                       className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 transition hover:border-[var(--color-primary)]"
                                     >
-                                      🖼️ Photo
+                                      🖼️
                                     </button>
                                     <div className="flex-1" />
                                     <button

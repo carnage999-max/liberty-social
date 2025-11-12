@@ -11,6 +11,7 @@ import type { PaginatedResponse } from "@/lib/api";
 import Image from "next/image";
 import Spinner from "@/components/Spinner";
 import { EmojiPicker } from "@/components/EmojiPicker";
+import { EmojiPickerPopper } from "@/components/EmojiPickerPopper";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
 import ImageGallery from "@/components/ImageGallery";
 
@@ -966,14 +967,12 @@ export default function ConversationDetailPage() {
                     >
                       <span className="text-xl">😀</span>
                     </button>
-                    {emojiPickerOpen && (
-                      <div className="absolute bottom-full right-0 mb-2">
-                        <EmojiPicker
-                          onSelect={handleEmojiSelect}
-                          onClose={() => setEmojiPickerOpen(false)}
-                        />
-                      </div>
-                    )}
+                    <EmojiPickerPopper
+                      open={emojiPickerOpen}
+                      onSelect={handleEmojiSelect}
+                      onClose={() => setEmojiPickerOpen(false)}
+                      triggerRef={emojiButtonRef}
+                    />
                   </div>
                 </div>
               </div>

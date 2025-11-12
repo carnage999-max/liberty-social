@@ -54,19 +54,19 @@ export default function PagesIndexPage() {
     <div className="space-y-8">
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-(--color-deep-navy)">Business Pages</h1>
+          <h1 className="text-2xl font-semibold text-(--color-silver-mid)">Business Pages</h1>
           <p className="text-sm text-(--color-muted)">Discover and manage business profiles.</p>
         </div>
         <div className="flex gap-3">
           <Link
             href="/app/admin-invites"
-            className="rounded-full border border-(--color-border) px-4 py-2 text-sm font-semibold text-(--color-deep-navy) transition hover:border-(--color-deep-navy)"
+            className="rounded-full border border-(--color-border) px-4 py-2 text-sm font-semibold text-(--color-silver-mid) transition hover:border-(--color-gold)"
           >
             View invites
           </Link>
           <Link
             href="/app/pages/create"
-            className="rounded-full bg-(--color-deep-navy) px-4 py-2 text-sm font-semibold text-white transition hover:bg-(--color-deeper-navy)"
+            className="rounded-full bg-(--color-deep-navy) px-4 py-2 text-sm font-semibold text-white transition hover:bg-(--color-gold)"
           >
             Create page
           </Link>
@@ -81,7 +81,7 @@ export default function PagesIndexPage() {
         <>
           {managedPages.length > 0 && (
             <section>
-              <h2 className="mb-3 text-lg font-semibold text-(--color-deep-navy)">Pages you manage</h2>
+              <h2 className="mb-3 text-lg font-semibold text-(--color-silver-mid)">Pages you manage</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 {managedPages.map((page) => (
                   <PageCard key={page.id} page={page} />
@@ -91,7 +91,7 @@ export default function PagesIndexPage() {
           )}
 
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-(--color-deep-navy)">All pages</h2>
+            <h2 className="mb-3 text-lg font-semibold text-(--color-silver-mid)">All pages</h2>
             {pages.length === 0 ? (
               <p className="text-sm text-(--color-muted)">No pages found yet. Be the first to create one!</p>
             ) : (
@@ -130,7 +130,7 @@ function PageCard({ page }: { page: BusinessPage }) {
       </div>
       <div className="flex-1">
         <div className="flex items-center gap-2">
-          <h3 className="text-base font-semibold text-(--color-deep-navy) group-hover:text-(--color-primary)">
+          <h3 className="text-base font-semibold text-(--color-deep-navy)">
             {page.name}
           </h3>
           {page.is_verified && (
