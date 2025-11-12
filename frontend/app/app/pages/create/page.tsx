@@ -55,18 +55,31 @@ export default function CreatePagePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 rounded-3xl border border-(--color-border) bg-white/80 p-6 shadow">
-      <header>
-        <h1 className="text-2xl font-semibold text-(--color-deep-navy)">Create a business page</h1>
-        <p className="text-sm text-(--color-muted)">Share your brand or community with Liberty Social.</p>
-      </header>
+    <div className="mx-auto max-w-2xl space-y-6 rounded-3xl border border-(--color-border) bg-white p-6 shadow text-black">
+      <div className="flex items-start gap-4">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Back
+        </button>
+
+        <header className="flex-1">
+          <h1 className="text-2xl font-semibold text-black">Create a business page</h1>
+          <p className="text-sm text-gray-600">Share your brand or community with Liberty Social.</p>
+        </header>
+      </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div className="space-y-1.5">
-          <label className="text-sm font-semibold text-(--color-deep-navy)">Page name</label>
+          <label className="text-sm font-semibold text-black">Page name</label>
           <input
             required
-            className="w-full rounded-2xl border border-(--color-border) px-4 py-3 text-sm focus:border-(--color-deep-navy) focus:outline-none"
+            className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
             value={form.name}
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
             placeholder="e.g. Liberty Café"
@@ -74,9 +87,9 @@ export default function CreatePagePage() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-semibold text-(--color-deep-navy)">Description</label>
+          <label className="text-sm font-semibold text-black">Description</label>
           <textarea
-            className="w-full rounded-2xl border border-(--color-border) px-4 py-3 text-sm focus:border-(--color-deep-navy) focus:outline-none"
+            className="w-full resize-none rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
             rows={4}
             value={form.description}
             onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
@@ -85,9 +98,9 @@ export default function CreatePagePage() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-semibold text-(--color-deep-navy)">Category</label>
+          <label className="text-sm font-semibold text-black">Category</label>
           <select
-            className="w-full rounded-2xl border border-(--color-border) px-4 py-3 text-sm focus:border-(--color-deep-navy) focus:outline-none"
+            className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
             value={form.category}
             onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
           >
@@ -101,20 +114,20 @@ export default function CreatePagePage() {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-(--color-deep-navy)">Website</label>
+            <label className="text-sm font-semibold text-black">Website</label>
             <input
               type="url"
-              className="w-full rounded-2xl border border-(--color-border) px-4 py-3 text-sm focus:border-(--color-deep-navy) focus:outline-none"
+              className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
               value={form.website_url}
               onChange={(event) => setForm((prev) => ({ ...prev, website_url: event.target.value }))}
               placeholder="https://"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-(--color-deep-navy)">Email</label>
+            <label className="text-sm font-semibold text-black">Email</label>
             <input
               type="email"
-              className="w-full rounded-2xl border border-(--color-border) px-4 py-3 text-sm focus:border-(--color-deep-navy) focus:outline-none"
+              className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
               value={form.email}
               onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
             />
@@ -122,9 +135,9 @@ export default function CreatePagePage() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-semibold text-(--color-deep-navy)">Phone</label>
+          <label className="text-sm font-semibold text-black">Phone</label>
           <input
-            className="w-full rounded-2xl border border-(--color-border) px-4 py-3 text-sm focus:border-(--color-deep-navy) focus:outline-none"
+            className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
             value={form.phone}
             onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
           />
