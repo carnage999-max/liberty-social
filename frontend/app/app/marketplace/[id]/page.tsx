@@ -224,7 +224,7 @@ export default function ListingDetailPage() {
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-gray-900">{listing.title}</h1>
             <div className="text-3xl font-bold text-(--color-deep-navy)">
-              ${parseFloat(listing.price).toFixed(2)}
+              ${(typeof listing.price === "number" ? listing.price : parseFloat(listing.price as unknown as string || "0")).toFixed(2)}
             </div>
           </div>
 
@@ -242,7 +242,7 @@ export default function ListingDetailPage() {
             </div>
             <div className="flex justify-between border-t border-gray-200 pt-3">
               <span className="text-sm text-gray-600">Views:</span>
-              <span className="text-sm font-medium text-gray-900">{listing.views_count}</span>
+              <span className="text-sm font-medium text-gray-900">{(listing as any).views_count || (listing as any).views || 0}</span>
             </div>
             {listing.delivery_options && (
               <>
@@ -344,7 +344,7 @@ export default function ListingDetailPage() {
           <div className="mx-auto w-full max-w-md rounded-3xl border border-gray-200 bg-white p-6 shadow space-y-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Make an Offer</h2>
-              <p className="text-sm text-gray-600 mt-1">Current price: ${parseFloat(listing.price).toFixed(2)}</p>
+              <p className="text-sm text-gray-600 mt-1">Current price: ${(typeof listing.price === "number" ? listing.price : parseFloat(listing.price as unknown as string || "0")).toFixed(2)}</p>
             </div>
             <form onSubmit={handleMakeOffer} className="space-y-3">
               <div className="space-y-1.5">
