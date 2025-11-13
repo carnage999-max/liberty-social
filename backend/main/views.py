@@ -444,6 +444,25 @@ class PageViewSet(ModelViewSet):
         serializer.save(author=request.user, page=page, author_type="page")
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["post"], url_path="update-profile-image")
+    def update_profile_image(self, request, pk=None):
+        page = self.get_object()
+        if not _page_admin_entry(page, request.user):
+            raise PermissionDenied("Only page admins can update the profile image.")
+        
+        profile_image_url = request.data.get("profile_image_url")
+        if not profile_image_url:
+            return Response(
+                {"detail": "profile_image_url is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        page.profile_image_url = profile_image_url
+        page.save(update_fields=["profile_image_url"])
+        
+        serializer = self.get_serializer(page)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class PageAdminInviteViewSet(ModelViewSet):
     serializer_class = PageAdminInviteSerializer

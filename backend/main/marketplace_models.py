@@ -6,7 +6,7 @@ from django.core.validators import MinValueValidator
 
 class MarketplaceCategory(models.Model):
     """Categories for marketplace listings."""
-    
+
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
@@ -16,7 +16,7 @@ class MarketplaceCategory(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['name']
+        ordering = ["name"]
         verbose_name_plural = "Marketplace Categories"
 
     def __str__(self):
@@ -25,7 +25,7 @@ class MarketplaceCategory(models.Model):
 
 class MarketplaceListing(models.Model):
     """Main marketplace listing model."""
-    
+
     CONDITION_CHOICES = (
         ("new", "New"),
         ("like_new", "Like New"),
@@ -33,19 +33,19 @@ class MarketplaceListing(models.Model):
         ("fair", "Fair"),
         ("poor", "Poor"),
     )
-    
+
     CONTACT_PREFERENCE_CHOICES = (
         ("chat", "Chat"),
         ("call", "Call"),
         ("both", "Both"),
     )
-    
+
     DELIVERY_OPTIONS_CHOICES = (
         ("pickup", "Pickup"),
         ("delivery", "Delivery"),
         ("both", "Both"),
     )
-    
+
     STATUS_CHOICES = (
         ("active", "Active"),
         ("sold", "Sold"),
@@ -68,7 +68,7 @@ class MarketplaceListing(models.Model):
         on_delete=models.SET_NULL,
         null=True,
     )
-    
+
     # Price and condition
     price = models.DecimalField(
         max_digits=10,
@@ -80,7 +80,7 @@ class MarketplaceListing(models.Model):
         choices=CONDITION_CHOICES,
         default="used",
     )
-    
+
     # Contact and delivery
     contact_preference = models.CharField(
         max_length=10,
@@ -92,12 +92,12 @@ class MarketplaceListing(models.Model):
         choices=DELIVERY_OPTIONS_CHOICES,
         default="both",
     )
-    
+
     # Location
     location = models.CharField(max_length=255, blank=True)
     latitude = models.FloatField(blank=True, null=True)
     longitude = models.FloatField(blank=True, null=True)
-    
+
     # Status and metadata
     status = models.CharField(
         max_length=20,
@@ -107,28 +107,28 @@ class MarketplaceListing(models.Model):
     views_count = models.IntegerField(default=0)
     saved_count = models.IntegerField(default=0)
     messages_count = models.IntegerField(default=0)
-    
+
     # Verification and moderation
     is_verified = models.BooleanField(default=False)
     reported_count = models.IntegerField(default=0)
     is_flagged = models.BooleanField(default=False)
     flagged_reason = models.TextField(blank=True)
-    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     expires_at = models.DateTimeField(blank=True, null=True)
     sold_at = models.DateTimeField(blank=True, null=True)
-    
+
     # Relations
-    reactions = GenericRelation('main.Reaction', related_query_name='listing')
+    reactions = GenericRelation("main.Reaction", related_query_name="listing")
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['seller', 'status', '-created_at']),
-            models.Index(fields=['category', 'status', '-created_at']),
-            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=["seller", "status", "-created_at"]),
+            models.Index(fields=["category", "status", "-created_at"]),
+            models.Index(fields=["status", "-created_at"]),
         ]
 
     def __str__(self):
@@ -137,7 +137,7 @@ class MarketplaceListing(models.Model):
 
 class MarketplaceListingMedia(models.Model):
     """Media (photos/videos) for marketplace listings."""
-    
+
     listing = models.ForeignKey(
         MarketplaceListing,
         related_name="media",
@@ -149,7 +149,7 @@ class MarketplaceListingMedia(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['order', 'uploaded_at']
+        ordering = ["order", "uploaded_at"]
 
     def __str__(self):
         return f"Media for {self.listing_id}: {self.url}"
@@ -157,7 +157,7 @@ class MarketplaceListingMedia(models.Model):
 
 class MarketplaceSave(models.Model):
     """Saved/bookmarked listings."""
-    
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         related_name="saved_listings",
@@ -171,8 +171,8 @@ class MarketplaceSave(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = (('user', 'listing'),)
-        ordering = ['-created_at']
+        unique_together = (("user", "listing"),)
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.user} saved {self.listing_id}"
@@ -180,7 +180,7 @@ class MarketplaceSave(models.Model):
 
 class MarketplaceReport(models.Model):
     """Reports for inappropriate or problematic listings."""
-    
+
     REASON_CHOICES = (
         ("inappropriate", "Inappropriate Content"),
         ("scam", "Scam or Fraud"),
@@ -190,7 +190,7 @@ class MarketplaceReport(models.Model):
         ("stolen", "Stolen Item"),
         ("other", "Other"),
     )
-    
+
     STATUS_CHOICES = (
         ("pending", "Pending"),
         ("under_review", "Under Review"),
@@ -231,7 +231,7 @@ class MarketplaceReport(models.Model):
     reviewed_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"Report: {self.reason} for listing {self.listing_id}"
@@ -239,7 +239,7 @@ class MarketplaceReport(models.Model):
 
 class MarketplaceOffer(models.Model):
     """Offers/negotiation for listings."""
-    
+
     STATUS_CHOICES = (
         ("pending", "Pending"),
         ("accepted", "Accepted"),
@@ -274,8 +274,8 @@ class MarketplaceOffer(models.Model):
     expires_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
-        ordering = ['-created_at']
-        unique_together = (('listing', 'buyer'),)  # One offer per buyer per listing
+        ordering = ["-created_at"]
+        unique_together = (("listing", "buyer"),)  # One offer per buyer per listing
 
     def __str__(self):
         return f"Offer: ${self.offered_price} for listing {self.listing_id}"
@@ -283,14 +283,14 @@ class MarketplaceOffer(models.Model):
 
 class SellerVerification(models.Model):
     """Seller verification status and badges."""
-    
+
     VERIFICATION_TYPE_CHOICES = (
         ("phone", "Phone Verified"),
         ("email", "Email Verified"),
         ("id", "ID Verified"),
         ("address", "Address Verified"),
     )
-    
+
     STATUS_CHOICES = (
         ("pending", "Pending"),
         ("approved", "Approved"),
@@ -317,8 +317,8 @@ class SellerVerification(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-verified_at']
-        unique_together = (('seller', 'verification_type'),)
+        ordering = ["-verified_at"]
+        unique_together = (("seller", "verification_type"),)
 
     def __str__(self):
         return f"{self.seller} - {self.get_verification_type_display()}: {self.status}"

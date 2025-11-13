@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, apiPatch } from "@/lib/api";
 import type { Page as BusinessPage, PageAdmin } from "@/lib/types";
 import Spinner from "@/components/Spinner";
+import Gallery from "@/components/Gallery";
+import ImageUploadField from "@/components/ImageUploadField";
 import { useToast } from "@/components/Toast";
 
 const CATEGORIES = [
@@ -27,6 +29,7 @@ export default function PageDetail() {
   const [admins, setAdmins] = useState<PageAdmin[]>([]);
   const [canManage, setCanManage] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
     description: "",
@@ -34,6 +37,7 @@ export default function PageDetail() {
     website_url: "",
     phone: "",
     email: "",
+    profile_image_url: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -56,6 +60,7 @@ export default function PageDetail() {
           website_url: detail.website_url || "",
           phone: detail.phone || "",
           email: detail.email || "",
+          profile_image_url: detail.profile_image_url || "",
         });
         await loadAdmins(detail.id, cancelled);
       } catch (error) {
@@ -123,6 +128,7 @@ export default function PageDetail() {
         website_url: page.website_url || "",
         phone: page.phone || "",
         email: page.email || "",
+        profile_image_url: page.profile_image_url || "",
       });
       setIsEditing(true);
     }
@@ -144,6 +150,16 @@ export default function PageDetail() {
       const updated = await apiPatch<BusinessPage>(`/pages/${page.id}/`, payload, {
         token: accessToken,
       });
+
+      // If profile image URL changed, update it via the dedicated endpoint
+      if (editForm.profile_image_url && editForm.profile_image_url !== page.profile_image_url) {
+        const imagePayload = { profile_image_url: editForm.profile_image_url };
+        await apiPost(`/pages/${page.id}/update-profile-image/`, imagePayload, {
+          token: accessToken,
+        });
+        updated.profile_image_url = editForm.profile_image_url;
+      }
+
       setPage(updated);
       setIsEditing(false);
       toast.show("Page updated successfully!", "success");
@@ -173,6 +189,11 @@ export default function PageDetail() {
 
   return (
     <div className="space-y-8">
+      <Gallery
+        isOpen={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        images={page.profile_image_url ? [page.profile_image_url] : []}
+      />
       <section className="rounded-3xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="relative h-48 w-full bg-gray-100">
           {page.cover_image_url && (
@@ -188,12 +209,18 @@ export default function PageDetail() {
           <div className="flex gap-4">
             <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-gray-100 shadow-md">
               {page.profile_image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={page.profile_image_url}
-                  alt={page.name}
-                  className="h-full w-full object-cover"
-                />
+                <button
+                  type="button"
+                  onClick={() => setGalleryOpen(true)}
+                  className="h-full w-full cursor-pointer transition hover:opacity-80"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={page.profile_image_url}
+                    alt={page.name}
+                    className="h-full w-full object-cover"
+                  />
+                </button>
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-gray-700">
                   {page.name.slice(0, 1).toUpperCase()}
@@ -312,6 +339,13 @@ export default function PageDetail() {
             </div>
 
             <form className="space-y-4" onSubmit={handleEditSubmit}>
+              <ImageUploadField
+                label="Profile Image"
+                value={editForm.profile_image_url}
+                onChange={(url) => setEditForm((prev) => ({ ...prev, profile_image_url: url }))}
+                disabled={submitting}
+              />
+
               <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-black">Page name</label>
                 <input

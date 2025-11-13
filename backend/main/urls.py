@@ -36,10 +36,20 @@ router.register("device-tokens", DeviceTokenViewSet, basename="device-tokens")
 router.register("conversations", ConversationViewSet, basename="conversations")
 router.register("pages", PageViewSet, basename="pages")
 router.register("admin-invites", PageAdminInviteViewSet, basename="admin-invites")
-router.register("marketplace/listings", MarketplaceListingViewSet, basename="marketplace-listings")
-router.register("marketplace/offers", MarketplaceOfferViewSet, basename="marketplace-offers")
-router.register("marketplace/saves", MarketplaceSaveViewSet, basename="marketplace-saves")
-router.register("marketplace/seller-verification", SellerVerificationViewSet, basename="marketplace-seller-verification")
+router.register(
+    "marketplace/listings", MarketplaceListingViewSet, basename="marketplace-listings"
+)
+router.register(
+    "marketplace/offers", MarketplaceOfferViewSet, basename="marketplace-offers"
+)
+router.register(
+    "marketplace/saves", MarketplaceSaveViewSet, basename="marketplace-saves"
+)
+router.register(
+    "marketplace/seller-verification",
+    SellerVerificationViewSet,
+    basename="marketplace-seller-verification",
+)
 
 urlpatterns = [
     path("", include(router.urls)),
@@ -49,5 +59,9 @@ urlpatterns = [
     path("firebase-config/", FirebaseConfigView.as_view(), name="firebase-config"),
     path("redis-health/", RedisHealthView.as_view(), name="redis-health"),
     path("ws-diagnostic/", WebSocketDiagnosticView.as_view(), name="ws-diagnostic"),
-    path("test-push-notification/", TestPushNotificationView.as_view(), name="test-push-notification"),
+    path(
+        "test-push-notification/",
+        TestPushNotificationView.as_view(),
+        name="test-push-notification",
+    ),
 ]

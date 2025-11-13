@@ -27,31 +27,49 @@ from users.serializers import UserSerializer
 class ReactionSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     # accept either post, comment, or message id
-    post = serializers.PrimaryKeyRelatedField(queryset=Post.objects.all(), required=False, write_only=True)
-    comment = serializers.PrimaryKeyRelatedField(queryset=Comment.objects.all(), required=False, write_only=True)
-    message = serializers.PrimaryKeyRelatedField(queryset=Message.objects.all(), required=False, write_only=True)
+    post = serializers.PrimaryKeyRelatedField(
+        queryset=Post.objects.all(), required=False, write_only=True
+    )
+    comment = serializers.PrimaryKeyRelatedField(
+        queryset=Comment.objects.all(), required=False, write_only=True
+    )
+    message = serializers.PrimaryKeyRelatedField(
+        queryset=Message.objects.all(), required=False, write_only=True
+    )
 
     class Meta:
         model = Reaction
-        fields = ["id", "post", "comment", "message", "user", "reaction_type", "created_at"]
+        fields = [
+            "id",
+            "post",
+            "comment",
+            "message",
+            "user",
+            "reaction_type",
+            "created_at",
+        ]
         read_only_fields = ["id", "user", "created_at"]
 
     def create(self, validated_data):
-        request = self.context.get('request')
-        if request and getattr(request, 'user', None):
+        request = self.context.get("request")
+        if request and getattr(request, "user", None):
             user = request.user
         else:
             user = None
 
-        post = validated_data.pop('post', None)
-        comment = validated_data.pop('comment', None)
-        message = validated_data.pop('message', None)
+        post = validated_data.pop("post", None)
+        comment = validated_data.pop("comment", None)
+        message = validated_data.pop("message", None)
 
         provided = [x for x in [post, comment, message] if x is not None]
         if len(provided) == 0:
-            raise serializers.ValidationError("Either 'post', 'comment', or 'message' must be provided.")
+            raise serializers.ValidationError(
+                "Either 'post', 'comment', or 'message' must be provided."
+            )
         if len(provided) > 1:
-            raise serializers.ValidationError("Provide only one of 'post', 'comment', or 'message'.")
+            raise serializers.ValidationError(
+                "Provide only one of 'post', 'comment', or 'message'."
+            )
 
         if post is not None:
             content_obj = post
@@ -62,9 +80,16 @@ class ReactionSerializer(serializers.ModelSerializer):
 
         # remove existing reaction by this user on this object
         ct = ContentType.objects.get_for_model(content_obj.__class__)
-        Reaction.objects.filter(content_type=ct, object_id=content_obj.id, user=user).delete()
+        Reaction.objects.filter(
+            content_type=ct, object_id=content_obj.id, user=user
+        ).delete()
 
-        reaction = Reaction.objects.create(content_type=ct, object_id=content_obj.id, user=user, reaction_type=validated_data.get('reaction_type', 'like'))
+        reaction = Reaction.objects.create(
+            content_type=ct,
+            object_id=content_obj.id,
+            user=user,
+            reaction_type=validated_data.get("reaction_type", "like"),
+        )
         return reaction
 
 
@@ -129,8 +154,14 @@ class PageSerializer(PageSummarySerializer):
         user = self.get_request_user()
         if not user or not user.is_authenticated:
             return False
-        if hasattr(obj, "_prefetched_objects_cache") and "followers" in obj._prefetched_objects_cache:
-            return any(follower.user_id == user.id for follower in obj._prefetched_objects_cache["followers"])
+        if (
+            hasattr(obj, "_prefetched_objects_cache")
+            and "followers" in obj._prefetched_objects_cache
+        ):
+            return any(
+                follower.user_id == user.id
+                for follower in obj._prefetched_objects_cache["followers"]
+            )
         return obj.followers.filter(user=user).exists()
 
 
@@ -176,7 +207,9 @@ class PageFollowerSerializer(serializers.ModelSerializer):
 class CommentSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     media = serializers.SerializerMethodField()
-    media_urls = serializers.ListField(child=serializers.URLField(), write_only=True, required=False)
+    media_urls = serializers.ListField(
+        child=serializers.URLField(), write_only=True, required=False
+    )
     reactions = ReactionSerializer(many=True, read_only=True)
     reaction_summary = serializers.SerializerMethodField()
     replies_count = serializers.SerializerMethodField()
@@ -226,14 +259,16 @@ class CommentSerializer(serializers.ModelSerializer):
             else:
                 current_post_id = None
             if parent_post_id != current_post_id:
-                raise serializers.ValidationError({"parent": "Replies must belong to the same post."})
+                raise serializers.ValidationError(
+                    {"parent": "Replies must belong to the same post."}
+                )
         return attrs
 
     def create(self, validated_data):
-        request = self.context.get('request')
-        if request and getattr(request, 'user', None):
-            validated_data['author'] = request.user
-        media_urls = validated_data.pop('media_urls', [])
+        request = self.context.get("request")
+        if request and getattr(request, "user", None):
+            validated_data["author"] = request.user
+        media_urls = validated_data.pop("media_urls", [])
         comment = super().create(validated_data)
         for index, url in enumerate(media_urls):
             cleaned_url = url.strip() if isinstance(url, str) else str(url)
@@ -252,14 +287,19 @@ class CommentSerializer(serializers.ModelSerializer):
     def get_reaction_summary(self, obj):
         base = {choice[0]: 0 for choice in Reaction.TYPE_CHOICES}
         total = 0
-        if hasattr(obj, "_prefetched_objects_cache") and "reactions" in obj._prefetched_objects_cache:
+        if (
+            hasattr(obj, "_prefetched_objects_cache")
+            and "reactions" in obj._prefetched_objects_cache
+        ):
             reactions_iterable = obj._prefetched_objects_cache["reactions"]
         else:
             reactions_manager = getattr(obj, "reactions", None)
             if reactions_manager is not None:
                 reactions_iterable = reactions_manager.all()
             else:
-                reactions_iterable = Reaction.objects.filter(comment=obj).select_related("user")
+                reactions_iterable = Reaction.objects.filter(
+                    comment=obj
+                ).select_related("user")
 
         for reaction in reactions_iterable:
             base[reaction.reaction_type] = base.get(reaction.reaction_type, 0) + 1
@@ -267,7 +307,10 @@ class CommentSerializer(serializers.ModelSerializer):
         return {"total": total, "by_type": base}
 
     def get_replies_count(self, obj):
-        if hasattr(obj, "_prefetched_objects_cache") and "replies" in obj._prefetched_objects_cache:
+        if (
+            hasattr(obj, "_prefetched_objects_cache")
+            and "replies" in obj._prefetched_objects_cache
+        ):
             return len(obj._prefetched_objects_cache["replies"])
         return obj.replies.count()
 
@@ -276,19 +319,27 @@ class CommentSerializer(serializers.ModelSerializer):
         if not request or not request.user.is_authenticated:
             return None
         user_id = request.user.id
-        if hasattr(obj, "_prefetched_objects_cache") and "reactions" in obj._prefetched_objects_cache:
+        if (
+            hasattr(obj, "_prefetched_objects_cache")
+            and "reactions" in obj._prefetched_objects_cache
+        ):
             for reaction in obj._prefetched_objects_cache["reactions"]:
                 if reaction.user_id == user_id:
                     return ReactionSerializer(reaction, context=self.context).data
             return None
-        reaction = obj.reactions.filter(user=request.user).select_related("user").first()
+        reaction = (
+            obj.reactions.filter(user=request.user).select_related("user").first()
+        )
         if reaction:
             return ReactionSerializer(reaction, context=self.context).data
         return None
 
     def get_replies(self, obj):
         depth = self.context.get("depth", 0)
-        if hasattr(obj, "_prefetched_objects_cache") and "replies" in obj._prefetched_objects_cache:
+        if (
+            hasattr(obj, "_prefetched_objects_cache")
+            and "replies" in obj._prefetched_objects_cache
+        ):
             replies_qs = obj._prefetched_objects_cache["replies"]
         else:
             replies_qs = obj.replies.all()
@@ -300,6 +351,7 @@ class CommentSerializer(serializers.ModelSerializer):
             context={**self.context, "depth": depth + 1},
         )
         return serializer.data
+
 
 class PostSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
@@ -315,7 +367,9 @@ class PostSerializer(serializers.ModelSerializer):
     comments = CommentSerializer(many=True, read_only=True)
     reactions = ReactionSerializer(many=True, read_only=True)
     media = serializers.SerializerMethodField()
-    media_urls = serializers.ListField(child=serializers.URLField(), write_only=True, required=False)
+    media_urls = serializers.ListField(
+        child=serializers.URLField(), write_only=True, required=False
+    )
     bookmarked = serializers.SerializerMethodField()
     bookmark_id = serializers.SerializerMethodField()
     url_validator = URLValidator()
@@ -354,12 +408,12 @@ class PostSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        request = self.context.get('request')
-        if request and getattr(request, 'user', None):
-            validated_data['author'] = request.user
+        request = self.context.get("request")
+        if request and getattr(request, "user", None):
+            validated_data["author"] = request.user
         page = validated_data.get("page")
         validated_data["author_type"] = "page" if page else "user"
-        media_urls = validated_data.pop('media_urls', [])
+        media_urls = validated_data.pop("media_urls", [])
         post = super().create(validated_data)
         for index, url in enumerate(media_urls):
             cleaned_url = url.strip() if isinstance(url, str) else str(url)
@@ -376,16 +430,18 @@ class PostSerializer(serializers.ModelSerializer):
         return [m.url for m in obj.media.all()]
 
     def get_bookmarked(self, obj):
-        request = self.context.get('request')
+        request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return False
         return obj.bookmarks.filter(user=request.user).exists()
 
     def get_bookmark_id(self, obj):
-        request = self.context.get('request')
+        request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return None
-        bookmark = obj.bookmarks.filter(user=request.user).values_list('id', flat=True).first()
+        bookmark = (
+            obj.bookmarks.filter(user=request.user).values_list("id", flat=True).first()
+        )
         return bookmark
 
 
@@ -398,20 +454,43 @@ class NotificationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Notification
-        fields = ['id', 'actor', 'verb', 'content_type', 'object_id', 'unread', 'created_at', 'target_post_id', 'target_post_preview', 'target_comment_preview', 'target_url']
-        read_only_fields = ['id', 'actor', 'verb', 'content_type', 'object_id', 'created_at', 'target_post_id', 'target_post_preview', 'target_comment_preview', 'target_url']
+        fields = [
+            "id",
+            "actor",
+            "verb",
+            "content_type",
+            "object_id",
+            "unread",
+            "created_at",
+            "target_post_id",
+            "target_post_preview",
+            "target_comment_preview",
+            "target_url",
+        ]
+        read_only_fields = [
+            "id",
+            "actor",
+            "verb",
+            "content_type",
+            "object_id",
+            "created_at",
+            "target_post_id",
+            "target_post_preview",
+            "target_comment_preview",
+            "target_url",
+        ]
 
     def get_target_post_id(self, obj):
         """Get the post ID that this notification relates to"""
         if obj.content_type and obj.object_id:
             # If target is a Post, return its ID
-            if obj.content_type.model == 'post':
+            if obj.content_type.model == "post":
                 return obj.object_id
             # If target is a Comment, get the post from the comment
-            elif obj.content_type.model == 'comment':
+            elif obj.content_type.model == "comment":
                 try:
                     comment = obj.target
-                    if comment and hasattr(comment, 'post'):
+                    if comment and hasattr(comment, "post"):
                         return comment.post.id
                 except:
                     pass
@@ -443,9 +522,17 @@ class NotificationSerializer(serializers.ModelSerializer):
                         preview += "..."
                     return preview
 
-            if obj.verb == 'commented' and obj.content_type and obj.content_type.model == 'post':
+            if (
+                obj.verb == "commented"
+                and obj.content_type
+                and obj.content_type.model == "post"
+            ):
                 post = Post.objects.get(id=obj.object_id)
-                comment = post.comments.filter(author=obj.actor).order_by('-created_at').first()
+                comment = (
+                    post.comments.filter(author=obj.actor)
+                    .order_by("-created_at")
+                    .first()
+                )
                 if comment and comment.content:
                     preview = comment.content[:100]
                     if len(comment.content) > 100:
@@ -460,18 +547,18 @@ class NotificationSerializer(serializers.ModelSerializer):
         try:
             if obj.content_type and obj.object_id:
                 # If target is a Post, link to the post
-                if obj.content_type.model == 'post':
+                if obj.content_type.model == "post":
                     return f"/app/feed/{obj.object_id}"
                 # If target is a Comment, link to the post with the comment
-                elif obj.content_type.model == 'comment':
+                elif obj.content_type.model == "comment":
                     comment = obj.target
-                    if comment and hasattr(comment, 'post'):
+                    if comment and hasattr(comment, "post"):
                         return f"/app/feed/{comment.post.id}"
                 # If target is a FriendRequest, link to friend requests
-                elif obj.content_type.model == 'friendrequest':
+                elif obj.content_type.model == "friendrequest":
                     return "/app/friend-requests"
                 # If target is a Conversation, link to the conversation
-                elif obj.content_type.model == 'conversation':
+                elif obj.content_type.model == "conversation":
                     return f"/app/messages/{obj.object_id}"
         except Exception:
             pass
@@ -483,9 +570,9 @@ class BookmarkSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
 
     class Meta:
-        model = __import__('main.models', fromlist=['Bookmark']).Bookmark
-        fields = ['id', 'user', 'post', 'created_at']
-        read_only_fields = ['id', 'user', 'created_at']
+        model = __import__("main.models", fromlist=["Bookmark"]).Bookmark
+        fields = ["id", "user", "post", "created_at"]
+        read_only_fields = ["id", "user", "created_at"]
 
 
 class DeviceTokenSerializer(serializers.ModelSerializer):
@@ -561,7 +648,10 @@ class MessageSerializer(serializers.ModelSerializer):
         try:
             base = {choice[0]: 0 for choice in Reaction.TYPE_CHOICES}
             total = 0
-            if hasattr(obj, "_prefetched_objects_cache") and "reactions" in obj._prefetched_objects_cache:
+            if (
+                hasattr(obj, "_prefetched_objects_cache")
+                and "reactions" in obj._prefetched_objects_cache
+            ):
                 reactions_iterable = obj._prefetched_objects_cache["reactions"]
             else:
                 reactions_manager = getattr(obj, "reactions", None)
@@ -570,7 +660,7 @@ class MessageSerializer(serializers.ModelSerializer):
                 else:
                     reactions_iterable = Reaction.objects.filter(
                         content_type=ContentType.objects.get_for_model(Message),
-                        object_id=obj.id
+                        object_id=obj.id,
                     ).select_related("user")
             for reaction in reactions_iterable:
                 if reaction.reaction_type in base:
@@ -580,9 +670,15 @@ class MessageSerializer(serializers.ModelSerializer):
         except Exception as e:
             # Return empty summary if there's an error
             import logging
+
             logger = logging.getLogger(__name__)
-            logger.error(f"Error getting reaction summary for message {obj.id}: {str(e)}")
-            return {"total": 0, "by_type": {choice[0]: 0 for choice in Reaction.TYPE_CHOICES}}
+            logger.error(
+                f"Error getting reaction summary for message {obj.id}: {str(e)}"
+            )
+            return {
+                "total": 0,
+                "by_type": {choice[0]: 0 for choice in Reaction.TYPE_CHOICES},
+            }
 
 
 class ConversationSerializer(serializers.ModelSerializer):
@@ -625,7 +721,9 @@ class ConversationSerializer(serializers.ModelSerializer):
         if not ids:
             return ids
         User = get_user_model()
-        found = set(str(u) for u in User.objects.filter(id__in=ids).values_list("id", flat=True))
+        found = set(
+            str(u) for u in User.objects.filter(id__in=ids).values_list("id", flat=True)
+        )
         missing = set(ids) - found
         if missing:
             raise serializers.ValidationError(f"Unknown user IDs: {', '.join(missing)}")
@@ -677,48 +775,86 @@ class ConversationSerializer(serializers.ModelSerializer):
 # Marketplace Serializers
 class MarketplaceCategorySerializer(serializers.ModelSerializer):
     class Meta:
-        model = __import__('main.marketplace_models', fromlist=['MarketplaceCategory']).MarketplaceCategory
-        fields = ['id', 'name', 'slug', 'description', 'icon_url', 'is_active']
-        read_only_fields = ['id']
+        model = __import__(
+            "main.marketplace_models", fromlist=["MarketplaceCategory"]
+        ).MarketplaceCategory
+        fields = ["id", "name", "slug", "description", "icon_url", "is_active"]
+        read_only_fields = ["id"]
 
 
 class MarketplaceListingMediaSerializer(serializers.ModelSerializer):
     class Meta:
-        model = __import__('main.marketplace_models', fromlist=['MarketplaceListingMedia']).MarketplaceListingMedia
-        fields = ['id', 'url', 'content_type', 'order', 'uploaded_at']
-        read_only_fields = ['id', 'uploaded_at']
+        model = __import__(
+            "main.marketplace_models", fromlist=["MarketplaceListingMedia"]
+        ).MarketplaceListingMedia
+        fields = ["id", "url", "content_type", "order", "uploaded_at"]
+        read_only_fields = ["id", "uploaded_at"]
 
 
 class MarketplaceListingSerializer(serializers.ModelSerializer):
     seller = UserSerializer(read_only=True)
     category = MarketplaceCategorySerializer(read_only=True)
     category_id = serializers.PrimaryKeyRelatedField(
-        queryset=__import__('main.marketplace_models', fromlist=['MarketplaceCategory']).MarketplaceCategory.objects.all(),
-        source='category',
+        queryset=__import__(
+            "main.marketplace_models", fromlist=["MarketplaceCategory"]
+        ).MarketplaceCategory.objects.all(),
+        source="category",
         write_only=True,
     )
     media = MarketplaceListingMediaSerializer(many=True, read_only=True)
     is_saved = serializers.SerializerMethodField()
     reactions = serializers.SerializerMethodField()
-    
+
     class Meta:
-        model = __import__('main.marketplace_models', fromlist=['MarketplaceListing']).MarketplaceListing
+        model = __import__(
+            "main.marketplace_models", fromlist=["MarketplaceListing"]
+        ).MarketplaceListing
         fields = [
-            'id', 'seller', 'title', 'description', 'category', 'category_id',
-            'price', 'condition', 'contact_preference', 'delivery_options',
-            'location', 'latitude', 'longitude', 'status', 'views_count',
-            'saved_count', 'messages_count', 'is_verified', 'is_flagged',
-            'media', 'is_saved', 'reactions',
-            'created_at', 'updated_at', 'expires_at', 'sold_at',
+            "id",
+            "seller",
+            "title",
+            "description",
+            "category",
+            "category_id",
+            "price",
+            "condition",
+            "contact_preference",
+            "delivery_options",
+            "location",
+            "latitude",
+            "longitude",
+            "status",
+            "views_count",
+            "saved_count",
+            "messages_count",
+            "is_verified",
+            "is_flagged",
+            "media",
+            "is_saved",
+            "reactions",
+            "created_at",
+            "updated_at",
+            "expires_at",
+            "sold_at",
         ]
-        read_only_fields = ['id', 'seller', 'views_count', 'saved_count', 'messages_count', 'created_at', 'updated_at']
+        read_only_fields = [
+            "id",
+            "seller",
+            "views_count",
+            "saved_count",
+            "messages_count",
+            "created_at",
+            "updated_at",
+        ]
 
     def get_is_saved(self, obj):
-        request = self.context.get('request')
+        request = self.context.get("request")
         if request and request.user.is_authenticated:
-            return __import__('main.marketplace_models', fromlist=['MarketplaceSave']).MarketplaceSave.objects.filter(
-                user=request.user, listing=obj
-            ).exists()
+            return (
+                __import__("main.marketplace_models", fromlist=["MarketplaceSave"])
+                .MarketplaceSave.objects.filter(user=request.user, listing=obj)
+                .exists()
+            )
         return False
 
     def get_reactions(self, obj):
@@ -729,48 +865,87 @@ class MarketplaceListingSerializer(serializers.ModelSerializer):
 class MarketplaceSaveSerializer(serializers.ModelSerializer):
     listing = MarketplaceListingSerializer(read_only=True)
     listing_id = serializers.PrimaryKeyRelatedField(
-        queryset=__import__('main.marketplace_models', fromlist=['MarketplaceListing']).MarketplaceListing.objects.all(),
-        source='listing',
+        queryset=__import__(
+            "main.marketplace_models", fromlist=["MarketplaceListing"]
+        ).MarketplaceListing.objects.all(),
+        source="listing",
         write_only=True,
     )
-    
+
     class Meta:
-        model = __import__('main.marketplace_models', fromlist=['MarketplaceSave']).MarketplaceSave
-        fields = ['id', 'listing', 'listing_id', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        model = __import__(
+            "main.marketplace_models", fromlist=["MarketplaceSave"]
+        ).MarketplaceSave
+        fields = ["id", "listing", "listing_id", "created_at"]
+        read_only_fields = ["id", "created_at"]
 
 
 class MarketplaceReportSerializer(serializers.ModelSerializer):
     reporter = UserSerializer(read_only=True)
-    
+
     class Meta:
-        model = __import__('main.marketplace_models', fromlist=['MarketplaceReport']).MarketplaceReport
+        model = __import__(
+            "main.marketplace_models", fromlist=["MarketplaceReport"]
+        ).MarketplaceReport
         fields = [
-            'id', 'listing', 'reporter', 'reason', 'description',
-            'status', 'reviewed_by', 'review_notes', 'created_at', 'reviewed_at'
+            "id",
+            "listing",
+            "reporter",
+            "reason",
+            "description",
+            "status",
+            "reviewed_by",
+            "review_notes",
+            "created_at",
+            "reviewed_at",
         ]
-        read_only_fields = ['id', 'reporter', 'status', 'reviewed_by', 'review_notes', 'reviewed_at', 'created_at']
+        read_only_fields = [
+            "id",
+            "reporter",
+            "status",
+            "reviewed_by",
+            "review_notes",
+            "reviewed_at",
+            "created_at",
+        ]
 
 
 class MarketplaceOfferSerializer(serializers.ModelSerializer):
     buyer = UserSerializer(read_only=True)
-    
+
     class Meta:
-        model = __import__('main.marketplace_models', fromlist=['MarketplaceOffer']).MarketplaceOffer
+        model = __import__(
+            "main.marketplace_models", fromlist=["MarketplaceOffer"]
+        ).MarketplaceOffer
         fields = [
-            'id', 'listing', 'buyer', 'offered_price', 'message',
-            'status', 'responded_at', 'response_message', 'created_at', 'expires_at'
+            "id",
+            "listing",
+            "buyer",
+            "offered_price",
+            "message",
+            "status",
+            "responded_at",
+            "response_message",
+            "created_at",
+            "expires_at",
         ]
-        read_only_fields = ['id', 'buyer', 'status', 'responded_at', 'created_at']
+        read_only_fields = ["id", "buyer", "status", "responded_at", "created_at"]
 
 
 class SellerVerificationSerializer(serializers.ModelSerializer):
     seller = UserSerializer(read_only=True)
-    
+
     class Meta:
-        model = __import__('main.marketplace_models', fromlist=['SellerVerification']).SellerVerification
+        model = __import__(
+            "main.marketplace_models", fromlist=["SellerVerification"]
+        ).SellerVerification
         fields = [
-            'id', 'seller', 'verification_type', 'status',
-            'verified_at', 'created_at', 'updated_at'
+            "id",
+            "seller",
+            "verification_type",
+            "status",
+            "verified_at",
+            "created_at",
+            "updated_at",
         ]
-        read_only_fields = ['id', 'seller', 'verified_at', 'created_at', 'updated_at']
+        read_only_fields = ["id", "seller", "verified_at", "created_at", "updated_at"]
