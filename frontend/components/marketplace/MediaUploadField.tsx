@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useToast } from "@/components/Toast";
+import { API_BASE } from "@/lib/api";
 import Image from "next/image";
 
 export interface UploadedMedia {
   url: string;
   order: number;
   tempId?: string;
+  id?: number;
 }
 
 interface MediaUploadFieldProps {
@@ -60,7 +62,8 @@ export default function MediaUploadField({
         const formData = new FormData();
         formData.append("file", file);
 
-        const response = await fetch("/api/uploads/images/", {
+        const uploadUrl = `${API_BASE}/uploads/images/`;
+        const response = await fetch(uploadUrl, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
@@ -69,6 +72,8 @@ export default function MediaUploadField({
         });
 
         if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Upload error response:", errorData);
           throw new Error(`Upload failed for ${file.name}`);
         }
 

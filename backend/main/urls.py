@@ -39,7 +39,9 @@ router.register("conversations", ConversationViewSet, basename="conversations")
 router.register("pages", PageViewSet, basename="pages")
 router.register("admin-invites", PageAdminInviteViewSet, basename="admin-invites")
 router.register(
-    "marketplace/categories", MarketplaceCategoryViewSet, basename="marketplace-categories"
+    "marketplace/categories",
+    MarketplaceCategoryViewSet,
+    basename="marketplace-categories",
 )
 router.register(
     "marketplace/listings", MarketplaceListingViewSet, basename="marketplace-listings"

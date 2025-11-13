@@ -7,7 +7,7 @@ import MediaUploadField, { UploadedMedia } from "@/components/marketplace/MediaU
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth-context";
 import { MarketplaceCategory, ListingCondition, MarketplaceListing } from "@/lib/types";
-import { apiPost, apiGet, apiPatch } from "@/lib/api";
+import { apiPost, apiGet, apiPatch, apiDelete } from "@/lib/api";
 
 export default function EditListingPage() {
   const router = useRouter();
@@ -184,13 +184,7 @@ export default function EditListingPage() {
       // Handle removed media
       for (const mediaId of removedMediaIds) {
         try {
-          // Note: This assumes a delete endpoint exists
-          await fetch(`/api/marketplace/media/${mediaId}/`, {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
-            },
-          });
+          await apiDelete(`/marketplace/media/${mediaId}/`);
         } catch (error) {
           console.error(`Failed to delete media ${mediaId}:`, error);
         }
