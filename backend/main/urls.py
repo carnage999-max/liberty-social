@@ -18,6 +18,12 @@ from .views import (
     WebSocketDiagnosticView,
     TestPushNotificationView,
 )
+from .marketplace_views import (
+    MarketplaceListingViewSet,
+    MarketplaceOfferViewSet,
+    MarketplaceSaveViewSet,
+    SellerVerificationViewSet,
+)
 from .views_uploads import UploadImageView
 
 router = DefaultRouter()
@@ -30,6 +36,10 @@ router.register("device-tokens", DeviceTokenViewSet, basename="device-tokens")
 router.register("conversations", ConversationViewSet, basename="conversations")
 router.register("pages", PageViewSet, basename="pages")
 router.register("admin-invites", PageAdminInviteViewSet, basename="admin-invites")
+router.register("marketplace/listings", MarketplaceListingViewSet, basename="marketplace-listings")
+router.register("marketplace/offers", MarketplaceOfferViewSet, basename="marketplace-offers")
+router.register("marketplace/saves", MarketplaceSaveViewSet, basename="marketplace-saves")
+router.register("marketplace/seller-verification", SellerVerificationViewSet, basename="marketplace-seller-verification")
 
 urlpatterns = [
     path("", include(router.urls)),
