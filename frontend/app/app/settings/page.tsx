@@ -249,8 +249,8 @@ export default function SettingsPage() {
         <div className="w-full lg:w-2/3">
           <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-500">Settings</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-2xl font-bold --color-silver-mid">Settings</h1>
+              <p className="text-sm text-gray-400">
                 Manage your profile information, privacy preferences, and blocked users.
               </p>
             </div>

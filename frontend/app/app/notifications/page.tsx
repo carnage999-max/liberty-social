@@ -113,7 +113,7 @@ export default function NotificationsPage() {
           <button
             onClick={handleMarkAllRead}
             disabled={!accessToken || unreadCount === 0 || markingAll}
-            className="rounded-full border border-[var(--color-deep-navy)] px-4 py-1.5 text-sm font-semibold text-[var(--color-deep-navy)] transition hover:bg-[var(--color-deep-navy)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-full border border-gray-400 px-4 py-1.5 text-sm font-semibold text-(--color-silver-mid) transition hover:bg-[var(--color-deep-navy)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             {markingAll ? "Marking..." : unreadCount ? `Mark all as read (${unreadCount})` : "All caught up"}
           </button>

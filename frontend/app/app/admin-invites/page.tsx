@@ -104,7 +104,7 @@ export default function AdminInvitesPage() {
       <div className="flex items-center gap-4">
         <Link
           href="/app/pages"
-          className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+          className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1 text-sm --color-silver-md hover:bg-deep-navy/5"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
             <path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -112,8 +112,8 @@ export default function AdminInvitesPage() {
           Back
         </Link>
         <header className="flex-1">
-          <h1 className="text-2xl font-semibold text-black">Page admin management</h1>
-          <p className="text-sm text-gray-600">Send and manage invitations to administer your business pages.</p>
+          <h1 className="text-2xl font-semibold --color-silver-mid">Page admin management</h1>
+          <p className="text-sm text-gray-400">Send and manage invitations to administer your business pages.</p>
         </header>
       </div>
 
@@ -176,7 +176,7 @@ export default function AdminInvitesPage() {
 
       {/* Received Invites Section */}
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-black">Invitations received</h2>
+        <h2 className="text-lg font-semibold --color-silver-mid">Invitations received</h2>
 
         {invites.length === 0 ? (
           <div className="rounded-3xl border border-gray-200 bg-white p-6 text-center shadow-sm">

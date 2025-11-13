@@ -84,7 +84,7 @@ export default function BookmarksPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold text-gray-900">Bookmarks</h1>
+        <h1 className="text-2xl font-bold --color-silver-mid">Bookmarks</h1>
         <p className="text-sm text-gray-500">
           {count === 0 ? "You haven't saved anything yet." : `${count} bookmark${count === 1 ? "" : "s"}`}
         </p>
