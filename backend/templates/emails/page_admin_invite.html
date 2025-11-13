@@ -1,0 +1,26 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h1 style="color: #1f2937; font-size: 24px; margin-bottom: 16px;">Page Admin Invitation</h1>
+
+<p style="margin-bottom: 16px;">Hi {{ invitee.first_name|default:invitee.username }},</p>
+
+<p style="margin-bottom: 16px;">
+    <strong>{{ inviter_name }}</strong> has invited you to be a <strong>{{ role }}</strong> of the page <strong>"{{ page_name }}"</strong>.
+</p>
+
+<p style="margin-bottom: 24px;">
+    As a {{ role }}, you'll be able to manage content, moderate discussions, and help grow this community.
+</p>
+
+<a href="{{ invitation_url }}" class="button">Review Invitation</a>
+
+<p style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 0.875rem;">
+    <strong>What happens next?</strong><br>
+    You can accept or decline this invitation by clicking the button above. You'll see all your pending invitations in your admin dashboard.
+</p>
+
+<p style="margin-top: 24px;">If you have any questions, feel free to reach out.</p>
+
+<p style="margin-top: 24px;">Best regards,<br>The Liberty Social Team</p>
+{% endblock %}

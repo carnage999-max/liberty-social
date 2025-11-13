@@ -81,3 +81,24 @@ def send_password_change_request_email(user, change_url):
     return send_templated_email(
         "password_change_request", context, "Change your Liberty Social password", user.email
     )
+
+
+def send_page_admin_invite_email(invitee, inviter, page):
+    """Send a page admin invitation email to a user."""
+    inviter_name = f"{inviter.first_name} {inviter.last_name}".strip() or inviter.username
+    invitation_url = f"{settings.FRONTEND_URL}/app/admin-invites"
+    
+    context = {
+        "invitee": invitee,
+        "inviter_name": inviter_name,
+        "page_name": page.name,
+        "role": page.admin_invites.filter(invitee=invitee).latest('id').role,
+        "invitation_url": invitation_url,
+    }
+    
+    return send_templated_email(
+        "page_admin_invite", 
+        context, 
+        f"You've been invited to manage {page.name}", 
+        invitee.email
+    )

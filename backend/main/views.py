@@ -50,6 +50,7 @@ from .serializers import (
     PageFollowerSerializer,
 )
 from users.models import Friends
+from users.emails import send_page_admin_invite_email
 
 
 async def _ping_redis_async(redis_url: str) -> None:
@@ -374,38 +375,9 @@ class PageViewSet(ModelViewSet):
             role=role,
         )
 
-        # Send email notification to invitee
+        # Send email notification to invitee using template
         try:
-            inviter_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.username
-            subject = f"You've been invited to manage {page.name}"
-            html_content = f"""
-            <html>
-                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                        <h2>Page Admin Invitation</h2>
-                        <p>Hi {invitee.first_name or invitee.username},</p>
-                        <p><strong>{inviter_name}</strong> has invited you to be a <strong>{role}</strong> of the page <strong>{page.name}</strong>.</p>
-                        <p style="margin: 30px 0;">
-                            <a href="{settings.FRONTEND_URL}/app/admin-invites" 
-                               style="display: inline-block; background-color: #000; color: white; padding: 12px 24px; text-decoration: none; border-radius: 24px; font-weight: bold;">
-                                View Invitation
-                            </a>
-                        </p>
-                        <p>If you have any questions, feel free to reach out.</p>
-                        <p>Best regards,<br/>Liberty Social Team</p>
-                    </div>
-                </body>
-            </html>
-            """
-            
-            msg = EmailMessage(
-                subject=subject,
-                body=html_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[invitee.email],
-            )
-            msg.content_subtype = "html"
-            msg.send(fail_silently=True)
+            send_page_admin_invite_email(invitee, request.user, page)
         except Exception as e:
             # Log the error but don't fail the entire request
             logging.error(f"Failed to send invite email: {e}")
