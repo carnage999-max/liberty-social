@@ -310,6 +310,99 @@ export interface Conversation {
 }
 
 // ----------------------
+// MARKETPLACE
+// ----------------------
+
+export interface MarketplaceCategory {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  icon_url?: string | null;
+  is_active: boolean;
+}
+
+export type ListingCondition = "new" | "like_new" | "used" | "fair" | "poor";
+export type ContactPreference = "chat" | "call" | "both";
+export type DeliveryOption = "pickup" | "delivery" | "both";
+export type ListingStatus = "active" | "sold" | "expired" | "draft";
+
+export interface MarketplaceListingMedia {
+  id: number;
+  url: string;
+  content_type?: string | null;
+  order: number;
+}
+
+export interface MarketplaceListing {
+  id: number;
+  seller: User;
+  title: string;
+  description: string;
+  category: MarketplaceCategory | number;
+  price: string;
+  condition: ListingCondition;
+  contact_preference: ContactPreference;
+  delivery_options: DeliveryOption;
+  location: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  status: ListingStatus;
+  views_count: number;
+  saved_count: number;
+  media?: MarketplaceListingMedia[];
+  is_verified: boolean;
+  reported_count: number;
+  created_at: string;
+  updated_at: string;
+  expires_at?: string | null;
+  sold_at?: string | null;
+  is_saved?: boolean;
+  saved_by?: any[];
+  offers?: MarketplaceOffer[];
+  reactions?: Reaction[];
+}
+
+export interface MarketplaceOffer {
+  id: number;
+  listing: number | MarketplaceListing;
+  buyer: User;
+  offered_price: string;
+  message: string;
+  status: "pending" | "accepted" | "declined" | "expired";
+  responded_at?: string | null;
+  response_message: string;
+  created_at: string;
+  expires_at?: string | null;
+}
+
+export interface MarketplaceSave {
+  id: number;
+  user: User;
+  listing: MarketplaceListing;
+  created_at: string;
+}
+
+export interface MarketplaceReport {
+  id: number;
+  listing: number;
+  reporter: User;
+  reason: string;
+  description: string;
+  status: "pending" | "under_review" | "resolved" | "dismissed";
+  created_at: string;
+}
+
+export interface SellerVerification {
+  id: number;
+  seller: User;
+  verification_type: "phone" | "email" | "id" | "address";
+  status: "pending" | "approved" | "rejected";
+  verified_at?: string | null;
+  created_at: string;
+}
+
+// ----------------------
 // ⚙️ GENERIC HELPERS
 // ----------------------
 
