@@ -672,3 +672,105 @@ class ConversationSerializer(serializers.ModelSerializer):
         if not message:
             return None
         return MessageSerializer(message, context=self.context).data
+
+
+# Marketplace Serializers
+class MarketplaceCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = __import__('main.marketplace_models', fromlist=['MarketplaceCategory']).MarketplaceCategory
+        fields = ['id', 'name', 'slug', 'description', 'icon_url', 'is_active']
+        read_only_fields = ['id']
+
+
+class MarketplaceListingMediaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = __import__('main.marketplace_models', fromlist=['MarketplaceListingMedia']).MarketplaceListingMedia
+        fields = ['id', 'url', 'content_type', 'order', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at']
+
+
+class MarketplaceListingSerializer(serializers.ModelSerializer):
+    seller = UserSerializer(read_only=True)
+    category = MarketplaceCategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=__import__('main.marketplace_models', fromlist=['MarketplaceCategory']).MarketplaceCategory.objects.all(),
+        source='category',
+        write_only=True,
+    )
+    media = MarketplaceListingMediaSerializer(many=True, read_only=True)
+    is_saved = serializers.SerializerMethodField()
+    reactions = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = __import__('main.marketplace_models', fromlist=['MarketplaceListing']).MarketplaceListing
+        fields = [
+            'id', 'seller', 'title', 'description', 'category', 'category_id',
+            'price', 'condition', 'contact_preference', 'delivery_options',
+            'location', 'latitude', 'longitude', 'status', 'views_count',
+            'saved_count', 'messages_count', 'is_verified', 'is_flagged',
+            'media', 'is_saved', 'reactions',
+            'created_at', 'updated_at', 'expires_at', 'sold_at',
+        ]
+        read_only_fields = ['id', 'seller', 'views_count', 'saved_count', 'messages_count', 'created_at', 'updated_at']
+
+    def get_is_saved(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return __import__('main.marketplace_models', fromlist=['MarketplaceSave']).MarketplaceSave.objects.filter(
+                user=request.user, listing=obj
+            ).exists()
+        return False
+
+    def get_reactions(self, obj):
+        reactions = obj.reactions.all()
+        return ReactionSerializer(reactions, many=True, context=self.context).data
+
+
+class MarketplaceSaveSerializer(serializers.ModelSerializer):
+    listing = MarketplaceListingSerializer(read_only=True)
+    listing_id = serializers.PrimaryKeyRelatedField(
+        queryset=__import__('main.marketplace_models', fromlist=['MarketplaceListing']).MarketplaceListing.objects.all(),
+        source='listing',
+        write_only=True,
+    )
+    
+    class Meta:
+        model = __import__('main.marketplace_models', fromlist=['MarketplaceSave']).MarketplaceSave
+        fields = ['id', 'listing', 'listing_id', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class MarketplaceReportSerializer(serializers.ModelSerializer):
+    reporter = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = __import__('main.marketplace_models', fromlist=['MarketplaceReport']).MarketplaceReport
+        fields = [
+            'id', 'listing', 'reporter', 'reason', 'description',
+            'status', 'reviewed_by', 'review_notes', 'created_at', 'reviewed_at'
+        ]
+        read_only_fields = ['id', 'reporter', 'status', 'reviewed_by', 'review_notes', 'reviewed_at', 'created_at']
+
+
+class MarketplaceOfferSerializer(serializers.ModelSerializer):
+    buyer = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = __import__('main.marketplace_models', fromlist=['MarketplaceOffer']).MarketplaceOffer
+        fields = [
+            'id', 'listing', 'buyer', 'offered_price', 'message',
+            'status', 'responded_at', 'response_message', 'created_at', 'expires_at'
+        ]
+        read_only_fields = ['id', 'buyer', 'status', 'responded_at', 'created_at']
+
+
+class SellerVerificationSerializer(serializers.ModelSerializer):
+    seller = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = __import__('main.marketplace_models', fromlist=['SellerVerification']).SellerVerification
+        fields = [
+            'id', 'seller', 'verification_type', 'status',
+            'verified_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'seller', 'verified_at', 'created_at', 'updated_at']

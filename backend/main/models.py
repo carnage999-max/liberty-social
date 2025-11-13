@@ -359,3 +359,15 @@ class PageFollower(models.Model):
 
 	def __str__(self):
 		return f"{self.user} follows {self.page}"
+
+
+# Import marketplace models
+from .marketplace_models import (
+	MarketplaceCategory,
+	MarketplaceListing,
+	MarketplaceListingMedia,
+	MarketplaceSave,
+	MarketplaceReport,
+	MarketplaceOffer,
+	SellerVerification,
+)
