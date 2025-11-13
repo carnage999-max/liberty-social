@@ -278,3 +278,27 @@ class SellerVerificationViewSet(viewsets.ReadOnlyModelViewSet):
         verifications = self.get_queryset()
         serializer = self.get_serializer(verifications, many=True)
         return Response(serializer.data)
+
+
+class MarketplaceListingMediaViewSet(viewsets.ModelViewSet):
+    """Manage media for marketplace listings."""
+
+    serializer_class = MarketplaceListingMediaSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Users can manage media for their own listings
+        return MarketplaceListingMedia.objects.filter(
+            listing__seller=self.request.user
+        ).select_related("listing")
+
+    def perform_create(self, serializer):
+        listing = serializer.validated_data["listing"]
+        if listing.seller != self.request.user:
+            raise PermissionDenied("You can only add media to your own listings.")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.listing.seller != self.request.user:
+            raise PermissionDenied("You can only delete media from your own listings.")
+        instance.delete()

@@ -19,9 +19,11 @@ from .views import (
     TestPushNotificationView,
 )
 from .marketplace_views import (
+    MarketplaceCategoryViewSet,
     MarketplaceListingViewSet,
     MarketplaceOfferViewSet,
     MarketplaceSaveViewSet,
+    MarketplaceListingMediaViewSet,
     SellerVerificationViewSet,
 )
 from .views_uploads import UploadImageView
@@ -37,6 +39,9 @@ router.register("conversations", ConversationViewSet, basename="conversations")
 router.register("pages", PageViewSet, basename="pages")
 router.register("admin-invites", PageAdminInviteViewSet, basename="admin-invites")
 router.register(
+    "marketplace/categories", MarketplaceCategoryViewSet, basename="marketplace-categories"
+)
+router.register(
     "marketplace/listings", MarketplaceListingViewSet, basename="marketplace-listings"
 )
 router.register(
@@ -44,6 +49,9 @@ router.register(
 )
 router.register(
     "marketplace/saves", MarketplaceSaveViewSet, basename="marketplace-saves"
+)
+router.register(
+    "marketplace/media", MarketplaceListingMediaViewSet, basename="marketplace-media"
 )
 router.register(
     "marketplace/seller-verification",

@@ -40,18 +40,20 @@ export default function MarketplacePage() {
   // Load categories on mount
   useEffect(() => {
     const loadCategories = async () => {
+      if (!accessToken) return;
+      
       try {
         const data = await apiGet<PaginatedResponse<MarketplaceCategory>>(
-          "/marketplace/listings?category=__init__" // This won't work, need better approach
+          "/marketplace/categories/",
+          { token: accessToken }
         );
-        // For now, we'll load categories separately
-        // Assuming an endpoint exists, adjust as needed
+        setCategories(data.results || data);
       } catch (err) {
         console.error("Failed to load categories:", err);
       }
     };
     loadCategories();
-  }, []);
+  }, [accessToken]);
 
   // Load listings when filters change
   useEffect(() => {
