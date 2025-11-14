@@ -157,7 +157,7 @@ export default function MessagesPage() {
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Messages</h1>
+        <h1 className="text-2xl font-bold text-white">Messages</h1>
         <button
           onClick={() => setShowNewConversation(true)}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
@@ -169,80 +169,83 @@ export default function MessagesPage() {
 
       {conversations.length === 0 ? (
         <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-          <p className="text-gray-500">No conversations yet</p>
-          <p className="text-sm text-gray-400">Start a conversation with a friend</p>
+          <p className="text-gray-400">No conversations yet</p>
+          <p className="text-sm text-gray-500">Start a conversation with a friend</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {conversations.map((conversation) => {
-            const title = getConversationTitle(conversation);
-            const avatarUrl = getConversationAvatar(conversation);
-            const lastMessage = conversation.last_message;
-            // Show "Attachment" if last message has media but no content
-            const lastMessageText = lastMessage?.content 
-              ? lastMessage.content 
-              : lastMessage?.media_url 
-                ? "Attachment" 
-                : "No messages yet";
-            const lastMessageTime = formatTime(conversation.last_message_at);
+        <div className="rounded-2xl border border-gray-700 bg-gray-900 overflow-hidden shadow-xl">
+          <div className="space-y-0">
+            {conversations.map((conversation, idx) => {
+              const title = getConversationTitle(conversation);
+              const avatarUrl = getConversationAvatar(conversation);
+              const lastMessage = conversation.last_message;
+              const lastMessageText = lastMessage?.content 
+                ? lastMessage.content 
+                : lastMessage?.media_url 
+                  ? "Attachment" 
+                  : "No messages yet";
+              const lastMessageTime = formatTime(conversation.last_message_at);
 
-            return (
-              <button
-                key={conversation.id}
-                onClick={() => router.push(`/app/messages/${conversation.id}`)}
-                className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
-              >
-                <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
-                  {avatarUrl ? (
-                    <Image
-                      src={avatarUrl}
-                      alt={title}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-gray-500">
-                        {conversation.is_group ? "👥" : "👤"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-semibold truncate">{title}</h3>
-                    {lastMessageTime && (
-                      <span className="text-xs text-gray-500 flex-shrink-0">
-                        {lastMessageTime}
-                      </span>
+              return (
+                <button
+                  key={conversation.id}
+                  onClick={() => router.push(`/app/messages/${conversation.id}`)}
+                  className={`w-full flex items-center gap-4 p-4 hover:bg-gray-800 transition-colors text-left ${
+                    idx !== conversations.length - 1 ? "border-b border-gray-700" : ""
+                  }`}
+                >
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex-shrink-0">
+                    {avatarUrl ? (
+                      <Image
+                        src={avatarUrl}
+                        alt={title}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-gray-400">
+                          {conversation.is_group ? "👥" : "👤"}
+                        </span>
+                      </div>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500 truncate">{lastMessageText}</p>
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold truncate text-white">{title}</h3>
+                      {lastMessageTime && (
+                        <span className="text-xs text-gray-400 flex-shrink-0">
+                          {lastMessageTime}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-400 truncate">{lastMessageText}</p>
+                  </div>
+                </button>
+              );
+            })}
+            {next && (
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="w-full py-4 text-blue-400 hover:text-blue-300 disabled:opacity-50 text-center border-t border-gray-700 transition"
+              >
+                {loadingMore ? "Loading..." : "Load more"}
               </button>
-            );
-          })}
-          {next && (
-            <button
-              onClick={loadMore}
-              disabled={loadingMore}
-              className="w-full py-2 text-blue-600 hover:text-blue-700 disabled:opacity-50"
-            >
-              {loadingMore ? "Loading..." : "Load more"}
-            </button>
-          )}
+            )}
+          </div>
         </div>
       )}
 
       {/* New Conversation Modal */}
       {showNewConversation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">New Conversation</h2>
+              <h2 className="text-xl font-bold text-white">New Conversation</h2>
               <button
                 onClick={() => setShowNewConversation(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-400 hover:text-white transition"
               >
                 ✕
               </button>
@@ -253,8 +256,8 @@ export default function MessagesPage() {
               </div>
             ) : friends.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500">No friends yet</p>
-                <p className="text-sm text-gray-400 mt-2">
+                <p className="text-gray-400">No friends yet</p>
+                <p className="text-sm text-gray-500 mt-2">
                   Add friends to start conversations
                 </p>
               </div>
@@ -262,50 +265,50 @@ export default function MessagesPage() {
               <>
                 {friends.filter((friend) => friend.friend.id !== user?.id).length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-500">No other friends to message</p>
-                    <p className="text-sm text-gray-400 mt-2">
+                    <p className="text-gray-400">No other friends to message</p>
+                    <p className="text-sm text-gray-500 mt-2">
                       Add more friends to start conversations
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {friends
-                      .filter((friend) => friend.friend.id !== user?.id) // Filter out current user
+                      .filter((friend) => friend.friend.id !== user?.id)
                       .map((friend) => {
-                    const friendUser = friend.friend;
-                    const displayName =
-                      friendUser.first_name && friendUser.last_name
-                        ? `${friendUser.first_name} ${friendUser.last_name}`
-                        : friendUser.username || friendUser.email.split("@")[0];
-                    const avatarUrl = friendUser.profile_image_url
-                      ? resolveRemoteUrl(friendUser.profile_image_url)
-                      : null;
+                        const friendUser = friend.friend;
+                        const displayName =
+                          friendUser.first_name && friendUser.last_name
+                            ? `${friendUser.first_name} ${friendUser.last_name}`
+                            : friendUser.username || friendUser.email.split("@")[0];
+                        const avatarUrl = friendUser.profile_image_url
+                          ? resolveRemoteUrl(friendUser.profile_image_url)
+                          : null;
 
-                    return (
-                      <button
-                        key={friend.id}
-                        onClick={() => handleStartConversation(friendUser.id)}
-                        disabled={creatingConversation}
-                        className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left disabled:opacity-50"
-                      >
-                        <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 flex-shrink-0">
-                          {avatarUrl ? (
-                            <Image
-                              src={avatarUrl}
-                              alt={displayName}
-                              fill
-                              className="object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <span className="text-gray-500">👤</span>
+                        return (
+                          <button
+                            key={friend.id}
+                            onClick={() => handleStartConversation(friendUser.id)}
+                            disabled={creatingConversation}
+                            className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors text-left disabled:opacity-50 border border-gray-700"
+                          >
+                            <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gray-700 shrink-0">
+                              {avatarUrl ? (
+                                <Image
+                                  src={avatarUrl}
+                                  alt={displayName}
+                                  fill
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <span className="text-gray-400">👤</span>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        <span className="font-medium">{displayName}</span>
-                      </button>
-                    );
-                  })}
+                            <span className="font-medium text-white">{displayName}</span>
+                          </button>
+                        );
+                      })}
                   </div>
                 )}
               </>

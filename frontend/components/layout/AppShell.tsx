@@ -345,7 +345,7 @@ export default function AppShell({ children }: AppShellProps) {
     <div className="min-h-screen bg-[var(--color-background)] pb-32">
       <header className="sticky top-0 z-30 header-bar text-white shadow-lg backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-          <div className="flex items-center justify-between py-3 sm:hidden">
+          <div className="flex items-center justify-between py-2 sm:hidden">
             <button
               type="button"
               onClick={toggleNav}
@@ -385,61 +385,75 @@ export default function AppShell({ children }: AppShellProps) {
                 </div>
               )}
             </button>
-            <button
-              type="button"
-              onClick={() => handleNavigate("/app/notifications")}
-              aria-label="View notifications"
-              className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              {notificationUnreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
-                  {notificationBadgeLabel}
-                </span>
-              )}
-            </button>
-            <button
+            <div className="flex items-center gap-1">
+              <button
                 type="button"
-                onClick={() => {
-                  if (!user) {
-                    if (myProfileHref) {
-                      router.push(myProfileHref);
-                    } else {
-                      handleNavigate("/app/settings");
-                    }
-                    return;
-                  }
-                  setMobileProfileModalOpen(true);
-                }}
-                aria-label="View profile"
-                className="relative h-9 w-9 overflow-hidden rounded-full border border-white/40 bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30"
+                onClick={() => handleNavigate("/app/pages")}
+                aria-label="View pages"
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30"
               >
-              {user ? (
-                user.profile_image_url ? (
-                  <Image
-                    src={user.profile_image_url}
-                    alt={user.username || user.email || "Your profile"}
-                    fill
-                    sizes="36px"
-                    className="object-cover"
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center">
-                    {(user.username || user.email || "U").charAt(0).toUpperCase()}
+                  <path
+                    d="M9 22V12h6v10"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigate("/app/marketplace")}
+                aria-label="View marketplace"
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M6 2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M8 7h8M8 12h8M8 17h4"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigate("/app/notifications")}
+                aria-label="View notifications"
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {notificationUnreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
+                    {notificationBadgeLabel}
                   </span>
-                )
-              ) : (
-                <span className="flex h-full w-full items-center justify-center">?</span>
-              )}
-            </button>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="hidden items-center justify-between gap-6 py-4 sm:flex">
@@ -461,6 +475,52 @@ export default function AppShell({ children }: AppShellProps) {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleNavigate("/app/pages")}
+                aria-label="View pages"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/30"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M9 22V12h6v10"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigate("/app/marketplace")}
+                aria-label="View marketplace"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/30"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M6 2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M8 7h8M8 12h8M8 17h4"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
               <button
                 type="button"
                 onClick={() => handleNavigate("/app/notifications")}
@@ -633,10 +693,10 @@ export default function AppShell({ children }: AppShellProps) {
                     Navigation
                   </p>
                   <ul className="space-y-2 text-sm font-medium text-[var(--color-deep-navy)]">
-                {NAV_LINKS.map((link) => {
-                  const active = pathname?.startsWith(link.href);
-                  const badgeCount = getBadgeCount(link.href);
-                  const badgeLabel = badgeCount > 99 ? "99+" : String(badgeCount);
+                    {NAV_LINKS.map((link) => {
+                      const active = pathname?.startsWith(link.href);
+                      const badgeCount = getBadgeCount(link.href);
+                      const badgeLabel = badgeCount > 99 ? "99+" : String(badgeCount);
                       return (
                         <li key={link.href}>
                           <button

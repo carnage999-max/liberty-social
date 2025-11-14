@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useToast } from "@/components/Toast";
 import { API_BASE } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import Image from "next/image";
 
 export interface UploadedMedia {
   url: string;
@@ -75,7 +74,6 @@ export default function MediaUploadField({
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          console.error("Upload error response:", errorData);
           throw new Error(`Upload failed for ${file.name}`);
         }
 
@@ -159,14 +157,13 @@ export default function MediaUploadField({
             <div className="grid grid-cols-4 gap-2">
               {value.map((media, index) => (
                 <div
-                  key={media.tempId || media.url}
+                  key={media.id ? `id-${media.id}` : `temp-${media.tempId}`}
                   className="relative group h-24 rounded-lg overflow-hidden border border-gray-200 bg-gray-100"
                 >
-                  <Image
+                  <img
                     src={media.url}
                     alt={`Upload ${index + 1}`}
-                    fill
-                    className="object-cover"
+                    className="h-full w-full object-cover"
                   />
                   {/* Primary Badge */}
                   {index === 0 && (

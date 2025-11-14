@@ -34,22 +34,24 @@ export default function EditListingPage() {
     delivery_options: ["pickup"] as Array<"pickup" | "delivery">,
   });
 
-  // Load listing and categories on mount
+  // Load listing and categories on mount (only once)
   useEffect(() => {
     const loadData = async () => {
       if (!accessToken) {
-        console.warn("No access token available, skipping data load");
+        return;
+      }
+
+      // Only load if we haven't loaded yet
+      if (!initialLoading) {
         return;
       }
 
       try {
-        console.log("Loading listing data for ID:", listingId);
         const [listingRes, categoriesRes] = await Promise.all([
           apiGet(`/marketplace/listings/${listingId}/`, { token: accessToken }),
           apiGet("/marketplace/categories/", { token: accessToken }),
         ]);
 
-        console.log("Listing loaded:", listingRes);
         setListing(listingRes);
         setCategories(categoriesRes.results || categoriesRes);
 
@@ -77,7 +79,6 @@ export default function EditListingPage() {
           contact_preference: listingRes.contact_preference,
           delivery_options: deliveryOptions,
         };
-        console.log("Setting form data:", newFormData);
         setFormData(newFormData);
 
         // Load existing media
@@ -87,11 +88,9 @@ export default function EditListingPage() {
             order: m.order,
             id: m.id,
           }));
-          console.log("Setting media items:", mediaItems);
           setMedia(mediaItems);
         }
 
-        console.log("Data loaded successfully, marking as ready");
         setInitialLoading(false);
       } catch (error) {
         console.error("Failed to load listing:", error);
@@ -102,7 +101,7 @@ export default function EditListingPage() {
     };
 
     loadData();
-  }, [listingId, accessToken, toast, router]);
+  }, []);
 
   // Check ownership
   if (!initialLoading && listing && listing.seller.id !== user?.id) {
@@ -223,28 +222,20 @@ export default function EditListingPage() {
 
       await apiPatch(`/marketplace/listings/${listingId}/`, updateData, { token: accessToken });
 
-      // Handle removed media
+      // Remove deleted media
       for (const mediaId of removedMediaIds) {
-        try {
-          await apiDelete(`/marketplace/media/${mediaId}/`, { token: accessToken });
-        } catch (error) {
-          console.error(`Failed to delete media ${mediaId}:`, error);
-        }
+        await apiDelete(`/marketplace/media/${mediaId}/`, { token: accessToken });
       }
 
-      // Add new media (those without id property)
-      const newMedia = media.filter((m) => !("id" in m) || !m.id);
+      // Add new media (those without id)
+      const newMedia = media.filter((m) => !m.id);
       for (const item of newMedia) {
-        try {
-          await apiPost("/marketplace/media/", {
-            listing_id: listingId,
-            url: item.url,
-            content_type: "image/jpeg",
-            order: item.order,
-          }, { token: accessToken });
-        } catch (error) {
-          console.error("Failed to add media:", error);
-        }
+        await apiPost("/marketplace/media/", {
+          listing_id: listingId,
+          url: item.url,
+          content_type: "image/jpeg",
+          order: item.order,
+        }, { token: accessToken });
       }
 
       toast.show("Listing updated successfully!", "success");

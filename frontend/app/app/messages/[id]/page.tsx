@@ -535,25 +535,25 @@ export default function ConversationDetailPage() {
 
   return (
     <>
-      <div className="flex flex-col h-[calc(100vh-200px)] sm:h-[calc(100vh-120px)]">
-        <header className="flex items-center gap-4 p-4 border-b bg-white shadow-sm sticky z-20 flex-shrink-0" style={{ top: '64px' }}>
+      <div className="flex flex-col h-[calc(100vh-200px)] sm:h-[calc(100vh-120px)] rounded-2xl border border-gray-700 bg-gray-900 overflow-hidden shadow-2xl mx-auto w-full">
+        <header className="flex items-center gap-4 p-4 border-b border-gray-700 bg-gray-800 shadow-sm sticky z-20 flex-shrink-0" style={{ top: '0' }}>
           <button
             onClick={() => router.back()}
-            className="text-gray-700 hover:text-gray-900 p-2 font-medium"
+            className="text-gray-300 hover:text-white p-2 font-medium transition"
           >
             ← Back
           </button>
-          <h1 className="text-xl font-bold flex-1 text-gray-900">{getConversationTitle()}</h1>
+          <h1 className="text-xl font-bold flex-1 text-white">{getConversationTitle()}</h1>
         </header>
 
         <div 
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 bg-gray-50"
+          className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 bg-gray-900"
         >
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full space-y-4">
               <p className="text-gray-500">No messages yet</p>
-              <p className="text-sm text-gray-400">Start the conversation</p>
+              <p className="text-sm text-gray-600">Start the conversation</p>
             </div>
           ) : (
             <>
@@ -561,7 +561,7 @@ export default function ConversationDetailPage() {
                 if (message.is_deleted) {
                   return (
                     <div key={message.id} className="flex justify-end">
-                      <p className="text-sm text-gray-500 italic">
+                      <p className="text-sm text-gray-600 italic">
                         This message was deleted
                       </p>
                     </div>
@@ -584,7 +584,7 @@ export default function ConversationDetailPage() {
                       <button
                         type="button"
                         onClick={() => router.push(`/app/users/${message.sender.id}`)}
-                        className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
+                        className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-700 shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
                         title={`View ${message.sender.first_name || message.sender.username || "User"}'s profile`}
                       >
                         {avatarUrl ? (
@@ -596,14 +596,14 @@ export default function ConversationDetailPage() {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-gray-500 text-sm">👤</span>
+                            <span className="text-gray-400 text-sm">👤</span>
                           </div>
                         )}
                       </button>
                     )}
                     <div className={`max-w-[75%] sm:max-w-[60%] min-w-0 ${isOwn ? "flex flex-col items-end" : ""}`}>
                       {!isOwn && (
-                        <p className="text-xs font-semibold mb-1 text-gray-600 px-1">
+                        <p className="text-xs font-semibold mb-1 text-gray-400 px-1">
                           {message.sender.first_name || message.sender.username || "User"}
                         </p>
                       )}
@@ -612,20 +612,18 @@ export default function ConversationDetailPage() {
                           className={`rounded-lg p-3 w-full min-w-0 ${
                             isOwn
                               ? "bg-blue-600 text-white"
-                              : "bg-white text-gray-900 border border-gray-200"
+                              : "bg-gray-800 text-gray-100 border border-gray-700"
                           }`}
                           style={{ overflow: 'visible', position: 'relative', zIndex: 1 }}
                           onTouchStart={(e) => {
-                            // Mobile long-press to show reaction picker
                             if (window.innerWidth <= 768) {
                               longPressMessageIdRef.current = message.id;
                               longPressTimerRef.current = window.setTimeout(() => {
                                 if (longPressMessageIdRef.current === message.id) {
                                   setOpenReactionPickerId(message.id);
-                                  // Prevent default context menu
                                   e.preventDefault();
                                 }
-                              }, 500); // 500ms long press
+                              }, 500);
                             }
                           }}
                           onTouchEnd={() => {
@@ -636,7 +634,6 @@ export default function ConversationDetailPage() {
                             longPressMessageIdRef.current = null;
                           }}
                           onTouchMove={() => {
-                            // Cancel long press if user moves finger
                             if (longPressTimerRef.current) {
                               clearTimeout(longPressTimerRef.current);
                               longPressTimerRef.current = null;
@@ -649,7 +646,7 @@ export default function ConversationDetailPage() {
                               <textarea
                                 value={editText}
                                 onChange={(e) => setEditText(e.target.value)}
-                                className="w-full px-2 py-1 rounded border text-gray-900 text-sm resize-none"
+                                className="w-full px-2 py-1 rounded border border-gray-600 bg-gray-700 text-white text-sm resize-none"
                                 rows={3}
                                 autoFocus
                               />
@@ -659,7 +656,7 @@ export default function ConversationDetailPage() {
                                     setEditingMessageId(null);
                                     setEditText("");
                                   }}
-                                  className="text-xs px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                  className="text-xs px-3 py-1 rounded bg-gray-600 text-gray-100 hover:bg-gray-500"
                                 >
                                   Cancel
                                 </button>
@@ -705,13 +702,11 @@ export default function ConversationDetailPage() {
                                 </p>
                               )}
                               {message.edited_at && (
-                                <p className={`text-xs mt-1 ${isOwn ? "text-blue-200" : "text-gray-400"}`}>
+                                <p className={`text-xs mt-1 ${isOwn ? "text-blue-200" : "text-gray-500"}`}>
                                   (edited)
                                 </p>
                               )}
-                              {/* Reactions display inside message bubble - starting from inner edge */}
                               {(() => {
-                                // Get reactions from either reaction_summary or reactions array
                                 let reactionCounts: Record<ReactionType, number> = {
                                   like: 0,
                                   love: 0,
@@ -721,10 +716,8 @@ export default function ConversationDetailPage() {
                                 };
                                 
                                 if (message.reaction_summary && message.reaction_summary.total > 0) {
-                                  // Use reaction_summary if available
                                   reactionCounts = { ...message.reaction_summary.by_type };
                                 } else if (message.reactions && message.reactions.length > 0) {
-                                  // Fallback to reactions array
                                   message.reactions.forEach((r) => {
                                     if (r.reaction_type && reactionCounts[r.reaction_type] !== undefined) {
                                       reactionCounts[r.reaction_type] = (reactionCounts[r.reaction_type] || 0) + 1;
@@ -743,7 +736,7 @@ export default function ConversationDetailPage() {
                                       .map(([type, count]) => (
                                         <span
                                           key={type}
-                                          className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold flex-shrink-0"
+                                          className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold shrink-0"
                                           style={isOwn ? { 
                                             backgroundColor: '#ffffff',
                                             color: '#1e40af',
@@ -752,9 +745,9 @@ export default function ConversationDetailPage() {
                                             zIndex: 10,
                                             position: 'relative'
                                           } : {
-                                            backgroundColor: '#f3f4f6',
-                                            color: '#1f2937',
-                                            border: '1px solid #d1d5db'
+                                            backgroundColor: '#374151',
+                                            color: '#e5e7eb',
+                                            border: '1px solid #4b5563'
                                           }}
                                         >
                                           <span className="text-base leading-none">{REACTION_EMOJIS[type as ReactionType]}</span>
@@ -768,7 +761,6 @@ export default function ConversationDetailPage() {
                           )}
                         </div>
 
-                        {/* Message actions (hover menu on desktop, always visible on mobile) */}
                         {!isEditing && (
                           <div
                             className={`absolute ${isOwn ? "right-0" : "left-0"} top-full mt-1 flex gap-1 z-10 ${
@@ -782,7 +774,7 @@ export default function ConversationDetailPage() {
                                 <button
                                   type="button"
                                   onClick={() => setOpenMessageMenuId(openMessageMenuId === message.id ? null : message.id)}
-                                  className="p-1.5 rounded-full bg-gray-800 border border-gray-700 shadow-lg hover:bg-gray-700 transition"
+                                  className="p-1.5 rounded-full bg-gray-700 border border-gray-600 shadow-lg hover:bg-gray-600 transition"
                                   title="Message options"
                                 >
                                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -793,20 +785,20 @@ export default function ConversationDetailPage() {
                                   </svg>
                                 </button>
                                 {openMessageMenuId === message.id && (
-                                  <div className="absolute right-0 mt-1 w-32 rounded-lg border border-gray-300 bg-white shadow-xl z-20">
+                                  <div className="absolute right-0 mt-1 w-32 rounded-lg border border-gray-600 bg-gray-800 shadow-xl z-20">
                                     <button
                                       onClick={() => {
                                         setEditText(message.content || "");
                                         setEditingMessageId(message.id);
                                         setOpenMessageMenuId(null);
                                       }}
-                                      className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg"
+                                      className="w-full px-3 py-2 text-left text-sm text-gray-200 hover:bg-gray-700 rounded-t-lg"
                                     >
                                       Edit
                                     </button>
                                     <button
                                       onClick={() => handleDeleteMessage(message.id)}
-                                      className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 rounded-b-lg"
+                                      className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 rounded-b-lg"
                                     >
                                       Delete
                                     </button>
@@ -821,7 +813,7 @@ export default function ConversationDetailPage() {
                                 className={`p-1.5 rounded-full border shadow-lg transition ${
                                   userReaction
                                     ? "bg-blue-100 border-blue-400"
-                                    : "bg-gray-800 border-gray-700 hover:bg-gray-700"
+                                    : "bg-gray-700 border-gray-600 hover:bg-gray-600"
                                 }`}
                                 title="Add reaction"
                               >
@@ -868,7 +860,7 @@ export default function ConversationDetailPage() {
                       </div>
                       <p
                         className={`text-xs px-1 ${
-                          isOwn ? "text-gray-500 text-right" : "text-gray-400"
+                          isOwn ? "text-gray-500 text-right" : "text-gray-600"
                         } ${isMobile ? "mt-8" : "mt-1"}`}
                       >
                         {formatTime(message.created_at)}
@@ -883,7 +875,7 @@ export default function ConversationDetailPage() {
         </div>
 
         {/* Input area */}
-        <div className="border-t bg-white p-3 sm:p-4">
+        <div className="border-t border-gray-700 bg-gray-800 p-3 sm:p-4">
           {mediaAttachment && (
             <div className="mb-2 relative inline-block">
               <button
@@ -920,7 +912,7 @@ export default function ConversationDetailPage() {
             <button
               type="button"
               onClick={handleFileSelect}
-              className="p-2.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition flex-shrink-0"
+              className="p-2.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition flex-shrink-0"
               title="Attach image or video"
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -946,7 +938,7 @@ export default function ConversationDetailPage() {
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
                   placeholder="Type a message..."
-                  className="w-full px-4 py-3 pr-16 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-900 text-base bg-white"
+                  className="w-full px-4 py-3 pr-16 border-2 border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-white text-base bg-gray-700 placeholder-gray-500"
                   rows={1}
                   maxLength={1000}
                   onKeyDown={(e) => {
@@ -963,7 +955,7 @@ export default function ConversationDetailPage() {
                       ref={emojiButtonRef}
                       type="button"
                       onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
-                      className="p-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition"
+                      className="p-1.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition"
                     >
                       <span className="text-xl">😀</span>
                     </button>

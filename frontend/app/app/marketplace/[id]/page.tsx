@@ -9,7 +9,6 @@ import { useToast } from "@/components/Toast";
 import Link from "next/link";
 import { useParams, useRouter, notFound } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
 
 export default function ListingDetailPage() {
   const params = useParams<{ id: string }>();
@@ -161,11 +160,10 @@ export default function ListingDetailPage() {
                 onClick={() => setGalleryOpen(0)}
                 className="h-full w-full cursor-pointer hover:brightness-90"
               >
-                <Image
+                <img
                   src={listing.media[0].url}
                   alt={listing.title}
-                  fill
-                  className="object-cover"
+                  className="h-full w-full object-cover"
                 />
               </button>
             ) : (
@@ -195,12 +193,10 @@ export default function ListingDetailPage() {
                       : "border-transparent hover:border-gray-300"
                   }`}
                 >
-                  <Image
+                  <img
                     src={media.url}
                     alt={`${listing.title} ${idx + 1}`}
-                    fill
-                    className="object-contain"
-                    style={{width:"auto", height: "auto"}}
+                    className="h-full w-full object-contain"
                   />
                 </button>
               ))}
@@ -261,11 +257,9 @@ export default function ListingDetailPage() {
           <div className="rounded-2xl border border-gray-200 bg-white/90 p-4">
             <div className="flex items-center gap-3 mb-4">
               {listing.seller.profile_image_url ? (
-                <Image
+                <img
                   src={listing.seller.profile_image_url}
                   alt={listing.seller.username || listing.seller.first_name}
-                  width={48}
-                  height={48}
                   className="h-12 w-12 rounded-full object-cover"
                 />
               ) : (
