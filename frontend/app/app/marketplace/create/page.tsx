@@ -25,7 +25,7 @@ export default function CreateListingPage() {
     condition: "used" as ListingCondition,
     location: "",
     contact_preference: "both" as "chat" | "call" | "both",
-    delivery_options: ["pickup"] as Array<"pickup" | "delivery">,
+    delivery_options: "both" as "pickup" | "delivery" | "both",
   });
 
   // Load categories on mount
@@ -71,10 +71,20 @@ export default function CreateListingPage() {
 
   const handleDeliveryChange = (option: "pickup" | "delivery") => {
     setFormData((prev) => {
-      const updated = prev.delivery_options.includes(option)
-        ? prev.delivery_options.filter((o) => o !== option)
-        : [...prev.delivery_options, option];
-      return { ...prev, delivery_options: updated };
+      const current = prev.delivery_options;
+      
+      // Toggle: if both is selected, unselect this option
+      // If only one option is selected, selecting the other makes it "both"
+      // If only one is selected, clicking the same one keeps it
+      if (current === "both") {
+        return { ...prev, delivery_options: option };
+      } else if (current === option) {
+        // Keep current state
+        return prev;
+      } else {
+        // Current is the other option, so make it "both"
+        return { ...prev, delivery_options: "both" };
+      }
     });
   };
 
@@ -101,10 +111,6 @@ export default function CreateListingPage() {
     }
     if (media.length === 0) {
       toast.show("Please upload at least one image", "error");
-      return false;
-    }
-    if (formData.delivery_options.length === 0) {
-      toast.show("Please select at least one delivery option", "error");
       return false;
     }
     return true;
@@ -335,9 +341,10 @@ export default function CreateListingPage() {
                 >
                   <input
                     type="checkbox"
-                    checked={formData.delivery_options.includes(
-                      id as "pickup" | "delivery"
-                    )}
+                    checked={
+                      formData.delivery_options === "both" ||
+                      formData.delivery_options === (id as "pickup" | "delivery")
+                    }
                     onChange={() =>
                       handleDeliveryChange(id as "pickup" | "delivery")
                     }
