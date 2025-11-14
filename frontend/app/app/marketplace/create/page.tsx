@@ -22,10 +22,10 @@ export default function CreateListingPage() {
     description: "",
     price: "",
     category: "",
-    condition: "like-new" as ListingCondition,
+    condition: "used" as ListingCondition,
     location: "",
-    contact_preference: "messaging" as "messaging" | "phone" | "email",
-    delivery_options: ["local_pickup"] as Array<"local_pickup" | "shipping">,
+    contact_preference: "both" as "chat" | "call" | "both",
+    delivery_options: ["pickup"] as Array<"pickup" | "delivery">,
   });
 
   // Load categories on mount
@@ -69,7 +69,7 @@ export default function CreateListingPage() {
     }));
   };
 
-  const handleDeliveryChange = (option: "local_pickup" | "shipping") => {
+  const handleDeliveryChange = (option: "pickup" | "delivery") => {
     setFormData((prev) => {
       const updated = prev.delivery_options.includes(option)
         ? prev.delivery_options.filter((o) => o !== option)
@@ -123,7 +123,7 @@ export default function CreateListingPage() {
         title: formData.title,
         description: formData.description,
         price: parseFloat(formData.price),
-        category: formData.category,
+        category: parseInt(formData.category),
         condition: formData.condition,
         location: formData.location,
         contact_preference: formData.contact_preference,
@@ -254,9 +254,9 @@ export default function CreateListingPage() {
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
                 disabled={loading}
               >
-                <option value="like-new">Like New</option>
-                <option value="excellent">Excellent</option>
-                <option value="good">Good</option>
+                <option value="new">New</option>
+                <option value="like_new">Like New</option>
+                <option value="used">Used</option>
                 <option value="fair">Fair</option>
                 <option value="poor">Poor</option>
               </select>
@@ -313,9 +313,9 @@ export default function CreateListingPage() {
               className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
               disabled={loading}
             >
-              <option value="messaging">Messaging</option>
-              <option value="phone">Phone</option>
-              <option value="email">Email</option>
+              <option value="chat">Chat</option>
+              <option value="call">Call</option>
+              <option value="both">Both</option>
             </select>
           </div>
 
@@ -326,8 +326,8 @@ export default function CreateListingPage() {
             </label>
             <div className="space-y-2">
               {[
-                { id: "local_pickup", label: "Local Pickup" },
-                { id: "shipping", label: "Shipping Available" },
+                { id: "pickup", label: "Local Pickup" },
+                { id: "delivery", label: "Delivery Available" },
               ].map(({ id, label }) => (
                 <label
                   key={id}
@@ -336,10 +336,10 @@ export default function CreateListingPage() {
                   <input
                     type="checkbox"
                     checked={formData.delivery_options.includes(
-                      id as "local_pickup" | "shipping"
+                      id as "pickup" | "delivery"
                     )}
                     onChange={() =>
-                      handleDeliveryChange(id as "local_pickup" | "shipping")
+                      handleDeliveryChange(id as "pickup" | "delivery")
                     }
                     disabled={loading}
                     className="h-4 w-4 rounded border-gray-300"
