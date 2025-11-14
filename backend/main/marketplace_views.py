@@ -202,9 +202,8 @@ class MarketplaceOfferViewSet(viewsets.ModelViewSet):
         ).first()
 
         if existing:
-            return Response(
-                {"error": "You already made an offer on this listing."},
-                status=status.HTTP_400_BAD_REQUEST,
+            raise ValidationError(
+                "You already made an offer on this listing."
             )
 
         serializer.save(buyer=self.request.user)
