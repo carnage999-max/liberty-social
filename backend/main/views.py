@@ -53,6 +53,29 @@ from .serializers import (
 )
 from users.models import Friends
 from users.emails import send_page_admin_invite_email
+from .emails import send_page_invite_email
+
+
+def send_page_invite_push_notification(recipient, sender, page):
+    """Send push notification for page invite"""
+    try:
+        from .models import Notification
+        from django.contrib.contenttypes.models import ContentType
+
+        # Create notification record
+        page_invite_ct = ContentType.objects.get_for_model(__import__('main.models', fromlist=['PageInvite']).PageInvite)
+        
+        notification = Notification.objects.create(
+            recipient=recipient,
+            actor=sender,
+            verb="page_invite",
+            content_type=page_invite_ct,
+            object_id=page.id,
+        )
+        return notification
+    except Exception as e:
+        logging.error(f"Failed to create page invite notification: {e}")
+        raise
 
 
 async def _ping_redis_async(redis_url: str) -> None:
@@ -606,6 +629,61 @@ class PageAdminInviteViewSet(ModelViewSet):
         invite.status = "declined"
         invite.responded_at = timezone.now()
         invite.save(update_fields=["status", "responded_at"])
+        serializer = self.get_serializer(invite)
+        return Response(serializer.data)
+
+
+class PageInviteViewSet(ModelViewSet):
+    """ViewSet for managing page follow invites"""
+    serializer_class = PageInviteSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post"]
+
+    def get_queryset(self):
+        """Get invites for the current user"""
+        return PageInvite.objects.filter(recipient=self.request.user).select_related(
+            "page", "sender", "recipient"
+        )
+
+    @action(detail=True, methods=["post"])
+    def accept(self, request, pk=None):
+        """Accept a page invite and follow the page"""
+        invite = self.get_object()
+        if invite.recipient != request.user:
+            raise PermissionDenied("This invite was not addressed to you.")
+        if invite.status != "pending":
+            return Response(
+                {"detail": "Invite already processed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        # Create follower relationship
+        PageFollower.objects.get_or_create(page=invite.page, user=request.user)
+        
+        # Update invite status
+        invite.status = "accepted"
+        invite.responded_at = timezone.now()
+        invite.save(update_fields=["status", "responded_at"])
+        
+        serializer = self.get_serializer(invite)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def decline(self, request, pk=None):
+        """Decline a page invite"""
+        invite = self.get_object()
+        if invite.recipient != request.user:
+            raise PermissionDenied("This invite was not addressed to you.")
+        if invite.status != "pending":
+            return Response(
+                {"detail": "Invite already processed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        invite.status = "declined"
+        invite.responded_at = timezone.now()
+        invite.save(update_fields=["status", "responded_at"])
+        
         serializer = self.get_serializer(invite)
         return Response(serializer.data)
 

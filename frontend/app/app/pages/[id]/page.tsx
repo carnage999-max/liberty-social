@@ -9,6 +9,7 @@ import type { Page as BusinessPage, PageAdmin } from "@/lib/types";
 import Spinner from "@/components/Spinner";
 import Gallery from "@/components/Gallery";
 import PageImageUploadField from "@/components/pages/PageImageUploadField";
+import InviteModal from "@/components/InviteModal";
 import { uploadImageToS3 } from "@/lib/image-upload";
 import { useToast } from "@/components/Toast";
 
@@ -30,6 +31,7 @@ export default function PageDetail() {
   const [admins, setAdmins] = useState<PageAdmin[]>([]);
   const [canManage, setCanManage] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
@@ -298,13 +300,23 @@ export default function PageDetail() {
               {isFollowing ? "Following" : "Follow"}
             </button>
             {canManage && (
-              <button
-                type="button"
-                onClick={handleEditClick}
-                className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-              >
-                Edit
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setInviteModalOpen(true)}
+                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                  title="Invite friends to follow this page"
+                >
+                  Invite Friends
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEditClick}
+                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Edit
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -494,6 +506,15 @@ export default function PageDetail() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Invite Modal */}
+      {page && (
+        <InviteModal
+          pageId={page.id}
+          isOpen={inviteModalOpen}
+          onClose={() => setInviteModalOpen(false)}
+        />
       )}
     </div>
   );

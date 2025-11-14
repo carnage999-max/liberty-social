@@ -13,6 +13,7 @@ from .views import (
     ConversationViewSet,
     PageViewSet,
     PageAdminInviteViewSet,
+    PageInviteViewSet,
     FirebaseConfigView,
     RedisHealthView,
     WebSocketDiagnosticView,
@@ -38,6 +39,7 @@ router.register("device-tokens", DeviceTokenViewSet, basename="device-tokens")
 router.register("conversations", ConversationViewSet, basename="conversations")
 router.register("pages", PageViewSet, basename="pages")
 router.register("admin-invites", PageAdminInviteViewSet, basename="admin-invites")
+router.register("page-invites", PageInviteViewSet, basename="page-invites")
 router.register(
     "marketplace/categories",
     MarketplaceCategoryViewSet,

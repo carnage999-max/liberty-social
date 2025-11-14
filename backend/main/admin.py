@@ -11,6 +11,7 @@ from .models import (
     Conversation,
     ConversationParticipant,
     Message,
+    PageInvite,
 )
 
 
@@ -82,3 +83,11 @@ class MessageAdmin(admin.ModelAdmin):
     list_display = ("id", "conversation", "sender", "created_at", "is_deleted")
     search_fields = ("content", "sender__username", "sender__email")
     autocomplete_fields = ("conversation", "sender", "reply_to")
+
+
+@admin.register(PageInvite)
+class PageInviteAdmin(admin.ModelAdmin):
+    list_display = ("id", "page", "sender", "recipient", "status", "created_at")
+    search_fields = ("page__name", "sender__username", "recipient__username", "sender__email", "recipient__email")
+    list_filter = ("status", "created_at")
+    readonly_fields = ("created_at", "responded_at")

@@ -118,3 +118,30 @@ def send_offer_declined_email(offer):
         f"Your offer on {offer.listing.title} has been declined",
         buyer.email,
     )
+
+
+def send_page_invite_email(recipient, sender, page):
+    """Send email to friend inviting them to follow a page."""
+    accept_url = f"{settings.FRONTEND_URL}/app/invites/{page.id}/accept"
+    decline_url = f"{settings.FRONTEND_URL}/app/invites/{page.id}/decline"
+    page_url = f"{settings.FRONTEND_URL}/app/pages/{page.id}"
+
+    sender_name = sender.username or sender.email
+    context = {
+        "recipient_name": recipient.username or recipient.email,
+        "sender_name": sender_name,
+        "page_name": page.name,
+        "page_category": page.category,
+        "page_description": page.description,
+        "page_image_url": page.profile_image_url,
+        "page_url": page_url,
+        "accept_url": accept_url,
+        "decline_url": decline_url,
+    }
+
+    return send_templated_email(
+        "page_invite",
+        context,
+        f"{sender_name} invited you to follow {page.name}",
+        recipient.email,
+    )

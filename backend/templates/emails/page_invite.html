@@ -1,0 +1,37 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h1 style="color: #1f2937; font-size: 24px; margin-bottom: 16px;">You're Invited to Follow {{ page_name }}</h1>
+
+<p style="margin-bottom: 16px;">Hi {{ recipient_name }},</p>
+
+<p style="margin-bottom: 24px;"><strong>{{ sender_name }}</strong> thinks you might be interested in following <strong>{{ page_name }}</strong>.</p>
+
+<div style="background-color: #f9fafb; border-left: 4px solid #6366f1; padding: 16px; margin-bottom: 24px; border-radius: 4px;">
+    {% if page_image_url %}
+    <div style="text-align: center; margin-bottom: 16px;">
+        <img src="{{ page_image_url }}" alt="{{ page_name }}" style="max-width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+    </div>
+    {% endif %}
+    
+    <p style="margin: 0 0 8px 0;"><strong>{{ page_name }}</strong></p>
+    <p style="margin: 0 0 12px 0; color: #6b7280; text-transform: capitalize;">{{ page_category }}</p>
+    {% if page_description %}
+    <p style="margin: 0; color: #6b7280; font-size: 14px;">{{ page_description|truncatewords:30 }}</p>
+    {% endif %}
+</div>
+
+<p style="margin-bottom: 24px;">Check out {{ page_name }} and discover what they have to offer!</p>
+
+<div style="text-align: center; margin-bottom: 24px;">
+    <a href="{{ accept_url }}" class="button">Follow {{ page_name }}</a>
+</div>
+
+<p style="margin-bottom: 16px;">Or view the page to learn more:</p>
+
+<a href="{{ page_url }}" class="button" style="background: linear-gradient(to right, #8b5cf6, #6366f1);">View Page</a>
+
+<p style="margin-top: 24px; color: #6b7280; font-size: 14px;">If you're not interested, you can safely ignore this email.</p>
+
+<p style="margin-top: 24px;">Best regards,<br>The Liberty Social Team</p>
+{% endblock %}
