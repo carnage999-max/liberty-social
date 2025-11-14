@@ -90,12 +90,14 @@ export default function EditListingPage() {
           console.log("Setting media items:", mediaItems);
           setMedia(mediaItems);
         }
+
+        console.log("Data loaded successfully, marking as ready");
+        setInitialLoading(false);
       } catch (error) {
         console.error("Failed to load listing:", error);
         toast.show("Failed to load listing", "error");
-        router.push("/app/marketplace");
-      } finally {
         setInitialLoading(false);
+        router.push("/app/marketplace");
       }
     };
 
@@ -125,6 +127,22 @@ export default function EditListingPage() {
         <div className="text-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading listing...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!listing) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">Listing not found</p>
+          <Link
+            href="/app/marketplace"
+            className="inline-block px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+          >
+            Back to Marketplace
+          </Link>
         </div>
       </div>
     );
@@ -273,7 +291,7 @@ export default function EditListingPage() {
               value={formData.title}
               onChange={handleInputChange}
               placeholder="e.g., Vintage Leather Jacket"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
               disabled={loading}
             />
           </div>
@@ -289,7 +307,7 @@ export default function EditListingPage() {
               onChange={handleInputChange}
               placeholder="Describe your item in detail, condition, brand, size, etc."
               rows={5}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none text-black"
               disabled={loading}
             />
           </div>
@@ -308,7 +326,7 @@ export default function EditListingPage() {
                 placeholder="0.00"
                 step="0.01"
                 min="0"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
                 disabled={loading}
               />
             </div>
@@ -322,7 +340,7 @@ export default function EditListingPage() {
                 name="condition"
                 value={formData.condition}
                 onChange={handleInputChange}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
                 disabled={loading}
               >
                 <option value="new">New</option>
@@ -344,7 +362,7 @@ export default function EditListingPage() {
                 name="category"
                 value={formData.category}
                 onChange={handleInputChange}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
                 disabled={loading}
               >
                 <option value="">Select a category</option>
@@ -366,7 +384,7 @@ export default function EditListingPage() {
                 value={formData.location}
                 onChange={handleInputChange}
                 placeholder="City, State"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
                 disabled={loading}
               />
             </div>
@@ -381,7 +399,7 @@ export default function EditListingPage() {
               name="contact_preference"
               value={formData.contact_preference}
               onChange={handleInputChange}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
               disabled={loading}
             >
               <option value="chat">Chat</option>

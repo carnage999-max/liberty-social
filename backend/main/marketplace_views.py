@@ -26,6 +26,7 @@ from .serializers import (
     MarketplaceOfferSerializer,
     SellerVerificationSerializer,
 )
+from rest_framework.exceptions import ValidationError
 
 
 class MarketplaceCategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -293,10 +294,29 @@ class MarketplaceListingMediaViewSet(viewsets.ModelViewSet):
         ).select_related("listing")
 
     def perform_create(self, serializer):
-        listing = serializer.validated_data["listing"]
+        # The serializer usually maps 'listing_id' -> 'listing' (source="listing").
+        # But to be defensive (and handle callers using slightly different
+        # payloads), try to read the listing from validated_data first and
+        # fall back to parsing the request payload.
+        listing = serializer.validated_data.get("listing")
+        if not listing:
+            listing_id = self.request.data.get("listing_id") or self.request.data.get("listing")
+            if not listing_id:
+                raise ValidationError({"listing_id": ["This field is required."]})
+            # Import here to avoid circular imports at module load
+            from .marketplace_models import MarketplaceListing
+
+            try:
+                listing = MarketplaceListing.objects.get(pk=listing_id)
+            except MarketplaceListing.DoesNotExist:
+                raise ValidationError({"listing_id": ["Invalid listing id."]})
+
         if listing.seller != self.request.user:
             raise PermissionDenied("You can only add media to your own listings.")
-        serializer.save()
+
+        # Ensure the serializer saves with the listing object (in case it was
+        # obtained from request.data rather than validated_data)
+        serializer.save(listing=listing)
 
     def perform_destroy(self, instance):
         if instance.listing.seller != self.request.user:
