@@ -38,6 +38,7 @@ export default function PageDetail() {
     phone: "",
     email: "",
     profile_image_url: "",
+    cover_image_url: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -61,6 +62,7 @@ export default function PageDetail() {
           phone: detail.phone || "",
           email: detail.email || "",
           profile_image_url: detail.profile_image_url || "",
+          cover_image_url: detail.cover_image_url || "",
         });
         await loadAdmins(detail.id, cancelled);
       } catch (error) {
@@ -129,6 +131,7 @@ export default function PageDetail() {
         phone: page.phone || "",
         email: page.email || "",
         profile_image_url: page.profile_image_url || "",
+        cover_image_url: page.cover_image_url || "",
       });
       setIsEditing(true);
     }
@@ -139,7 +142,7 @@ export default function PageDetail() {
     if (!accessToken || !page) return;
     setSubmitting(true);
     try {
-      const payload = {
+      const payload: any = {
         name: editForm.name.trim(),
         description: editForm.description.trim(),
         category: editForm.category,
@@ -147,19 +150,22 @@ export default function PageDetail() {
         phone: editForm.phone.trim() || null,
         email: editForm.email.trim() || null,
       };
+
+      // Include profile_image_url in payload if it changed
+      if (editForm.profile_image_url !== page.profile_image_url) {
+        payload.profile_image_url = editForm.profile_image_url || null;
+      }
+
+      // Include cover_image_url in payload if it changed
+      if (editForm.cover_image_url !== page.cover_image_url) {
+        payload.cover_image_url = editForm.cover_image_url || null;
+      }
+
       const updated = await apiPatch<BusinessPage>(`/pages/${page.id}/`, payload, {
         token: accessToken,
       });
 
-      // If profile image URL changed, update it via the dedicated endpoint
-      if (editForm.profile_image_url && editForm.profile_image_url !== page.profile_image_url) {
-        const imagePayload = { profile_image_url: editForm.profile_image_url };
-        await apiPost(`/pages/${page.id}/update-profile-image/`, imagePayload, {
-          token: accessToken,
-        });
-        updated.profile_image_url = editForm.profile_image_url;
-      }
-
+      console.log("Page updated with response:", updated);
       setPage(updated);
       setIsEditing(false);
       toast.show("Page updated successfully!", "success");
@@ -342,7 +348,28 @@ export default function PageDetail() {
               <ImageUploadField
                 label="Profile Image"
                 value={editForm.profile_image_url}
-                onChange={(url) => setEditForm((prev) => ({ ...prev, profile_image_url: url }))}
+                onChange={(url) => {
+                  console.log("ImageUploadField onChange called with URL:", url);
+                  setEditForm((prev) => {
+                    const updated = { ...prev, profile_image_url: url };
+                    console.log("Updated editForm:", updated);
+                    return updated;
+                  });
+                }}
+                disabled={submitting}
+              />
+
+              <ImageUploadField
+                label="Cover Image"
+                value={editForm.cover_image_url}
+                onChange={(url) => {
+                  console.log("Cover ImageUploadField onChange called with URL:", url);
+                  setEditForm((prev) => {
+                    const updated = { ...prev, cover_image_url: url };
+                    console.log("Updated editForm with cover image:", updated);
+                    return updated;
+                  });
+                }}
                 disabled={submitting}
               />
 

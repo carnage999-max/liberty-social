@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useToast } from "./Toast";
 import { API_BASE } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 interface ImageUploadFieldProps {
   label: string;
@@ -21,6 +22,7 @@ export default function ImageUploadField({
 }: ImageUploadFieldProps) {
   const [uploading, setUploading] = useState(false);
   const toast = useToast();
+  const { accessToken } = useAuth();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -47,7 +49,7 @@ export default function ImageUploadField({
       const response = await fetch(uploadUrl, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+          Authorization: `Bearer ${accessToken || ""}`,
         },
         body: formData,
       });
@@ -59,7 +61,9 @@ export default function ImageUploadField({
       }
 
       const data = await response.json();
+      console.log("Upload response data:", data);
       const imageUrl = data.url;
+      console.log("Extracted image URL:", imageUrl);
       onChange(imageUrl);
       if (onPreview) {
         onPreview(imageUrl);

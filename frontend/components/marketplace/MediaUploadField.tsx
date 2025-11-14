@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useToast } from "@/components/Toast";
 import { API_BASE } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import Image from "next/image";
 
 export interface UploadedMedia {
@@ -29,6 +30,7 @@ export default function MediaUploadField({
 }: MediaUploadFieldProps) {
   const [uploading, setUploading] = useState(false);
   const toast = useToast();
+  const { accessToken } = useAuth();
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -66,7 +68,7 @@ export default function MediaUploadField({
         const response = await fetch(uploadUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+            Authorization: `Bearer ${accessToken || ""}`,
           },
           body: formData,
         });

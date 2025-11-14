@@ -30,7 +30,7 @@ interface OfferWithDetails extends MarketplaceOffer {
 export default function OffersPage() {
   const router = useRouter();
   const toast = useToast();
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
 
   const [offers, setOffers] = useState<OfferWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,11 +40,12 @@ export default function OffersPage() {
   // Load offers
   useEffect(() => {
     const loadOffers = async () => {
-      if (!user) return;
+      if (!user || !accessToken) return;
 
       try {
         const response = await apiGet<PaginatedResponse<OfferWithDetails>>(
-          "/marketplace/offers/"
+          "/marketplace/offers/",
+          { token: accessToken }
         );
         const allOffers: OfferWithDetails[] = response.results || [];
 
@@ -58,7 +59,7 @@ export default function OffersPage() {
     };
 
     loadOffers();
-  }, [user, toast]);
+  }, [user, accessToken, toast]);
 
   // Filter offers based on tab
   const filteredOffers =
@@ -72,7 +73,7 @@ export default function OffersPage() {
     try {
       const updated = await apiPatch(`/marketplace/offers/${offer.id}/`, {
         status: "accepted",
-      });
+      }, { token: accessToken });
 
       setOffers((prev) =>
         prev.map((o) => (o.id === offer.id ? { ...o, ...updated } : o))
@@ -93,7 +94,7 @@ export default function OffersPage() {
     try {
       const updated = await apiPatch(`/marketplace/offers/${offer.id}/`, {
         status: "declined",
-      });
+      }, { token: accessToken });
 
       setOffers((prev) =>
         prev.map((o) => (o.id === offer.id ? { ...o, ...updated } : o))
