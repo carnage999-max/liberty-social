@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth-context";
 import { MarketplaceOffer } from "@/lib/types";
-import { apiGet, apiPatch } from "@/lib/api";
+import { apiGet, apiPatch, type PaginatedResponse } from "@/lib/api";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -43,8 +43,10 @@ export default function OffersPage() {
       if (!user) return;
 
       try {
-        const response = await apiGet("/marketplace/offers/");
-        const allOffers: OfferWithDetails[] = response.results || response;
+        const response = await apiGet<PaginatedResponse<OfferWithDetails>>(
+          "/marketplace/offers/"
+        );
+        const allOffers: OfferWithDetails[] = response.results || [];
 
         setOffers(allOffers);
       } catch (error) {

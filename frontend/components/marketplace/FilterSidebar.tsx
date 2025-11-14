@@ -138,7 +138,8 @@ export default function FilterSidebar({
           disabled={loading}
         >
           <h3 className="text-sm font-semibold text-gray-900">Category</h3>
-          <svg
+          <span className="text-(--color-gold)">
+            <svg
             className={`h-4 w-4 transition ${
               expandedSections.has("category") ? "rotate-180" : ""
             }`}
@@ -153,6 +154,7 @@ export default function FilterSidebar({
               d="M19 14l-7 7m0 0l-7-7m7 7V3"
             />
           </svg>
+          </span>
         </button>
         {expandedSections.has("category") && (
           <div className="mt-3 space-y-2">
@@ -181,7 +183,7 @@ export default function FilterSidebar({
         >
           <h3 className="text-sm font-semibold text-gray-900">Price Range</h3>
           <svg
-            className={`h-4 w-4 transition ${
+            className={`h-4 w-4 transition text-(--color-gold) ${
               expandedSections.has("price") ? "rotate-180" : ""
             }`}
             fill="none"
@@ -206,7 +208,7 @@ export default function FilterSidebar({
                 value={filters.minPrice || ""}
                 onChange={(e) => handlePriceChange("min", e.target.value)}
                 disabled={loading}
-                className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700 disabled:opacity-50"
+                className="w-full rounded-lg border border-(--color-gold) bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-(--color-primary) text-gray-700 disabled:opacity-50"
               />
             </div>
             <div className="space-y-1">
@@ -217,7 +219,7 @@ export default function FilterSidebar({
                 value={filters.maxPrice || ""}
                 onChange={(e) => handlePriceChange("max", e.target.value)}
                 disabled={loading}
-                className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700 disabled:opacity-50"
+                className="w-full rounded-lg border border-(--color-gold) bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700 disabled:opacity-50"
               />
             </div>
           </div>
@@ -233,7 +235,7 @@ export default function FilterSidebar({
         >
           <h3 className="text-sm font-semibold text-gray-900">Condition</h3>
           <svg
-            className={`h-4 w-4 transition ${
+            className={`h-4 w-4 transition text-(--color-gold) ${
               expandedSections.has("condition") ? "rotate-180" : ""
             }`}
             fill="none"
@@ -275,7 +277,7 @@ export default function FilterSidebar({
           value={filters.location || ""}
           onChange={(e) => handleLocationChange(e.target.value)}
           disabled={loading}
-          className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700 disabled:opacity-50"
+          className="w-full rounded-lg border border-(--color-gold) bg-transparent px-3 py-2 text-sm placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700 disabled:opacity-50"
         />
       </div>
     </div>

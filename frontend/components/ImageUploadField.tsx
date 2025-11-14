@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useToast } from "./Toast";
+import { API_BASE } from "@/lib/api";
 
 interface ImageUploadFieldProps {
   label: string;
@@ -42,7 +43,8 @@ export default function ImageUploadField({
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch("/api/uploads/images/", {
+      const uploadUrl = `${API_BASE}/uploads/images/`;
+      const response = await fetch(uploadUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
@@ -51,6 +53,8 @@ export default function ImageUploadField({
       });
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Upload error response:", errorData);
         throw new Error("Upload failed");
       }
 
