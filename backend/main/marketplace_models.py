@@ -51,6 +51,7 @@ class MarketplaceListing(models.Model):
         ("sold", "Sold"),
         ("expired", "Expired"),
         ("draft", "Draft"),
+        ("cancelled", "Cancelled"),
     )
 
     # Basic info

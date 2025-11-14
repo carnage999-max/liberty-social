@@ -7,48 +7,87 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth-context";
 import { MarketplaceListing } from "@/lib/types";
-import { apiGet, apiPatch } from "@/lib/api";
+import { apiGet, apiPatch, type PaginatedResponse } from "@/lib/api";
 
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-green-100 text-green-800",
   sold: "bg-gray-100 text-gray-800",
   inactive: "bg-yellow-100 text-yellow-800",
+  cancelled: "bg-red-100 text-red-800",
 };
 
 const STATUS_LABELS: Record<string, string> = {
   active: "Active",
   sold: "Sold",
   inactive: "Inactive",
+  cancelled: "Cancelled",
 };
+
+interface SoldItem {
+  listing: MarketplaceListing;
+  offer: any;
+  sold_price: string;
+  sold_to: {
+    id: string;
+    username: string;
+    first_name: string;
+    last_name: string;
+    profile_image_url: string | null;
+  };
+  sold_date: string;
+}
+
+interface CancelledListing extends MarketplaceListing {}
 
 export default function MyListingsPage() {
   const router = useRouter();
   const toast = useToast();
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
 
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
+  const [soldItems, setSoldItems] = useState<SoldItem[]>([]);
+  const [cancelledListings, setCancelledListings] = useState<CancelledListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "sold" | "inactive">("all");
   const [updatingId, setUpdatingId] = useState<string | number | null>(null);
+  const [expandedAccordions, setExpandedAccordions] = useState<Set<string>>(new Set());
 
-  // Load listings
+  // Load listings and sold items
   useEffect(() => {
-    const loadListings = async () => {
-      if (!user) return;
+    const loadData = async () => {
+      if (!user || !accessToken) return;
 
       try {
-        const response = await apiGet(`/marketplace/listings/?seller=${user.id}`);
-        setListings(response.results || response);
+        // Load active/inactive listings
+        const listingsResponse = await apiGet<PaginatedResponse<MarketplaceListing>>(
+          `/marketplace/listings/?seller=${user.id}`,
+          { token: accessToken }
+        );
+        setListings(listingsResponse.results || listingsResponse);
+
+        // Load sold items
+        const soldResponse = await apiGet<SoldItem[]>(
+          `/marketplace/listings/sold_items/`,
+          { token: accessToken }
+        );
+        setSoldItems(Array.isArray(soldResponse) ? soldResponse : []);
+
+        // Load cancelled listings
+        const cancelledResponse = await apiGet<PaginatedResponse<CancelledListing>>(
+          `/marketplace/listings/cancelled_listings/`,
+          { token: accessToken }
+        );
+        setCancelledListings(cancelledResponse.results || cancelledResponse);
       } catch (error) {
-        console.error("Failed to load listings:", error);
-        toast.show("Failed to load listings", "error");
+        console.error("Failed to load data:", error);
+        toast.show("Failed to load data", "error");
       } finally {
         setLoading(false);
       }
     };
 
-    loadListings();
-  }, [user, toast]);
+    loadData();
+  }, [user, accessToken, toast]);
 
   // Filter listings
   const filteredListings =
@@ -56,14 +95,26 @@ export default function MyListingsPage() {
       ? listings
       : listings.filter((l) => l.status === filter);
 
+  const toggleAccordion = (id: string) => {
+    const newAccordions = new Set(expandedAccordions);
+    if (newAccordions.has(id)) {
+      newAccordions.delete(id);
+    } else {
+      newAccordions.add(id);
+    }
+    setExpandedAccordions(newAccordions);
+  };
+
   const handleToggleStatus = async (listing: MarketplaceListing) => {
     setUpdatingId(listing.id);
 
     try {
       const newStatus = listing.status === "active" ? "inactive" : "active";
-      const updated = await apiPatch(`/marketplace/listings/${listing.id}/`, {
-        status: newStatus,
-      });
+      const updated = await apiPatch(
+        `/marketplace/listings/${listing.id}/`,
+        { status: newStatus },
+        { token: accessToken }
+      );
 
       setListings((prev) =>
         prev.map((l) => (l.id === listing.id ? updated : l))
@@ -83,9 +134,11 @@ export default function MyListingsPage() {
     setUpdatingId(listing.id);
 
     try {
-      const updated = await apiPatch(`/marketplace/listings/${listing.id}/`, {
-        status: "sold",
-      });
+      const updated = await apiPatch(
+        `/marketplace/listings/${listing.id}/`,
+        { status: "sold" },
+        { token: accessToken }
+      );
 
       setListings((prev) =>
         prev.map((l) => (l.id === listing.id ? updated : l))
@@ -95,6 +148,36 @@ export default function MyListingsPage() {
     } catch (error) {
       console.error("Failed to mark listing as sold:", error);
       toast.show("Failed to mark listing as sold", "error");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const handleMarkAsCancelled = async (listing: MarketplaceListing) => {
+    setUpdatingId(listing.id);
+
+    try {
+      const updated = await apiPatch(
+        `/marketplace/listings/${listing.id}/`,
+        { status: "cancelled" },
+        { token: accessToken }
+      );
+
+      setListings((prev) =>
+        prev.map((l) => (l.id === listing.id ? updated : l))
+      );
+
+      // Reload the cancelled listings accordion
+      const response = await apiGet<any>(
+        `/marketplace/listings/cancelled_listings/`,
+        { token: accessToken }
+      );
+      setCancelledListings(response.results || response);
+
+      toast.show("Listing cancelled", "success");
+    } catch (error) {
+      console.error("Failed to cancel listing:", error);
+      toast.show("Failed to cancel listing", "error");
     } finally {
       setUpdatingId(null);
     }
@@ -146,6 +229,198 @@ export default function MyListingsPage() {
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-600">Loading your listings...</p>
             </div>
+          </div>
+        )}
+
+        {/* Sold Items Accordion */}
+        {!loading && soldItems.length > 0 && (
+          <div className="mb-6 rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <button
+              onClick={() => toggleAccordion("sold-items")}
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition"
+            >
+              <h3 className="font-semibold text-gray-900">
+                Items Sold ({soldItems.length})
+              </h3>
+              <svg
+                className={`h-5 w-5 text-gray-600 transition-transform ${
+                  expandedAccordions.has("sold-items") ? "rotate-180" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                />
+              </svg>
+            </button>
+            {expandedAccordions.has("sold-items") && (
+              <div className="border-t border-gray-200 p-4 space-y-3">
+                {soldItems.map((item) => (
+                  <div
+                    key={`sold-${item.listing.id}`}
+                    className="rounded-lg border border-gray-200 p-4 hover:border-gray-300 transition"
+                  >
+                    <div className="flex gap-4">
+                      {/* Listing Image */}
+                      <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                        {item.listing.media?.[0]?.url ? (
+                          <Image
+                            src={item.listing.media[0].url}
+                            alt={item.listing.title}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <svg
+                              className="h-6 w-6"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Item Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">
+                          {item.listing.title}
+                        </p>
+                        <div className="mt-2 space-y-1 text-sm">
+                          <p className="text-gray-600">
+                            Sold to:{" "}
+                            <span className="font-medium text-gray-900">
+                              {item.sold_to?.username || item.sold_to?.first_name || "Unknown"}
+                            </span>
+                          </p>
+                          <p className="text-gray-600">
+                            Price:{" "}
+                            <span className="font-semibold text-gray-900">
+                              ${parseFloat(String(item.sold_price) || "0").toFixed(2)}
+                            </span>
+                          </p>
+                          <p className="text-gray-500 text-xs">
+                            {new Date(item.sold_date).toLocaleDateString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Cancelled Listings Accordion */}
+        {!loading && cancelledListings.length > 0 && (
+          <div className="mb-6 rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <button
+              onClick={() => toggleAccordion("cancelled-listings")}
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition"
+            >
+              <h3 className="font-semibold text-gray-900">
+                Listings Cancelled ({cancelledListings.length})
+              </h3>
+              <svg
+                className={`h-5 w-5 text-gray-600 transition-transform ${
+                  expandedAccordions.has("cancelled-listings") ? "rotate-180" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                />
+              </svg>
+            </button>
+            {expandedAccordions.has("cancelled-listings") && (
+              <div className="border-t border-gray-200 p-4 space-y-3">
+                {cancelledListings.map((listing) => {
+                  const mainImage = listing.media?.[0]?.url;
+                  return (
+                    <div
+                      key={`cancelled-${listing.id}`}
+                      className="rounded-lg border border-gray-200 p-4 hover:border-gray-300 transition"
+                    >
+                      <div className="flex gap-4">
+                        {/* Listing Image */}
+                        <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                          {mainImage ? (
+                            <Image
+                              src={mainImage}
+                              alt={listing.title}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <svg
+                                className="h-6 w-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Listing Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-gray-900 truncate">
+                            {listing.title}
+                          </p>
+                          <div className="mt-2 space-y-1 text-sm">
+                            <p className="text-gray-600">
+                              Price:{" "}
+                              <span className="font-semibold text-gray-900">
+                                ${parseFloat(String(listing.price) || "0").toFixed(2)}
+                              </span>
+                            </p>
+                            <p className="text-gray-500 text-xs">
+                              Cancelled:{" "}
+                              {new Date(listing.updated_at).toLocaleDateString(undefined, {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -221,7 +496,7 @@ export default function MyListingsPage() {
                     {/* Image */}
                     <Link
                       href={`/app/marketplace/${listing.id}`}
-                      className="sm:col-span-1 relative h-32 sm:h-40 rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition flex-shrink-0"
+                      className="sm:col-span-1 relative h-32 sm:h-40 rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition shrink-0"
                     >
                       {mainImage ? (
                         <Image
@@ -318,6 +593,13 @@ export default function MyListingsPage() {
                             className="flex-1 rounded-lg bg-yellow-600 px-3 py-2 text-sm font-semibold text-white hover:bg-yellow-700 transition disabled:opacity-50"
                           >
                             {updatingId === listing.id ? "..." : "Hide"}
+                          </button>
+                          <button
+                            onClick={() => handleMarkAsCancelled(listing)}
+                            disabled={updatingId === listing.id}
+                            className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 transition disabled:opacity-50"
+                          >
+                            {updatingId === listing.id ? "..." : "Cancel"}
                           </button>
                         </>
                       ) : (
