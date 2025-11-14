@@ -28,6 +28,16 @@ export default function CreatePagePage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  function normalizeWebsiteUrl(url: string): string {
+    if (!url.trim()) return "";
+    url = url.trim();
+    // Add https:// if no protocol is present
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = `https://${url}`;
+    }
+    return url;
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!accessToken) return;
@@ -37,7 +47,7 @@ export default function CreatePagePage() {
         name: form.name.trim(),
         description: form.description.trim(),
         category: form.category,
-        website_url: form.website_url.trim() || null,
+        website_url: form.website_url.trim() ? normalizeWebsiteUrl(form.website_url) : null,
         phone: form.phone.trim() || null,
         email: form.email.trim() || null,
       };
@@ -116,12 +126,13 @@ export default function CreatePagePage() {
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-black">Website</label>
             <input
-              type="url"
+              type="text"
               className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
               value={form.website_url}
               onChange={(event) => setForm((prev) => ({ ...prev, website_url: event.target.value }))}
-              placeholder="https://"
+              placeholder="example.com or www.example.com"
             />
+            <p className="text-xs text-gray-500">https:// will be added automatically if needed</p>
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-semibold text-black">Email</label>

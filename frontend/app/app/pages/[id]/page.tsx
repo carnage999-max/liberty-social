@@ -124,6 +124,16 @@ export default function PageDetail() {
     }
   }, [accessToken, page, toast]);
 
+  function normalizeWebsiteUrl(url: string): string {
+    if (!url.trim()) return "";
+    url = url.trim();
+    // Add https:// if no protocol is present
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = `https://${url}`;
+    }
+    return url;
+  }
+
   const handleEditClick = () => {
     if (page) {
       setEditForm({
@@ -149,7 +159,7 @@ export default function PageDetail() {
         name: editForm.name.trim(),
         description: editForm.description.trim(),
         category: editForm.category,
-        website_url: editForm.website_url.trim() || null,
+        website_url: editForm.website_url.trim() ? normalizeWebsiteUrl(editForm.website_url) : null,
         phone: editForm.phone.trim() || null,
         email: editForm.email.trim() || null,
       };
@@ -432,12 +442,13 @@ export default function PageDetail() {
                 <div className="space-y-1.5">
                   <label className="text-xs sm:text-sm font-semibold text-black">Website</label>
                   <input
-                    type="url"
+                    type="text"
                     className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
                     value={editForm.website_url}
                     onChange={(event) => setEditForm((prev) => ({ ...prev, website_url: event.target.value }))}
-                    placeholder="https://"
+                    placeholder="example.com or www.example.com"
                   />
+                  <p className="text-xs text-gray-500">https:// will be added automatically if needed</p>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs sm:text-sm font-semibold text-black">Email</label>

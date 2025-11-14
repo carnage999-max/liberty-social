@@ -112,6 +112,22 @@ class PageSerializer(PageSummarySerializer):
     admin_count = serializers.SerializerMethodField()
     is_following = serializers.SerializerMethodField()
 
+    def validate_website_url(self, value):
+        """Ensure website URL has a protocol. If not, prepend https://"""
+        if not value:
+            return value
+        
+        value = value.strip()
+        if not value:
+            return None
+        
+        # Check if URL already has a protocol
+        if not value.startswith(('http://', 'https://')):
+            # Prepend https://
+            value = f'https://{value}'
+        
+        return value
+
     class Meta(PageSummarySerializer.Meta):
         model = Page
         fields = PageSummarySerializer.Meta.fields + [
