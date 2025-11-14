@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/auth-context";
 import { apiDelete, apiGet, apiGetUrl, apiPost, type PaginatedResponse } from "@/lib/api";
-import type { Post, Reaction } from "@/lib/types";
+import type { Post, Reaction, PageSummary } from "@/lib/types";
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
@@ -45,20 +45,7 @@ function summariseReactions(reactions: Reaction[]): ReactionSummary {
   return summary;
 }
 
-const COMMUNITY_SUGGESTIONS = [
-  {
-    title: "Digital Creators",
-    description: "Swap ideas on storytelling, editing, and growth tactics.",
-  },
-  {
-    title: "Product Thinkers",
-    description: "Explore feature concepts with fellow builders.",
-  },
-  {
-    title: "Mindful Mondays",
-    description: "Weekly check-ins for balance, focus, and calm.",
-  },
-];
+
 
 export default function FeedPage() {
   const { accessToken, user } = useAuth();
@@ -79,6 +66,8 @@ export default function FeedPage() {
     image: string;
     title?: string;
   } | null>(null);
+  const [suggestedPages, setSuggestedPages] = useState<PageSummary[]>([]);
+  const [loadingPages, setLoadingPages] = useState(false);
 
   useEffect(() => {
     pendingReactionsRef.current = pendingReactions;
@@ -161,6 +150,29 @@ export default function FeedPage() {
     if (!pagination.next) return;
     loadFeed(pagination.next, true);
   }, [pagination.next, loadFeed]);
+
+  const loadSuggestedPages = useCallback(async () => {
+    if (!accessToken) return;
+    try {
+      setLoadingPages(true);
+      const response = await apiGet<PaginatedResponse<PageSummary>>(
+        "/pages/?limit=10",
+        { token: accessToken }
+      );
+      const pages = response.results || [];
+      // Get 3 random pages
+      const shuffled = [...pages].sort(() => 0.5 - Math.random());
+      setSuggestedPages(shuffled.slice(0, 3));
+    } catch (err) {
+      console.error("Failed to load suggested pages:", err);
+    } finally {
+      setLoadingPages(false);
+    }
+  }, [accessToken]);
+
+  useEffect(() => {
+    loadSuggestedPages();
+  }, [loadSuggestedPages]);
 
   const handlePostUpdated = useCallback((updated: Post) => {
     setPosts((prev) => prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
@@ -566,33 +578,57 @@ export default function FeedPage() {
       <div className="space-y-6">
         <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-400">Your Feed</h1>
+            <h1 className="text-2xl font-bold text-(--color-gold)">Your Feed</h1>
           </div>
         </header>
 
         <div className="flex flex-col gap-6 xl:flex-row">
           <div className="flex-1">{renderPosts()}</div>
 
-          <aside className="hidden xl:block xl:w-[280px] xl:flex-shrink-0">
+          <aside className="hidden xl:block xl:w-[280px] xl:shrink-0">
             <div className="space-y-6 xl:sticky xl:top-36">
-              <div className="rounded-[16px] bg-white/85 p-4 shadow-sm backdrop-blur-sm">
-                <h2 className="text-sm font-semibold text-gray-800">Community suggestions</h2>
-                <ul className="mt-4 space-y-3 text-sm text-gray-600">
-                  {COMMUNITY_SUGGESTIONS.map((community) => (
-                    <li
-                      key={community.title}
-                      className="rounded-lg border border-gray-100 bg-white/70 p-3 shadow-sm"
-                    >
-                      <h3 className="font-semibold text-[var(--color-primary)]">
-                        {community.title}
-                      </h3>
-                      <p className="mt-1 text-xs text-gray-500">{community.description}</p>
-                    </li>
-                  ))}
-                </ul>
+              <div className="rounded-2xl bg-white/85 p-4 shadow-sm backdrop-blur-sm">
+                <h2 className="text-sm font-semibold text-gray-800">Pages you can follow</h2>
+                {loadingPages ? (
+                  <div className="mt-4 flex justify-center">
+                    <Spinner />
+                  </div>
+                ) : suggestedPages.length === 0 ? (
+                  <p className="mt-4 text-xs text-gray-500">No pages available yet.</p>
+                ) : (
+                  <ul className="mt-4 space-y-3 text-sm text-gray-600">
+                    {suggestedPages.map((page) => (
+                      <li
+                        key={page.id}
+                        className="rounded-lg border border-gray-100 bg-white/70 p-3 shadow-sm"
+                      >
+                        <Link
+                          href={`/app/pages/${page.id}`}
+                          className="flex items-center gap-2 hover:opacity-80 transition"
+                        >
+                          {page.profile_image_url && (
+                            <Image
+                              src={page.profile_image_url}
+                              alt={page.name}
+                              width={32}
+                              height={32}
+                              className="h-8 w-8 rounded-full object-cover shrink-0"
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-[var(--color-primary)] truncate">
+                              {page.name}
+                            </h3>
+                            <p className="text-xs text-gray-500 truncate">{page.category}</p>
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
-              <div className="rounded-[16px] bg-white/85 p-4 shadow-sm backdrop-blur-sm">
+              <div className="rounded-2xl bg-white/85 p-4 shadow-sm backdrop-blur-sm">
                 <h2 className="text-sm font-semibold text-gray-800">Tips</h2>
                 <ul className="mt-3 list-disc space-y-2 pl-5 text-xs text-gray-600">
                   <li>Keep your posts public to reach new communities.</li>

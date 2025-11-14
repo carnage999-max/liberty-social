@@ -189,45 +189,49 @@ class MarketplaceListingViewSet(viewsets.ModelViewSet):
     def sold_items(self, request):
         """Get sold items by current user with accepted offer details."""
         user = request.user
-        
+
         # Get sold listings with their accepted offers
         sold_listings = MarketplaceListing.objects.filter(
-            seller=user,
-            status="sold"
+            seller=user, status="sold"
         ).prefetch_related("offers")
-        
+
         result = []
         for listing in sold_listings:
             # Find the accepted offer
             accepted_offer = listing.offers.filter(status="accepted").first()
             if accepted_offer:
-                result.append({
-                    "listing": MarketplaceListingSerializer(listing, context={"request": request}).data,
-                    "offer": MarketplaceOfferSerializer(accepted_offer, context={"request": request}).data,
-                    "sold_price": str(accepted_offer.offered_price),
-                    "sold_to": {
-                        "id": accepted_offer.buyer.id,
-                        "username": accepted_offer.buyer.username,
-                        "first_name": accepted_offer.buyer.first_name,
-                        "last_name": accepted_offer.buyer.last_name,
-                        "profile_image_url": accepted_offer.buyer.profile_image_url,
-                    },
-                    "sold_date": listing.sold_at,
-                })
-        
+                result.append(
+                    {
+                        "listing": MarketplaceListingSerializer(
+                            listing, context={"request": request}
+                        ).data,
+                        "offer": MarketplaceOfferSerializer(
+                            accepted_offer, context={"request": request}
+                        ).data,
+                        "sold_price": str(accepted_offer.offered_price),
+                        "sold_to": {
+                            "id": accepted_offer.buyer.id,
+                            "username": accepted_offer.buyer.username,
+                            "first_name": accepted_offer.buyer.first_name,
+                            "last_name": accepted_offer.buyer.last_name,
+                            "profile_image_url": accepted_offer.buyer.profile_image_url,
+                        },
+                        "sold_date": listing.sold_at,
+                    }
+                )
+
         return Response(result)
 
     @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated])
     def cancelled_listings(self, request):
         """Get cancelled listings by current user."""
         user = request.user
-        
+
         # Get cancelled listings
         cancelled_listings = MarketplaceListing.objects.filter(
-            seller=user,
-            status="cancelled"
+            seller=user, status="cancelled"
         ).order_by("-updated_at")
-        
+
         serializer = self.get_serializer(cancelled_listings, many=True)
         return Response(serializer.data)
 
