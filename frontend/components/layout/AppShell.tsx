@@ -11,6 +11,7 @@ import { useToast } from "@/components/Toast";
 import Image from "next/image";
 import { usePaginatedResource } from "@/hooks/usePaginatedResource";
 import { useNotifications } from "@/hooks/useNotifications";
+import { usePageInvites } from "@/hooks/usePageInvites";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 const NAV_LINKS = [
@@ -51,6 +52,21 @@ const NAV_LINKS = [
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
           d="M16 3h5v5M21 3l-7 7M8 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8ZM3 21a5 5 0 0 1 10 0"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "Page invites",
+    href: "/app/invites",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"
           stroke="currentColor"
           strokeWidth="2"
           strokeLinecap="round"
@@ -230,15 +246,17 @@ export default function AppShell({ children }: AppShellProps) {
       query: { direction: "incoming", page_size: 1 },
     }
   );
+  const { pendingCount: pageInviteCount } = usePageInvites();
   const { unreadCount: notificationUnreadCount } = useNotifications();
 
   const getBadgeCount = useCallback(
     (href: string) => {
       if (href === "/app/friend-requests") return incomingFriendRequests;
+      if (href === "/app/invites") return pageInviteCount;
       if (href === "/app/notifications") return notificationUnreadCount;
       return 0;
     },
-    [incomingFriendRequests, notificationUnreadCount]
+    [incomingFriendRequests, pageInviteCount, notificationUnreadCount]
   );
 
   const notificationBadgeLabel =
