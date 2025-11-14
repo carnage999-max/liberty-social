@@ -300,7 +300,9 @@ class MarketplaceListingMediaViewSet(viewsets.ModelViewSet):
         # fall back to parsing the request payload.
         listing = serializer.validated_data.get("listing")
         if not listing:
-            listing_id = self.request.data.get("listing_id") or self.request.data.get("listing")
+            listing_id = self.request.data.get("listing_id") or self.request.data.get(
+                "listing"
+            )
             if not listing_id:
                 raise ValidationError({"listing_id": ["This field is required."]})
             # Import here to avoid circular imports at module load

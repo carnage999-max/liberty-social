@@ -159,7 +159,7 @@ export default function ListingDetailPage() {
             {listing.media && listing.media.length > 0 ? (
               <button
                 onClick={() => setGalleryOpen(0)}
-                className="h-full w-full cursor-pointer transition hover:brightness-90"
+                className="h-full w-full cursor-pointer hover:brightness-90"
               >
                 <Image
                   src={listing.media[0].url}
@@ -199,7 +199,8 @@ export default function ListingDetailPage() {
                     src={media.url}
                     alt={`${listing.title} ${idx + 1}`}
                     fill
-                    className="object-cover"
+                    className="object-contain"
+                    style={{width:"auto", height: "auto"}}
                   />
                 </button>
               ))}
