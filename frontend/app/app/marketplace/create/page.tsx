@@ -12,7 +12,7 @@ import { apiPost, apiGet } from "@/lib/api";
 export default function CreateListingPage() {
   const router = useRouter();
   const toast = useToast();
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<MarketplaceCategory[]>([]);
   const [media, setMedia] = useState<UploadedMedia[]>([]);
@@ -131,7 +131,9 @@ export default function CreateListingPage() {
         status: "active",
       };
 
-      const listing = await apiPost("/marketplace/listings/", listingData);
+      const listing = await apiPost("/marketplace/listings/", listingData, {
+        token: accessToken,
+      });
 
       // Upload media if there are URLs (they should already be uploaded)
       if (media.length > 0) {
@@ -139,12 +141,16 @@ export default function CreateListingPage() {
         // Now we need to create MediaItems for each image
         for (const item of media) {
           try {
-            await apiPost("/marketplace/media/", {
-              listing: listing.id,
-              media_url: item.url,
-              media_type: "image",
-              order: item.order,
-            });
+            await apiPost(
+              "/marketplace/media/",
+              {
+                listing: listing.id,
+                media_url: item.url,
+                media_type: "image",
+                order: item.order,
+              },
+              { token: accessToken }
+            );
           } catch (error) {
             console.error("Failed to link media:", error);
             // Continue with other media
@@ -196,7 +202,7 @@ export default function CreateListingPage() {
               value={formData.title}
               onChange={handleInputChange}
               placeholder="e.g., Vintage Leather Jacket"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
               disabled={loading}
             />
           </div>
@@ -212,7 +218,7 @@ export default function CreateListingPage() {
               onChange={handleInputChange}
               placeholder="Describe your item in detail, condition, brand, size, etc."
               rows={5}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none text-black"
               disabled={loading}
             />
           </div>
@@ -231,7 +237,7 @@ export default function CreateListingPage() {
                 placeholder="0.00"
                 step="0.01"
                 min="0"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
                 disabled={loading}
               />
             </div>
@@ -245,7 +251,7 @@ export default function CreateListingPage() {
                 name="condition"
                 value={formData.condition}
                 onChange={handleInputChange}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
                 disabled={loading}
               >
                 <option value="like-new">Like New</option>
@@ -267,7 +273,7 @@ export default function CreateListingPage() {
                 name="category"
                 value={formData.category}
                 onChange={handleInputChange}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
                 disabled={loading}
               >
                 <option value="">Select a category</option>
@@ -289,7 +295,7 @@ export default function CreateListingPage() {
                 value={formData.location}
                 onChange={handleInputChange}
                 placeholder="City, State"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
                 disabled={loading}
               />
             </div>
@@ -304,7 +310,7 @@ export default function CreateListingPage() {
               name="contact_preference"
               value={formData.contact_preference}
               onChange={handleInputChange}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 text-black"
               disabled={loading}
             >
               <option value="messaging">Messaging</option>
