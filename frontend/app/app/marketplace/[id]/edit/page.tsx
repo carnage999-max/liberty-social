@@ -37,12 +37,19 @@ export default function EditListingPage() {
   // Load listing and categories on mount
   useEffect(() => {
     const loadData = async () => {
+      if (!accessToken) {
+        console.warn("No access token available, skipping data load");
+        return;
+      }
+
       try {
+        console.log("Loading listing data for ID:", listingId);
         const [listingRes, categoriesRes] = await Promise.all([
           apiGet(`/marketplace/listings/${listingId}/`, { token: accessToken }),
           apiGet("/marketplace/categories/", { token: accessToken }),
         ]);
 
+        console.log("Listing loaded:", listingRes);
         setListing(listingRes);
         setCategories(categoriesRes.results || categoriesRes);
 
@@ -60,26 +67,28 @@ export default function EditListingPage() {
           deliveryOptions.push(...(listingRes.delivery_options as any));
         }
 
-        setFormData({
+        const newFormData = {
           title: listingRes.title,
           description: listingRes.description,
           price: listingRes.price.toString(),
-          category: listingRes.category.id,
+          category: listingRes.category.id.toString(),
           condition: listingRes.condition,
           location: listingRes.location,
           contact_preference: listingRes.contact_preference,
           delivery_options: deliveryOptions,
-        });
+        };
+        console.log("Setting form data:", newFormData);
+        setFormData(newFormData);
 
         // Load existing media
         if (listingRes.media && listingRes.media.length > 0) {
-          setMedia(
-            listingRes.media.map((m: any) => ({
-              url: m.url,
-              order: m.order,
-              id: m.id,
-            }))
-          );
+          const mediaItems = listingRes.media.map((m: any) => ({
+            url: m.url,
+            order: m.order,
+            id: m.id,
+          }));
+          console.log("Setting media items:", mediaItems);
+          setMedia(mediaItems);
         }
       } catch (error) {
         console.error("Failed to load listing:", error);
@@ -91,7 +100,7 @@ export default function EditListingPage() {
     };
 
     loadData();
-  }, [listingId, toast, router, accessToken]);
+  }, [listingId, accessToken, toast, router]);
 
   // Check ownership
   if (!initialLoading && listing && listing.seller.id !== user?.id) {
@@ -340,7 +349,7 @@ export default function EditListingPage() {
               >
                 <option value="">Select a category</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
+                  <option key={cat.id} value={cat.id.toString()}>
                     {cat.name}
                   </option>
                 ))}
