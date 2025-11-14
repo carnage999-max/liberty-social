@@ -13,7 +13,7 @@ export default function EditListingPage() {
   const router = useRouter();
   const params = useParams();
   const toast = useToast();
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
   const listingId = params.id as string;
 
   const [loading, setLoading] = useState(false);
@@ -28,10 +28,10 @@ export default function EditListingPage() {
     description: "",
     price: "",
     category: "",
-    condition: "like-new" as ListingCondition,
+    condition: "used" as ListingCondition,
     location: "",
-    contact_preference: "messaging" as "messaging" | "phone" | "email",
-    delivery_options: ["local_pickup"] as Array<"local_pickup" | "shipping">,
+    contact_preference: "chat" as "chat" | "call" | "both",
+    delivery_options: ["pickup"] as Array<"pickup" | "delivery">,
   });
 
   // Load listing and categories on mount
@@ -39,14 +39,27 @@ export default function EditListingPage() {
     const loadData = async () => {
       try {
         const [listingRes, categoriesRes] = await Promise.all([
-          apiGet(`/marketplace/listings/${listingId}/`),
-          apiGet("/marketplace/categories/"),
+          apiGet(`/marketplace/listings/${listingId}/`, { token: accessToken }),
+          apiGet("/marketplace/categories/", { token: accessToken }),
         ]);
 
         setListing(listingRes);
         setCategories(categoriesRes.results || categoriesRes);
 
         // Populate form with listing data
+        const deliveryOptions: Array<"pickup" | "delivery"> = [];
+        if (typeof listingRes.delivery_options === "string") {
+          if (listingRes.delivery_options === "both") {
+            deliveryOptions.push("pickup", "delivery");
+          } else if (listingRes.delivery_options === "pickup") {
+            deliveryOptions.push("pickup");
+          } else if (listingRes.delivery_options === "delivery") {
+            deliveryOptions.push("delivery");
+          }
+        } else if (Array.isArray(listingRes.delivery_options)) {
+          deliveryOptions.push(...(listingRes.delivery_options as any));
+        }
+
         setFormData({
           title: listingRes.title,
           description: listingRes.description,
@@ -55,14 +68,14 @@ export default function EditListingPage() {
           condition: listingRes.condition,
           location: listingRes.location,
           contact_preference: listingRes.contact_preference,
-          delivery_options: listingRes.delivery_options,
+          delivery_options: deliveryOptions,
         });
 
         // Load existing media
         if (listingRes.media && listingRes.media.length > 0) {
           setMedia(
             listingRes.media.map((m: any) => ({
-              url: m.media_url,
+              url: m.url,
               order: m.order,
               id: m.id,
             }))
@@ -78,7 +91,7 @@ export default function EditListingPage() {
     };
 
     loadData();
-  }, [listingId, toast, router]);
+  }, [listingId, toast, router, accessToken]);
 
   // Check ownership
   if (!initialLoading && listing && listing.seller.id !== user?.id) {
@@ -118,12 +131,12 @@ export default function EditListingPage() {
     }));
   };
 
-  const handleDeliveryChange = (option: "local_pickup" | "shipping") => {
+  const handleDeliveryChange = (option: "pickup" | "delivery") => {
     setFormData((prev) => {
       const updated = prev.delivery_options.includes(option)
         ? prev.delivery_options.filter((o) => o !== option)
         : [...prev.delivery_options, option];
-      return { ...prev, delivery_options: updated };
+      return { ...prev, delivery_options: updated as Array<"pickup" | "delivery"> };
     });
   };
 
@@ -172,19 +185,21 @@ export default function EditListingPage() {
         title: formData.title,
         description: formData.description,
         price: parseFloat(formData.price),
-        category: formData.category,
+        category_id: parseInt(formData.category),
         condition: formData.condition,
         location: formData.location,
         contact_preference: formData.contact_preference,
-        delivery_options: formData.delivery_options,
+        delivery_options: formData.delivery_options.includes("pickup") && formData.delivery_options.includes("delivery") 
+          ? "both" 
+          : formData.delivery_options[0] || "pickup",
       };
 
-      await apiPatch(`/marketplace/listings/${listingId}/`, updateData);
+      await apiPatch(`/marketplace/listings/${listingId}/`, updateData, { token: accessToken });
 
       // Handle removed media
       for (const mediaId of removedMediaIds) {
         try {
-          await apiDelete(`/marketplace/media/${mediaId}/`);
+          await apiDelete(`/marketplace/media/${mediaId}/`, { token: accessToken });
         } catch (error) {
           console.error(`Failed to delete media ${mediaId}:`, error);
         }
@@ -195,11 +210,11 @@ export default function EditListingPage() {
       for (const item of newMedia) {
         try {
           await apiPost("/marketplace/media/", {
-            listing: listingId,
-            media_url: item.url,
-            media_type: "image",
+            listing_id: listingId,
+            url: item.url,
+            content_type: "image/jpeg",
             order: item.order,
-          });
+          }, { token: accessToken });
         } catch (error) {
           console.error("Failed to add media:", error);
         }
@@ -209,7 +224,7 @@ export default function EditListingPage() {
       router.push(`/app/marketplace/${listingId}`);
     } catch (error: any) {
       console.error("Failed to update listing:", error);
-      const message = error?.response?.data?.detail || "Failed to update listing";
+      const message = error?.data?.detail || error?.message || "Failed to update listing";
       toast.show(message, "error");
     } finally {
       setLoading(false);
@@ -301,9 +316,9 @@ export default function EditListingPage() {
                 className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 disabled={loading}
               >
-                <option value="like-new">Like New</option>
-                <option value="excellent">Excellent</option>
-                <option value="good">Good</option>
+                <option value="new">New</option>
+                <option value="like_new">Like New</option>
+                <option value="used">Used</option>
                 <option value="fair">Fair</option>
                 <option value="poor">Poor</option>
               </select>
@@ -360,9 +375,9 @@ export default function EditListingPage() {
               className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               disabled={loading}
             >
-              <option value="messaging">Messaging</option>
-              <option value="phone">Phone</option>
-              <option value="email">Email</option>
+              <option value="chat">Chat</option>
+              <option value="call">Call</option>
+              <option value="both">Both</option>
             </select>
           </div>
 
@@ -373,8 +388,8 @@ export default function EditListingPage() {
             </label>
             <div className="space-y-2">
               {[
-                { id: "local_pickup", label: "Local Pickup" },
-                { id: "shipping", label: "Shipping Available" },
+                { id: "pickup", label: "Local Pickup" },
+                { id: "delivery", label: "Delivery Available" },
               ].map(({ id, label }) => (
                 <label
                   key={id}
@@ -383,10 +398,10 @@ export default function EditListingPage() {
                   <input
                     type="checkbox"
                     checked={formData.delivery_options.includes(
-                      id as "local_pickup" | "shipping"
+                      id as "pickup" | "delivery"
                     )}
                     onChange={() =>
-                      handleDeliveryChange(id as "local_pickup" | "shipping")
+                      handleDeliveryChange(id as "pickup" | "delivery")
                     }
                     disabled={loading}
                     className="h-4 w-4 rounded border-gray-300"

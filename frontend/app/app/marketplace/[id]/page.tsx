@@ -143,7 +143,7 @@ export default function ListingDetailPage() {
       {/* Back Button */}
       <Link
         href="/app/marketplace"
-        className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+        className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 text-sm text-(--color-silver-mid) hover:bg-gray-50"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M15 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
@@ -222,8 +222,8 @@ export default function ListingDetailPage() {
 
           {/* Title & Price */}
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-gray-900">{listing.title}</h1>
-            <div className="text-3xl font-bold text-(--color-deep-navy)">
+            <h1 className="text-2xl font-bold text-(color-silver-mid)">{listing.title}</h1>
+            <div className="text-3xl font-bold text-(--color-gold)">
               ${(typeof listing.price === "number" ? listing.price : parseFloat(listing.price as unknown as string || "0")).toFixed(2)}
             </div>
           </div>
@@ -316,7 +316,7 @@ export default function ListingDetailPage() {
               <>
                 <Link
                   href={`/app/marketplace/${listing.id}/edit`}
-                  className="block rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 text-center transition hover:bg-gray-100"
+                  className="block rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-400 text-center transition hover:bg-gray-100"
                 >
                   Edit Listing
                 </Link>
