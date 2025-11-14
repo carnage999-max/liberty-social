@@ -1,0 +1,28 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h1 style="color: #1f2937; font-size: 24px; margin-bottom: 16px;">New Offer on Your Listing</h1>
+
+<p style="margin-bottom: 16px;">Hi {{ seller.first_name }},</p>
+
+<p style="margin-bottom: 24px;">Great news! {{ buyer_name }} has made an offer on your listing <strong>{{ listing_title }}</strong>.</p>
+
+<div style="background-color: #f9fafb; border-left: 4px solid #6366f1; padding: 16px; margin-bottom: 24px; border-radius: 4px;">
+    <p style="margin: 0 0 12px 0;"><strong>Offer Details:</strong></p>
+    <p style="margin: 0 0 8px 0;"><strong>Your asking price:</strong> ${{ listing_price }}</p>
+    <p style="margin: 0 0 12px 0;"><strong>Offered price:</strong> <span style="color: #22c55e; font-size: 18px; font-weight: 600;">{{ offered_price }}</span></p>
+    {% if message %}
+    <p style="margin: 0; color: #6b7280; font-style: italic;">{{ buyer_name }}'s message: "{{ message }}"</p>
+    {% endif %}
+</div>
+
+<p style="margin-bottom: 24px;">You can review this offer and decide to accept or decline it.</p>
+
+<a href="{{ offers_url }}" class="button">View Your Offers</a>
+
+<p style="margin-top: 24px;">If you want to see the listing details again:</p>
+
+<a href="{{ listing_url }}" class="button" style="background: linear-gradient(to right, #8b5cf6, #6366f1);">View Listing</a>
+
+<p style="margin-top: 24px;">Best regards,<br>The Liberty Social Team</p>
+{% endblock %}

@@ -942,7 +942,9 @@ class MarketplaceOfferSerializer(serializers.ModelSerializer):
 
     def get_listing(self, obj):
         """Return full listing details with seller info."""
-        listing_serializer = MarketplaceListingSerializer(obj.listing, context=self.context)
+        listing_serializer = MarketplaceListingSerializer(
+            obj.listing, context=self.context
+        )
         return listing_serializer.data
 
 

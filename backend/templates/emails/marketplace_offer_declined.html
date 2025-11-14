@@ -1,0 +1,33 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h1 style="color: #1f2937; font-size: 24px; margin-bottom: 16px;">Offer Declined</h1>
+
+<p style="margin-bottom: 16px;">Hi {{ buyer.first_name }},</p>
+
+<p style="margin-bottom: 24px;">Unfortunately, your offer on <strong>{{ listing_title }}</strong> has been declined by {{ seller_name }}.</p>
+
+<div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin-bottom: 24px; border-radius: 4px;">
+    <p style="margin: 0 0 12px 0;"><strong>Offer Details:</strong></p>
+    <p style="margin: 0 0 12px 0;"><strong>Your offered price:</strong> ${{ offered_price }}</p>
+    {% if response_message %}
+    <p style="margin: 0; color: #6b7280; font-style: italic;">{{ seller_name }}'s message: "{{ response_message }}"</p>
+    {% endif %}
+</div>
+
+<p style="margin-bottom: 24px;">Don't worry! There are many other great listings available. You can:</p>
+
+<ul style="margin-bottom: 24px; padding-left: 24px;">
+    <li style="margin-bottom: 8px;">Try negotiating with another price (if the seller allows)</li>
+    <li style="margin-bottom: 8px;">Browse other similar listings</li>
+    <li style="margin-bottom: 8px;">Contact {{ seller_name }} directly for more information</li>
+</ul>
+
+<a href="{{ listing_url }}" class="button">View Listing Again</a>
+
+<p style="margin-top: 24px;">Check your offers page to see all your ongoing transactions:</p>
+
+<a href="{{ offers_url }}" class="button" style="background: linear-gradient(to right, #8b5cf6, #6366f1);">My Offers</a>
+
+<p style="margin-top: 24px;">Best regards,<br>The Liberty Social Team</p>
+{% endblock %}

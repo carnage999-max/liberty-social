@@ -1,0 +1,32 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+<h1 style="color: #1f2937; font-size: 24px; margin-bottom: 16px;">Offer Accepted!</h1>
+
+<p style="margin-bottom: 16px;">Hi {{ buyer.first_name }},</p>
+
+<p style="margin-bottom: 24px;"><strong>Congratulations!</strong> Your offer on <strong>{{ listing_title }}</strong> has been accepted by {{ seller_name }}!</p>
+
+<div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; padding: 16px; margin-bottom: 24px; border-radius: 4px;">
+    <p style="margin: 0 0 12px 0;"><strong>Transaction Details:</strong></p>
+    <p style="margin: 0 0 8px 0;"><strong>Listing:</strong> {{ listing_title }}</p>
+    <p style="margin: 0 0 12px 0;"><strong>Agreed price:</strong> <span style="color: #22c55e; font-size: 18px; font-weight: 600;">${{ offered_price }}</span></p>
+    <p style="margin: 0; color: #6b7280; font-size: 14px;">The seller will contact you soon to arrange delivery or pickup.</p>
+</div>
+
+<p style="margin-bottom: 24px;">Next steps:</p>
+
+<ul style="margin-bottom: 24px; padding-left: 24px;">
+    <li style="margin-bottom: 8px;">Wait for the seller to contact you with delivery arrangements</li>
+    <li style="margin-bottom: 8px;">Arrange payment if not already done</li>
+    <li style="margin-bottom: 8px;">Complete the transaction</li>
+</ul>
+
+<a href="{{ listing_url }}" class="button">View Listing Details</a>
+
+<p style="margin-top: 24px;">You can also check your offers page to see all your transactions:</p>
+
+<a href="{{ offers_url }}" class="button" style="background: linear-gradient(to right, #8b5cf6, #6366f1);">My Offers</a>
+
+<p style="margin-top: 24px;">Best regards,<br>The Liberty Social Team</p>
+{% endblock %}

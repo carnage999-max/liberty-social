@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth-context";
 import { MarketplaceOffer } from "@/lib/types";
-import { apiGet, apiPatch, type PaginatedResponse } from "@/lib/api";
+import { apiGet, apiPatch, apiPost, type PaginatedResponse } from "@/lib/api";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -71,9 +71,11 @@ export default function OffersPage() {
     setUpdatingId(offer.id);
 
     try {
-      const updated = await apiPatch(`/marketplace/offers/${offer.id}/`, {
-        status: "accepted",
-      }, { token: accessToken });
+      const updated = await apiPost(
+        `/marketplace/offers/${offer.id}/accept/`,
+        {},
+        { token: accessToken }
+      );
 
       setOffers((prev) =>
         prev.map((o) => (o.id === offer.id ? { ...o, ...updated } : o))
@@ -92,9 +94,11 @@ export default function OffersPage() {
     setUpdatingId(offer.id);
 
     try {
-      const updated = await apiPatch(`/marketplace/offers/${offer.id}/`, {
-        status: "declined",
-      }, { token: accessToken });
+      const updated = await apiPost(
+        `/marketplace/offers/${offer.id}/decline/`,
+        { message: "" },
+        { token: accessToken }
+      );
 
       setOffers((prev) =>
         prev.map((o) => (o.id === offer.id ? { ...o, ...updated } : o))

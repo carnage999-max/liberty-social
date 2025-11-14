@@ -27,6 +27,11 @@ from .serializers import (
     SellerVerificationSerializer,
 )
 from rest_framework.exceptions import ValidationError
+from .emails import (
+    send_offer_received_email,
+    send_offer_accepted_email,
+    send_offer_declined_email,
+)
 
 
 class MarketplaceCategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -202,11 +207,16 @@ class MarketplaceOfferViewSet(viewsets.ModelViewSet):
         ).first()
 
         if existing:
-            raise ValidationError(
-                "You already made an offer on this listing."
-            )
+            raise ValidationError("You already made an offer on this listing.")
 
-        serializer.save(buyer=self.request.user)
+        offer = serializer.save(buyer=self.request.user)
+
+        # Send email to seller about the new offer
+        try:
+            send_offer_received_email(offer)
+        except Exception as e:
+            # Log the error but don't fail the request
+            print(f"Failed to send offer received email: {e}")
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def accept(self, request, pk=None):
@@ -226,6 +236,13 @@ class MarketplaceOfferViewSet(viewsets.ModelViewSet):
         listing.sold_at = timezone.now()
         listing.save()
 
+        # Send email to buyer about the acceptance
+        try:
+            send_offer_accepted_email(offer)
+        except Exception as e:
+            # Log the error but don't fail the request
+            print(f"Failed to send offer accepted email: {e}")
+
         serializer = self.get_serializer(offer)
         return Response(serializer.data)
 
@@ -242,6 +259,13 @@ class MarketplaceOfferViewSet(viewsets.ModelViewSet):
         offer.responded_at = timezone.now()
         offer.response_message = request.data.get("message", "")
         offer.save()
+
+        # Send email to buyer about the decline
+        try:
+            send_offer_declined_email(offer)
+        except Exception as e:
+            # Log the error but don't fail the request
+            print(f"Failed to send offer declined email: {e}")
 
         serializer = self.get_serializer(offer)
         return Response(serializer.data)
