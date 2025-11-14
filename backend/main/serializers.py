@@ -783,11 +783,19 @@ class MarketplaceCategorySerializer(serializers.ModelSerializer):
 
 
 class MarketplaceListingMediaSerializer(serializers.ModelSerializer):
+    listing_id = serializers.PrimaryKeyRelatedField(
+        queryset=__import__(
+            "main.marketplace_models", fromlist=["MarketplaceListing"]
+        ).MarketplaceListing.objects.all(),
+        source="listing",
+        write_only=True,
+    )
+
     class Meta:
         model = __import__(
             "main.marketplace_models", fromlist=["MarketplaceListingMedia"]
         ).MarketplaceListingMedia
-        fields = ["id", "url", "content_type", "order", "uploaded_at"]
+        fields = ["id", "url", "content_type", "order", "uploaded_at", "listing_id"]
         read_only_fields = ["id", "uploaded_at"]
 
 

@@ -21,7 +21,7 @@ export default function ListingDetailPage() {
   const [listing, setListing] = useState<MarketplaceListing | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
-  const [galleryOpen, setGalleryOpen] = useState<number>(0);
+  const [galleryOpen, setGalleryOpen] = useState<number | null>(null);
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [offerForm, setOfferForm] = useState({ offered_price: "", message: "" });
@@ -466,9 +466,9 @@ export default function ListingDetailPage() {
       {/* Gallery Modal */}
       <Gallery
         isOpen={galleryOpen !== null && listing.media ? true : false}
-        onClose={() => setGalleryOpen(0)}
+        onClose={() => setGalleryOpen(null)}
         images={listing.media?.map((m) => m.url) || []}
-        initialIndex={galleryOpen}
+        initialIndex={galleryOpen || 0}
       />
     </div>
   );

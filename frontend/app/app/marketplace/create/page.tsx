@@ -141,7 +141,7 @@ export default function CreateListingPage() {
         token: accessToken,
       });
 
-      // Upload media if there are URLs (they should already be uploaded)
+      // Link uploaded media to the listing
       if (media.length > 0) {
         // Media URLs are already from the upload endpoint
         // Now we need to create MediaItems for each image
@@ -150,9 +150,9 @@ export default function CreateListingPage() {
             await apiPost(
               "/marketplace/media/",
               {
-                listing: listing.id,
-                media_url: item.url,
-                media_type: "image",
+                listing_id: listing.id,
+                url: item.url,
+                content_type: "image/jpeg",
                 order: item.order,
               },
               { token: accessToken }
