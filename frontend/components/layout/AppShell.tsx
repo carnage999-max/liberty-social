@@ -381,11 +381,26 @@ export default function AppShell({ children }: AppShellProps) {
               ) : (
                 <div className="flex items-center gap-2">
                   <span>Liberty Social</span>
-                  <span className="waving-flag text-xl">🇺🇸</span>
                 </div>
               )}
             </button>
             <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => handleNavigate("/app/friends")}
+                aria-label="View friends"
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M16 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
               <button
                 type="button"
                 onClick={() => handleNavigate("/app/pages")}
@@ -475,6 +490,22 @@ export default function AppShell({ children }: AppShellProps) {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => handleNavigate("/app/friends")}
+                aria-label="View friends"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/30"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M16 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
               <button
                 type="button"
                 onClick={() => handleNavigate("/app/pages")}

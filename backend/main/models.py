@@ -403,6 +403,46 @@ class PageFollower(models.Model):
         return f"{self.user} follows {self.page}"
 
 
+class PageInvite(models.Model):
+    STATUS_CHOICES = (
+        ("pending", "pending"),
+        ("accepted", "accepted"),
+        ("declined", "declined"),
+    )
+
+    page = models.ForeignKey(Page, related_name="invites", on_delete=models.CASCADE)
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="page_invites_sent",
+        on_delete=models.CASCADE,
+    )
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="page_invites_received",
+        on_delete=models.CASCADE,
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["page", "recipient"],
+                condition=models.Q(status="pending"),
+                name="unique_pending_page_invite_per_user",
+            )
+        ]
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["page", "status"]),
+            models.Index(fields=["recipient", "status"]),
+        ]
+
+    def __str__(self):
+        return f"PageInvite: {self.sender} -> {self.recipient} for {self.page} ({self.status})"
+
+
 # Import marketplace models
 from .marketplace_models import (
     MarketplaceCategory,

@@ -20,6 +20,7 @@ from .models import (
     PageAdmin,
     PageAdminInvite,
     PageFollower,
+    PageInvite,
 )
 from users.serializers import UserSerializer
 
@@ -116,16 +117,16 @@ class PageSerializer(PageSummarySerializer):
         """Ensure website URL has a protocol. If not, prepend https://"""
         if not value:
             return value
-        
+
         value = value.strip()
         if not value:
             return None
-        
+
         # Check if URL already has a protocol
-        if not value.startswith(('http://', 'https://')):
+        if not value.startswith(("http://", "https://")):
             # Prepend https://
-            value = f'https://{value}'
-        
+            value = f"https://{value}"
+
         return value
 
     class Meta(PageSummarySerializer.Meta):
@@ -981,3 +982,22 @@ class SellerVerificationSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "seller", "verified_at", "created_at", "updated_at"]
+
+
+class PageInviteSerializer(serializers.ModelSerializer):
+    page = PageSummarySerializer(read_only=True)
+    sender = UserSerializer(read_only=True)
+    recipient = UserSerializer(read_only=True)
+
+    class Meta:
+        model = PageInvite
+        fields = [
+            "id",
+            "page",
+            "sender",
+            "recipient",
+            "status",
+            "created_at",
+            "responded_at",
+        ]
+        read_only_fields = fields

@@ -33,6 +33,7 @@ from .models import (
     PageAdmin,
     PageAdminInvite,
     PageFollower,
+    PageInvite,
 )
 from .realtime import conversation_group_name
 from .serializers import (
@@ -48,6 +49,7 @@ from .serializers import (
     PageAdminSerializer,
     PageAdminInviteSerializer,
     PageFollowerSerializer,
+    PageInviteSerializer,
 )
 from users.models import Friends
 from users.emails import send_page_admin_invite_email
@@ -409,6 +411,88 @@ class PageViewSet(ModelViewSet):
                 "following": following,
                 "follower_count": page.followers.count(),
             }
+        )
+
+    @action(detail=True, methods=["post"], url_path="send-invites")
+    def send_invites(self, request, pk=None):
+        """Send page follow invites to friends"""
+        page = self.get_object()
+        
+        # Check if user is admin/mod/owner/editor of the page
+        if not _page_admin_entry(page, request.user):
+            raise PermissionDenied("Only page admins can send invites.")
+
+        # Get list of friend IDs to invite
+        friend_ids = request.data.get("friend_ids", [])
+        if not friend_ids:
+            return Response(
+                {"detail": "At least one friend_id must be provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not isinstance(friend_ids, list):
+            return Response(
+                {"detail": "friend_ids must be a list."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_model = get_user_model()
+        invites_created = []
+        errors = []
+
+        for friend_id in friend_ids:
+            try:
+                friend = user_model.objects.get(id=friend_id)
+            except user_model.DoesNotExist:
+                errors.append({"friend_id": friend_id, "error": "User not found"})
+                continue
+
+            # Check if already following
+            if page.followers.filter(user=friend).exists():
+                errors.append({"friend_id": friend_id, "error": "Already following"})
+                continue
+
+            # Check if invite already exists
+            existing_invite = PageInvite.objects.filter(
+                page=page, recipient=friend, status="pending"
+            ).first()
+            if existing_invite:
+                errors.append({"friend_id": friend_id, "error": "Invite already sent"})
+                continue
+
+            # Create the invite
+            try:
+                invite = PageInvite.objects.create(
+                    page=page,
+                    sender=request.user,
+                    recipient=friend,
+                    status="pending",
+                )
+                invites_created.append(invite)
+
+                # Send email and push notification
+                try:
+                    send_page_invite_email(friend, request.user, page)
+                except Exception as e:
+                    logging.error(f"Failed to send invite email to {friend.email}: {e}")
+
+                try:
+                    send_page_invite_push_notification(friend, request.user, page)
+                except Exception as e:
+                    logging.error(f"Failed to send push notification to {friend.id}: {e}")
+
+            except Exception as e:
+                errors.append({"friend_id": friend_id, "error": str(e)})
+
+        serializer = PageInviteSerializer(invites_created, many=True)
+        return Response(
+            {
+                "invites_sent": serializer.data,
+                "errors": errors,
+                "total_sent": len(invites_created),
+                "total_errors": len(errors),
+            },
+            status=status.HTTP_201_CREATED if invites_created else status.HTTP_400_BAD_REQUEST,
         )
 
     @action(detail=True, methods=["get"], url_path="followers")
