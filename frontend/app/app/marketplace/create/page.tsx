@@ -142,26 +142,55 @@ export default function CreateListingPage() {
       });
 
       // Link uploaded media to the listing
+      let mediaErrors: string[] = [];
       if (media.length > 0) {
+        console.warn(`Starting media linking for ${media.length} images`);
         // Media URLs are already from the upload endpoint
         // Now we need to create MediaItems for each image
-        for (const item of media) {
+        
+        // Create all media in parallel
+        const mediaPromises = media.map(async (item) => {
           try {
-            await apiPost(
+            const payload = {
+              listing_id: listing.id,
+              url: item.url,
+              content_type: "image/jpeg",
+              order: item.order,
+            };
+            console.warn("Linking media with payload:", payload);
+            const result = await apiPost(
               "/marketplace/media/",
-              {
-                listing_id: listing.id,
-                url: item.url,
-                content_type: "image/jpeg",
-                order: item.order,
-              },
+              payload,
               { token: accessToken }
             );
-          } catch (error) {
+            console.warn("Media linked successfully:", result);
+            return { success: true };
+          } catch (error: any) {
             console.error("Failed to link media:", error);
-            // Continue with other media
+            console.error("Media error details:", {
+              message: error?.message,
+              data: error?.data,
+              fieldErrors: error?.fieldErrors,
+              nonFieldErrors: error?.nonFieldErrors,
+              url: item.url,
+              listing_id: listing.id,
+            });
+            mediaErrors.push(`Failed to link image: ${item.url}`);
+            return { success: false, error };
           }
+        });
+
+        // Wait for all media to be linked before proceeding
+        await Promise.all(mediaPromises);
+        
+        if (mediaErrors.length > 0) {
+          console.error("Some media failed to link:", mediaErrors);
+          toast.show(`Warning: ${mediaErrors.length} image(s) failed to link. Listing created but without all images.`, "error");
+        } else {
+          console.warn("All media linked successfully");
         }
+      } else {
+        console.warn("No media to link");
       }
 
       toast.show("Listing created successfully!", "success");
