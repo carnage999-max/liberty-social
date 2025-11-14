@@ -8,7 +8,8 @@ import { apiGet, apiPost, apiPatch } from "@/lib/api";
 import type { Page as BusinessPage, PageAdmin } from "@/lib/types";
 import Spinner from "@/components/Spinner";
 import Gallery from "@/components/Gallery";
-import ImageUploadField from "@/components/ImageUploadField";
+import PageImageUploadField from "@/components/pages/PageImageUploadField";
+import { uploadImageToS3 } from "@/lib/image-upload";
 import { useToast } from "@/components/Toast";
 
 const CATEGORIES = [
@@ -40,6 +41,8 @@ export default function PageDetail() {
     profile_image_url: "",
     cover_image_url: "",
   });
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -151,14 +154,36 @@ export default function PageDetail() {
         email: editForm.email.trim() || null,
       };
 
-      // Include profile_image_url in payload if it changed
-      if (editForm.profile_image_url !== page.profile_image_url) {
-        payload.profile_image_url = editForm.profile_image_url || null;
+      // Upload profile image if a new file was selected
+      if (profileImageFile) {
+        try {
+          const profileImageUrl = await uploadImageToS3(profileImageFile, accessToken);
+          payload.profile_image_url = profileImageUrl;
+        } catch (error) {
+          console.error("Failed to upload profile image:", error);
+          toast.show("Failed to upload profile image", "error");
+          setSubmitting(false);
+          return;
+        }
+      } else if (editForm.profile_image_url && editForm.profile_image_url !== page.profile_image_url) {
+        // If URL was updated but no file selected (shouldn't happen in this flow)
+        payload.profile_image_url = editForm.profile_image_url;
       }
 
-      // Include cover_image_url in payload if it changed
-      if (editForm.cover_image_url !== page.cover_image_url) {
-        payload.cover_image_url = editForm.cover_image_url || null;
+      // Upload cover image if a new file was selected
+      if (coverImageFile) {
+        try {
+          const coverImageUrl = await uploadImageToS3(coverImageFile, accessToken);
+          payload.cover_image_url = coverImageUrl;
+        } catch (error) {
+          console.error("Failed to upload cover image:", error);
+          toast.show("Failed to upload cover image", "error");
+          setSubmitting(false);
+          return;
+        }
+      } else if (editForm.cover_image_url && editForm.cover_image_url !== page.cover_image_url) {
+        // If URL was updated but no file selected (shouldn't happen in this flow)
+        payload.cover_image_url = editForm.cover_image_url;
       }
 
       const updated = await apiPatch<BusinessPage>(`/pages/${page.id}/`, payload, {
@@ -168,6 +193,8 @@ export default function PageDetail() {
       console.log("Page updated with response:", updated);
       setPage(updated);
       setIsEditing(false);
+      setProfileImageFile(null);
+      setCoverImageFile(null);
       toast.show("Page updated successfully!", "success");
     } catch (error) {
       console.error(error);
@@ -324,57 +351,48 @@ export default function PageDetail() {
 
       {/* Edit Modal */}
       {isEditing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="mx-auto w-full max-w-2xl space-y-6 rounded-3xl border border-(--color-border) bg-white p-6 shadow text-black">
-            <div className="flex items-start gap-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4 py-4 sm:py-0">
+          <div className="mx-auto w-full max-w-2xl rounded-t-3xl sm:rounded-3xl border border-(--color-border) bg-white p-4 sm:p-6 shadow text-black max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start gap-3 sm:gap-4">
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
-                className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
+                className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-2 sm:px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 flex-shrink-0"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                Back
               </button>
 
-              <header className="flex-1">
-                <h1 className="text-2xl font-semibold text-black">Edit business page</h1>
-                <p className="text-sm text-gray-600">Update your page details.</p>
+              <header className="flex-1 min-w-0">
+                <h1 className="text-xl sm:text-2xl font-semibold text-black">Edit business page</h1>
+                <p className="text-xs sm:text-sm text-gray-600">Update your page details.</p>
               </header>
             </div>
 
-            <form className="space-y-4" onSubmit={handleEditSubmit}>
-              <ImageUploadField
+            <form className="space-y-3 sm:space-y-4 mt-4 sm:mt-6" onSubmit={handleEditSubmit}>
+              <PageImageUploadField
                 label="Profile Image"
                 value={editForm.profile_image_url}
-                onChange={(url) => {
-                  console.log("ImageUploadField onChange called with URL:", url);
-                  setEditForm((prev) => {
-                    const updated = { ...prev, profile_image_url: url };
-                    console.log("Updated editForm:", updated);
-                    return updated;
-                  });
+                onChange={setProfileImageFile}
+                onPreview={(preview) => {
+                  setEditForm((prev) => ({ ...prev, profile_image_url: preview }));
                 }}
                 disabled={submitting}
               />
 
-              <ImageUploadField
+              <PageImageUploadField
                 label="Cover Image"
                 value={editForm.cover_image_url}
-                onChange={(url) => {
-                  console.log("Cover ImageUploadField onChange called with URL:", url);
-                  setEditForm((prev) => {
-                    const updated = { ...prev, cover_image_url: url };
-                    console.log("Updated editForm with cover image:", updated);
-                    return updated;
-                  });
+                onChange={setCoverImageFile}
+                onPreview={(preview) => {
+                  setEditForm((prev) => ({ ...prev, cover_image_url: preview }));
                 }}
                 disabled={submitting}
               />
 
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-black">Page name</label>
+                <label className="text-xs sm:text-sm font-semibold text-black">Page name</label>
                 <input
                   required
                   className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
@@ -385,10 +403,10 @@ export default function PageDetail() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-black">Description</label>
+                <label className="text-xs sm:text-sm font-semibold text-black">Description</label>
                 <textarea
                   className="w-full resize-none rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
-                  rows={4}
+                  rows={3}
                   value={editForm.description}
                   onChange={(event) => setEditForm((prev) => ({ ...prev, description: event.target.value }))}
                   placeholder="Tell people what your page is about..."
@@ -396,7 +414,7 @@ export default function PageDetail() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-black">Category</label>
+                <label className="text-xs sm:text-sm font-semibold text-black">Category</label>
                 <select
                   className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
                   value={editForm.category}
@@ -410,9 +428,9 @@ export default function PageDetail() {
                 </select>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2 sm:gap-4 grid-cols-1 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-black">Website</label>
+                  <label className="text-xs sm:text-sm font-semibold text-black">Website</label>
                   <input
                     type="url"
                     className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
@@ -422,7 +440,7 @@ export default function PageDetail() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-black">Email</label>
+                  <label className="text-xs sm:text-sm font-semibold text-black">Email</label>
                   <input
                     type="email"
                     className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
@@ -433,7 +451,7 @@ export default function PageDetail() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-black">Phone</label>
+                <label className="text-xs sm:text-sm font-semibold text-black">Phone</label>
                 <input
                   className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-gray-700"
                   value={editForm.phone}
@@ -441,19 +459,23 @@ export default function PageDetail() {
                 />
               </div>
 
-              <div className="flex justify-end gap-3">
+              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsEditing(false)}
+                  onClick={() => {
+                    setIsEditing(false);
+                    setProfileImageFile(null);
+                    setCoverImageFile(null);
+                  }}
                   disabled={submitting}
-                  className="rounded-full border border-gray-300 px-5 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 disabled:opacity-70"
+                  className="rounded-full border border-gray-300 px-4 sm:px-5 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100 disabled:opacity-70 w-full sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-full bg-(--color-deep-navy) px-5 py-2 text-sm font-semibold text-white transition hover:bg-(--color-deeper-navy) disabled:opacity-70"
+                  className="rounded-full bg-(--color-deep-navy) px-4 sm:px-5 py-2 text-sm font-semibold text-white transition hover:bg-(--color-deeper-navy) disabled:opacity-70 w-full sm:w-auto"
                 >
                   {submitting ? "Saving..." : "Save Changes"}
                 </button>
