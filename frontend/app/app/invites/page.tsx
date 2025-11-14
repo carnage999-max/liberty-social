@@ -74,7 +74,7 @@ export default function InvitesPage() {
       setProcessingId(inviteId);
       await apiPost(`/page-invites/${inviteId}/decline/`, {}, { token: accessToken });
       
-      toast.show('Invite declined', 'info');
+      toast.show('Invite declined', 'error');
       setInvites(invites.filter(inv => inv.id !== inviteId));
     } catch (error) {
       console.error('Failed to decline invite:', error);
@@ -130,7 +130,7 @@ export default function InvitesPage() {
                 {/* Page and Sender Info */}
                 <div className="flex gap-4 flex-1 min-w-0">
                   {/* Page Image */}
-                  <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
                     {invite.page.profile_image_url ? (
                       <img
                         src={invite.page.profile_image_url}
@@ -158,7 +158,7 @@ export default function InvitesPage() {
                       {invite.page.category}
                     </p>
                     <div className="mt-2 flex items-center gap-2">
-                      <div className="h-6 w-6 flex-shrink-0 overflow-hidden rounded-full bg-gray-100">
+                      <div className="h-6 w-6 shrink-0 overflow-hidden rounded-full bg-gray-100">
                         {invite.sender.profile_image_url ? (
                           <img
                             src={invite.sender.profile_image_url}
@@ -182,7 +182,7 @@ export default function InvitesPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 sm:flex-shrink-0 w-full sm:w-auto">
+                <div className="flex gap-2 sm:shrink-0 w-full sm:w-auto">
                   <button
                     onClick={() => handleDecline(invite.id)}
                     disabled={processingId === invite.id}
@@ -193,7 +193,7 @@ export default function InvitesPage() {
                   <button
                     onClick={() => handleAccept(invite.id)}
                     disabled={processingId === invite.id}
-                    className="flex-1 sm:flex-none rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-primary)]/90 disabled:opacity-50"
+                    className="flex-1 sm:flex-none rounded-lg bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white transition hover:bg-(--color-primary)/90 disabled:opacity-50"
                   >
                     {processingId === invite.id ? 'Processing...' : 'Accept'}
                   </button>

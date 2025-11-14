@@ -71,7 +71,7 @@ export default function InviteModal({
 
   const sendInvites = async () => {
     if (selectedFriends.size === 0) {
-      toast.show('Please select at least one friend', 'warning');
+      toast.show('Please select at least one friend', 'error');
       return;
     }
 
@@ -98,7 +98,7 @@ export default function InviteModal({
         const errorCount = response.errors.length;
         toast.show(
           `${errorCount} invite${errorCount > 1 ? 's' : ''} could not be sent`,
-          'warning'
+          'error'
         );
       }
     } catch (error) {
@@ -150,7 +150,7 @@ export default function InviteModal({
               {selectedFriendsArray.map((friend) => (
                 <div
                   key={friend.id}
-                  className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-3 py-1 text-sm text-white"
+                  className="inline-flex items-center gap-2 rounded-full bg-(--color-primary) px-3 py-1 text-sm text-white"
                 >
                   <span>{friend.username || friend.email}</span>
                   <button
@@ -182,7 +182,7 @@ export default function InviteModal({
         <div className="max-h-96 overflow-y-auto p-6">
           {loading ? (
             <div className="flex justify-center py-8">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-[var(--color-primary)]"></div>
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-(--color-primary)"></div>
             </div>
           ) : friends.length === 0 ? (
             <p className="text-center text-gray-500">No friends to invite</p>
@@ -197,7 +197,7 @@ export default function InviteModal({
                     type="checkbox"
                     checked={selectedFriends.has(friend.id)}
                     onChange={() => toggleFriend(friend.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-[var(--color-primary)] transition"
+                    className="h-4 w-4 rounded border-gray-300 text-(--color-primary) transition"
                   />
                   <div className="flex flex-1 items-center gap-3">
                     {friend.profile_image_url && (
@@ -234,7 +234,7 @@ export default function InviteModal({
           <button
             onClick={sendInvites}
             disabled={sending || selectedFriends.size === 0}
-            className="flex-1 rounded-lg bg-[var(--color-primary)] px-4 py-2 font-medium text-white transition hover:bg-[var(--color-primary)]/90 disabled:opacity-50"
+            className="flex-1 rounded-lg bg-(--color-primary) px-4 py-2 font-medium text-white transition hover:bg-(--color-primary)/90 disabled:opacity-50"
           >
             {sending ? 'Sending...' : `Send (${selectedFriends.size})`}
           </button>
