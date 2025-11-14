@@ -129,7 +129,7 @@ export default function CreateListingPage() {
         title: formData.title,
         description: formData.description,
         price: parseFloat(formData.price),
-        category: parseInt(formData.category),
+        category_id: parseInt(formData.category),
         condition: formData.condition,
         location: formData.location,
         contact_preference: formData.contact_preference,
@@ -168,7 +168,13 @@ export default function CreateListingPage() {
       router.push(`/app/marketplace/${listing.id}`);
     } catch (error: any) {
       console.error("Failed to create listing:", error);
-      const message = error?.response?.data?.detail || "Failed to create listing";
+      console.error("Error details:", {
+        message: error?.message,
+        data: error?.data,
+        fieldErrors: error?.fieldErrors,
+        nonFieldErrors: error?.nonFieldErrors,
+      });
+      const message = error?.data?.detail || error?.message || "Failed to create listing";
       toast.show(message, "error");
     } finally {
       setLoading(false);
