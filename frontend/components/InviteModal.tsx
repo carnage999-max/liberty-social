@@ -63,19 +63,21 @@ export default function InviteModal({
     }
   };
 
-  const toggleFriend = (friendId: string) => {
+  const toggleFriend = (friendId: string | number) => {
     const newSelected = new Set(selectedFriends);
-    if (newSelected.has(friendId)) {
-      newSelected.delete(friendId);
+    const friendIdStr = String(friendId);
+    if (newSelected.has(friendIdStr)) {
+      newSelected.delete(friendIdStr);
     } else {
-      newSelected.add(friendId);
+      newSelected.add(friendIdStr);
     }
     setSelectedFriends(newSelected);
   };
 
-  const removeFriend = (friendId: string) => {
+  const removeFriend = (friendId: string | number) => {
     const newSelected = new Set(selectedFriends);
-    newSelected.delete(friendId);
+    const friendIdStr = String(friendId);
+    newSelected.delete(friendIdStr);
     setSelectedFriends(newSelected);
   };
 
@@ -87,10 +89,16 @@ export default function InviteModal({
 
     try {
       setSending(true);
+      // Convert friend IDs to integers
+      const friendIds = Array.from(selectedFriends).map(id => {
+        const parsed = parseInt(id, 10);
+        return isNaN(parsed) ? id : parsed;
+      });
+      
       const response = await apiPost(
         `/pages/${pageId}/send-invites/`,
         {
-          friend_ids: Array.from(selectedFriends),
+          friend_ids: friendIds,
         },
         { token: accessToken }
       );
@@ -114,7 +122,22 @@ export default function InviteModal({
       }
     } catch (error) {
       console.error('Failed to send invites:', error);
-      toast.show('Failed to send invites. Please try again.', 'error');
+      // Extract error message from API error
+      let errorMessage = 'Failed to send invites. Please try again.';
+      if (error && typeof error === 'object') {
+        const apiError = error as any;
+        if (apiError.message) {
+          errorMessage = apiError.message;
+        } else if (apiError.detail) {
+          errorMessage = apiError.detail;
+        } else if (apiError.fieldErrors) {
+          const fieldError = Object.entries(apiError.fieldErrors)[0];
+          if (fieldError) {
+            errorMessage = `${fieldError[0]}: ${(fieldError[1] as string[]).join(', ')}`;
+          }
+        }
+      }
+      toast.show(errorMessage, 'error');
     } finally {
       setSending(false);
     }
@@ -122,7 +145,7 @@ export default function InviteModal({
 
   if (!isOpen) return null;
 
-  const selectedFriendsArray = friends.filter((f) => selectedFriends.has(f.id));
+  const selectedFriendsArray = friends.filter((f) => selectedFriends.has(String(f.id)));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -202,11 +225,11 @@ export default function InviteModal({
               {friends.map((friend) => (
                 <label
                   key={friend.id}
-                  className="flex items-center gap-3 rounded-lg p-3 transition hover:bg-gray-50 text-black bg-(--color-deeper-navy)"
+                  className="flex items-center gap-3 rounded-lg p-3 transition border border-(--color-gold) hover:bg-(--color-deep-navy) text-black bg-(--color-deeper-navy)"
                 >
                   <input
                     type="checkbox"
-                    checked={selectedFriends.has(friend.id)}
+                    checked={selectedFriends.has(String(friend.id))}
                     onChange={() => toggleFriend(friend.id)}
                     className="h-4 w-4 rounded border-(--color-gold) text-black transition"
                   />
@@ -219,11 +242,11 @@ export default function InviteModal({
                       />
                     )}
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-(--color-silver-light)">
                         {friend.username || friend.email}
                       </p>
                       {friend.bio && (
-                        <p className="truncate text-xs text-gray-500">{friend.bio}</p>
+                        <p className="truncate text-xs text-gray-400">{friend.bio}</p>
                       )}
                     </div>
                   </div>

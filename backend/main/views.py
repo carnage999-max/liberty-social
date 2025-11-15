@@ -449,13 +449,21 @@ class PageViewSet(ModelViewSet):
 
         # Get list of friend IDs to invite
         friend_ids = request.data.get("friend_ids", [])
+        
+        # Debug logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"send_invites called with request.data: {request.data}")
+        logger.info(f"friend_ids value: {friend_ids}, type: {type(friend_ids)}")
+        
         if not friend_ids:
+            logger.error(f"friend_ids is empty or falsy")
             return Response(
                 {"detail": "At least one friend_id must be provided."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if not isinstance(friend_ids, list):
+            logger.error(f"friend_ids is not a list, got {type(friend_ids)}")
             return Response(
                 {"detail": "friend_ids must be a list."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -512,19 +520,26 @@ class PageViewSet(ModelViewSet):
                 errors.append({"friend_id": friend_id, "error": str(e)})
 
         serializer = PageInviteSerializer(invites_created, many=True)
-        return Response(
-            {
-                "invites_sent": serializer.data,
-                "errors": errors,
-                "total_sent": len(invites_created),
-                "total_errors": len(errors),
-            },
-            status=(
-                status.HTTP_201_CREATED
-                if invites_created
-                else status.HTTP_400_BAD_REQUEST
-            ),
+        
+        # Log final response
+        logger.info(f"Returning response: total_sent={len(invites_created)}, total_errors={len(errors)}")
+        
+        response_data = {
+            "invites_sent": serializer.data,
+            "errors": errors,
+            "total_sent": len(invites_created),
+            "total_errors": len(errors),
+        }
+        
+        response_status = (
+            status.HTTP_201_CREATED
+            if invites_created
+            else status.HTTP_400_BAD_REQUEST
         )
+        
+        logger.info(f"Response status: {response_status}")
+        
+        return Response(response_data, status=response_status)
 
     @action(detail=True, methods=["get"], url_path="followers")
     def followers(self, request, pk=None):
