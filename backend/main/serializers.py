@@ -873,18 +873,30 @@ class MarketplaceListingSerializer(serializers.ModelSerializer):
         ]
 
     def get_is_saved(self, obj):
-        request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            return (
-                __import__("main.marketplace_models", fromlist=["MarketplaceSave"])
-                .MarketplaceSave.objects.filter(user=request.user, listing=obj)
-                .exists()
-            )
-        return False
+        try:
+            request = self.context.get("request")
+            if request and request.user.is_authenticated:
+                return (
+                    __import__("main.marketplace_models", fromlist=["MarketplaceSave"])
+                    .MarketplaceSave.objects.filter(user=request.user, listing=obj)
+                    .exists()
+                )
+            return False
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error checking if listing {obj.id} is saved: {e}")
+            return False
 
     def get_reactions(self, obj):
-        reactions = obj.reactions.all()
-        return ReactionSerializer(reactions, many=True, context=self.context).data
+        try:
+            reactions = obj.reactions.all()
+            return ReactionSerializer(reactions, many=True, context=self.context).data
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting reactions for listing {obj.id}: {e}")
+            return []
 
 
 class MarketplaceSaveSerializer(serializers.ModelSerializer):
@@ -959,10 +971,21 @@ class MarketplaceOfferSerializer(serializers.ModelSerializer):
 
     def get_listing(self, obj):
         """Return full listing details with seller info."""
-        listing_serializer = MarketplaceListingSerializer(
-            obj.listing, context=self.context
-        )
-        return listing_serializer.data
+        try:
+            listing_serializer = MarketplaceListingSerializer(
+                obj.listing, context=self.context
+            )
+            return listing_serializer.data
+        except Exception as e:
+            # Fallback to basic listing info if serialization fails
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error serializing listing in offer: {e}")
+            return {
+                "id": obj.listing.id,
+                "title": obj.listing.title,
+                "price": str(obj.listing.price),
+            }
 
 
 class SellerVerificationSerializer(serializers.ModelSerializer):
