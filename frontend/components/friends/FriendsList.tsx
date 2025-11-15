@@ -90,7 +90,7 @@ export default function FriendsList() {
         {canScrollLeft && (
           <button
             onClick={() => scroll("left")}
-            className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md transition hover:bg-gray-100 active:scale-95"
+            className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-(--color-deep-navy) shadow-md transition hover:bg-(--color-deeper-navy) active:scale-95 border border-(--color-gold) text-(--color-primary)"
             aria-label="Scroll left"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -108,7 +108,7 @@ export default function FriendsList() {
         {canScrollRight && (
           <button
             onClick={() => scroll("right")}
-            className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-md transition hover:bg-gray-100 active:scale-95"
+            className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-(--color-deep-navy) shadow-md transition hover:bg-(--color-deeper-navy) active:scale-95 border border-(--color-gold) text-(--color-primary)"
             aria-label="Scroll right"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
