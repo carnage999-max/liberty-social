@@ -1,0 +1,146 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: liberty-social-db
+    environment:
+      POSTGRES_DB: liberty_social
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - liberty-social
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: liberty-social-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - liberty-social
+
+  # Django Backend (Daphne)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: liberty-social-backend
+    environment:
+      # Django
+      DEBUG: "True"
+      SECRET_KEY: "django-insecure-dev-secret-key-do-not-use-in-production"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,backend,0.0.0.0"
+      
+      # Database
+      DB_ENGINE: "django.db.backends.postgresql"
+      DB_NAME: "liberty_social"
+      DB_USER: "postgres"
+      DB_PASSWORD: "postgres"
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      
+      # Redis
+      REDIS_URL: "redis://redis:6379/0"
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      
+      # Frontend
+      FRONTEND_URL: "http://localhost:3000"
+      CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000"
+      
+      # AWS (use localstack or mock credentials in dev)
+      AWS_REGION: "us-east-1"
+      AWS_S3_BUCKET_NAME: "liberty-social-uploads"
+      AWS_ACCESS_KEY_ID: "testing"
+      AWS_SECRET_ACCESS_KEY: "testing"
+      
+      # Email (use Mailhog for local testing)
+      EMAIL_BACKEND: "django.core.mail.backends.smtp.EmailBackend"
+      EMAIL_HOST: "mailhog"
+      EMAIL_PORT: "1025"
+      EMAIL_USE_TLS: "False"
+      DEFAULT_FROM_EMAIL: "noreply@libertysocial.com"
+      
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    networks:
+      - liberty-social
+    command: daphne -b 0.0.0.0 -p 8000 -v 2 liberty_social.asgi:application
+
+  # Celery Worker
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: liberty-social-celery
+    environment:
+      # Same as backend
+      DEBUG: "True"
+      SECRET_KEY: "django-insecure-dev-secret-key-do-not-use-in-production"
+      DB_ENGINE: "django.db.backends.postgresql"
+      DB_NAME: "liberty_social"
+      DB_USER: "postgres"
+      DB_PASSWORD: "postgres"
+      DB_HOST: "postgres"
+      DB_PORT: "5432"
+      REDIS_URL: "redis://redis:6379/0"
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      FRONTEND_URL: "http://localhost:3000"
+      EMAIL_HOST: "mailhog"
+      EMAIL_PORT: "1025"
+      EMAIL_USE_TLS: "False"
+      DEFAULT_FROM_EMAIL: "noreply@libertysocial.com"
+    depends_on:
+      - postgres
+      - redis
+      - backend
+    volumes:
+      - .:/app
+    networks:
+      - liberty-social
+    command: celery -A liberty_social worker -l info
+
+  # Email Testing (Mailhog)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: liberty-social-mailhog
+    ports:
+      - "1025:1025"  # SMTP server
+      - "8025:8025"  # Web UI
+    networks:
+      - liberty-social
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  liberty-social:
+    driver: bridge
