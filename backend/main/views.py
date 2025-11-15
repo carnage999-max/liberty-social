@@ -561,10 +561,12 @@ class PageViewSet(ModelViewSet):
             "total_errors": len(errors),
         }
         
+        # Return 201 if at least one invite was created, otherwise 200 OK with error details
+        # Only return 400 if the request itself was invalid (empty friend_ids, not a list, etc.)
         response_status = (
             status.HTTP_201_CREATED
             if invites_created
-            else status.HTTP_400_BAD_REQUEST
+            else status.HTTP_200_OK
         )
         
         logger.info(f"Response status: {response_status}")

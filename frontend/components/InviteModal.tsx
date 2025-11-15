@@ -137,15 +137,22 @@ export default function InviteModal({
         );
         setSelectedFriends(new Set());
         onInvitesSent?.();
-        onClose();
       }
 
       if (response.errors && response.errors.length > 0) {
         const errorCount = response.errors.length;
+        const errorMessages = response.errors
+          .map(err => `${err.friend_id}: ${err.error}`)
+          .join('\n');
         toast.show(
-          `${errorCount} invite${errorCount > 1 ? 's' : ''} could not be sent`,
+          `${errorCount} invite${errorCount > 1 ? 's' : ''} could not be sent:\n${errorMessages}`,
           'error'
         );
+      }
+      
+      // Close modal only if all invites were sent successfully
+      if (response.total_errors === 0) {
+        onClose();
       }
     } catch (error) {
       console.error('Failed to send invites - full error:', error);
