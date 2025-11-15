@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useToast } from "@/hooks/useToast";
+import { useToast } from "@/components/Toast";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -19,7 +19,7 @@ export default function ShareModal({
   type = "post",
 }: ShareModalProps) {
   const [copied, setCopied] = useState(false);
-  const { showToast } = useToast();
+  const toast = useToast();
 
   if (!isOpen) return null;
 
@@ -27,10 +27,10 @@ export default function ShareModal({
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
-      showToast("Link copied to clipboard!", "success");
+      toast.show("Link copied to clipboard!", "success");
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      showToast("Failed to copy link", "error");
+      toast.show("Failed to copy link", "error");
     }
   };
 

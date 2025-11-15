@@ -7,6 +7,7 @@ import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
+import ShareModal from "@/components/modals/ShareModal";
 import ImageGallery from "@/components/ImageGallery";
 import Image from "next/image";
 import Link from "next/link";
@@ -68,6 +69,8 @@ export default function FeedPage() {
   } | null>(null);
   const [suggestedPages, setSuggestedPages] = useState<PageSummary[]>([]);
   const [loadingPages, setLoadingPages] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareModalPost, setShareModalPost] = useState<Post | null>(null);
 
   useEffect(() => {
     pendingReactionsRef.current = pendingReactions;
@@ -553,6 +556,20 @@ export default function FeedPage() {
                   </svg>
                   {post.comments?.length ?? 0}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShareModalPost(post);
+                    setShareModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-sm font-medium text-gray-600 transition hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]"
+                  aria-label="Share post"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M12 2v10M7 7l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Share
+                </button>
               </footer>
             </article>
           );
@@ -674,6 +691,16 @@ export default function FeedPage() {
           title={profileImageGallery.title}
         />
       )}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => {
+          setShareModalOpen(false);
+          setShareModalPost(null);
+        }}
+        shareUrl={shareModalPost ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/feed/${shareModalPost.id}` : ''}
+        title="Share Post"
+        type="post"
+      />
     </>
   );
 }

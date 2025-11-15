@@ -8,6 +8,7 @@ import RequireAuth from "@/components/auth/RequireAuth";
 import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
+import ShareModal from "@/components/modals/ShareModal";
 import { useAuth } from "@/lib/auth-context";
 import ProfileImageModal from "@/components/profile/ProfileImageModal";
 import ImageGallery from "@/components/ImageGallery";
@@ -71,6 +72,7 @@ export default function UserProfilePage() {
     caption?: string;
     timestamp?: string;
   } | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   const fetchOverview = useCallback(async (signal?: AbortSignal) => {
     if (!accessToken || !profileId) return;
@@ -604,6 +606,18 @@ export default function UserProfilePage() {
                     <div className="flex flex-col items-start gap-3 sm:items-end">
                     <div className="flex items-center gap-2">
                       {renderPrimaryActions()}
+                      {isSelf && (
+                        <button
+                          onClick={() => setShareModalOpen(true)}
+                          className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100"
+                          aria-label="Share profile"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M12 2v10M7 7l5-5 5 5" />
+                          </svg>
+                          Share
+                        </button>
+                      )}
                       {/* Desktop: Show menu in actions area */}
                       {!isSelf && overview && (
                         <div className="hidden sm:block">
@@ -774,6 +788,13 @@ export default function UserProfilePage() {
         onClose={() => setProfileImageModalOpen(false)}
         currentImageUrl={overview?.user?.profile_image_url}
         userId={overview?.user?.id}
+      />
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        shareUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/app/users/${profileId}`}
+        title="Share Profile"
+        type="profile"
       />
       {imageGallery && (
         <ImageGallery

@@ -9,6 +9,7 @@ import { useToast } from "@/components/Toast";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
+import ShareModal from "@/components/modals/ShareModal";
 import { EmojiPickerPopper } from "@/components/EmojiPickerPopper";
 import ImageGallery from "@/components/ImageGallery";
 import Image from "next/image";
@@ -150,6 +151,7 @@ export default function PostDetailPage() {
     image: string;
     title?: string;
   } | null>(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   const handlePostMenuUpdated = useCallback(
     (updated: Post) => {
@@ -1178,6 +1180,17 @@ export default function PostDetailPage() {
                       </svg>
                       {post.comments?.length ?? 0}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => setShareModalOpen(true)}
+                      className="flex items-center gap-1 text-gray-600 hover:text-[var(--color-primary)] transition"
+                      aria-label="Share post"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M12 2v10M7 7l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      Share
+                    </button>
                   </div>
                   {reactionSummary.total > 0 && (
                     <div className="mt-2">
@@ -2032,6 +2045,13 @@ export default function PostDetailPage() {
           }
         }}
         onCancel={() => setDeleteCommentId(null)}
+      />
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        shareUrl={post ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/feed/${post.id}` : ''}
+        title="Share Post"
+        type="post"
       />
     </RequireAuth>
   );
