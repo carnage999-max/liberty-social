@@ -408,9 +408,9 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => handleNavigate("/app/friends")}
                 aria-label="View friends"
-                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30"
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30 border-2 border-(--color-gold)"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
                     d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
                     stroke="currentColor"
@@ -513,9 +513,9 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => handleNavigate("/app/friends")}
                 aria-label="View friends"
-                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/30"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/30 border-2 border-(--color-gold)"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
                     d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
                     stroke="currentColor"

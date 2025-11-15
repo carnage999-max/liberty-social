@@ -58,10 +58,10 @@ export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
           {/* Content Type Toggles */}
           <button
             onClick={() => handleFilterChange({ showFriendPosts: !showFriendPosts })}
-            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition ${
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition border ${
               showFriendPosts
-                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-(--color-deeper-navy) text-(--color-silver-light) border-2 border-(--color-gold) hover:bg-(--color-deep-navy)"
+                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
             title="Toggle friend posts"
           >
@@ -71,10 +71,10 @@ export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
 
           <button
             onClick={() => handleFilterChange({ showPagePosts: !showPagePosts })}
-            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition ${
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition border ${
               showPagePosts
-                ? "bg-purple-100 text-purple-700 hover:bg-purple-200"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-(--color-deeper-navy) text-(--color-silver-light) border-2 border-(--color-gold) hover:bg-(--color-deep-navy)"
+                : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
             title="Toggle page posts"
           >
@@ -113,7 +113,7 @@ export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
                     setIsOpen(false);
                     handleFilterChange({ selectedCategory: undefined });
                   }}
-                  className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100 rounded-t-lg first:rounded-t-lg"
+                  className="block w-full px-4 py-2 text-left text-sm text-gray-900 hover:bg-gray-100 rounded-t-lg first:rounded-t-lg"
                 >
                   All Categories
                 </button>
@@ -127,8 +127,8 @@ export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
                     }}
                     className={`block w-full px-4 py-2 text-left text-sm transition ${
                       selectedCategory === code
-                        ? "bg-blue-100 text-blue-700"
-                        : "hover:bg-gray-100"
+                        ? "bg-(--color-deeper-navy) text-(--color-silver-light)"
+                        : "text-gray-900 hover:bg-gray-100"
                     }`}
                   >
                     {label}
