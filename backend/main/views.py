@@ -63,8 +63,10 @@ def send_page_invite_push_notification(recipient, sender, page):
         from django.contrib.contenttypes.models import ContentType
 
         # Create notification record
-        page_invite_ct = ContentType.objects.get_for_model(__import__('main.models', fromlist=['PageInvite']).PageInvite)
-        
+        page_invite_ct = ContentType.objects.get_for_model(
+            __import__("main.models", fromlist=["PageInvite"]).PageInvite
+        )
+
         notification = Notification.objects.create(
             recipient=recipient,
             actor=sender,
@@ -440,7 +442,7 @@ class PageViewSet(ModelViewSet):
     def send_invites(self, request, pk=None):
         """Send page follow invites to friends"""
         page = self.get_object()
-        
+
         # Check if user is admin/mod/owner/editor of the page
         if not _page_admin_entry(page, request.user):
             raise PermissionDenied("Only page admins can send invites.")
@@ -502,7 +504,9 @@ class PageViewSet(ModelViewSet):
                 try:
                     send_page_invite_push_notification(friend, request.user, page)
                 except Exception as e:
-                    logging.error(f"Failed to send push notification to {friend.id}: {e}")
+                    logging.error(
+                        f"Failed to send push notification to {friend.id}: {e}"
+                    )
 
             except Exception as e:
                 errors.append({"friend_id": friend_id, "error": str(e)})
@@ -515,7 +519,11 @@ class PageViewSet(ModelViewSet):
                 "total_sent": len(invites_created),
                 "total_errors": len(errors),
             },
-            status=status.HTTP_201_CREATED if invites_created else status.HTTP_400_BAD_REQUEST,
+            status=(
+                status.HTTP_201_CREATED
+                if invites_created
+                else status.HTTP_400_BAD_REQUEST
+            ),
         )
 
     @action(detail=True, methods=["get"], url_path="followers")
@@ -635,6 +643,7 @@ class PageAdminInviteViewSet(ModelViewSet):
 
 class PageInviteViewSet(ModelViewSet):
     """ViewSet for managing page follow invites"""
+
     serializer_class = PageInviteSerializer
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post"]
@@ -656,15 +665,15 @@ class PageInviteViewSet(ModelViewSet):
                 {"detail": "Invite already processed."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         # Create follower relationship
         PageFollower.objects.get_or_create(page=invite.page, user=request.user)
-        
+
         # Update invite status
         invite.status = "accepted"
         invite.responded_at = timezone.now()
         invite.save(update_fields=["status", "responded_at"])
-        
+
         serializer = self.get_serializer(invite)
         return Response(serializer.data)
 
@@ -679,11 +688,11 @@ class PageInviteViewSet(ModelViewSet):
                 {"detail": "Invite already processed."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         invite.status = "declined"
         invite.responded_at = timezone.now()
         invite.save(update_fields=["status", "responded_at"])
-        
+
         serializer = self.get_serializer(invite)
         return Response(serializer.data)
 

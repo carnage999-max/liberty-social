@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User } from '@/lib/types';
+import { useAuth } from '@/lib/auth-context';
 import { apiGet, apiPost } from '@/lib/api';
 import { useToast } from '@/components/Toast';
 
@@ -22,6 +23,7 @@ export default function InviteModal({
   onClose,
   onInvitesSent,
 }: InviteModalProps) {
+  const { accessToken } = useAuth();
   const toast = useToast();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
@@ -38,7 +40,7 @@ export default function InviteModal({
   const loadFriends = async () => {
     try {
       setLoading(true);
-      const response = await apiGet('/auth/friends/');
+      const response = await apiGet('/auth/friends/', { token: accessToken });
       if (Array.isArray(response)) {
         setFriends(response);
       } else if (response.results) {
@@ -81,7 +83,8 @@ export default function InviteModal({
         `/pages/${pageId}/send-invites/`,
         {
           friend_ids: Array.from(selectedFriends),
-        }
+        },
+        { token: accessToken }
       );
 
       if (response.total_sent > 0) {
@@ -185,19 +188,19 @@ export default function InviteModal({
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-(--color-primary)"></div>
             </div>
           ) : friends.length === 0 ? (
-            <p className="text-center text-gray-500">No friends to invite</p>
+            <p className="text-center text-gray-600">No friends to invite</p>
           ) : (
             <div className="space-y-3">
               {friends.map((friend) => (
                 <label
                   key={friend.id}
-                  className="flex items-center gap-3 rounded-lg p-3 transition hover:bg-gray-50"
+                  className="flex items-center gap-3 rounded-lg p-3 transition hover:bg-gray-50 text-black"
                 >
                   <input
                     type="checkbox"
                     checked={selectedFriends.has(friend.id)}
                     onChange={() => toggleFriend(friend.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-(--color-primary) transition"
+                    className="h-4 w-4 rounded border-(--color-gold) text-black transition"
                   />
                   <div className="flex flex-1 items-center gap-3">
                     {friend.profile_image_url && (
@@ -234,7 +237,7 @@ export default function InviteModal({
           <button
             onClick={sendInvites}
             disabled={sending || selectedFriends.size === 0}
-            className="flex-1 rounded-lg bg-(--color-primary) px-4 py-2 font-medium text-white transition hover:bg-(--color-primary)/90 disabled:opacity-50"
+            className="flex-1 rounded-lg bg-(--color-deeper-navy) px-4 py-2 font-medium text-(--color-silver-mid) transition hover:bg-(--color-deep-navy)/90 disabled:opacity-50 border border-(--color-gold)"
           >
             {sending ? 'Sending...' : `Send (${selectedFriends.size})`}
           </button>

@@ -17,55 +17,59 @@ from .models import (
 
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
-	list_display = ('id', 'author', 'visibility', 'created_at', 'deleted_at')
-	search_fields = ('content', 'author__email', 'author__username')
-	list_filter = ('visibility',)
-	readonly_fields = ('created_at', 'updated_at')
+    list_display = ("id", "author", "visibility", "created_at", "deleted_at")
+    search_fields = ("content", "author__email", "author__username")
+    list_filter = ("visibility",)
+    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-	list_display = ('id', 'post', 'author', 'created_at')
-	search_fields = ('content',)
+    list_display = ("id", "post", "author", "created_at")
+    search_fields = ("content",)
 
 
 @admin.register(Reaction)
 class ReactionAdmin(admin.ModelAdmin):
-	list_display = ('id', 'reaction_type', 'user', 'created_at')
+    list_display = ("id", "reaction_type", "user", "created_at")
 
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-	list_display = ('id', 'recipient', 'actor', 'verb', 'unread', 'created_at')
-	list_filter = ('unread',)
+    list_display = ("id", "recipient", "actor", "verb", "unread", "created_at")
+    list_filter = ("unread",)
 
 
 @admin.register(PostMedia)
 class PostMediaAdmin(admin.ModelAdmin):
-	list_display = ('id', 'post', 'url')
+    list_display = ("id", "post", "url")
 
 
 @admin.register(CommentMedia)
 class CommentMediaAdmin(admin.ModelAdmin):
-	list_display = ('id', 'comment', 'url')
+    list_display = ("id", "comment", "url")
 
 
 @admin.register(Bookmark)
 class BookmarkAdmin(admin.ModelAdmin):
-	list_display = ('id', 'user', 'post', 'created_at')
+    list_display = ("id", "user", "post", "created_at")
 
 
 @admin.register(DeviceToken)
 class DeviceTokenAdmin(admin.ModelAdmin):
-	list_display = ('id', 'user', 'platform', 'last_seen_at')
-	search_fields = ('user__email', 'user__username', 'token')
-	list_filter = ('platform',)
+    list_display = ("id", "user", "platform", "last_seen_at")
+    search_fields = ("user__email", "user__username", "token")
+    list_filter = ("platform",)
 
 
 @admin.register(Conversation)
 class ConversationAdmin(admin.ModelAdmin):
     list_display = ("id", "title", "is_group", "created_by", "last_message_at")
-    search_fields = ("title", "participants__user__username", "participants__user__email")
+    search_fields = (
+        "title",
+        "participants__user__username",
+        "participants__user__email",
+    )
     list_filter = ("is_group",)
     autocomplete_fields = ("created_by",)
 
@@ -88,6 +92,12 @@ class MessageAdmin(admin.ModelAdmin):
 @admin.register(PageInvite)
 class PageInviteAdmin(admin.ModelAdmin):
     list_display = ("id", "page", "sender", "recipient", "status", "created_at")
-    search_fields = ("page__name", "sender__username", "recipient__username", "sender__email", "recipient__email")
+    search_fields = (
+        "page__name",
+        "sender__username",
+        "recipient__username",
+        "sender__email",
+        "recipient__email",
+    )
     list_filter = ("status", "created_at")
     readonly_fields = ("created_at", "responded_at")
