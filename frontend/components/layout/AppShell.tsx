@@ -3,6 +3,7 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import ProfileCard from "@/components/profile/ProfileCard";
+import FriendsList from "@/components/friends/FriendsList";
 import ProfileImageModal from "@/components/profile/ProfileImageModal";
 import { useAuth } from "@/lib/auth-context";
 import { API_BASE, apiPost } from "@/lib/api";
@@ -733,6 +734,7 @@ export default function AppShell({ children }: AppShellProps) {
           <aside className="hidden lg:block lg:w-64 lg:max-w-[260px]">
             <div className="space-y-6 lg:sticky lg:top-28">
               <ProfileCard />
+              <FriendsList />
               <nav
                 aria-label="Primary"
                 className="space-y-4 rounded-[16px] bg-white/85 p-4 shadow-sm backdrop-blur-md"
@@ -816,6 +818,11 @@ export default function AppShell({ children }: AppShellProps) {
           {!isDesktop && (
             <div className="mb-6 lg:hidden">
               <ProfileCard profileHref={myProfileHref} className="items-start text-left sm:items-center sm:text-center" />
+            </div>
+          )}
+          {!isDesktop && (
+            <div className="mb-6 lg:hidden">
+              <FriendsList />
             </div>
           )}
           <CreatePostToolbar onOpen={openCreateModal} />
