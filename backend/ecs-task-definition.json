@@ -1,0 +1,151 @@
+{
+  "family": "liberty-social-backend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "liberty-social-backend",
+      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/liberty-social-backend:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "DEBUG",
+          "value": "False"
+        },
+        {
+          "name": "ALLOWED_HOSTS",
+          "value": "yourdomain.com,www.yourdomain.com,*.elb.amazonaws.com,.elasticloadbalancing.amazonaws.com"
+        },
+        {
+          "name": "CORS_ALLOWED_ORIGINS",
+          "value": "https://yourdomain.com,https://www.yourdomain.com"
+        },
+        {
+          "name": "DB_ENGINE",
+          "value": "django.db.backends.postgresql"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "liberty_social"
+        },
+        {
+          "name": "DB_USER",
+          "value": "postgres"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "5432"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "us-east-1"
+        },
+        {
+          "name": "AWS_S3_BUCKET_NAME",
+          "value": "liberty-social-uploads"
+        },
+        {
+          "name": "AWS_S3_REGION_NAME",
+          "value": "us-east-1"
+        },
+        {
+          "name": "EMAIL_BACKEND",
+          "value": "django_ses.SESBackend"
+        },
+        {
+          "name": "AWS_SES_REGION_NAME",
+          "value": "us-east-1"
+        },
+        {
+          "name": "AWS_SES_REGION_ENDPOINT",
+          "value": "email.us-east-1.amazonaws.com"
+        },
+        {
+          "name": "FRONTEND_URL",
+          "value": "https://yourdomain.com"
+        },
+        {
+          "name": "JWT_ALGORITHM",
+          "value": "HS256"
+        },
+        {
+          "name": "JWT_EXPIRATION_HOURS",
+          "value": "24"
+        },
+        {
+          "name": "WORKER_TIMEOUT",
+          "value": "120"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:liberty-social/SECRET_KEY-XXXXX"
+        },
+        {
+          "name": "DB_HOST",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:liberty-social/DB_HOST-XXXXX"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:liberty-social/DB_PASSWORD-XXXXX"
+        },
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:liberty-social/REDIS_URL-XXXXX"
+        },
+        {
+          "name": "CELERY_BROKER_URL",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:liberty-social/CELERY_BROKER_URL-XXXXX"
+        },
+        {
+          "name": "CELERY_RESULT_BACKEND",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:liberty-social/CELERY_RESULT_BACKEND-XXXXX"
+        },
+        {
+          "name": "AWS_ACCESS_KEY_ID",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:liberty-social/AWS_ACCESS_KEY_ID-XXXXX"
+        },
+        {
+          "name": "AWS_SECRET_ACCESS_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:liberty-social/AWS_SECRET_ACCESS_KEY-XXXXX"
+        },
+        {
+          "name": "DEFAULT_FROM_EMAIL",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:liberty-social/DEFAULT_FROM_EMAIL-XXXXX"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/liberty-social-backend",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8000/api/health/ || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 2,
+        "startPeriod": 60
+      }
+    }
+  ],
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskRole"
+}
