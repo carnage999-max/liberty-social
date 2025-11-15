@@ -10,6 +10,7 @@ import Spinner from "@/components/Spinner";
 import Gallery from "@/components/Gallery";
 import PageImageUploadField from "@/components/pages/PageImageUploadField";
 import InviteModal from "@/components/InviteModal";
+import ShareModal from "@/components/modals/ShareModal";
 import { uploadImageToS3 } from "@/lib/image-upload";
 import { useToast } from "@/components/Toast";
 
@@ -33,6 +34,7 @@ export default function PageDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
     description: "",
@@ -299,6 +301,14 @@ export default function PageDetail() {
             >
               {isFollowing ? "Following" : "Follow"}
             </button>
+            <button
+              type="button"
+              onClick={() => setShareModalOpen(true)}
+              className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              title="Share this page"
+            >
+              Share
+            </button>
             {canManage && (
               <>
                 <button
@@ -516,6 +526,13 @@ export default function PageDetail() {
           onClose={() => setInviteModalOpen(false)}
         />
       )}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        shareUrl={page ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/pages/${page.id}` : ''}
+        title="Share Page"
+        type="page"
+      />
     </div>
   );
 }
