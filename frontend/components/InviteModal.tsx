@@ -43,15 +43,25 @@ export default function InviteModal({
     try {
       setLoading(true);
       const response = await apiGet('/auth/friends/', { token: accessToken });
+      console.log('Friends API response:', response);
+      
       let friendsList: Friend[] = [];
       
       // Handle paginated response
       if (response.results && Array.isArray(response.results)) {
         // FriendsSerializer wraps friend data in a "friend" field
-        friendsList = response.results.map((item: any) => item.friend).filter(Boolean);
+        friendsList = response.results.map((item: any) => {
+          console.log('Processing friend item:', item);
+          return item.friend;
+        }).filter(Boolean);
       } else if (Array.isArray(response)) {
-        friendsList = response.map((item: any) => item.friend || item).filter(Boolean);
+        friendsList = response.map((item: any) => {
+          console.log('Processing friend item:', item);
+          return item.friend || item;
+        }).filter(Boolean);
       }
+      
+      console.log('Final friends list:', friendsList.map(f => ({ id: f.id, username: f.username, email: f.email })));
       
       setFriends(friendsList);
       setSelectedFriends(new Set());
@@ -86,6 +96,12 @@ export default function InviteModal({
       toast.show('Please select at least one friend', 'error');
       return;
     }
+    
+    if (!pageId) {
+      console.error('pageId is undefined or invalid:', pageId);
+      toast.show('Page ID is missing. Please refresh the page.', 'error');
+      return;
+    }
 
     try {
       setSending(true);
@@ -95,11 +111,22 @@ export default function InviteModal({
         return isNaN(parsed) ? id : parsed;
       });
       
+      const payload = {
+        friend_ids: friendIds,
+      };
+      
+      const url = `/pages/${pageId}/send-invites/`;
+      console.log('Sending invites with:', {
+        url,
+        payload,
+        pageId,
+        selectedFriends: Array.from(selectedFriends),
+        friendIds,
+      });
+      
       const response = await apiPost(
-        `/pages/${pageId}/send-invites/`,
-        {
-          friend_ids: friendIds,
-        },
+        url,
+        payload,
         { token: accessToken }
       );
 
@@ -121,11 +148,26 @@ export default function InviteModal({
         );
       }
     } catch (error) {
-      console.error('Failed to send invites:', error);
+      console.error('Failed to send invites - full error:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error keys:', Object.keys(error || {}));
+      
       // Extract error message from API error
       let errorMessage = 'Failed to send invites. Please try again.';
       if (error && typeof error === 'object') {
         const apiError = error as any;
+        console.error('API Error object:', {
+          message: apiError.message,
+          detail: apiError.detail,
+          status: apiError.status,
+          data: apiError.data,
+          fieldErrors: apiError.fieldErrors,
+          nonFieldErrors: apiError.nonFieldErrors,
+        });
+        
+        // Log the full data object for debugging
+        console.error('Full API response data:', JSON.stringify(apiError.data, null, 2));
+        
         if (apiError.message) {
           errorMessage = apiError.message;
         } else if (apiError.detail) {
@@ -135,8 +177,11 @@ export default function InviteModal({
           if (fieldError) {
             errorMessage = `${fieldError[0]}: ${(fieldError[1] as string[]).join(', ')}`;
           }
+        } else if (apiError.nonFieldErrors) {
+          errorMessage = apiError.nonFieldErrors.join(', ');
         }
       }
+      console.error('Final error message:', errorMessage);
       toast.show(errorMessage, 'error');
     } finally {
       setSending(false);

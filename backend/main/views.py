@@ -441,18 +441,29 @@ class PageViewSet(ModelViewSet):
     @action(detail=True, methods=["post"], url_path="send-invites")
     def send_invites(self, request, pk=None):
         """Send page follow invites to friends"""
-        page = self.get_object()
+        logger = logging.getLogger(__name__)
+        
+        try:
+            page = self.get_object()
+        except Exception as e:
+            logger.error(f"Failed to get page object: {e}")
+            raise
 
         # Check if user is admin/mod/owner/editor of the page
-        if not _page_admin_entry(page, request.user):
+        admin_entry = _page_admin_entry(page, request.user)
+        if not admin_entry:
+            logger.error(f"User {request.user.id} is not an admin of page {page.id}")
             raise PermissionDenied("Only page admins can send invites.")
+        
+        logger.info(f"User {request.user.id} is admin of page {page.id} with role: {admin_entry.role}")
 
         # Get list of friend IDs to invite
+        logger.info(f"request.data: {request.data}")
+        logger.info(f"request.data type: {type(request.data)}")
+        logger.info(f"request.content_type: {request.content_type}")
+        
         friend_ids = request.data.get("friend_ids", [])
         
-        # Debug logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"send_invites called with request.data: {request.data}")
         logger.info(f"friend_ids value: {friend_ids}, type: {type(friend_ids)}")
         
         if not friend_ids:
@@ -474,10 +485,29 @@ class PageViewSet(ModelViewSet):
         errors = []
 
         for friend_id in friend_ids:
+            logger.info(f"Processing friend_id: {friend_id}, type: {type(friend_id)}")
             try:
-                friend = user_model.objects.get(id=friend_id)
+                # Convert string UUID to UUID object if needed
+                from uuid import UUID
+                try:
+                    # Try to convert to UUID if it looks like a UUID string
+                    if isinstance(friend_id, str) and len(friend_id) == 36:  # UUID string format
+                        friend_id_converted = UUID(friend_id)
+                    else:
+                        friend_id_converted = friend_id
+                except (ValueError, AttributeError):
+                    friend_id_converted = friend_id
+                
+                logger.info(f"Converted friend_id: {friend_id_converted}, type: {type(friend_id_converted)}")
+                friend = user_model.objects.get(id=friend_id_converted)
+                logger.info(f"Found user: {friend.id}")
             except user_model.DoesNotExist:
+                logger.error(f"User not found with id: {friend_id}")
                 errors.append({"friend_id": friend_id, "error": "User not found"})
+                continue
+            except Exception as e:
+                logger.error(f"Error looking up user {friend_id}: {e}")
+                errors.append({"friend_id": friend_id, "error": f"Invalid user ID: {str(e)}"})
                 continue
 
             # Check if already following
