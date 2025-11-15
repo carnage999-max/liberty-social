@@ -9,6 +9,7 @@ import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
 import ShareModal from "@/components/modals/ShareModal";
 import ImageGallery from "@/components/ImageGallery";
+import FeedFilters from "@/components/FeedFilters";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -598,6 +599,11 @@ export default function FeedPage() {
             <h1 className="text-2xl font-bold text-(--color-gold)">Your Feed</h1>
           </div>
         </header>
+
+        <FeedFilters onFiltersChange={(filters) => {
+          // Filters are displayed but actual backend filtering is done via preferences
+          // This component just shows the current user preferences and their category selection UI
+        }} />
 
         <div className="flex flex-col gap-6 xl:flex-row">
           <div className="flex-1">{renderPosts()}</div>

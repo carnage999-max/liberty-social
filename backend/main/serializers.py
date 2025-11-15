@@ -21,6 +21,7 @@ from .models import (
     PageAdminInvite,
     PageFollower,
     PageInvite,
+    UserFeedPreference,
 )
 from users.serializers import UserSerializer
 
@@ -1032,3 +1033,25 @@ class PageInviteSerializer(serializers.ModelSerializer):
             "responded_at",
         ]
         read_only_fields = fields
+
+
+class UserFeedPreferenceSerializer(serializers.ModelSerializer):
+    category_choices = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserFeedPreference
+        fields = [
+            "id",
+            "show_friend_posts",
+            "show_page_posts",
+            "preferred_categories",
+            "show_other_categories",
+            "category_choices",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at", "category_choices"]
+
+    def get_category_choices(self, obj):
+        """Return all available page categories"""
+        return Page.CATEGORY_CHOICES

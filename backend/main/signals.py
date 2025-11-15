@@ -1,13 +1,15 @@
 import logging
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from .models import Reaction, Comment, Notification, Post
+from .models import Reaction, Comment, Notification, Post, UserFeedPreference
 from users.models import FriendRequest
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
@@ -149,4 +151,30 @@ def dispatch_notification(sender, instance, created, **kwargs):
         except Exception:
             logger.exception(
                 "Failed to enqueue push notification for %s", instance.pk
+            )
+
+
+@receiver(post_save, sender=User)
+def create_user_feed_preference(sender, instance, created, **kwargs):
+    """Auto-create feed preferences for new users with all categories enabled"""
+    if created:
+        try:
+            UserFeedPreference.objects.get_or_create(
+                user=instance,
+                defaults={
+                    'show_friend_posts': True,
+                    'show_page_posts': True,
+                    'show_other_categories': True,
+                    # Initialize with all categories enabled
+                    'preferred_categories': [
+                        'business', 'community', 'brand', 'news', 'restaurant',
+                        'entertainment', 'hobbies', 'work', 'associates', 'sports',
+                        'music', 'art', 'tech', 'lifestyle', 'education',
+                        'health', 'travel', 'food', 'fashion', 'games', 'other'
+                    ]
+                }
+            )
+        except Exception:
+            logger.exception(
+                "Failed to create user feed preference for user %s", instance.pk
             )

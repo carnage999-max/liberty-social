@@ -34,6 +34,7 @@ from .models import (
     PageAdminInvite,
     PageFollower,
     PageInvite,
+    UserFeedPreference,
 )
 from .realtime import conversation_group_name
 from .serializers import (
@@ -50,6 +51,7 @@ from .serializers import (
     PageAdminInviteSerializer,
     PageFollowerSerializer,
     PageInviteSerializer,
+    UserFeedPreferenceSerializer,
 )
 from users.models import Friends
 from users.emails import send_page_admin_invite_email
@@ -1187,6 +1189,32 @@ class NewsFeedView(APIView):
         if excluded_authors:
             qs = qs.exclude(author__id__in=excluded_authors)
 
+        # Apply feed preferences filtering
+        try:
+            prefs = UserFeedPreference.objects.get(user=user)
+            
+            # Filter by content type (friend posts vs page posts)
+            if not prefs.show_friend_posts or not prefs.show_page_posts:
+                content_filter = Q()
+                if prefs.show_friend_posts:
+                    content_filter |= Q(author__id__in=friend_ids, visibility="friends")
+                if prefs.show_page_posts:
+                    content_filter |= Q(page__isnull=False)
+                # Always include user's own public posts
+                content_filter |= Q(author=user) | Q(visibility="public", author__id__in=friend_ids)
+                qs = qs.filter(content_filter)
+            
+            # Filter by page categories
+            if prefs.preferred_categories:
+                category_filter = Q(page__category__in=prefs.preferred_categories)
+                if prefs.show_other_categories:
+                    # Include posts without categories or from non-preferred categories
+                    category_filter |= Q(page__isnull=True) | Q(author=user)
+                qs = qs.filter(category_filter)
+        except UserFeedPreference.DoesNotExist:
+            # No preferences set, show all posts
+            pass
+
         # pagination
         paginator = PageNumberPagination()
         page = paginator.paginate_queryset(
@@ -1194,3 +1222,33 @@ class NewsFeedView(APIView):
         )
         serializer = PostSerializer(page, many=True, context={"request": request})
         return paginator.get_paginated_response(serializer.data)
+
+
+class UserFeedPreferenceViewSet(ModelViewSet):
+    serializer_class = UserFeedPreferenceSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        # Users can only view/edit their own preferences
+        return UserFeedPreference.objects.filter(user=self.request.user)
+    
+    @action(detail=False, methods=['get', 'put', 'patch'])
+    def me(self, request):
+        """Get or create user's feed preferences"""
+        preferences, created = UserFeedPreference.objects.get_or_create(
+            user=request.user
+        )
+        
+        if request.method == 'GET':
+            serializer = self.get_serializer(preferences)
+            return Response(serializer.data)
+        
+        # PUT/PATCH
+        serializer = self.get_serializer(
+            preferences, 
+            data=request.data, 
+            partial=(request.method == 'PATCH')
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)

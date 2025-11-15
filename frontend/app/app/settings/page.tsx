@@ -14,6 +14,7 @@ import {
 import type { BlockedUser } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { PasswordField } from "@/components/forms/PasswordField";
+import FeedPreferencesSection from "@/components/FeedPreferencesSection";
 
 type ProfileForm = {
   first_name: string;
@@ -507,6 +508,8 @@ export default function SettingsPage() {
                     </div>
                   </form>
                 </section>
+
+              <FeedPreferencesSection />
 
               <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
                   <div className="flex items-center justify-between">

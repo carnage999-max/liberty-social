@@ -279,10 +279,27 @@ class Message(models.Model):
 
 class Page(models.Model):
     CATEGORY_CHOICES = (
-        ("business", "business"),
-        ("community", "community"),
-        ("brand", "brand"),
-        ("other", "other"),
+        ("business", "Business"),
+        ("community", "Community"),
+        ("brand", "Brand"),
+        ("news", "News"),
+        ("restaurant", "Restaurant"),
+        ("entertainment", "Entertainment"),
+        ("hobbies", "Hobbies"),
+        ("work", "Work"),
+        ("associates", "Associates"),
+        ("sports", "Sports"),
+        ("music", "Music"),
+        ("art", "Art"),
+        ("tech", "Technology"),
+        ("lifestyle", "Lifestyle"),
+        ("education", "Education"),
+        ("health", "Health & Wellness"),
+        ("travel", "Travel"),
+        ("food", "Food & Cooking"),
+        ("fashion", "Fashion"),
+        ("games", "Games"),
+        ("other", "Other"),
     )
 
     name = models.CharField(max_length=255)
@@ -441,6 +458,41 @@ class PageInvite(models.Model):
 
     def __str__(self):
         return f"PageInvite: {self.sender} -> {self.recipient} for {self.page} ({self.status})"
+
+
+class UserFeedPreference(models.Model):
+    """User's preferences for feed filtering and content types"""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="feed_preference",
+    )
+    # Content type filters
+    show_friend_posts = models.BooleanField(default=True)
+    show_page_posts = models.BooleanField(default=True)
+    
+    # Preferred page categories (JSON field storing list of category codes)
+    preferred_categories = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of preferred page categories for filtering"
+    )
+    
+    # Whether to show posts from categories not in preferred_categories
+    show_other_categories = models.BooleanField(
+        default=True,
+        help_text="Show posts from categories not in preferred list"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "User Feed Preferences"
+
+    def __str__(self):
+        return f"Feed preferences for {self.user}"
 
 
 # Import marketplace models
