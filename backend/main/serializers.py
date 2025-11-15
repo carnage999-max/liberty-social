@@ -949,6 +949,13 @@ class MarketplaceReportSerializer(serializers.ModelSerializer):
 
 class MarketplaceOfferSerializer(serializers.ModelSerializer):
     buyer = UserSerializer(read_only=True)
+    listing_id = serializers.PrimaryKeyRelatedField(
+        queryset=__import__(
+            "main.marketplace_models", fromlist=["MarketplaceListing"]
+        ).MarketplaceListing.objects.all(),
+        source="listing",
+        write_only=True,
+    )
     listing = serializers.SerializerMethodField()
 
     class Meta:
@@ -958,6 +965,7 @@ class MarketplaceOfferSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "listing",
+            "listing_id",
             "buyer",
             "offered_price",
             "message",
@@ -967,7 +975,7 @@ class MarketplaceOfferSerializer(serializers.ModelSerializer):
             "created_at",
             "expires_at",
         ]
-        read_only_fields = ["id", "buyer", "status", "responded_at", "created_at"]
+        read_only_fields = ["id", "buyer", "status", "responded_at", "created_at", "listing"]
 
     def get_listing(self, obj):
         """Return full listing details with seller info."""

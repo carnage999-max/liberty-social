@@ -249,24 +249,30 @@ class MarketplaceOfferViewSet(viewsets.ModelViewSet):
         ).select_related("listing", "buyer")
 
     def perform_create(self, serializer):
-        listing = serializer.validated_data["listing"]
-
-        # Check if user already made an offer
-        existing = MarketplaceOffer.objects.filter(
-            listing=listing, buyer=self.request.user
-        ).first()
-
-        if existing:
-            raise ValidationError("You already made an offer on this listing.")
-
-        offer = serializer.save(buyer=self.request.user)
-
-        # Send email to seller about the new offer
         try:
-            send_offer_received_email(offer)
+            listing = serializer.validated_data["listing"]
+
+            # Check if user already made an offer
+            existing = MarketplaceOffer.objects.filter(
+                listing=listing, buyer=self.request.user
+            ).first()
+
+            if existing:
+                raise ValidationError("You already made an offer on this listing.")
+
+            offer = serializer.save(buyer=self.request.user)
+
+            # Send email to seller about the new offer
+            try:
+                send_offer_received_email(offer)
+            except Exception as e:
+                # Log the error but don't fail the request
+                print(f"Failed to send offer received email: {e}")
         except Exception as e:
-            # Log the error but don't fail the request
-            print(f"Failed to send offer received email: {e}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in perform_create for offer: {e}", exc_info=True)
+            raise
 
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def accept(self, request, pk=None):

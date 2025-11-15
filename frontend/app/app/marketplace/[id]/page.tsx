@@ -70,7 +70,7 @@ export default function ListingDetailPage() {
       await apiPost(
         `/marketplace/offers/`,
         {
-          listing: listing.id,
+          listing_id: listing.id,
           offered_price: offerForm.offered_price,
           message: offerForm.message,
         },
