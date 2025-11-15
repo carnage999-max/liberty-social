@@ -8,6 +8,8 @@ import { useToast } from '@/components/Toast';
 
 interface Friend extends User {
   id: string;
+  email: string;
+  username: string;
 }
 
 interface InviteModalProps {
@@ -41,11 +43,17 @@ export default function InviteModal({
     try {
       setLoading(true);
       const response = await apiGet('/auth/friends/', { token: accessToken });
-      if (Array.isArray(response)) {
-        setFriends(response);
-      } else if (response.results) {
-        setFriends(response.results);
+      let friendsList: Friend[] = [];
+      
+      // Handle paginated response
+      if (response.results && Array.isArray(response.results)) {
+        // FriendsSerializer wraps friend data in a "friend" field
+        friendsList = response.results.map((item: any) => item.friend).filter(Boolean);
+      } else if (Array.isArray(response)) {
+        friendsList = response.map((item: any) => item.friend || item).filter(Boolean);
       }
+      
+      setFriends(friendsList);
       setSelectedFriends(new Set());
     } catch (error) {
       console.error('Failed to load friends:', error);
@@ -153,9 +161,9 @@ export default function InviteModal({
               {selectedFriendsArray.map((friend) => (
                 <div
                   key={friend.id}
-                  className="inline-flex items-center gap-2 rounded-full bg-(--color-primary) px-3 py-1 text-sm text-white"
+                  className="inline-flex items-center gap-2 rounded-full bg-(--color-deeper-navy) px-3 py-1 text-sm text-white border border-(--color-gold)"
                 >
-                  <span>{friend.username || friend.email}</span>
+                  <span className='text-white'>{friend.username || friend.email}</span>
                   <button
                     onClick={() => removeFriend(friend.id)}
                     className="ml-1 transition hover:opacity-80"
@@ -194,7 +202,7 @@ export default function InviteModal({
               {friends.map((friend) => (
                 <label
                   key={friend.id}
-                  className="flex items-center gap-3 rounded-lg p-3 transition hover:bg-gray-50 text-black"
+                  className="flex items-center gap-3 rounded-lg p-3 transition hover:bg-gray-50 text-black bg-(--color-deeper-navy)"
                 >
                   <input
                     type="checkbox"
