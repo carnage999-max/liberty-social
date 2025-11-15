@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { apiGet, apiPost, apiPatch } from "@/lib/api";
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 import type { Page as BusinessPage, PageAdmin } from "@/lib/types";
 import Spinner from "@/components/Spinner";
 import Gallery from "@/components/Gallery";
@@ -48,6 +48,9 @@ export default function PageDetail() {
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (!accessToken || !pageId) return;
@@ -125,6 +128,25 @@ export default function PageDetail() {
     } catch (error) {
       console.error(error);
       toast.show("Failed to update follow status", "error");
+    }
+  }, [accessToken, page, toast]);
+
+  const handleDeletePage = useCallback(async () => {
+    if (!accessToken || !page) return;
+    setIsDeleting(true);
+    try {
+      await apiDelete(`/pages/${page.id}/`, { token: accessToken, cache: "no-store" });
+      toast.show("Page deleted successfully", "success");
+      // Navigate back to pages list
+      setTimeout(() => {
+        window.location.href = '/app/pages';
+      }, 1000);
+    } catch (error) {
+      console.error(error);
+      toast.show("Failed to delete page", "error");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   }, [accessToken, page, toast]);
 
@@ -252,82 +274,131 @@ export default function PageDetail() {
             />
           )}
         </div>
-        <div className="flex flex-col gap-4 px-6 pt-6 pb-6 md:flex-row md:items-start md:justify-between">
-          <div className="flex gap-4">
-            <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-gray-100 shadow-md">
-              {page.profile_image_url ? (
-                <button
-                  type="button"
-                  onClick={() => setGalleryOpen(true)}
-                  className="h-full w-full cursor-pointer transition hover:opacity-80"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={page.profile_image_url}
-                    alt={page.name}
-                    className="h-full w-full object-cover"
-                  />
-                </button>
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-gray-700">
-                  {page.name.slice(0, 1).toUpperCase()}
-                </div>
-              )}
+        {/* Header section with improved spacing */}
+        <div className="px-6 pt-6 pb-4 relative overflow-visible">
+          {/* Options and Share in top-right - only on desktop for non-owners */}
+          {!canManage && (
+            <div className="absolute right-6 top-6 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShareModalOpen(true)}
+                className="rounded-full border border-gray-300 px-3 py-2 text-gray-700 transition hover:bg-gray-50"
+                title="Share this page"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M12 2v10M7 7l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
             </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-semibold text-black">{page.name}</h1>
-                {page.is_verified && (
-                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-600">
-                    Verified
-                  </span>
+          )}
+
+          {/* Main content section - stacked on mobile, side-by-side on desktop */}
+          <div className="flex flex-col gap-6">
+            {/* Profile section */}
+            <div className="flex gap-4">
+              <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-gray-100 shadow-md">
+                {page.profile_image_url ? (
+                  <button
+                    type="button"
+                    onClick={() => setGalleryOpen(true)}
+                    className="h-full w-full cursor-pointer transition hover:opacity-80"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={page.profile_image_url}
+                      alt={page.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-gray-700">
+                    {page.name.slice(0, 1).toUpperCase()}
+                  </div>
                 )}
               </div>
-              <p className="text-sm text-gray-600 capitalize">{page.category}</p>
-              <p className="text-sm text-gray-600">
-                {page.follower_count || 0} follower{(page.follower_count || 0) === 1 ? "" : "s"}
-              </p>
+              <div className="flex-1 flex flex-col justify-center">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl font-semibold text-black">{page.name}</h1>
+                  {page.is_verified && (
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-600">
+                      Verified
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 capitalize">{page.category}</p>
+                <p className="text-sm text-gray-600">
+                  {page.follower_count || 0} follower{(page.follower_count || 0) === 1 ? "" : "s"}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-3 md:flex-shrink-0">
-            <button
-              type="button"
-              onClick={toggleFollow}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                isFollowing
-                  ? "border border-gray-300 text-gray-700 hover:bg-gray-50"
-                  : "bg-black text-white hover:bg-gray-900"
-              }`}
-            >
-              {isFollowing ? "Following" : "Follow"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShareModalOpen(true)}
-              className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-              title="Share this page"
-            >
-              Share
-            </button>
-            {canManage && (
-              <>
+
+            {/* Action buttons - full width on mobile, centered on desktop */}
+            <div className="flex flex-col gap-2 w-full relative z-40">
+              <div className="flex gap-2 flex-wrap items-center">
                 <button
                   type="button"
-                  onClick={() => setInviteModalOpen(true)}
-                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                  title="Invite friends to follow this page"
+                  onClick={toggleFollow}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    isFollowing
+                      ? "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                      : "bg-black text-white hover:bg-gray-900"
+                  }`}
                 >
-                  Invite Friends
+                  {isFollowing ? "Following" : "Follow"}
                 </button>
+                {!canManage && (
+                  <button
+                    type="button"
+                    onClick={() => setShareModalOpen(true)}
+                    className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 md:hidden"
+                    title="Share this page"
+                  >
+                    Share
+                  </button>
+                )}
+                {canManage && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setInviteModalOpen(true)}
+                      className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                      title="Invite friends to follow this page"
+                    >
+                      Invite Friends
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleEditClick}
+                      className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShareModalOpen(true)}
+                      className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                      title="Share this page"
+                    >
+                      Share
+                    </button>
+                  </>
+                )}
+              </div>
+              {canManage && (
                 <button
                   type="button"
-                  onClick={handleEditClick}
-                  className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                  onClick={() => setShowOptions(true)}
+                  className="rounded-full border border-gray-300 px-3 py-2 text-gray-700 transition hover:bg-gray-50"
+                  title="More options"
                 >
-                  Edit
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="5" r="1.5" fill="currentColor" />
+                    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                    <circle cx="12" cy="19" r="1.5" fill="currentColor" />
+                  </svg>
                 </button>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -383,13 +454,13 @@ export default function PageDetail() {
 
       {/* Edit Modal */}
       {isEditing && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-4 py-4 sm:py-0">
-          <div className="mx-auto w-full max-w-2xl rounded-t-3xl sm:rounded-3xl border border-(--color-border) bg-white p-4 sm:p-6 shadow text-black max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start gap-3 sm:gap-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-0 sm:p-4">
+          <div className="w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-2xl rounded-none sm:rounded-3xl border border-(--color-border) bg-white shadow text-black flex flex-col overflow-hidden">
+            <div className="flex items-start gap-3 sm:gap-4 p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setIsEditing(false)}
-                className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-2 sm:px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 flex-shrink-0"
+                className="inline-flex items-center gap-2 rounded-full border border-gray-200 px-2 sm:px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 shrink-0"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path d="M15 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -402,7 +473,7 @@ export default function PageDetail() {
               </header>
             </div>
 
-            <form className="space-y-3 sm:space-y-4 mt-4 sm:mt-6" onSubmit={handleEditSubmit}>
+            <form className="space-y-3 sm:space-y-4 p-4 sm:p-6 overflow-y-auto flex-1" onSubmit={handleEditSubmit}>
               <PageImageUploadField
                 label="Profile Image"
                 value={editForm.profile_image_url}
@@ -492,7 +563,7 @@ export default function PageDetail() {
                 />
               </div>
 
-              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end pt-2">
+              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 justify-end">
                 <button
                   type="button"
                   onClick={() => {
@@ -514,6 +585,9 @@ export default function PageDetail() {
                 </button>
               </div>
             </form>
+            <div className="border-t border-gray-200 p-4 sm:p-6 flex-shrink-0 sm:hidden">
+              <p className="text-xs text-gray-500 text-center">Scroll to see more or use the back button to close</p>
+            </div>
           </div>
         </div>
       )}
@@ -533,6 +607,66 @@ export default function PageDetail() {
         title="Share Page"
         type="page"
       />
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="mx-auto w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete Page?</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              This action is <strong>irreversible</strong>. All page data, posts, and information will be permanently deleted. Are you sure you want to continue?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeletePage}
+                disabled={isDeleting}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+              >
+                {isDeleting ? "Deleting..." : "Delete Page"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Options Modal */}
+      {showOptions && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="mx-auto w-full max-w-sm rounded-2xl bg-white p-6 shadow-lg">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Page Options</h2>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowOptions(false);
+                  setShowDeleteConfirm(true);
+                }}
+                className="block w-full px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg transition"
+              >
+                🗑️ Delete Page
+              </button>
+            </div>
+            <div className="mt-6 flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowOptions(false)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

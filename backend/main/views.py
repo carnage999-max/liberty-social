@@ -295,6 +295,8 @@ class PageViewSet(ModelViewSet):
             role="owner",
             added_by=self.request.user,
         )
+        # Auto-follow page for owner
+        page.followers.add(self.request.user)
 
     def perform_update(self, serializer):
         page = serializer.instance
@@ -1194,22 +1196,26 @@ class NewsFeedView(APIView):
             prefs = UserFeedPreference.objects.get(user=user)
             
             # Filter by content type (friend posts vs page posts)
-            if not prefs.show_friend_posts or not prefs.show_page_posts:
-                content_filter = Q()
-                if prefs.show_friend_posts:
-                    content_filter |= Q(author__id__in=friend_ids, visibility="friends")
-                if prefs.show_page_posts:
-                    content_filter |= Q(page__isnull=False)
-                # Always include user's own public posts
-                content_filter |= Q(author=user) | Q(visibility="public", author__id__in=friend_ids)
-                qs = qs.filter(content_filter)
+            # This creates mutually exclusive conditions based on user preference
+            if prefs.show_friend_posts and prefs.show_page_posts:
+                # Show both - no filtering needed for content type
+                pass
+            elif prefs.show_friend_posts and not prefs.show_page_posts:
+                # Show only friend posts (not page posts)
+                qs = qs.filter(page__isnull=True)
+            elif not prefs.show_friend_posts and prefs.show_page_posts:
+                # Show only page posts
+                qs = qs.filter(page__isnull=False)
+            else:
+                # Both false - show nothing (this shouldn't normally happen)
+                qs = qs.none()
             
-            # Filter by page categories
+            # Filter by page categories (only applies to page posts)
             if prefs.preferred_categories:
                 category_filter = Q(page__category__in=prefs.preferred_categories)
                 if prefs.show_other_categories:
-                    # Include posts without categories or from non-preferred categories
-                    category_filter |= Q(page__isnull=True) | Q(author=user)
+                    # Include posts without pages (friend posts are always included)
+                    category_filter |= Q(page__isnull=True)
                 qs = qs.filter(category_filter)
         except UserFeedPreference.DoesNotExist:
             # No preferences set, show all posts
