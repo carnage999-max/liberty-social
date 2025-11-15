@@ -12,6 +12,7 @@ from .models import (
     ConversationParticipant,
     Message,
     PageInvite,
+    UserFeedPreference,
 )
 
 
@@ -101,3 +102,17 @@ class PageInviteAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "created_at")
     readonly_fields = ("created_at", "responded_at")
+
+
+@admin.register(UserFeedPreference)
+class UserFeedPreferenceAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "show_friend_posts", "show_page_posts", "show_other_categories", "created_at")
+    search_fields = ("user__username", "user__email")
+    list_filter = ("show_friend_posts", "show_page_posts", "show_other_categories")
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        ("User", {"fields": ("user",)}),
+        ("Post Type Filtering", {"fields": ("show_friend_posts", "show_page_posts")}),
+        ("Category Preferences", {"fields": ("preferred_categories", "show_other_categories")}),
+        ("Timestamps", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
