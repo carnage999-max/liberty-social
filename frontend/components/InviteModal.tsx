@@ -142,7 +142,7 @@ export default function InviteModal({
       if (response.errors && response.errors.length > 0) {
         const errorCount = response.errors.length;
         const errorMessages = response.errors
-          .map(err => `${err.friend_id}: ${err.error}`)
+          .map((err: any) => `${err.friend_id}: ${err.error}`)
           .join('\n');
         toast.show(
           `${errorCount} invite${errorCount > 1 ? 's' : ''} could not be sent:\n${errorMessages}`,
