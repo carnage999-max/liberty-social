@@ -446,7 +446,7 @@ class PageViewSet(ModelViewSet):
     def send_invites(self, request, pk=None):
         """Send page follow invites to friends"""
         logger = logging.getLogger(__name__)
-        
+
         try:
             page = self.get_object()
         except Exception as e:
@@ -458,18 +458,20 @@ class PageViewSet(ModelViewSet):
         if not admin_entry:
             logger.error(f"User {request.user.id} is not an admin of page {page.id}")
             raise PermissionDenied("Only page admins can send invites.")
-        
-        logger.info(f"User {request.user.id} is admin of page {page.id} with role: {admin_entry.role}")
+
+        logger.info(
+            f"User {request.user.id} is admin of page {page.id} with role: {admin_entry.role}"
+        )
 
         # Get list of friend IDs to invite
         logger.info(f"request.data: {request.data}")
         logger.info(f"request.data type: {type(request.data)}")
         logger.info(f"request.content_type: {request.content_type}")
-        
+
         friend_ids = request.data.get("friend_ids", [])
-        
+
         logger.info(f"friend_ids value: {friend_ids}, type: {type(friend_ids)}")
-        
+
         if not friend_ids:
             logger.error(f"friend_ids is empty or falsy")
             return Response(
@@ -493,16 +495,21 @@ class PageViewSet(ModelViewSet):
             try:
                 # Convert string UUID to UUID object if needed
                 from uuid import UUID
+
                 try:
                     # Try to convert to UUID if it looks like a UUID string
-                    if isinstance(friend_id, str) and len(friend_id) == 36:  # UUID string format
+                    if (
+                        isinstance(friend_id, str) and len(friend_id) == 36
+                    ):  # UUID string format
                         friend_id_converted = UUID(friend_id)
                     else:
                         friend_id_converted = friend_id
                 except (ValueError, AttributeError):
                     friend_id_converted = friend_id
-                
-                logger.info(f"Converted friend_id: {friend_id_converted}, type: {type(friend_id_converted)}")
+
+                logger.info(
+                    f"Converted friend_id: {friend_id_converted}, type: {type(friend_id_converted)}"
+                )
                 friend = user_model.objects.get(id=friend_id_converted)
                 logger.info(f"Found user: {friend.id}")
             except user_model.DoesNotExist:
@@ -511,7 +518,9 @@ class PageViewSet(ModelViewSet):
                 continue
             except Exception as e:
                 logger.error(f"Error looking up user {friend_id}: {e}")
-                errors.append({"friend_id": friend_id, "error": f"Invalid user ID: {str(e)}"})
+                errors.append(
+                    {"friend_id": friend_id, "error": f"Invalid user ID: {str(e)}"}
+                )
                 continue
 
             # Check if already following
@@ -554,27 +563,27 @@ class PageViewSet(ModelViewSet):
                 errors.append({"friend_id": friend_id, "error": str(e)})
 
         serializer = PageInviteSerializer(invites_created, many=True)
-        
+
         # Log final response
-        logger.info(f"Returning response: total_sent={len(invites_created)}, total_errors={len(errors)}")
-        
+        logger.info(
+            f"Returning response: total_sent={len(invites_created)}, total_errors={len(errors)}"
+        )
+
         response_data = {
             "invites_sent": serializer.data,
             "errors": errors,
             "total_sent": len(invites_created),
             "total_errors": len(errors),
         }
-        
+
         # Return 201 if at least one invite was created, otherwise 200 OK with error details
         # Only return 400 if the request itself was invalid (empty friend_ids, not a list, etc.)
         response_status = (
-            status.HTTP_201_CREATED
-            if invites_created
-            else status.HTTP_200_OK
+            status.HTTP_201_CREATED if invites_created else status.HTTP_200_OK
         )
-        
+
         logger.info(f"Response status: {response_status}")
-        
+
         return Response(response_data, status=response_status)
 
     @action(detail=True, methods=["get"], url_path="followers")
@@ -1194,7 +1203,7 @@ class NewsFeedView(APIView):
         # Apply feed preferences filtering
         try:
             prefs = UserFeedPreference.objects.get(user=user)
-            
+
             # Filter by content type (friend posts vs page posts)
             # This creates mutually exclusive conditions based on user preference
             if prefs.show_friend_posts and prefs.show_page_posts:
@@ -1209,7 +1218,7 @@ class NewsFeedView(APIView):
             else:
                 # Both false - show nothing (this shouldn't normally happen)
                 qs = qs.none()
-            
+
             # Filter by page categories (only applies to page posts)
             if prefs.preferred_categories:
                 category_filter = Q(page__category__in=prefs.preferred_categories)
@@ -1233,27 +1242,25 @@ class NewsFeedView(APIView):
 class UserFeedPreferenceViewSet(ModelViewSet):
     serializer_class = UserFeedPreferenceSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         # Users can only view/edit their own preferences
         return UserFeedPreference.objects.filter(user=self.request.user)
-    
-    @action(detail=False, methods=['get', 'put', 'patch'])
+
+    @action(detail=False, methods=["get", "put", "patch"])
     def me(self, request):
         """Get or create user's feed preferences"""
         preferences, created = UserFeedPreference.objects.get_or_create(
             user=request.user
         )
-        
-        if request.method == 'GET':
+
+        if request.method == "GET":
             serializer = self.get_serializer(preferences)
             return Response(serializer.data)
-        
+
         # PUT/PATCH
         serializer = self.get_serializer(
-            preferences, 
-            data=request.data, 
-            partial=(request.method == 'PATCH')
+            preferences, data=request.data, partial=(request.method == "PATCH")
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()

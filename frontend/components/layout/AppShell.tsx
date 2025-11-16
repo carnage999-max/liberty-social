@@ -821,12 +821,12 @@ export default function AppShell({ children }: AppShellProps) {
             </div>
           )}
           {!isDesktop && (
-            <div className="mb-6 lg:hidden">
+            <div className={`${pathname?.startsWith("/app/users/") ? "mb-2" : "mb-6"} lg:hidden`}>
               <FriendsList />
             </div>
           )}
-          <CreatePostToolbar onOpen={openCreateModal} />
-          <div className="mt-4 sm:mt-6">{children}</div>
+          {!pathname?.startsWith("/app/users/") && <CreatePostToolbar onOpen={openCreateModal} />}
+          <div className={`${pathname?.startsWith("/app/users/") ? "mt-1" : "mt-4 sm:mt-6"}`}>{children}</div>
         </main>
       </div>
 

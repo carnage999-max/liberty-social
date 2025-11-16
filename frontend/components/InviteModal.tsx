@@ -31,13 +31,15 @@ export default function InviteModal({
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [pageFollowers, setPageFollowers] = useState<Set<string>>(new Set());
 
-  // Load friends list when modal opens
+  // Load friends list and page followers when modal opens
   useEffect(() => {
     if (isOpen) {
       loadFriends();
+      loadPageFollowers();
     }
-  }, [isOpen]);
+  }, [isOpen, pageId]);
 
   const loadFriends = async () => {
     try {
@@ -61,15 +63,49 @@ export default function InviteModal({
         }).filter(Boolean);
       }
       
-      console.log('Final friends list:', friendsList.map(f => ({ id: f.id, username: f.username, email: f.email })));
+      // Filter out friends who already follow the page
+      const filteredFriends = friendsList.filter(
+        f => !pageFollowers.has(String(f.id))
+      );
       
-      setFriends(friendsList);
+      console.log('Final friends list:', filteredFriends.map(f => ({ id: f.id, username: f.username, email: f.email })));
+      
+      setFriends(filteredFriends);
       setSelectedFriends(new Set());
     } catch (error) {
       console.error('Failed to load friends:', error);
       toast.show('Failed to load friends list', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPageFollowers = async () => {
+    try {
+      if (!pageId) {
+        console.warn('pageId is missing, skipping followers load');
+        return;
+      }
+      const response = await apiGet(`/pages/${pageId}/followers/`, { token: accessToken });
+      console.log('Page followers response:', response);
+      
+      let followerIds: Set<string> = new Set();
+      
+      if (Array.isArray(response)) {
+        // Each item should have a user property
+        followerIds = new Set(
+          response
+            .map((item: any) => item.user?.id || item.user)
+            .filter(Boolean)
+            .map(String)
+        );
+      }
+      
+      console.log('Page follower IDs:', Array.from(followerIds));
+      setPageFollowers(followerIds);
+    } catch (error) {
+      console.error('Failed to load page followers:', error);
+      // Don't show error toast for this, just log it
     }
   };
 
@@ -82,6 +118,16 @@ export default function InviteModal({
       newSelected.add(friendIdStr);
     }
     setSelectedFriends(newSelected);
+  };
+
+  const selectAllFriends = () => {
+    // Select only the friends currently shown in the modal
+    const allFriendIds = new Set(friends.map(f => String(f.id)));
+    setSelectedFriends(allFriendIds);
+  };
+
+  const deselectAllFriends = () => {
+    setSelectedFriends(new Set());
   };
 
   const removeFriend = (friendId: string | number) => {
@@ -274,6 +320,32 @@ export default function InviteModal({
             <p className="text-center text-gray-600">No friends to invite</p>
           ) : (
             <div className="space-y-3">
+              {/* Select All Checkbox */}
+              <label className="flex items-center gap-3 rounded-lg p-3 transition border border-(--color-gold) hover:bg-(--color-deep-navy) text-black bg-(--color-deeper-navy) font-semibold">
+                <input
+                  type="checkbox"
+                  checked={selectedFriends.size === friends.length && friends.length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      selectAllFriends();
+                    } else {
+                      deselectAllFriends();
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-(--color-gold) text-black transition"
+                  aria-label="Select all friends"
+                />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-(--color-silver-light)">
+                    Select All Friends
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {selectedFriends.size} of {friends.length} selected
+                  </p>
+                </div>
+              </label>
+
+              {/* Individual Friend Checkboxes */}
               {friends.map((friend) => (
                 <label
                   key={friend.id}

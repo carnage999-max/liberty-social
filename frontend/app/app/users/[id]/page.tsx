@@ -481,11 +481,11 @@ export default function UserProfilePage() {
 
   return (
     <RequireAuth>
-      <section className="min-h-screen bg-(--color-background) pb-16 pt-24 sm:pt-28">
+      <section className="min-h-screen bg-(--color-background) pb-16 pt-0 sm:pt-0">
   <div className="mx-auto w-full max-w-4xl px-4 sm:px-6">
           <Link
             href="/app/feed"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-(--color-deep-navy) transition hover:opacity-80"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-(--color-deep-navy) transition hover:opacity-80 mt-4"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path
@@ -499,7 +499,7 @@ export default function UserProfilePage() {
             Back to feed
           </Link>
 
-          <div className="mt-6 rounded-2xl border border-gray-100 bg-white/95 p-6 shadow-metallic backdrop-blur-md sm:p-8">
+          <div className="mt-2 rounded-2xl border border-gray-100 bg-white/95 p-6 shadow-metallic backdrop-blur-md sm:p-8">
             {loading ? (
               <div className="flex justify-center py-16">
                 <Spinner />

@@ -98,7 +98,23 @@ export async function apiGetUrl<T = any>(
   url: string,
   opts: Options = {}
 ): Promise<T> {
-  const res = await fetch(url, {
+  // Normalize URL to use the same protocol/domain as API_BASE if needed
+  let normalizedUrl = url;
+  try {
+    const urlObj = new URL(url);
+    const baseObj = new URL(API_BASE);
+    
+    // If the pagination URL has a different protocol than our base URL, update it
+    if (urlObj.protocol !== baseObj.protocol || urlObj.host !== baseObj.host) {
+      // Reconstruct the URL using our base's protocol and host
+      normalizedUrl = `${baseObj.protocol}//${baseObj.host}${urlObj.pathname}${urlObj.search}`;
+    }
+  } catch (e) {
+    // If URL parsing fails, use the original URL
+    normalizedUrl = url;
+  }
+  
+  const res = await fetch(normalizedUrl, {
     method: "GET",
     headers: withAuthHeaders(opts),
     credentials: "include",
