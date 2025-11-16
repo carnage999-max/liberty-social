@@ -1,65 +1,113 @@
 "use client";
 
-import { useState } from "react";
-import { useFeedPreferences } from "@/hooks/useFeedPreferences";
+import { useState, useEffect, useRef } from "react";
+
+export const CATEGORY_CHOICES = [
+  ["business", "Business"],
+  ["community", "Community"],
+  ["brand", "Brand"],
+  ["news", "News"],
+  ["restaurant", "Restaurant"],
+  ["entertainment", "Entertainment"],
+  ["hobbies", "Hobbies"],
+  ["work", "Work"],
+  ["associates", "Associates"],
+  ["sports", "Sports"],
+  ["music", "Music"],
+  ["art", "Art"],
+  ["tech", "Technology"],
+  ["lifestyle", "Lifestyle"],
+  ["education", "Education"],
+  ["health", "Health & Wellness"],
+  ["travel", "Travel"],
+  ["food", "Food & Cooking"],
+  ["fashion", "Fashion"],
+  ["games", "Games"],
+  ["other", "Other"],
+] as [string, string][];
 
 interface FeedFiltersProps {
-  onFiltersChange?: (filters: {
+  onFiltersChange: (filters: {
     showFriendPosts: boolean;
     showPagePosts: boolean;
     selectedCategory?: string;
   }) => void;
 }
 
+/**
+ * Feed filter component that works with django-filters backend.
+ * 
+ * Backend Query Logic:
+ * - show_friend_posts=true, show_page_posts=true: Show all posts (default)
+ * - show_friend_posts=true, show_page_posts=false: Show only friend posts (page__isnull=true)
+ * - show_friend_posts=false, show_page_posts=true: Show only page posts (page__isnull=false)
+ * - preferred_categories=<code>: Show page posts from category + all friend posts
+ */
 export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
-  const { preferences, loading } = useFeedPreferences();
-  const [showFriendPosts, setShowFriendPosts] = useState(true);
-  const [showPagePosts, setShowPagePosts] = useState(true);
+  const [friendPostsActive, setFriendPostsActive] = useState(true);
+  const [pagePostsActive, setPagePostsActive] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
-  const [isOpen, setIsOpen] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
 
-  const categories = preferences?.category_choices ?? [];
-
-  const handleFilterChange = (newFilters: {
-    showFriendPosts?: boolean;
-    showPagePosts?: boolean;
+  // Track previous filter state to only notify on actual changes
+  const prevFiltersRef = useRef<{
+    friendPostsActive: boolean;
+    pagePostsActive: boolean;
     selectedCategory?: string;
-  }) => {
-    if (newFilters.showFriendPosts !== undefined) {
-      setShowFriendPosts(newFilters.showFriendPosts);
-    }
-    if (newFilters.showPagePosts !== undefined) {
-      setShowPagePosts(newFilters.showPagePosts);
-    }
-    if (newFilters.selectedCategory !== undefined) {
-      setSelectedCategory(newFilters.selectedCategory);
-    }
+  } | null>(null);
 
-    onFiltersChange?.({
-      showFriendPosts: newFilters.showFriendPosts ?? showFriendPosts,
-      showPagePosts: newFilters.showPagePosts ?? showPagePosts,
-      selectedCategory: newFilters.selectedCategory ?? selectedCategory,
-    });
+  // Only notify parent when filters actually change
+  useEffect(() => {
+    const currentFilters = {
+      friendPostsActive,
+      pagePostsActive,
+      selectedCategory,
+    };
+
+    // Check if filters have actually changed
+    const hasChanged =
+      !prevFiltersRef.current ||
+      prevFiltersRef.current.friendPostsActive !== friendPostsActive ||
+      prevFiltersRef.current.pagePostsActive !== pagePostsActive ||
+      prevFiltersRef.current.selectedCategory !== selectedCategory;
+
+    if (hasChanged) {
+      prevFiltersRef.current = currentFilters;
+      onFiltersChange({
+        showFriendPosts: friendPostsActive,
+        showPagePosts: pagePostsActive,
+        selectedCategory,
+      });
+    }
+  }, [friendPostsActive, pagePostsActive, selectedCategory, onFiltersChange]);
+
+  const toggleFriendPosts = () => {
+    setFriendPostsActive(!friendPostsActive);
   };
 
-  if (loading) {
-    return (
-      <div className="flex gap-2 pb-4">
-        <div className="h-8 w-24 animate-pulse rounded-lg bg-gray-200" />
-        <div className="h-8 w-24 animate-pulse rounded-lg bg-gray-200" />
-      </div>
-    );
-  }
+  const togglePagePosts = () => {
+    setPagePostsActive(!pagePostsActive);
+  };
+
+  const selectCategory = (code?: string) => {
+    setSelectedCategory(code);
+    setCategoryDropdownOpen(false);
+  };
+
+  const hasActiveFilters = !friendPostsActive || !pagePostsActive || !!selectedCategory;
+  const selectedCategoryLabel = selectedCategory
+    ? CATEGORY_CHOICES.find(([code]) => code === selectedCategory)?.[1] || selectedCategory
+    : "All Categories";
 
   return (
     <div className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur-sm mb-4">
       <div className="px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Content Type Toggles */}
+          {/* Friend Posts Toggle */}
           <button
-            onClick={() => handleFilterChange({ showFriendPosts: !showFriendPosts })}
+            onClick={toggleFriendPosts}
             className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition border ${
-              showFriendPosts
+              friendPostsActive
                 ? "bg-[var(--color-deep-navy)] text-white border-2 border-[var(--color-gold)] hover:bg-opacity-90"
                 : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
@@ -69,10 +117,11 @@ export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
             <span>Friends</span>
           </button>
 
+          {/* Page Posts Toggle */}
           <button
-            onClick={() => handleFilterChange({ showPagePosts: !showPagePosts })}
+            onClick={togglePagePosts}
             className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition border ${
-              showPagePosts
+              pagePostsActive
                 ? "bg-[var(--color-deep-navy)] text-white border-2 border-[var(--color-gold)] hover:bg-opacity-90"
                 : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
@@ -88,14 +137,14 @@ export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
           {/* Category Dropdown */}
           <div className="relative">
             <button
-              onClick={() => setIsOpen(!isOpen)}
+              onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
               className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
               title="Filter by category"
             >
               <span>🏷️</span>
-              <span>{selectedCategory ? "Category: " + selectedCategory : "All Categories"}</span>
+              <span>{selectedCategoryLabel}</span>
               <svg
-                className={`h-4 w-4 transition ${isOpen ? "rotate-180" : ""}`}
+                className={`h-4 w-4 transition ${categoryDropdownOpen ? "rotate-180" : ""}`}
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -105,26 +154,22 @@ export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
               </svg>
             </button>
 
-            {isOpen && categories.length > 0 && (
-              <div className="absolute left-0 top-full mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg z-20">
+            {categoryDropdownOpen && (
+              <div className="absolute left-0 top-full mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg z-20 max-h-96 overflow-y-auto">
                 <button
-                  onClick={() => {
-                    setSelectedCategory(undefined);
-                    setIsOpen(false);
-                    handleFilterChange({ selectedCategory: undefined });
-                  }}
-                  className="block w-full px-4 py-2 text-left text-sm text-gray-900 hover:bg-gray-100 rounded-t-lg first:rounded-t-lg"
+                  onClick={() => selectCategory(undefined)}
+                  className={`block w-full px-4 py-2 text-left text-sm transition ${
+                    !selectedCategory
+                      ? "bg-[var(--color-deep-navy)] text-white"
+                      : "text-gray-900 hover:bg-gray-100"
+                  }`}
                 >
                   All Categories
                 </button>
-                {categories.map(([code, label]) => (
+                {CATEGORY_CHOICES.map(([code, label]) => (
                   <button
                     key={code}
-                    onClick={() => {
-                      setSelectedCategory(code);
-                      setIsOpen(false);
-                      handleFilterChange({ selectedCategory: code });
-                    }}
+                    onClick={() => selectCategory(code)}
                     className={`block w-full px-4 py-2 text-left text-sm transition ${
                       selectedCategory === code
                         ? "bg-[var(--color-deep-navy)] text-white"
@@ -139,7 +184,7 @@ export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
           </div>
 
           {/* Active Filters Badge */}
-          {(selectedCategory || !showFriendPosts || !showPagePosts) && (
+          {hasActiveFilters && (
             <div className="flex items-center gap-1 ml-auto text-xs text-gray-600">
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1">
                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">

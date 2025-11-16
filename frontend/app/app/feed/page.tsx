@@ -91,7 +91,11 @@ export default function FeedPage() {
   }, []);
 
   const loadFeed = useCallback(
-    async (url?: string, append = false, filters?: { showFriendPosts?: boolean; showPagePosts?: boolean; selectedCategory?: string }) => {
+    async (
+      url?: string,
+      append = false,
+      filters?: { showFriendPosts?: boolean; showPagePosts?: boolean; selectedCategory?: string }
+    ) => {
       if (!accessToken) return;
       const controller = new AbortController();
       controllerRef.current?.abort();
@@ -102,28 +106,43 @@ export default function FeedPage() {
         setError(null);
 
         let finalUrl = url;
-        
+
         // If no URL provided, build with filters
         if (!url) {
           const params = new URLSearchParams();
-          
-          const showFriend = filters?.showFriendPosts !== undefined ? filters.showFriendPosts : showFriendPosts;
-          const showPage = filters?.showPagePosts !== undefined ? filters.showPagePosts : showPagePosts;
-          const category = filters?.selectedCategory !== undefined ? filters.selectedCategory : selectedCategory;
-          
-          if (!showFriend || !showPage || category) {
-            params.append('show_friend_posts', showFriend.toString());
-            params.append('show_page_posts', showPage.toString());
+
+          // Get filter values - use passed filters if provided, otherwise use component state
+          const showFriend =
+            filters?.showFriendPosts !== undefined ? filters.showFriendPosts : showFriendPosts;
+          const showPage =
+            filters?.showPagePosts !== undefined ? filters.showPagePosts : showPagePosts;
+          const category =
+            filters?.selectedCategory !== undefined ? filters.selectedCategory : selectedCategory;
+
+          console.log("[FEED] Building request with filters:", {
+            showFriend,
+            showPage,
+            category,
+            passedFilters: filters,
+            componentFilters: { showFriendPosts, showPagePosts, selectedCategory },
+          });
+
+          // Always add filter params if filters are not at default
+          // Default is: showFriendPosts=true, showPagePosts=true, no category
+          if (showFriend !== true || showPage !== true || category) {
+            params.append("show_friend_posts", showFriend.toString());
+            params.append("show_page_posts", showPage.toString());
             if (category) {
-              params.append('preferred_categories', category);
+              params.append("preferred_categories", category);
             }
           }
-          
+
           finalUrl = `/feed/?${params.toString()}`;
+          console.log("[FEED] Final URL:", finalUrl);
         }
 
         // Use apiGetUrl for pagination URLs (which contain full domain), apiGet for relative paths
-        const data = await (finalUrl && finalUrl.startsWith('http')
+        const data = await (finalUrl && finalUrl.startsWith("http")
           ? apiGetUrl<PaginatedResponse<FeedPost>>(finalUrl, {
               token: accessToken,
               cache: "no-store",
@@ -135,14 +154,14 @@ export default function FeedPage() {
               signal: controller.signal,
             }));
 
+        console.log("[FEED] Response received:", { count: data.count, results: data.results?.length });
+
         const normalisedResults = data.results ?? [];
-        setPosts((prev) =>
-          append ? [...prev, ...normalisedResults] : normalisedResults
-        );
+        setPosts((prev) => (append ? [...prev, ...normalisedResults] : normalisedResults));
         setPagination({ count: data.count ?? normalisedResults.length, next: data.next });
       } catch (err: any) {
         if (err?.name === "AbortError") return;
-        console.error(err);
+        console.error("[FEED] Error loading feed:", err);
         setError(err?.message || "Could not load your feed right now.");
       } finally {
         if (controllerRef.current === controller) {
