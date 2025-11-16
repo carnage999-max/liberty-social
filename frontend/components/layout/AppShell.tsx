@@ -6,7 +6,7 @@ import ProfileCard from "@/components/profile/ProfileCard";
 import FriendsList from "@/components/friends/FriendsList";
 import ProfileImageModal from "@/components/profile/ProfileImageModal";
 import { useAuth } from "@/lib/auth-context";
-import { API_BASE, apiPost } from "@/lib/api";
+import { API_BASE, apiPost, apiGet } from "@/lib/api";
 import type { Post, Visibility, FriendRequest } from "@/lib/types";
 import { useToast } from "@/components/Toast";
 import Image from "next/image";
@@ -898,7 +898,38 @@ function CreatePostModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [selectedPageId, setSelectedPageId] = useState<number | null>(null);
+  const [managedPages, setManagedPages] = useState<any[]>([]);
+  const [loadingPages, setLoadingPages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Load managed pages when modal opens
+  useEffect(() => {
+    if (!open || !accessToken) return;
+    
+    const loadPages = async () => {
+      try {
+        setLoadingPages(true);
+        const response = await apiGet("/posts/?mine=true", { token: accessToken });
+        // Extract unique pages from managed posts
+        const pages = new Map<number, any>();
+        if (response.results) {
+          response.results.forEach((post: any) => {
+            if (post.page && post.author_type === "page") {
+              pages.set(post.page.id, post.page);
+            }
+          });
+        }
+        setManagedPages(Array.from(pages.values()));
+      } catch (err) {
+        console.error("Failed to load managed pages:", err);
+      } finally {
+        setLoadingPages(false);
+      }
+    };
+    
+    loadPages();
+  }, [open, accessToken]);
 
   useEffect(() => {
     if (!open) return;
@@ -916,6 +947,7 @@ function CreatePostModal({
     });
     setContent("");
     setVisibility("public");
+    setSelectedPageId(null);
     setError(null);
   };
 
@@ -992,6 +1024,10 @@ function CreatePostModal({
       content: trimmedContent,
       visibility,
     };
+    
+    if (selectedPageId) {
+      payload.page_id = selectedPageId;
+    }
 
     try {
       setSubmitting(true);
@@ -1183,6 +1219,27 @@ function CreatePostModal({
               onChange={handleFilesAdded}
             />
           </div>
+
+          {managedPages && managedPages.length > 0 && (
+            <label className="flex flex-col text-sm font-medium text-gray-700">
+              <span className="mb-2">Post as</span>
+              <select
+                value={selectedPageId || ""}
+                onChange={(e) => setSelectedPageId(e.target.value ? Number(e.target.value) : null)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
+              >
+                <option value="">Your account</option>
+                {managedPages.map((page) => (
+                  <option key={page.id} value={page.id}>
+                    {page.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                {selectedPageId ? "This post will be published to the selected page." : "This post will be published to your account."}
+              </p>
+            </label>
+          )}
 
           <label className="flex flex-col text-sm font-medium text-gray-700">
             <span className="mb-2">Who can see this?</span>

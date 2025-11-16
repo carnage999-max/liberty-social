@@ -391,6 +391,13 @@ export default function FeedPage() {
     }
 
     if (posts.length === 0) {
+      const filterActive = !showFriendPosts || !showPagePosts || selectedCategory;
+      const filterLabel = 
+        selectedCategory ? `"${selectedCategory}"` :
+        !showFriendPosts && showPagePosts ? "Page posts" :
+        showFriendPosts && !showPagePosts ? "Friend posts" :
+        "posts";
+      
       return (
         <div className="rounded-2xl bg-white/90 p-10 text-center shadow-sm">
           <Image
@@ -400,10 +407,38 @@ export default function FeedPage() {
             height={180}
             className="mx-auto mb-4 opacity-90"
           />
-          <h2 className="text-lg font-semibold text-gray-800">Your feed is waiting.</h2>
-          <p className="mt-2 text-sm text-gray-500">
-            Follow friends or join communities to see posts here.
-          </p>
+          {filterActive ? (
+            <>
+              <h2 className="text-lg font-semibold text-gray-800">
+                You've seen all {filterLabel}.
+              </h2>
+              <p className="mt-2 text-sm text-gray-500">
+                Here are other posts you might enjoy:
+              </p>
+              <button
+                onClick={() => {
+                  setShowFriendPosts(true);
+                  setShowPagePosts(true);
+                  setSelectedCategory(undefined);
+                  loadFeed(undefined, false, {
+                    showFriendPosts: true,
+                    showPagePosts: true,
+                    selectedCategory: undefined,
+                  });
+                }}
+                className="mt-4 inline-block rounded-lg bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-white shadow hover:opacity-90 transition"
+              >
+                Show All Posts
+              </button>
+            </>
+          ) : (
+            <>
+              <h2 className="text-lg font-semibold text-gray-800">Your feed is waiting.</h2>
+              <p className="mt-2 text-sm text-gray-500">
+                Follow friends or join communities to see posts here.
+              </p>
+            </>
+          )}
         </div>
       );
     }
