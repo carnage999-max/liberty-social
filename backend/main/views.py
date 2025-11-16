@@ -1165,10 +1165,14 @@ class NewsFeedView(APIView):
 
     def get(self, request):
         user = request.user
+        print(f"[DEBUG] NewsFeedView.get() - user: {user.username}")
+        print(f"[DEBUG] Query params: {request.query_params}")
+        
         # get friend ids
-        friend_ids = Friends.objects.filter(user=user).values_list(
+        friend_ids = list(Friends.objects.filter(user=user).values_list(
             "friend_id", flat=True
-        )
+        ))
+        print(f"[DEBUG] Friend IDs: {friend_ids}")
 
         # build queryset: public posts OR user's own posts OR friends' posts with friends visibility
         qs = (
@@ -1186,9 +1190,9 @@ class NewsFeedView(APIView):
                 "bookmarks__user",
             )
         )
+        print(f"[DEBUG] Base queryset count: {qs.count()}")
 
         # exclude posts where either side has blocked the other
-        blocked_ids = set(list(Friends.objects.none()))
         from users.models import BlockedUsers
 
         user_blocked = BlockedUsers.objects.filter(user=user).values_list(
@@ -1200,15 +1204,19 @@ class NewsFeedView(APIView):
         excluded_authors = set(list(user_blocked)) | set(list(blocked_me))
         if excluded_authors:
             qs = qs.exclude(author__id__in=excluded_authors)
+        print(f"[DEBUG] After block exclusion: {qs.count()}")
 
         # Apply feed preferences filtering using PostFilterSet
-        # The FilterSet applies filtering based on UserFeedPreference
+        # Pass friend_ids to the context so filters can use them
         filterset = PostFilterSet(
             data=request.query_params,
             queryset=qs,
-            request=request
+            request=request,
         )
+        # Store friend_ids in the filterset for use in filter methods
+        filterset.friend_ids = friend_ids
         qs = filterset.qs
+        print(f"[DEBUG] After filter: {qs.count()}")
 
         # pagination
         paginator = PageNumberPagination()
