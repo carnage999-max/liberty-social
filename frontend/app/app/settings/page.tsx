@@ -29,16 +29,14 @@ const PRIVACY_OPTIONS: Array<{
   value: UserSettings["profile_privacy"];
   label: string;
 }> = [
-  { value: "public", label: "Public" },
-  { value: "private", label: "Friends only" },
-  { value: "only_me", label: "Only me" },
-];
+    { value: "public", label: "Public" },
+    { value: "private", label: "Friends only" },
+    { value: "only_me", label: "Only me" },
+  ];
 
 const GENDER_OPTIONS = [
-  { value: "", label: "Prefer not to say" },
   { value: "male", label: "Male" },
   { value: "female", label: "Female" },
-  { value: "non_binary", label: "Non-binary" },
 ];
 
 export default function SettingsPage() {
@@ -274,7 +272,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="rounded-full bg-(--color-deep-navy)/5 p-2 text-(--color-deep-navy) transition group-open:rotate-180">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
                   </summary>
@@ -299,7 +297,7 @@ export default function SettingsPage() {
                             }))
                           }
                           autoComplete="current-password"
-                          
+
                         />
                         <PasswordField
                           id="new-password"
@@ -313,7 +311,7 @@ export default function SettingsPage() {
                           }
                           autoComplete="new-password"
                           showMeter
-                          
+
                         />
                       </div>
 
@@ -339,249 +337,249 @@ export default function SettingsPage() {
               </section>
 
               <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
-                  <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
-                  <p className="mt-1 text-sm text-gray-500">
-                    This information appears on your profile and alongside your posts.
+                <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  This information appears on your profile and alongside your posts.
+                </p>
+
+                {formError && (
+                  <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
+                    {formError}
                   </p>
+                )}
+                {profileError && (
+                  <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
+                    {profileError}
+                  </p>
+                )}
 
-                  {formError && (
-                    <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
-                      {formError}
-                    </p>
-                  )}
-                  {profileError && (
-                    <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
-                      {profileError}
-                    </p>
-                  )}
-
-                  <form onSubmit={handleProfileSubmit} className="mt-6 space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <label className="flex flex-col text-sm font-medium text-gray-700">
-                        First name
-                        <input
-                          value={profileForm.first_name}
-                          onChange={(e) =>
-                            handleProfileChange("first_name", e.target.value)
-                          }
-                          className="mt-1 rounded-lg border border-(--color-silver-light) px-3 py-2 text-sm outline-none transition focus:border-(--color-gold) focus:ring-2 focus:ring-(--color-deep-navy)/20"
-                        />
-                      </label>
-                      <label className="flex flex-col text-sm font-medium text-gray-700">
-                        Last name
-                        <input
-                          value={profileForm.last_name}
-                          onChange={(e) =>
-                            handleProfileChange("last_name", e.target.value)
-                          }
-                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
-                        />
-                      </label>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <label className="flex flex-col text-sm font-medium text-gray-700">
-                        Display name
-                        <input
-                          value={profileForm.username}
-                          onChange={(e) =>
-                            handleProfileChange("username", e.target.value)
-                          }
-                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
-                          placeholder="e.g. libertarian_dreamer"
-                        />
-                      </label>
-                      <label className="flex flex-col text-sm font-medium text-gray-700">
-                        Phone number
-                        <input
-                          value={profileForm.phone_number}
-                          onChange={(e) =>
-                            handleProfileChange("phone_number", e.target.value)
-                          }
-                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
-                          placeholder="+15551234567"
-                        />
-                      </label>
-                    </div>
+                <form onSubmit={handleProfileSubmit} className="mt-6 space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
                     <label className="flex flex-col text-sm font-medium text-gray-700">
-                      Bio
-                      <textarea
-                        value={profileForm.bio}
+                      First name
+                      <input
+                        value={profileForm.first_name}
                         onChange={(e) =>
-                          handleProfileChange("bio", e.target.value)
+                          handleProfileChange("first_name", e.target.value)
                         }
-                        rows={4}
-                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
-                        placeholder="Tell people a little about yourself"
+                        className="mt-1 rounded-lg border border-(--color-silver-light) px-3 py-2 text-sm outline-none transition focus:border-(--color-gold) focus:ring-2 focus:ring-(--color-deep-navy)/20"
                       />
                     </label>
                     <label className="flex flex-col text-sm font-medium text-gray-700">
-                      Gender
-                      <select
-                        value={profileForm.gender}
+                      Last name
+                      <input
+                        value={profileForm.last_name}
                         onChange={(e) =>
-                          handleProfileChange("gender", e.target.value)
+                          handleProfileChange("last_name", e.target.value)
                         }
-                          className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
-                      >
-                        {GENDER_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
+                      />
                     </label>
-                    <div className="pt-2">
-                      <button
-                        type="submit"
-                        disabled={savingProfile}
-                        className="rounded-lg btn-primary px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {savingProfile ? "Saving..." : "Save profile"}
-                      </button>
-                    </div>
-                  </form>
-                </section>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="flex flex-col text-sm font-medium text-gray-700">
+                      Display name
+                      <input
+                        value={profileForm.username}
+                        onChange={(e) =>
+                          handleProfileChange("username", e.target.value)
+                        }
+                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
+                        placeholder="e.g. libertarian_dreamer"
+                      />
+                    </label>
+                    <label className="flex flex-col text-sm font-medium text-gray-700">
+                      Phone number
+                      <input
+                        value={profileForm.phone_number}
+                        onChange={(e) =>
+                          handleProfileChange("phone_number", e.target.value)
+                        }
+                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
+                        placeholder="+15551234567"
+                      />
+                    </label>
+                  </div>
+                  <label className="flex flex-col text-sm font-medium text-gray-700">
+                    Bio
+                    <textarea
+                      value={profileForm.bio}
+                      onChange={(e) =>
+                        handleProfileChange("bio", e.target.value)
+                      }
+                      rows={4}
+                      className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
+                      placeholder="Tell people a little about yourself"
+                    />
+                  </label>
+                  <label className="flex flex-col text-sm font-medium text-gray-700">
+                    Gender
+                    <select
+                      value={profileForm.gender}
+                      onChange={(e) =>
+                        handleProfileChange("gender", e.target.value)
+                      }
+                      className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
+                    >
+                      {GENDER_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={savingProfile}
+                      className="rounded-lg btn-primary px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {savingProfile ? "Saving..." : "Save profile"}
+                    </button>
+                  </div>
+                </form>
+              </section>
 
               <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
-                  <h2 className="text-lg font-semibold text-gray-900">Privacy</h2>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Decide who can discover your profile and connections.
+                <h2 className="text-lg font-semibold text-gray-900">Privacy</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Decide who can discover your profile and connections.
+                </p>
+
+                {settingsError && (
+                  <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
+                    {settingsError}
                   </p>
+                )}
 
-                    {settingsError && (
-                      <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
-                        {settingsError}
-                      </p>
-                    )}
+                <form onSubmit={handlePrivacySubmit} className="mt-6 space-y-4">
+                  <label className="flex flex-col text-sm font-medium text-gray-700">
+                    Profile visibility
+                    <select
+                      value={privacyForm.profile_privacy}
+                      onChange={(e) =>
+                        setPrivacyForm((prev) => ({
+                          ...prev,
+                          profile_privacy:
+                            e.target.value as UserSettings["profile_privacy"],
+                        }))
+                      }
+                      className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
+                    >
+                      {PRIVACY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                  <form onSubmit={handlePrivacySubmit} className="mt-6 space-y-4">
-                    <label className="flex flex-col text-sm font-medium text-gray-700">
-                      Profile visibility
-                      <select
-                        value={privacyForm.profile_privacy}
-                        onChange={(e) =>
-                          setPrivacyForm((prev) => ({
-                            ...prev,
-                            profile_privacy:
-                              e.target.value as UserSettings["profile_privacy"],
-                          }))
-                        }
-                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
-                      >
-                        {PRIVACY_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                  <label className="flex flex-col text-sm font-medium text-gray-700">
+                    Friends list visibility
+                    <select
+                      value={privacyForm.friends_publicity}
+                      onChange={(e) =>
+                        setPrivacyForm((prev) => ({
+                          ...prev,
+                          friends_publicity:
+                            e.target.value as UserSettings["friends_publicity"],
+                        }))
+                      }
+                      className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
+                    >
+                      {PRIVACY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                    <label className="flex flex-col text-sm font-medium text-gray-700">
-                      Friends list visibility
-                      <select
-                        value={privacyForm.friends_publicity}
-                        onChange={(e) =>
-                          setPrivacyForm((prev) => ({
-                            ...prev,
-                            friends_publicity:
-                              e.target.value as UserSettings["friends_publicity"],
-                          }))
-                        }
-                        className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
-                      >
-                        {PRIVACY_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <div className="pt-2">
-                      <button
-                        type="submit"
-                        disabled={savingPrivacy}
-                        className="rounded-lg border border-(--color-deep-navy) px-5 py-2 text-sm font-semibold text-(--color-deep-navy) transition hover:bg-(--color-deep-navy) hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {savingPrivacy ? "Saving..." : "Save privacy settings"}
-                      </button>
-                    </div>
-                  </form>
-                </section>
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={savingPrivacy}
+                      className="rounded-lg border border-(--color-deep-navy) px-5 py-2 text-sm font-semibold text-(--color-deep-navy) transition hover:bg-(--color-deep-navy) hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {savingPrivacy ? "Saving..." : "Save privacy settings"}
+                    </button>
+                  </div>
+                </form>
+              </section>
 
               <FeedPreferencesSection />
 
               <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        Blocked users
-                      </h2>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Remove someone from this list to allow them to contact you again.
-                      </p>
-                    </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Blocked users
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Remove someone from this list to allow them to contact you again.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => refreshBlocked()}
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {blockedError && (
+                  <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
+                    {blockedError}
+                  </p>
+                )}
+
+                {blockedUsers.length === 0 ? (
+                  <p className="mt-4 text-sm text-gray-500">
+                    You have not blocked anyone.
+                  </p>
+                ) : (
+                  <ul className="mt-4 space-y-3">
+                    {blockedUsers.map((entry) => {
+                      const shortId = entry.blocked_user
+                        ? `${entry.blocked_user.slice(0, 8)}...`
+                        : "Unknown user";
+                      return (
+                        <li
+                          key={entry.id}
+                          className="flex items-center justify-between gap-3 rounded-[14px] border border-gray-100 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-sm"
+                        >
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {shortId}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Blocked {new Date(entry.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleUnblockClick(entry)}
+                            disabled={unblockingId === entry.id}
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {unblockingId === entry.id ? "Unblocking..." : "Unblock"}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {blockedNext && (
+                  <div className="mt-4 flex justify-center">
                     <button
-                      onClick={() => refreshBlocked()}
-                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
+                      onClick={loadMoreBlocked}
+                      disabled={loadingMoreBlocked}
+                      className="rounded-lg border border-[var(--color-deep-navy)] px-4 py-2 text-xs font-semibold text-[var(--color-deep-navy)] transition hover:bg-[var(--color-deep-navy)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Refresh
+                      {loadingMoreBlocked ? "Loading..." : "Load more"}
                     </button>
                   </div>
-
-                  {blockedError && (
-                    <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
-                      {blockedError}
-                    </p>
-                  )}
-
-                  {blockedUsers.length === 0 ? (
-                    <p className="mt-4 text-sm text-gray-500">
-                      You have not blocked anyone.
-                    </p>
-                  ) : (
-                    <ul className="mt-4 space-y-3">
-                      {blockedUsers.map((entry) => {
-                        const shortId = entry.blocked_user
-                          ? `${entry.blocked_user.slice(0, 8)}...`
-                          : "Unknown user";
-                        return (
-                          <li
-                            key={entry.id}
-                            className="flex items-center justify-between gap-3 rounded-[14px] border border-gray-100 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-sm"
-                          >
-                            <div>
-                              <p className="text-sm font-semibold text-gray-900">
-                                {shortId}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Blocked {new Date(entry.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => handleUnblockClick(entry)}
-                              disabled={unblockingId === entry.id}
-                              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {unblockingId === entry.id ? "Unblocking..." : "Unblock"}
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-
-                  {blockedNext && (
-                    <div className="mt-4 flex justify-center">
-                      <button
-                        onClick={loadMoreBlocked}
-                        disabled={loadingMoreBlocked}
-                        className="rounded-lg border border-[var(--color-deep-navy)] px-4 py-2 text-xs font-semibold text-[var(--color-deep-navy)] transition hover:bg-[var(--color-deep-navy)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {loadingMoreBlocked ? "Loading..." : "Load more"}
-                      </button>
-                    </div>
-                  )}
+                )}
               </section>
             </div>
           )}
@@ -620,7 +618,7 @@ export default function SettingsPage() {
                 </dd>
               </div>
               <div className="flex items-start gap-3">
-                  <dt className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-rich-red-top)]/10 text-[var(--color-rich-red-top)]">
+                <dt className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-rich-red-top)]/10 text-[var(--color-rich-red-top)]">
                   <svg
                     aria-hidden
                     className="h-4 w-4"
