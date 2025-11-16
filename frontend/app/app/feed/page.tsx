@@ -72,6 +72,9 @@ export default function FeedPage() {
   const [loadingPages, setLoadingPages] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareModalPost, setShareModalPost] = useState<Post | null>(null);
+  const [showFriendPosts, setShowFriendPosts] = useState(true);
+  const [showPagePosts, setShowPagePosts] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
 
   useEffect(() => {
     pendingReactionsRef.current = pendingReactions;
@@ -88,7 +91,7 @@ export default function FeedPage() {
   }, []);
 
   const loadFeed = useCallback(
-    async (url?: string, append = false) => {
+    async (url?: string, append = false, filters?: { showFriendPosts?: boolean; showPagePosts?: boolean; selectedCategory?: string }) => {
       if (!accessToken) return;
       const controller = new AbortController();
       controllerRef.current?.abort();
@@ -98,8 +101,29 @@ export default function FeedPage() {
         else setLoading(true);
         setError(null);
 
-        const data = await (url
-          ? apiGetUrl<PaginatedResponse<FeedPost>>(url, {
+        let finalUrl = url;
+        
+        // If no URL provided, build with filters
+        if (!url) {
+          const params = new URLSearchParams();
+          
+          const showFriend = filters?.showFriendPosts !== undefined ? filters.showFriendPosts : showFriendPosts;
+          const showPage = filters?.showPagePosts !== undefined ? filters.showPagePosts : showPagePosts;
+          const category = filters?.selectedCategory !== undefined ? filters.selectedCategory : selectedCategory;
+          
+          if (!showFriend || !showPage || category) {
+            params.append('show_friend_posts', showFriend.toString());
+            params.append('show_page_posts', showPage.toString());
+            if (category) {
+              params.append('preferred_categories', category);
+            }
+          }
+          
+          finalUrl = `/feed/?${params.toString()}`;
+        }
+
+        const data = await (finalUrl && finalUrl !== '/feed/?'
+          ? apiGetUrl<PaginatedResponse<FeedPost>>(finalUrl, {
               token: accessToken,
               cache: "no-store",
               signal: controller.signal,
@@ -127,7 +151,7 @@ export default function FeedPage() {
         setLoadingMore(false);
       }
     },
-    [accessToken]
+    [accessToken, showFriendPosts, showPagePosts, selectedCategory]
   );
 
   useEffect(() => {
@@ -601,8 +625,11 @@ export default function FeedPage() {
         </header>
 
         <FeedFilters onFiltersChange={(filters) => {
-          // Filters are displayed but actual backend filtering is done via preferences
-          // This component just shows the current user preferences and their category selection UI
+          setShowFriendPosts(filters.showFriendPosts);
+          setShowPagePosts(filters.showPagePosts);
+          setSelectedCategory(filters.selectedCategory);
+          // Reload feed with new filters
+          loadFeed(undefined, false, filters);
         }} />
 
         <div className="flex flex-col gap-6 xl:flex-row">

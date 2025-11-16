@@ -19,6 +19,7 @@ from rest_framework import status
 from django.db.models import Q
 from django.utils import timezone
 from django.conf import settings
+from .filters import PostFilterSet
 from .models import (
     Post,
     Comment,
@@ -1200,35 +1201,14 @@ class NewsFeedView(APIView):
         if excluded_authors:
             qs = qs.exclude(author__id__in=excluded_authors)
 
-        # Apply feed preferences filtering
-        try:
-            prefs = UserFeedPreference.objects.get(user=user)
-
-            # Filter by content type (friend posts vs page posts)
-            # This creates mutually exclusive conditions based on user preference
-            if prefs.show_friend_posts and prefs.show_page_posts:
-                # Show both - no filtering needed for content type
-                pass
-            elif prefs.show_friend_posts and not prefs.show_page_posts:
-                # Show only friend posts (not page posts)
-                qs = qs.filter(page__isnull=True)
-            elif not prefs.show_friend_posts and prefs.show_page_posts:
-                # Show only page posts
-                qs = qs.filter(page__isnull=False)
-            else:
-                # Both false - show nothing (this shouldn't normally happen)
-                qs = qs.none()
-
-            # Filter by page categories (only applies to page posts)
-            if prefs.preferred_categories:
-                category_filter = Q(page__category__in=prefs.preferred_categories)
-                if prefs.show_other_categories:
-                    # Include posts without pages (friend posts are always included)
-                    category_filter |= Q(page__isnull=True)
-                qs = qs.filter(category_filter)
-        except UserFeedPreference.DoesNotExist:
-            # No preferences set, show all posts
-            pass
+        # Apply feed preferences filtering using PostFilterSet
+        # The FilterSet applies filtering based on UserFeedPreference
+        filterset = PostFilterSet(
+            data=request.query_params,
+            queryset=qs,
+            request=request
+        )
+        qs = filterset.qs
 
         # pagination
         paginator = PageNumberPagination()
