@@ -41,7 +41,9 @@ router.register("conversations", ConversationViewSet, basename="conversations")
 router.register("pages", PageViewSet, basename="pages")
 router.register("admin-invites", PageAdminInviteViewSet, basename="admin-invites")
 router.register("page-invites", PageInviteViewSet, basename="page-invites")
-router.register("feed-preferences", UserFeedPreferenceViewSet, basename="feed-preferences")
+router.register(
+    "feed-preferences", UserFeedPreferenceViewSet, basename="feed-preferences"
+)
 router.register(
     "marketplace/categories",
     MarketplaceCategoryViewSet,

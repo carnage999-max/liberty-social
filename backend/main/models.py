@@ -471,20 +471,19 @@ class UserFeedPreference(models.Model):
     # Content type filters
     show_friend_posts = models.BooleanField(default=True)
     show_page_posts = models.BooleanField(default=True)
-    
+
     # Preferred page categories (JSON field storing list of category codes)
     preferred_categories = models.JSONField(
         default=list,
         blank=True,
-        help_text="List of preferred page categories for filtering"
+        help_text="List of preferred page categories for filtering",
     )
-    
+
     # Whether to show posts from categories not in preferred_categories
     show_other_categories = models.BooleanField(
-        default=True,
-        help_text="Show posts from categories not in preferred list"
+        default=True, help_text="Show posts from categories not in preferred list"
     )
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

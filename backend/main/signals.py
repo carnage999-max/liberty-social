@@ -19,16 +19,16 @@ def comment_notification(sender, instance, created, **kwargs):
         return
     try:
         post = instance.post
-        owner = getattr(post, 'author', None)
+        owner = getattr(post, "author", None)
         if owner and owner != instance.author:
             # Store the post as the target so users can navigate to it
             post_content_type = ContentType.objects.get_for_model(Post)
             Notification.objects.create(
                 recipient=owner,
                 actor=instance.author,
-                verb='commented',
+                verb="commented",
                 content_type=post_content_type,
-                object_id=post.id
+                object_id=post.id,
             )
         parent = getattr(instance, "parent", None)
         if parent and parent.author and parent.author not in {instance.author, owner}:
@@ -36,7 +36,7 @@ def comment_notification(sender, instance, created, **kwargs):
             Notification.objects.create(
                 recipient=parent.author,
                 actor=instance.author,
-                verb='comment_replied',
+                verb="comment_replied",
                 content_type=comment_content_type,
                 object_id=instance.id,
             )
@@ -50,7 +50,7 @@ def reaction_notification(sender, instance, created, **kwargs):
         return
     try:
         target = instance.content_object
-        owner = getattr(target, 'author', None)
+        owner = getattr(target, "author", None)
         if owner and owner != instance.user:
             # For reactions, we need to get the post ID
             # If reaction is on a comment, get the post from the comment
@@ -61,17 +61,17 @@ def reaction_notification(sender, instance, created, **kwargs):
                 Notification.objects.create(
                     recipient=owner,
                     actor=instance.user,
-                    verb='reacted',
+                    verb="reacted",
                     content_type=post_content_type,
-                    object_id=post.id
+                    object_id=post.id,
                 )
             elif isinstance(target, Post):
                 Notification.objects.create(
                     recipient=owner,
                     actor=instance.user,
-                    verb='reacted',
+                    verb="reacted",
                     content_type=post_content_type,
-                    object_id=target.id
+                    object_id=target.id,
                 )
     except Exception:
         logger.exception("Failed to create reaction notification", exc_info=True)
@@ -149,9 +149,7 @@ def dispatch_notification(sender, instance, created, **kwargs):
 
             deliver_push_notification.delay(instance.pk)
         except Exception:
-            logger.exception(
-                "Failed to enqueue push notification for %s", instance.pk
-            )
+            logger.exception("Failed to enqueue push notification for %s", instance.pk)
 
 
 @receiver(post_save, sender=User)
@@ -162,17 +160,34 @@ def create_user_feed_preference(sender, instance, created, **kwargs):
             UserFeedPreference.objects.get_or_create(
                 user=instance,
                 defaults={
-                    'show_friend_posts': True,
-                    'show_page_posts': True,
-                    'show_other_categories': True,
+                    "show_friend_posts": True,
+                    "show_page_posts": True,
+                    "show_other_categories": True,
                     # Initialize with all categories enabled
-                    'preferred_categories': [
-                        'business', 'community', 'brand', 'news', 'restaurant',
-                        'entertainment', 'hobbies', 'work', 'associates', 'sports',
-                        'music', 'art', 'tech', 'lifestyle', 'education',
-                        'health', 'travel', 'food', 'fashion', 'games', 'other'
-                    ]
-                }
+                    "preferred_categories": [
+                        "business",
+                        "community",
+                        "brand",
+                        "news",
+                        "restaurant",
+                        "entertainment",
+                        "hobbies",
+                        "work",
+                        "associates",
+                        "sports",
+                        "music",
+                        "art",
+                        "tech",
+                        "lifestyle",
+                        "education",
+                        "health",
+                        "travel",
+                        "food",
+                        "fashion",
+                        "games",
+                        "other",
+                    ],
+                },
             )
         except Exception:
             logger.exception(

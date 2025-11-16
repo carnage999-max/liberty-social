@@ -885,6 +885,7 @@ class MarketplaceListingSerializer(serializers.ModelSerializer):
             return False
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Error checking if listing {obj.id} is saved: {e}")
             return False
@@ -895,6 +896,7 @@ class MarketplaceListingSerializer(serializers.ModelSerializer):
             return ReactionSerializer(reactions, many=True, context=self.context).data
         except Exception as e:
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Error getting reactions for listing {obj.id}: {e}")
             return []
@@ -976,7 +978,14 @@ class MarketplaceOfferSerializer(serializers.ModelSerializer):
             "created_at",
             "expires_at",
         ]
-        read_only_fields = ["id", "buyer", "status", "responded_at", "created_at", "listing"]
+        read_only_fields = [
+            "id",
+            "buyer",
+            "status",
+            "responded_at",
+            "created_at",
+            "listing",
+        ]
 
     def get_listing(self, obj):
         """Return full listing details with seller info."""
@@ -988,6 +997,7 @@ class MarketplaceOfferSerializer(serializers.ModelSerializer):
         except Exception as e:
             # Fallback to basic listing info if serialization fails
             import logging
+
             logger = logging.getLogger(__name__)
             logger.error(f"Error serializing listing in offer: {e}")
             return {
