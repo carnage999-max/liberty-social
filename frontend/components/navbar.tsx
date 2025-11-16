@@ -66,7 +66,7 @@ export default function Navbar() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-    return skipNav ? null : (
+  return skipNav ? null : (
     <nav
       className={[
         "fixed top-0 inset-x-0 z-40 mx-auto max-w-7xl",
@@ -95,17 +95,16 @@ export default function Navbar() {
             <span className="text-xl md:text-2xl font-extrabold gradient-underline">
               Liberty Social
             </span>
-            <span className="waving-flag text-xl mt-0.5">🇺🇸</span>
           </div>
         </Link>
 
         {/* Desktop actions */}
         <div className="hidden md:flex items-center gap-3">
           <Link
-            href="/app"
+            href="/app/marketplace"
             className="btn-primary px-4 py-2 inline-flex items-center justify-center"
           >
-            Communities
+            Marketplace
           </Link>
           {showProfile ? (
             <>
@@ -114,7 +113,7 @@ export default function Navbar() {
                 className="inline-flex items-center gap-3 px-3 py-2 rounded-[12px] bg-white text-(--color-deep-navy) font-medium shadow-sm hover:opacity-90 transition"
                 aria-label="Open profile"
               >
-                  <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-deep-navy)]/10 text-sm font-semibold text-[var(--color-deep-navy)] flex items-center justify-center">
+                <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-deep-navy)]/10 text-sm font-semibold text-[var(--color-deep-navy)] flex items-center justify-center">
                   {avatarSrc ? (
                     <Image
                       src={avatarSrc}
@@ -211,21 +210,21 @@ export default function Navbar() {
           paddingTop: "calc(var(--navbar-height, 80px) + 1rem)",
         }}
       >
-          <div className="mx-4 rounded-xl bg-white/95 backdrop-blur-md shadow-xl p-4 max-h-[calc(100vh-120px)] overflow-y-auto">
-            <Link
-              href="/app"
-              onClick={() => setOpen(false)}
-              className="block w-full text-left px-4 py-3 rounded-lg btn-primary"
-            >
-              Communities
-            </Link>
-            <Link
-              href="/app/reels"
-              onClick={() => setOpen(false)}
-              className="mt-2 block w-full text-left px-4 py-3 rounded-lg btn-primary"
-            >
-              Reels
-            </Link>
+        <div className="mx-4 rounded-xl bg-white/95 backdrop-blur-md shadow-xl p-4 max-h-[calc(100vh-120px)] overflow-y-auto">
+          <Link
+            href="/app/marketplace"
+            onClick={() => setOpen(false)}
+            className="block w-full text-left px-4 py-3 rounded-lg btn-primary"
+          >
+            Marketplace
+          </Link>
+          <Link
+            href="/app/reels"
+            onClick={() => setOpen(false)}
+            className="mt-2 block w-full text-left px-4 py-3 rounded-lg btn-primary"
+          >
+            Reels
+          </Link>
           {showProfile ? (
             <>
               <Link
@@ -233,7 +232,7 @@ export default function Navbar() {
                 onClick={() => setOpen(false)}
                 className="mt-2 flex items-center gap-3 px-4 py-3 rounded-lg text-[var(--color-deep-navy)] font-medium hover:bg-[var(--metallic-silver)] transition"
               >
-                    <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-deep-navy)]/10 text-sm font-semibold text-[var(--color-deep-navy)] flex items-center justify-center">
+                <span className="relative h-9 w-9 overflow-hidden rounded-full bg-[var(--color-deep-navy)]/10 text-sm font-semibold text-[var(--color-deep-navy)] flex items-center justify-center">
                   {avatarSrc ? (
                     <Image
                       src={avatarSrc}
