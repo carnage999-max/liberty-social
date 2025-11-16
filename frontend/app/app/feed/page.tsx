@@ -122,13 +122,14 @@ export default function FeedPage() {
           finalUrl = `/feed/?${params.toString()}`;
         }
 
-        const data = await (finalUrl && finalUrl !== '/feed/?'
+        // Use apiGetUrl for pagination URLs (which contain full domain), apiGet for relative paths
+        const data = await (finalUrl && finalUrl.startsWith('http')
           ? apiGetUrl<PaginatedResponse<FeedPost>>(finalUrl, {
               token: accessToken,
               cache: "no-store",
               signal: controller.signal,
             })
-          : apiGet<PaginatedResponse<FeedPost>>("/feed/", {
+          : apiGet<PaginatedResponse<FeedPost>>(finalUrl || "/feed/", {
               token: accessToken,
               cache: "no-store",
               signal: controller.signal,
