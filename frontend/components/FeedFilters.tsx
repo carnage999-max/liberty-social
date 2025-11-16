@@ -60,7 +60,7 @@ export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
             onClick={() => handleFilterChange({ showFriendPosts: !showFriendPosts })}
             className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition border ${
               showFriendPosts
-                ? "bg-(--color-deeper-navy) text-(--color-silver-light) border-2 border-(--color-gold) hover:bg-(--color-deep-navy)"
+                ? "bg-[var(--color-deep-navy)] text-white border-2 border-[var(--color-gold)] hover:bg-opacity-90"
                 : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
             title="Toggle friend posts"
@@ -73,7 +73,7 @@ export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
             onClick={() => handleFilterChange({ showPagePosts: !showPagePosts })}
             className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition border ${
               showPagePosts
-                ? "bg-(--color-deeper-navy) text-(--color-silver-light) border-2 border-(--color-gold) hover:bg-(--color-deep-navy)"
+                ? "bg-[var(--color-deep-navy)] text-white border-2 border-[var(--color-gold)] hover:bg-opacity-90"
                 : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
             }`}
             title="Toggle page posts"
@@ -127,7 +127,7 @@ export default function FeedFilters({ onFiltersChange }: FeedFiltersProps) {
                     }}
                     className={`block w-full px-4 py-2 text-left text-sm transition ${
                       selectedCategory === code
-                        ? "bg-(--color-deeper-navy) text-(--color-silver-light)"
+                        ? "bg-[var(--color-deep-navy)] text-white"
                         : "text-gray-900 hover:bg-gray-100"
                     }`}
                   >
