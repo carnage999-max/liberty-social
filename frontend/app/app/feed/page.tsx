@@ -13,36 +13,42 @@ import FeedFilters from "@/components/FeedFilters";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactionType } from "@/lib/types";
-
-const REACTION_EMOJIS: Record<ReactionType, string> = {
-  like: "👍",
-  love: "❤️",
-  haha: "😂",
-  sad: "😢",
-  angry: "😠",
-};
 
 type FeedPost = Post;
 
+// Map old text reaction types to emojis for backward compatibility
+const REACTION_TYPE_TO_EMOJI: Record<string, string> = {
+  "like": "👍",
+  "love": "❤️",
+  "haha": "😂",
+  "sad": "😢",
+  "angry": "😠",
+};
+
+// Convert reaction type to emoji (handles both old text types and new emoji types)
+function getReactionEmoji(reactionType: string): string {
+  // If it's already an emoji (not in the mapping), return as-is
+  if (REACTION_TYPE_TO_EMOJI[reactionType]) {
+    return REACTION_TYPE_TO_EMOJI[reactionType];
+  }
+  // Otherwise it's already an emoji, return it
+  return reactionType;
+}
+
 type ReactionSummary = {
   total: number;
-  byType: Record<Reaction["reaction_type"], number>;
+  byType: Record<string, number>; // Now supports any emoji
 };
 
 function summariseReactions(reactions: Reaction[]): ReactionSummary {
   const summary: ReactionSummary = {
     total: reactions.length,
-    byType: {
-      like: 0,
-      love: 0,
-      haha: 0,
-      sad: 0,
-      angry: 0,
-    },
+    byType: {},
   };
   for (const reaction of reactions) {
-    summary.byType[reaction.reaction_type] += 1;
+    // Convert old text types to emojis, keep new emoji types as-is
+    const emoji = getReactionEmoji(reaction.reaction_type);
+    summary.byType[emoji] = (summary.byType[emoji] || 0) + 1;
   }
   return summary;
 }
@@ -290,7 +296,7 @@ export default function FeedPage() {
   }, [gallery]);
 
   const handleToggleReaction = useCallback(
-    async (postId: number, reactionType: ReactionType) => {
+    async (postId: number, emoji: string) => {
       if (!accessToken || !user) {
         toast.show("Sign in to react to posts.", "error");
         return;
@@ -303,8 +309,8 @@ export default function FeedPage() {
         (reaction) => reaction.user?.id === user.id
       );
 
-      // If clicking the same reaction type, remove it
-      if (existing && existing.reaction_type === reactionType) {
+      // If clicking the same emoji, remove it
+      if (existing && existing.reaction_type === emoji) {
         updatePendingReaction(postId, true);
         try {
           await apiDelete(`/reactions/${existing.id}/`, {
@@ -348,7 +354,7 @@ export default function FeedPage() {
         }
         const created = (await apiPost(
           "/reactions/",
-          { post: postId, reaction_type: reactionType },
+          { post: postId, reaction_type: emoji },
           {
             token: accessToken,
             cache: "no-store",
@@ -592,7 +598,7 @@ export default function FeedPage() {
                     ].join(" ")}
                   >
                     {currentUserReaction ? (
-                      <span className="text-base">{REACTION_EMOJIS[currentUserReaction.reaction_type]}</span>
+                      <span className="text-base">{getReactionEmoji(currentUserReaction.reaction_type)}</span>
                     ) : (
                       <svg
                         width="18"

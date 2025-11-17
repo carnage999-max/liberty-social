@@ -15,6 +15,7 @@ from .views import (
     PageAdminInviteViewSet,
     PageInviteViewSet,
     UserFeedPreferenceViewSet,
+    UserReactionPreferenceViewSet,
     FirebaseConfigView,
     RedisHealthView,
     WebSocketDiagnosticView,
@@ -43,6 +44,9 @@ router.register("admin-invites", PageAdminInviteViewSet, basename="admin-invites
 router.register("page-invites", PageInviteViewSet, basename="page-invites")
 router.register(
     "feed-preferences", UserFeedPreferenceViewSet, basename="feed-preferences"
+)
+router.register(
+    "reaction-preferences", UserReactionPreferenceViewSet, basename="reaction-preferences"
 )
 router.register(
     "marketplace/categories",

@@ -22,6 +22,7 @@ from .models import (
     PageFollower,
     PageInvite,
     UserFeedPreference,
+    UserReactionPreference,
 )
 from users.serializers import UserSerializer
 
@@ -93,6 +94,33 @@ class ReactionSerializer(serializers.ModelSerializer):
             reaction_type=validated_data.get("reaction_type", "like"),
         )
         return reaction
+
+
+class UserReactionPreferenceSerializer(serializers.ModelSerializer):
+    """Serializer for user's emoji reaction preferences"""
+    
+    class Meta:
+        model = UserReactionPreference
+        fields = [
+            "id",
+            "user",
+            "favorite_emojis",
+            "recent_emojis",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "user", "created_at", "updated_at"]
+
+    def update(self, instance, validated_data):
+        """Update favorite or recent emojis"""
+        instance.favorite_emojis = validated_data.get(
+            "favorite_emojis", instance.favorite_emojis
+        )
+        instance.recent_emojis = validated_data.get(
+            "recent_emojis", instance.recent_emojis
+        )
+        instance.save()
+        return instance
 
 
 class PageSummarySerializer(serializers.ModelSerializer):
