@@ -11,7 +11,7 @@ from django.db.models import Count
 from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
 from datetime import timedelta
-from .models import BlockedUsers, DismissedSuggestion, FriendRequest, Friends, User, UserSettings
+from .models import BlockedUsers, DismissedSuggestion, FriendRequest, Friends, User, UserSettings, FriendshipHistory
 from .serializers import (
     BlockedUsersSerializer,
     ChangePasswordSerializer,
@@ -21,6 +21,7 @@ from .serializers import (
     RegisterUserSerializer,
     UserSerializer,
     UserSettingsSerializer,
+    FriendshipHistorySerializer,
 )
 from .emails import send_welcome_email, send_password_changed_email
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -391,6 +392,22 @@ class FriendsViewset(ModelViewSet):
         with transaction.atomic():
             Friends.objects.filter(user=request.user, friend=friend).delete()
             Friends.objects.filter(user=friend, friend=request.user).delete()
+            
+            # Track the removal for the current user
+            FriendshipHistory.objects.create(
+                user=request.user,
+                friend=friend,
+                action="removed",
+                removal_reason="unfriended_by_user"
+            )
+            
+            # Track the removal for the friend (they lost us as a friend)
+            FriendshipHistory.objects.create(
+                user=friend,
+                friend=request.user,
+                action="removed",
+                removal_reason="unfriended_by_friend"
+            )
         return Response({"detail": "Friend removed."}, status=status.HTTP_200_OK)
 
     @action(
@@ -530,6 +547,19 @@ class FriendRequestViewset(ModelViewSet):
             Friends.objects.get_or_create(
                 user=friend_request.to_user, friend=friend_request.from_user
             )
+            
+            # Track the addition for both users
+            FriendshipHistory.objects.get_or_create(
+                user=friend_request.from_user,
+                friend=friend_request.to_user,
+                action="added"
+            )
+            FriendshipHistory.objects.get_or_create(
+                user=friend_request.to_user,
+                friend=friend_request.from_user,
+                action="added"
+            )
+            
             friend_request.status = "accepted"
             friend_request.save()
 
@@ -753,3 +783,45 @@ class UserMetricsView(APIView):
                 "signups_per_month": signups_per_month,
             }
         )
+
+
+class FriendshipHistoryViewSet(ModelViewSet):
+    """ViewSet for viewing friendship history (added/removed friends)"""
+
+    serializer_class = FriendshipHistorySerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get"]
+
+    def get_queryset(self):
+        """Get friendship history for the current user"""
+        return FriendshipHistory.objects.filter(user=self.request.user).select_related("friend")
+
+    @action(detail=False, methods=["get"])
+    def new_friends(self, request):
+        """Get recently added friends (last 30 days)"""
+        from datetime import timedelta
+        from django.utils import timezone
+
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        invites = FriendshipHistory.objects.filter(
+            user=request.user,
+            action="added",
+            created_at__gte=thirty_days_ago,
+        ).select_related("friend")
+        serializer = self.get_serializer(invites, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"])
+    def former_friends(self, request):
+        """Get recently removed friends (unfriended or deleted by them)"""
+        from datetime import timedelta
+        from django.utils import timezone
+
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        removals = FriendshipHistory.objects.filter(
+            user=request.user,
+            action="removed",
+            created_at__gte=thirty_days_ago,
+        ).select_related("friend")
+        serializer = self.get_serializer(removals, many=True)
+        return Response(serializer.data)

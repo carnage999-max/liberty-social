@@ -121,6 +121,20 @@ export interface BlockedUser {
   created_at: string;
 }
 
+export type FriendshipAction = "added" | "removed";
+export type RemovalReason = "unfriended_by_user" | "unfriended_by_friend" | "both_mutual";
+
+export interface FriendshipHistory {
+  id: number;
+  user: string; // UUID
+  friend: User;
+  action: FriendshipAction;
+  action_display: string;
+  removal_reason?: RemovalReason | null;
+  removal_reason_display?: string | null;
+  created_at: string;
+}
+
 // ----------------------
 // POSTS, COMMENTS, REACTIONS
 // ----------------------

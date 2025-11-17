@@ -117,8 +117,8 @@ export default function InvitesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Page Invites</h1>
-        <p className="text-gray-600">Invites to follow pages from your friends</p>
+        <h1 className="text-3xl font-bold text-(--color-gold)">Page Invites</h1>
+        <p className="text-gray-300">Invites to follow pages from your friends</p>
       </div>
 
       {allInvites.length === 0 && sentInvites.length === 0 ? (

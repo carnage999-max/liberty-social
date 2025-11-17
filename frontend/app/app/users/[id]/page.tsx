@@ -607,16 +607,29 @@ export default function UserProfilePage() {
                     <div className="flex items-center gap-2">
                       {renderPrimaryActions()}
                       {isSelf && (
-                        <button
-                          onClick={() => setShareModalOpen(true)}
-                          className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100"
-                          aria-label="Share profile"
-                        >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M12 2v10M7 7l5-5 5 5" />
-                          </svg>
-                          Share
-                        </button>
+                        <>
+                          <Link
+                            href="/app/friends/changes"
+                            className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100"
+                            aria-label="View friend changes"
+                            title="See new and former friends"
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm6 6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                            </svg>
+                            Friend Changes
+                          </Link>
+                          <button
+                            onClick={() => setShareModalOpen(true)}
+                            className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100"
+                            aria-label="Share profile"
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M12 2v10M7 7l5-5 5 5" />
+                            </svg>
+                            Share
+                          </button>
+                        </>
                       )}
                       {/* Desktop: Show menu in actions area */}
                       {!isSelf && overview && (

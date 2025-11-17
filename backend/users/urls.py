@@ -9,6 +9,7 @@ from .views import (
     DismissedSuggestionViewset,
     FriendRequestViewset,
     FriendsViewset,
+    FriendshipHistoryViewSet,
     LoginUserview,
     LogoutView,
     ProfilePictureUploadView,
@@ -27,6 +28,7 @@ router.register("friends", FriendsViewset, basename="friends")
 router.register("friend-requests", FriendRequestViewset, basename="friend-requests")
 router.register("blocks", BlockedUsersViewset, basename="blocks")
 router.register("dismissed-suggestions", DismissedSuggestionViewset, basename="dismissed-suggestions")
+router.register("friendship-history", FriendshipHistoryViewSet, basename="friendship-history")
 
 urlpatterns = [
     path("", include(router.urls)),
