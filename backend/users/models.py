@@ -129,3 +129,41 @@ class DismissedSuggestion(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} dismissed {self.dismissed_user}"
+
+
+class FriendshipHistory(models.Model):
+    """Track additions and removals of friends to show friend changes history"""
+    ACTION_CHOICES = (
+        ("added", "Added"),
+        ("removed", "Removed"),
+    )
+    
+    REMOVAL_REASON_CHOICES = (
+        ("unfriended_by_user", "You unfriended them"),
+        ("unfriended_by_friend", "They unfriended you"),
+        ("both_mutual", "Mutual removal"),
+    )
+
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="friendship_history_user")
+    friend = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="friendship_history_friend")
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)  # "added" or "removed"
+    removal_reason = models.CharField(
+        max_length=30,
+        choices=REMOVAL_REASON_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Only filled when action is 'removed'"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["user", "action"]),
+        ]
+        verbose_name_plural = "Friendship Histories"
+
+    def __str__(self) -> str:
+        return f"{self.user} {self.action} {self.friend} ({self.get_action_display()})"

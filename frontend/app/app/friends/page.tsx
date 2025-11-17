@@ -101,11 +101,19 @@ export default function FriendsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="mb-2">
-        <h1 className="text-2xl font-bold text-gray-300">Friends</h1>
-        <p className="text-sm text-gray-500">
-          {count === 0 ? "No friends yet." : `${count} connection${count === 1 ? "" : "s"}`}
-        </p>
+      <header className="mb-2 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-300">Friends</h1>
+          <p className="text-sm text-gray-500">
+            {count === 0 ? "No friends yet." : `${count} connection${count === 1 ? "" : "s"}`}
+          </p>
+        </div>
+        <Link
+          href="/app/friends/changes"
+          className="rounded-lg border border-(--color-deep-navy) px-4 py-2 text-sm font-semibold text-(--color-deep-navy) transition hover:bg-(--color-deep-navy) hover:text-white"
+        >
+          Friend Changes
+        </Link>
       </header>
 
       {loading ? (

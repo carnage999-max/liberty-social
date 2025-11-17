@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import BlockedUsers, User, UserSettings, FriendRequest, Friends
+from .models import BlockedUsers, User, UserSettings, FriendRequest, Friends, FriendshipHistory
 from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 
@@ -212,3 +212,30 @@ class BlockedUsersSerializer(serializers.ModelSerializer):
         FriendRequest.objects.filter(from_user=request_user, to_user=blocked).delete()
         FriendRequest.objects.filter(from_user=blocked, to_user=request_user).delete()
         return super().create(validated_data)
+
+
+class FriendshipHistorySerializer(serializers.ModelSerializer):
+    friend = UserSerializer(read_only=True)
+    action_display = serializers.CharField(source="get_action_display", read_only=True)
+    removal_reason_display = serializers.CharField(source="get_removal_reason_display", read_only=True)
+
+    class Meta:
+        model = FriendshipHistory
+        fields = [
+            "id",
+            "friend",
+            "action",
+            "action_display",
+            "removal_reason",
+            "removal_reason_display",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "friend",
+            "action",
+            "action_display",
+            "removal_reason",
+            "removal_reason_display",
+            "created_at",
+        ]
