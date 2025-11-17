@@ -25,7 +25,7 @@ export function usePageInvites() {
     refresh,
   } = usePaginatedResource<PageInvite>("/page-invites/", {
     enabled: !!accessToken,
-    query: { page_size: 1 }, // Only need to know if there are pending invites
+    query: { page_size: 1, status: "pending" }, // Only fetch pending invites for badge count
   });
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);

@@ -713,9 +713,16 @@ class PageInviteViewSet(ModelViewSet):
 
     def get_queryset(self):
         """Get invites for the current user (received invites by default)"""
-        return PageInvite.objects.filter(recipient=self.request.user).select_related(
-            "page", "sender", "recipient"
-        )
+        queryset = PageInvite.objects.filter(
+            recipient=self.request.user
+        ).select_related("page", "sender", "recipient")
+
+        # Filter by status if provided in query params
+        status_filter = self.request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        return queryset
 
     @action(detail=False, methods=["get"])
     def sent(self, request):

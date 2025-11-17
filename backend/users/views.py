@@ -11,7 +11,15 @@ from django.db.models import Count
 from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
 from datetime import timedelta
-from .models import BlockedUsers, DismissedSuggestion, FriendRequest, Friends, User, UserSettings, FriendshipHistory
+from .models import (
+    BlockedUsers,
+    DismissedSuggestion,
+    FriendRequest,
+    Friends,
+    User,
+    UserSettings,
+    FriendshipHistory,
+)
 from .serializers import (
     BlockedUsersSerializer,
     ChangePasswordSerializer,
@@ -392,21 +400,21 @@ class FriendsViewset(ModelViewSet):
         with transaction.atomic():
             Friends.objects.filter(user=request.user, friend=friend).delete()
             Friends.objects.filter(user=friend, friend=request.user).delete()
-            
+
             # Track the removal for the current user
             FriendshipHistory.objects.create(
                 user=request.user,
                 friend=friend,
                 action="removed",
-                removal_reason="unfriended_by_user"
+                removal_reason="unfriended_by_user",
             )
-            
+
             # Track the removal for the friend (they lost us as a friend)
             FriendshipHistory.objects.create(
                 user=friend,
                 friend=request.user,
                 action="removed",
-                removal_reason="unfriended_by_friend"
+                removal_reason="unfriended_by_friend",
             )
         return Response({"detail": "Friend removed."}, status=status.HTTP_200_OK)
 
@@ -547,19 +555,19 @@ class FriendRequestViewset(ModelViewSet):
             Friends.objects.get_or_create(
                 user=friend_request.to_user, friend=friend_request.from_user
             )
-            
+
             # Track the addition for both users
             FriendshipHistory.objects.get_or_create(
                 user=friend_request.from_user,
                 friend=friend_request.to_user,
-                action="added"
+                action="added",
             )
             FriendshipHistory.objects.get_or_create(
                 user=friend_request.to_user,
                 friend=friend_request.from_user,
-                action="added"
+                action="added",
             )
-            
+
             friend_request.status = "accepted"
             friend_request.save()
 
@@ -597,66 +605,58 @@ class DismissedSuggestionViewset(ModelViewSet):
     def create(self, request, *args, **kwargs):
         user = request.user
         dismissed_user_id = request.data.get("dismissed_user_id")
-        
+
         if not dismissed_user_id:
             return Response(
                 {"detail": "dismissed_user_id is required."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         try:
             dismissed_user = User.objects.get(id=dismissed_user_id)
         except User.DoesNotExist:
             return Response(
-                {"detail": "User not found."},
-                status=status.HTTP_404_NOT_FOUND
+                {"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND
             )
-        
+
         if dismissed_user.id == user.id:
             return Response(
                 {"detail": "Cannot dismiss yourself."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         dismissed_suggestion, created = DismissedSuggestion.objects.get_or_create(
-            user=user,
-            dismissed_user=dismissed_user
+            user=user, dismissed_user=dismissed_user
         )
-        
+
         if created:
             return Response(
-                {"detail": "Suggestion dismissed."},
-                status=status.HTTP_201_CREATED
+                {"detail": "Suggestion dismissed."}, status=status.HTTP_201_CREATED
             )
         else:
             return Response(
-                {"detail": "Suggestion already dismissed."},
-                status=status.HTTP_200_OK
+                {"detail": "Suggestion already dismissed."}, status=status.HTTP_200_OK
             )
 
     def destroy(self, request, *args, **kwargs):
         dismissed_user_id = request.data.get("dismissed_user_id") or kwargs.get("pk")
-        
+
         if not dismissed_user_id:
             return Response(
                 {"detail": "dismissed_user_id is required."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         try:
             dismissed_suggestion = DismissedSuggestion.objects.get(
-                user=request.user,
-                dismissed_user_id=dismissed_user_id
+                user=request.user, dismissed_user_id=dismissed_user_id
             )
             dismissed_suggestion.delete()
-            return Response(
-                {"detail": "Dismissal removed."},
-                status=status.HTTP_200_OK
-            )
+            return Response({"detail": "Dismissal removed."}, status=status.HTTP_200_OK)
         except DismissedSuggestion.DoesNotExist:
             return Response(
                 {"detail": "Dismissed suggestion not found."},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
 
 
@@ -794,7 +794,9 @@ class FriendshipHistoryViewSet(ModelViewSet):
 
     def get_queryset(self):
         """Get friendship history for the current user"""
-        return FriendshipHistory.objects.filter(user=self.request.user).select_related("friend")
+        return FriendshipHistory.objects.filter(user=self.request.user).select_related(
+            "friend"
+        )
 
     @action(detail=False, methods=["get"])
     def new_friends(self, request):

@@ -38,18 +38,18 @@ export default function FriendChangesPage() {
         setError(null);
         
         const [newFriendsData, formerFriendsData] = await Promise.all([
-          apiGet<{ results: FriendshipChange[] }>("/friendship-history/new_friends/", {
+          apiGet<FriendshipChange[] | { results: FriendshipChange[] }>("/auth/friendship-history/new_friends/", {
             token: accessToken,
             cache: "no-store",
           }),
-          apiGet<{ results: FriendshipChange[] }>("/friendship-history/former_friends/", {
+          apiGet<FriendshipChange[] | { results: FriendshipChange[] }>("/auth/friendship-history/former_friends/", {
             token: accessToken,
             cache: "no-store",
           }),
         ]);
         
-        setNewFriends(newFriendsData.results || []);
-        setFormerFriends(formerFriendsData.results || []);
+        setNewFriends(Array.isArray(newFriendsData) ? newFriendsData : (newFriendsData as { results: FriendshipChange[] })?.results || []);
+        setFormerFriends(Array.isArray(formerFriendsData) ? formerFriendsData : (formerFriendsData as { results: FriendshipChange[] })?.results || []);
       } catch (err) {
         console.error(err);
         setError("Unable to load friend changes. Please try again.");
@@ -190,7 +190,7 @@ export default function FriendChangesPage() {
             <section className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-6 rounded-full bg-green-500"></div>
-                <h2 className="text-lg font-semibold text-gray-900">
+                <h2 className="text-lg font-semibold text-(--color-silver-mid)">
                   New Friends ({newFriends.length})
                 </h2>
               </div>
@@ -208,7 +208,7 @@ export default function FriendChangesPage() {
             <section className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-6 rounded-full bg-red-500"></div>
-                <h2 className="text-lg font-semibold text-gray-900">
+                <h2 className="text-lg font-semibold text-(--color-silver-mid)">
                   Former Friends ({formerFriends.length})
                 </h2>
               </div>
