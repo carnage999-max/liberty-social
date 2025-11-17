@@ -34,14 +34,14 @@ def get_redis_url_with_ssl():
         # Check if ssl_cert_reqs is already in the query string
         query_params = parse_qsl(parsed.query)
         has_ssl_cert_reqs = any(key == "ssl_cert_reqs" for key, _ in query_params)
-        
+
         if not has_ssl_cert_reqs:
             # Add ssl_cert_reqs=none for Upstash (CERT_NONE)
             # For production with proper certificates, you might want to use 'required'
             # but Upstash works fine with 'none' for certificate validation
             separator = "&" if parsed.query else "?"
             redis_url = f"{redis_url}{separator}ssl_cert_reqs=none"
-    
+
     return redis_url
 
 
@@ -299,7 +299,9 @@ else:
         query_params = parse_qsl(parsed.query)
         if not any(key == "ssl_cert_reqs" for key, _ in query_params):
             separator = "&" if parsed.query else "?"
-            CELERY_RESULT_BACKEND = f"{CELERY_RESULT_BACKEND}{separator}ssl_cert_reqs=none"
+            CELERY_RESULT_BACKEND = (
+                f"{CELERY_RESULT_BACKEND}{separator}ssl_cert_reqs=none"
+            )
 
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"

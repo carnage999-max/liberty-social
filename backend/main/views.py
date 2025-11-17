@@ -296,8 +296,10 @@ class PageViewSet(ModelViewSet):
             role="owner",
             added_by=self.request.user,
         )
-        # Auto-follow page for owner
-        page.followers.add(self.request.user)
+        # Auto-follow page for owner using PageFollower model
+        from main.models import PageFollower
+
+        PageFollower.objects.create(page=page, user=self.request.user)
 
     def perform_update(self, serializer):
         page = serializer.instance
@@ -710,10 +712,19 @@ class PageInviteViewSet(ModelViewSet):
     http_method_names = ["get", "post"]
 
     def get_queryset(self):
-        """Get invites for the current user"""
+        """Get invites for the current user (received invites by default)"""
         return PageInvite.objects.filter(recipient=self.request.user).select_related(
             "page", "sender", "recipient"
         )
+
+    @action(detail=False, methods=["get"])
+    def sent(self, request):
+        """Get invites sent by the current user"""
+        invites = PageInvite.objects.filter(sender=request.user).select_related(
+            "page", "sender", "recipient"
+        )
+        serializer = self.get_serializer(invites, many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
     def accept(self, request, pk=None):
@@ -1167,11 +1178,11 @@ class NewsFeedView(APIView):
         user = request.user
         print(f"[DEBUG] NewsFeedView.get() - user: {user.username}")
         print(f"[DEBUG] Query params: {request.query_params}")
-        
+
         # get friend ids
-        friend_ids = list(Friends.objects.filter(user=user).values_list(
-            "friend_id", flat=True
-        ))
+        friend_ids = list(
+            Friends.objects.filter(user=user).values_list("friend_id", flat=True)
+        )
         print(f"[DEBUG] Friend IDs: {friend_ids}")
 
         # build queryset: public posts OR user's own posts OR friends' posts with friends visibility
