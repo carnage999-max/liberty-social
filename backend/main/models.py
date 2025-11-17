@@ -113,6 +113,7 @@ from django.contrib.contenttypes.models import ContentType
 
 
 class Reaction(models.Model):
+    # Legacy TYPE_CHOICES kept for compatibility (not enforced in model anymore)
     TYPE_CHOICES = (
         ("like", "like"),
         ("love", "love"),
@@ -129,13 +130,18 @@ class Reaction(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reactions"
     )
+    # Changed to support any emoji (max 10 chars to support multi-codepoint emojis)
     reaction_type = models.CharField(
-        max_length=10, choices=TYPE_CHOICES, default="like"
+        max_length=10, default="👍"
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = (("content_type", "object_id", "user"),)
+        indexes = [
+            models.Index(fields=["content_type", "object_id"]),
+            models.Index(fields=["user", "-created_at"]),
+        ]
 
     def __str__(self):
         return f"{self.reaction_type} by {self.user} on {self.content_type} {self.object_id}"
@@ -492,6 +498,68 @@ class UserFeedPreference(models.Model):
 
     def __str__(self):
         return f"Feed preferences for {self.user}"
+
+
+class UserReactionPreference(models.Model):
+    """Track user's favorite and recently used emojis for reactions"""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="reaction_preference",
+    )
+    
+    # Favorite emojis (manually marked as favorites by user) - up to 10 emojis
+    favorite_emojis = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of favorite emoji strings (up to 10)",
+    )
+    
+    # Recently used emojis (automatically tracked) - up to 10 emojis in order of recency
+    recent_emojis = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of recently used emoji strings (up to 10, ordered by recency)",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "User Reaction Preferences"
+
+    def add_recent_emoji(self, emoji: str):
+        """Add an emoji to recent list, keeping only the 10 most recent"""
+        recents = list(self.recent_emojis) if self.recent_emojis else []
+        
+        # Remove if already in list (so we can add it to the front)
+        if emoji in recents:
+            recents.remove(emoji)
+        
+        # Add to front
+        recents.insert(0, emoji)
+        
+        # Keep only 10 most recent
+        self.recent_emojis = recents[:10]
+        self.save(update_fields=["recent_emojis", "updated_at"])
+
+    def toggle_favorite_emoji(self, emoji: str):
+        """Add or remove emoji from favorites"""
+        favorites = list(self.favorite_emojis) if self.favorite_emojis else []
+        
+        if emoji in favorites:
+            favorites.remove(emoji)
+        else:
+            # Only allow up to 10 favorites
+            if len(favorites) < 10:
+                favorites.append(emoji)
+        
+        self.favorite_emojis = favorites
+        self.save(update_fields=["favorite_emojis", "updated_at"])
+
+    def __str__(self):
+        return f"Reaction preferences for {self.user}"
 
 
 # Import marketplace models

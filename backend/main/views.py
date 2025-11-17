@@ -36,6 +36,7 @@ from .models import (
     PageFollower,
     PageInvite,
     UserFeedPreference,
+    UserReactionPreference,
 )
 from .realtime import conversation_group_name
 from .serializers import (
@@ -53,6 +54,7 @@ from .serializers import (
     PageFollowerSerializer,
     PageInviteSerializer,
     UserFeedPreferenceSerializer,
+    UserReactionPreferenceSerializer,
 )
 from users.models import Friends
 from users.emails import send_page_admin_invite_email
@@ -1270,4 +1272,69 @@ class UserFeedPreferenceViewSet(ModelViewSet):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        return Response(serializer.data)
+
+
+class UserReactionPreferenceViewSet(ModelViewSet):
+    """ViewSet for managing user emoji reaction preferences"""
+    serializer_class = UserReactionPreferenceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Users can only view/edit their own preferences
+        return UserReactionPreference.objects.filter(user=self.request.user)
+
+    @action(detail=False, methods=["get", "put", "patch"])
+    def me(self, request):
+        """Get or create user's reaction preferences"""
+        preferences, created = UserReactionPreference.objects.get_or_create(
+            user=request.user
+        )
+
+        if request.method == "GET":
+            serializer = self.get_serializer(preferences)
+            return Response(serializer.data)
+
+        # PUT/PATCH
+        serializer = self.get_serializer(
+            preferences, data=request.data, partial=(request.method == "PATCH")
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["post"])
+    def add_recent(self, request):
+        """Add an emoji to recent list"""
+        emoji = request.data.get("emoji")
+        if not emoji:
+            return Response(
+                {"detail": "emoji field is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        preferences, _ = UserReactionPreference.objects.get_or_create(
+            user=request.user
+        )
+        preferences.add_recent_emoji(emoji)
+        
+        serializer = self.get_serializer(preferences)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["post"])
+    def toggle_favorite(self, request):
+        """Toggle an emoji as favorite"""
+        emoji = request.data.get("emoji")
+        if not emoji:
+            return Response(
+                {"detail": "emoji field is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        
+        preferences, _ = UserReactionPreference.objects.get_or_create(
+            user=request.user
+        )
+        preferences.toggle_favorite_emoji(emoji)
+        
+        serializer = self.get_serializer(preferences)
         return Response(serializer.data)

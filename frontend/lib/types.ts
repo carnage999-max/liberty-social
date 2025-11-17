@@ -211,7 +211,7 @@ export interface PageAdminInvite {
 
 export type ReactionSummary = {
   total: number;
-  by_type: Record<ReactionType, number>;
+  by_type: Record<string, number>; // Now supports any emoji
 };
 
 export interface Comment {
@@ -236,8 +236,17 @@ export interface Reaction {
   post?: number;
   comment?: number;
   user: User;
-  reaction_type: ReactionType;
+  reaction_type: string; // Now supports any emoji
   created_at: string;
+}
+
+export interface UserReactionPreference {
+  id: number;
+  user: string; // UUID
+  favorite_emojis: string[];
+  recent_emojis: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 // ----------------------

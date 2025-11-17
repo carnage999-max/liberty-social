@@ -16,31 +16,43 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactionType } from "@/lib/types";
 
-const REACTION_EMOJIS: Record<ReactionType, string> = {
-  like: "👍",
-  love: "❤️",
-  haha: "😂",
-  sad: "😢",
-  angry: "😠",
+// Map old text reaction types to emojis for backward compatibility
+const REACTION_TYPE_TO_EMOJI: Record<string, string> = {
+  "like": "👍",
+  "love": "❤️",
+  "haha": "😂",
+  "sad": "😢",
+  "angry": "😠",
 };
+
+// Convert reaction type to emoji (handles both old text types and new emoji types)
+function getReactionEmoji(reactionType: string): string {
+  // If it's in the mapping, return the emoji
+  if (REACTION_TYPE_TO_EMOJI[reactionType]) {
+    return REACTION_TYPE_TO_EMOJI[reactionType];
+  }
+  // Otherwise it's already an emoji, return it
+  return reactionType;
+}
 
 type ReactionBreakdown = {
   total: number;
-  byType: Record<Reaction["reaction_type"], number>;
+  byType: Record<string, number>;
 };
 
 function summariseReactions(reactions: Reaction[]): ReactionBreakdown {
   return reactions.reduce<ReactionBreakdown>(
     (acc, reaction) => {
       acc.total += 1;
-      acc.byType[reaction.reaction_type] += 1;
+      // Convert old text types to emojis, keep new emoji types as-is
+      const type = getReactionEmoji(reaction.reaction_type);
+      acc.byType[type] = (acc.byType[type] || 0) + 1;
       return acc;
     },
     {
       total: 0,
-      byType: { like: 0, love: 0, haha: 0, sad: 0, angry: 0 },
+      byType: {},
     }
   );
 }
@@ -339,7 +351,7 @@ export default function PostDetailPage() {
   }, []);
 
   const handleToggleReaction = useCallback(
-    async (reactionType: ReactionType) => {
+    async (reactionType: string) => {
       if (!post || !accessToken || !user) {
         toast.show("Sign in to react to this post.", "error");
         return;
@@ -686,7 +698,7 @@ export default function PostDetailPage() {
   );
 
   const handleToggleCommentReaction = useCallback(
-    async (comment: Comment, reactionType: ReactionType) => {
+    async (comment: Comment, reactionType: string) => {
       if (!accessToken) {
         toast.show("Sign in to react to comments.", "error");
         return;
@@ -1137,7 +1149,7 @@ export default function PostDetailPage() {
                         ].join(" ")}
                       >
                         {currentReaction ? (
-                          <span className="text-base">{REACTION_EMOJIS[currentReaction.reaction_type]}</span>
+                          <span className="text-base">{getReactionEmoji(currentReaction.reaction_type)}</span>
                         ) : (
                           <svg
                             width="18"
@@ -1208,7 +1220,7 @@ export default function PostDetailPage() {
                             .filter(([, value]) => value > 0)
                             .map(([type, value]) => (
                               <span key={type} className="inline-flex items-center gap-1">
-                                <span className="text-base leading-none">{REACTION_EMOJIS[type as ReactionType]}</span>
+                                <span className="text-base leading-none">{type}</span>
                                 <span>{value}</span>
                               </span>
                             ))}
@@ -1506,7 +1518,7 @@ export default function PostDetailPage() {
                                     ].join(" ")}
                                   >
                                     {comment.user_reaction ? (
-                                      <span className="text-sm">{REACTION_EMOJIS[comment.user_reaction.reaction_type]}</span>
+                                      <span className="text-sm">{getReactionEmoji(comment.user_reaction.reaction_type)}</span>
                                     ) : (
                                       <svg
                                         width="14"
@@ -1840,7 +1852,7 @@ export default function PostDetailPage() {
                                                 ].join(" ")}
                                               >
                                                 {reply.user_reaction ? (
-                                                  <span className="text-sm">{REACTION_EMOJIS[reply.user_reaction.reaction_type]}</span>
+                                                  <span className="text-sm">{getReactionEmoji(reply.user_reaction.reaction_type)}</span>
                                                 ) : (
                                                   <svg
                                                     width="12"

@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, apiPatch, apiDelete, API_BASE, resolveRemoteUrl } from "@/lib/api";
 import { useChatWebSocket } from "@/hooks/useChatWebSocket";
 import { useToast } from "@/components/Toast";
-import type { Conversation, Message, ReactionType } from "@/lib/types";
+import type { Conversation, Message } from "@/lib/types";
 import type { PaginatedResponse } from "@/lib/api";
 import Image from "next/image";
 import Spinner from "@/components/Spinner";
@@ -15,13 +15,24 @@ import { EmojiPickerPopper } from "@/components/EmojiPickerPopper";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
 import ImageGallery from "@/components/ImageGallery";
 
-const REACTION_EMOJIS: Record<ReactionType, string> = {
-  like: "👍",
-  love: "❤️",
-  haha: "😂",
-  sad: "😢",
-  angry: "😠",
+// Map old text reaction types to emojis for backward compatibility
+const REACTION_TYPE_TO_EMOJI: Record<string, string> = {
+  "like": "👍",
+  "love": "❤️",
+  "haha": "😂",
+  "sad": "😢",
+  "angry": "😠",
 };
+
+// Convert reaction type to emoji (handles both old text types and new emoji types)
+function getReactionEmoji(reactionType: string): string {
+  // If it's in the mapping, return the emoji
+  if (REACTION_TYPE_TO_EMOJI[reactionType]) {
+    return REACTION_TYPE_TO_EMOJI[reactionType];
+  }
+  // Otherwise it's already an emoji, return it
+  return reactionType;
+}
 
 // File restrictions
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -426,7 +437,7 @@ export default function ConversationDetailPage() {
     }
   };
 
-  const handleToggleReaction = async (messageId: number, reactionType: ReactionType) => {
+  const handleToggleReaction = async (messageId: number, reactionType: string) => {
     if (!accessToken || reactionPendingId === messageId) return;
 
     const message = messages.find((m) => m.id === messageId);
@@ -707,20 +718,19 @@ export default function ConversationDetailPage() {
                                 </p>
                               )}
                               {(() => {
-                                let reactionCounts: Record<ReactionType, number> = {
-                                  like: 0,
-                                  love: 0,
-                                  haha: 0,
-                                  sad: 0,
-                                  angry: 0,
-                                };
+                                let reactionCounts: Record<string, number> = {};
                                 
                                 if (message.reaction_summary && message.reaction_summary.total > 0) {
-                                  reactionCounts = { ...message.reaction_summary.by_type };
+                                  // Convert old text types to emojis for consistency
+                                  Object.entries(message.reaction_summary.by_type).forEach(([type, count]) => {
+                                    const emoji = getReactionEmoji(type);
+                                    reactionCounts[emoji] = (reactionCounts[emoji] || 0) + count;
+                                  });
                                 } else if (message.reactions && message.reactions.length > 0) {
                                   message.reactions.forEach((r) => {
-                                    if (r.reaction_type && reactionCounts[r.reaction_type] !== undefined) {
-                                      reactionCounts[r.reaction_type] = (reactionCounts[r.reaction_type] || 0) + 1;
+                                    if (r.reaction_type) {
+                                      const emoji = getReactionEmoji(r.reaction_type);
+                                      reactionCounts[emoji] = (reactionCounts[emoji] || 0) + 1;
                                     }
                                   });
                                 }
@@ -750,7 +760,7 @@ export default function ConversationDetailPage() {
                                             border: '1px solid #4b5563'
                                           }}
                                         >
-                                          <span className="text-base leading-none">{REACTION_EMOJIS[type as ReactionType]}</span>
+                                          <span className="text-base leading-none">{type}</span>
                                           <span className="leading-none font-bold">{count}</span>
                                         </span>
                                       ))}
@@ -819,7 +829,7 @@ export default function ConversationDetailPage() {
                               >
                                 {userReaction ? (
                                   <span className="text-base">
-                                    {REACTION_EMOJIS[userReaction.reaction_type]}
+                                    {getReactionEmoji(userReaction.reaction_type)}
                                   </span>
                                 ) : (
                                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
