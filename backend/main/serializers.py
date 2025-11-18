@@ -98,7 +98,7 @@ class ReactionSerializer(serializers.ModelSerializer):
 
 class UserReactionPreferenceSerializer(serializers.ModelSerializer):
     """Serializer for user's emoji reaction preferences"""
-    
+
     class Meta:
         model = UserReactionPreference
         fields = [
