@@ -317,3 +317,50 @@ if CELERY_BROKER_URL.startswith("rediss://"):
     # 'none' means CERT_NONE (no certificate verification)
     # For Upstash, this works fine. For stricter security, use 'required'
     CELERY_BROKER_TRANSPORT_OPTIONS["ssl_cert_reqs"] = "none"
+
+
+# ============================================
+# Animal Marketplace Configuration
+# ============================================
+ANIMAL_MARKETPLACE = {
+    # Seller verification expiry time (in days)
+    "VERIFICATION_EXPIRY_DAYS": config(
+        "ANIMAL_VERIFICATION_EXPIRY_DAYS", default=365, cast=int
+    ),
+    # Animal listing expiry time (in days) - listings automatically expire if not renewed
+    "LISTING_EXPIRY_DAYS": config("ANIMAL_LISTING_EXPIRY_DAYS", default=90, cast=int),
+    # Maximum number of photos per listing
+    "MAX_PHOTOS_PER_LISTING": config("ANIMAL_MAX_PHOTOS", default=12, cast=int),
+    # Risk score thresholds for suspicious activity detection
+    "RISK_SCORE_THRESHOLDS": {
+        "LOW": 0,  # No suspicious activity
+        "MEDIUM": 30,  # Moderate risk factors present
+        "HIGH": 60,  # Multiple concerning factors
+        "CRITICAL": 85,  # Likely fraudulent listing
+    },
+    # Suspicious activity types and their risk scores
+    "RISK_SCORES": {
+        "price_unusually_low": 25,
+        "price_unusually_high": 15,
+        "multiple_rapid_edits": 20,
+        "vague_description": 15,
+        "no_vet_documentation": 30,
+        "unverified_seller": 40,
+        "seller_new_account": 20,
+        "multiple_complaints": 50,
+        "reported_scam": 100,
+    },
+    # Seller types for verification workflow
+    "SELLER_TYPES": ["individual", "breeder", "shelter", "rescue"],
+    # Document verification requirements
+    "REQUIRE_ID_DOCUMENT": True,
+    "REQUIRE_VET_DOCUMENTATION": True,
+    # Auto-approval settings
+    "AUTO_APPROVE_VERIFIED_SELLERS": config(
+        "ANIMAL_AUTO_APPROVE", default=False, cast=bool
+    ),
+    # Email notification settings
+    "NOTIFY_ON_LISTING_EXPIRY": True,
+    "NOTIFY_ON_VERIFICATION_EXPIRY": True,
+    "NOTIFY_ON_SUSPICIOUS_ACTIVITY": True,
+}
