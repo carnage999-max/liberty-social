@@ -13,6 +13,7 @@ import Spinner from "@/components/Spinner";
 import { EmojiPicker } from "@/components/EmojiPicker";
 import { EmojiPickerPopper } from "@/components/EmojiPickerPopper";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
+import { ReactionsModal } from "@/components/feed/ReactionsModal";
 import ImageGallery from "@/components/ImageGallery";
 
 // Map old text reaction types to emojis for backward compatibility
@@ -65,6 +66,8 @@ export default function ConversationDetailPage() {
   const [openReactionPickerId, setOpenReactionPickerId] = useState<number | null>(null);
   const [reactionPendingId, setReactionPendingId] = useState<number | null>(null);
   const [galleryImage, setGalleryImage] = useState<string | null>(null);
+  const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
+  const [reactionsModalData, setReactionsModalData] = useState<any[]>([]);
   const [isMobile, setIsMobile] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -819,7 +822,15 @@ export default function ConversationDetailPage() {
                             <div className="relative">
                               <button
                                 type="button"
-                                onClick={() => setOpenReactionPickerId(openReactionPickerId === message.id ? null : message.id)}
+                                onClick={() => {
+                                  const totalReactions = (message.reaction_summary?.total ?? 0) + (message.reactions?.length ?? 0);
+                                  if (totalReactions > 0) {
+                                    setReactionsModalData(message.reactions || []);
+                                    setReactionsModalOpen(true);
+                                  } else {
+                                    setOpenReactionPickerId(openReactionPickerId === message.id ? null : message.id);
+                                  }
+                                }}
                                 className={`p-1.5 rounded-full border shadow-lg transition ${
                                   userReaction
                                     ? "bg-blue-100 border-blue-400"
@@ -999,6 +1010,12 @@ export default function ConversationDetailPage() {
           currentIndex={0}
         />
       )}
+      <ReactionsModal
+        reactions={reactionsModalData}
+        isOpen={reactionsModalOpen}
+        onClose={() => setReactionsModalOpen(false)}
+        postOrCommentTitle="Message"
+      />
     </>
   );
 }

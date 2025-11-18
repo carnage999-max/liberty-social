@@ -38,7 +38,7 @@ interface ReactionPreferences {
 export function ReactionPicker({ onSelect, onClose, currentReaction }: ReactionPickerProps) {
   const pickerRef = useRef<HTMLDivElement>(null);
   const { accessToken } = useAuth();
-  const [showAdvancedPicker, setShowAdvancedPicker] = useState(false);
+  const [showAdvancedPicker, setShowAdvancedPicker] = useState(true);
   const [preferences, setPreferences] = useState<ReactionPreferences | null>(null);
   const [hoveredReaction, setHoveredReaction] = useState<ReactionType | null>(null);
 
