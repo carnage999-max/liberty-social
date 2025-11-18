@@ -570,3 +570,15 @@ from .marketplace_models import (
     MarketplaceOffer,
     SellerVerification,
 )
+
+# Import animal marketplace models
+from .animal_models import (
+    AnimalCategory,
+    AnimalSellerVerification,
+    VetDocumentation,
+    AnimalListing,
+    AnimalListingMedia,
+    SellerReview,
+    SuspiciousActivityLog,
+    BreederDirectory,
+)

@@ -14,6 +14,16 @@ from .models import (
     PageInvite,
     UserFeedPreference,
 )
+from .animal_models import (
+    AnimalCategory,
+    AnimalSellerVerification,
+    VetDocumentation,
+    AnimalListing,
+    AnimalListingMedia,
+    SellerReview,
+    SuspiciousActivityLog,
+    BreederDirectory,
+)
 
 
 @admin.register(Post)
@@ -129,3 +139,108 @@ class UserFeedPreferenceAdmin(admin.ModelAdmin):
             {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
         ),
     )
+
+
+# Animal Marketplace Admin
+
+
+@admin.register(AnimalCategory)
+class AnimalCategoryAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "created_at")
+    search_fields = ("name",)
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        ("Basic Info", {"fields": ("name", "description")}),
+        ("State Restrictions", {"fields": ("state_restrictions",)}),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
+    )
+
+
+@admin.register(AnimalSellerVerification)
+class AnimalSellerVerificationAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "status", "created_at")
+    search_fields = ("user__username", "user__email", "full_name")
+    list_filter = ("status", "created_at")
+    readonly_fields = ("created_at", "updated_at", "verified_at")
+
+
+@admin.register(VetDocumentation)
+class VetDocumentationAdmin(admin.ModelAdmin):
+    list_display = ("id", "listing")
+    readonly_fields = ("created_at",)
+    fieldsets = (
+        ("Listing", {"fields": ("animal_listing",)}),
+        (
+            "Veterinarian Info",
+            {
+                "fields": (
+                    "vet_clinic_name",
+                    "vet_license_number",
+                    "vet_contact_email",
+                )
+            },
+        ),
+        (
+            "Health Records",
+            {
+                "fields": (
+                    "date_of_check",
+                    "health_check_status",
+                    "health_notes",
+                    "vaccination_status",
+                    "vaccination_records_url",
+                )
+            },
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
+    )
+
+
+@admin.register(AnimalListing)
+class AnimalListingAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "title",
+        "seller",
+        "category",
+        "price",
+        "status",
+        "created_at",
+    )
+    search_fields = ("title", "seller__username", "seller__email", "description")
+    list_filter = ("status", "category", "created_at")
+    readonly_fields = ("created_at", "updated_at", "views_count", "legal_check_date")
+
+
+@admin.register(AnimalListingMedia)
+class AnimalListingMediaAdmin(admin.ModelAdmin):
+    list_display = ("id", "listing")
+    list_filter = ("media_type",)
+
+
+@admin.register(SellerReview)
+class SellerReviewAdmin(admin.ModelAdmin):
+    list_display = ("id", "rating", "created_at")
+    list_filter = ("rating", "created_at")
+    readonly_fields = ("created_at",)
+
+
+@admin.register(SuspiciousActivityLog)
+class SuspiciousActivityLogAdmin(admin.ModelAdmin):
+    list_display = ("id", "activity_type")
+    list_filter = ("activity_type",)
+    readonly_fields = ("detected_at",)
+
+
+@admin.register(BreederDirectory)
+class BreederDirectoryAdmin(admin.ModelAdmin):
+    list_display = ("id", "seller", "created_at")
+    search_fields = ("seller__username", "seller__email")
+    list_filter = ("created_at",)
+    readonly_fields = ("created_at", "updated_at")

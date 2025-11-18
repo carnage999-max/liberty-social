@@ -29,6 +29,14 @@ from .marketplace_views import (
     MarketplaceListingMediaViewSet,
     SellerVerificationViewSet,
 )
+from .animal_views import (
+    AnimalCategoryViewSet,
+    AnimalSellerVerificationViewSet,
+    AnimalListingViewSet,
+    AnimalListingMediaViewSet,
+    SellerReviewViewSet,
+    BreederDirectoryViewSet,
+)
 from .views_uploads import UploadImageView
 
 router = DefaultRouter()
@@ -72,6 +80,18 @@ router.register(
     SellerVerificationViewSet,
     basename="marketplace-seller-verification",
 )
+router.register(
+    "animals/categories", AnimalCategoryViewSet, basename="animal-categories"
+)
+router.register("animals/listings", AnimalListingViewSet, basename="animal-listings")
+router.register(
+    "animals/verification",
+    AnimalSellerVerificationViewSet,
+    basename="animal-seller-verification",
+)
+router.register("animals/media", AnimalListingMediaViewSet, basename="animal-media")
+router.register("animals/reviews", SellerReviewViewSet, basename="animal-reviews")
+router.register("animals/breeders", BreederDirectoryViewSet, basename="animal-breeders")
 
 urlpatterns = [
     path("", include(router.urls)),
