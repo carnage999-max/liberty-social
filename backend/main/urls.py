@@ -46,7 +46,9 @@ router.register(
     "feed-preferences", UserFeedPreferenceViewSet, basename="feed-preferences"
 )
 router.register(
-    "reaction-preferences", UserReactionPreferenceViewSet, basename="reaction-preferences"
+    "reaction-preferences",
+    UserReactionPreferenceViewSet,
+    basename="reaction-preferences",
 )
 router.register(
     "marketplace/categories",

@@ -1277,6 +1277,7 @@ class UserFeedPreferenceViewSet(ModelViewSet):
 
 class UserReactionPreferenceViewSet(ModelViewSet):
     """ViewSet for managing user emoji reaction preferences"""
+
     serializer_class = UserReactionPreferenceSerializer
     permission_classes = [IsAuthenticated]
 
@@ -1312,12 +1313,10 @@ class UserReactionPreferenceViewSet(ModelViewSet):
                 {"detail": "emoji field is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        preferences, _ = UserReactionPreference.objects.get_or_create(
-            user=request.user
-        )
+
+        preferences, _ = UserReactionPreference.objects.get_or_create(user=request.user)
         preferences.add_recent_emoji(emoji)
-        
+
         serializer = self.get_serializer(preferences)
         return Response(serializer.data)
 
@@ -1330,11 +1329,9 @@ class UserReactionPreferenceViewSet(ModelViewSet):
                 {"detail": "emoji field is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        preferences, _ = UserReactionPreference.objects.get_or_create(
-            user=request.user
-        )
+
+        preferences, _ = UserReactionPreference.objects.get_or_create(user=request.user)
         preferences.toggle_favorite_emoji(emoji)
-        
+
         serializer = self.get_serializer(preferences)
         return Response(serializer.data)

@@ -10,7 +10,7 @@ import { ReactionPicker } from "@/components/feed/ReactionPicker";
 import { ReactionsModal } from "@/components/feed/ReactionsModal";
 import ShareModal from "@/components/modals/ShareModal";
 import ImageGallery from "@/components/ImageGallery";
-import FeedFilters from "@/components/FeedFilters";
+import FeedFilterTabs from "@/components/FeedFilterTabs";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -704,7 +704,7 @@ export default function FeedPage() {
           </div>
         </header>
 
-        <FeedFilters onFiltersChange={(filters) => {
+        <FeedFilterTabs onFiltersChange={(filters) => {
           setShowFriendPosts(filters.showFriendPosts);
           setShowPagePosts(filters.showPagePosts);
           setSelectedCategory(filters.selectedCategory);
