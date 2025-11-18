@@ -9,6 +9,7 @@ import type { Page as BusinessPage, PageAdmin } from "@/lib/types";
 import Spinner from "@/components/Spinner";
 import Gallery from "@/components/Gallery";
 import PageImageUploadField from "@/components/pages/PageImageUploadField";
+import PagePostForm from "@/components/pages/PagePostForm";
 import InviteModal from "@/components/InviteModal";
 import ShareModal from "@/components/modals/ShareModal";
 import { uploadImageToS3 } from "@/lib/image-upload";
@@ -451,6 +452,18 @@ export default function PageDetail() {
           )}
         </div>
       </section>
+
+      {/* Create Page Post Section - Only visible to page admins */}
+      {canManage && accessToken && (
+        <PagePostForm
+          pageId={parseInt(pageId || "0", 10)}
+          accessToken={accessToken}
+          onPostCreated={() => {
+            // Optional: Refresh page data or trigger post list refresh
+            // You could emit an event here if you have a posts section
+          }}
+        />
+      )}
 
       {/* Edit Modal */}
       {isEditing && (
