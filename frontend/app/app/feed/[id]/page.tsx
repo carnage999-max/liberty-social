@@ -1146,8 +1146,8 @@ export default function PostDetailPage() {
                         className={[
                           "inline-flex items-center justify-center rounded-full border p-1.5 transition disabled:cursor-not-allowed",
                           liked
-                            ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
-                            : "border-gray-200 text-gray-600 hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]",
+                            ? "border-(--color-primary) bg-(--color-primary)/10 text-(--color-primary)"
+                            : "border-gray-200 text-gray-600 hover:border-(--color-primary)/40 hover:text-(--color-primary)",
                           reactionPending ? "opacity-60" : "",
                         ].join(" ")}
                       >
