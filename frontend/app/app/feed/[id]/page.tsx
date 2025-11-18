@@ -9,6 +9,7 @@ import { useToast } from "@/components/Toast";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
+import { ReactionsModal } from "@/components/feed/ReactionsModal";
 import ShareModal from "@/components/modals/ShareModal";
 import { EmojiPickerPopper } from "@/components/EmojiPickerPopper";
 import ImageGallery from "@/components/ImageGallery";
@@ -152,6 +153,8 @@ export default function PostDetailPage() {
   const [showReactionBreakdown, setShowReactionBreakdown] = useState(false);
   const [openCommentReactionPickerId, setOpenCommentReactionPickerId] = useState<number | null>(null);
   const [commentEmojiPickerOpen, setCommentEmojiPickerOpen] = useState(false);
+  const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
+  const [reactionsModalData, setReactionsModalData] = useState<Reaction[]>([]);
   const [replyEmojiPickerOpen, setReplyEmojiPickerOpen] = useState<Record<number, boolean>>({});
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyContent, setReplyContent] = useState<Record<number, string>>({});
@@ -1206,33 +1209,16 @@ export default function PostDetailPage() {
                   </div>
                   {reactionSummary.total > 0 && (
                     <div className="mt-2">
-                      {!showReactionBreakdown ? (
-                        <button
-                          type="button"
-                          onClick={() => setShowReactionBreakdown(true)}
-                          className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-                        >
-                          Show reactions
-                        </button>
-                      ) : (
-                        <div className="flex flex-wrap gap-2 text-xs text-gray-500 items-center">
-                          {Object.entries(reactionSummary.byType)
-                            .filter(([, value]) => value > 0)
-                            .map(([type, value]) => (
-                              <span key={type} className="inline-flex items-center gap-1">
-                                <span className="text-base leading-none">{type}</span>
-                                <span>{value}</span>
-                              </span>
-                            ))}
-                          <button
-                            type="button"
-                            onClick={() => setShowReactionBreakdown(false)}
-                            className="ml-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                          >
-                            Hide
-                          </button>
-                        </div>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReactionsModalData(post.reactions || []);
+                          setReactionsModalOpen(true);
+                        }}
+                        className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                      >
+                        {reactionSummary.total} {reactionSummary.total === 1 ? "reaction" : "reactions"}
+                      </button>
                     </div>
                   )}
                 </footer>
@@ -1502,9 +1488,14 @@ export default function PostDetailPage() {
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       e.preventDefault();
-                                      setOpenCommentReactionPickerId(
-                                        openCommentReactionPickerId === comment.id ? null : comment.id
-                                      );
+                                      if (commentLikeCount > 0) {
+                                        setReactionsModalData(comment.reactions || []);
+                                        setReactionsModalOpen(true);
+                                      } else {
+                                        setOpenCommentReactionPickerId(
+                                          openCommentReactionPickerId === comment.id ? null : comment.id
+                                        );
+                                      }
                                     }}
                                     aria-pressed={commentLiked}
                                     disabled={commentReactionPendingId === comment.id}
@@ -1836,9 +1827,14 @@ export default function PostDetailPage() {
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   e.preventDefault();
-                                                  setOpenCommentReactionPickerId(
-                                                    openCommentReactionPickerId === reply.id ? null : reply.id
-                                                  );
+                                                  if (replyLikeCount > 0) {
+                                                    setReactionsModalData(reply.reactions || []);
+                                                    setReactionsModalOpen(true);
+                                                  } else {
+                                                    setOpenCommentReactionPickerId(
+                                                      openCommentReactionPickerId === reply.id ? null : reply.id
+                                                    );
+                                                  }
                                                 }}
                                                 aria-pressed={replyLiked}
                                                 disabled={commentReactionPendingId === reply.id}
@@ -2064,6 +2060,12 @@ export default function PostDetailPage() {
         shareUrl={post ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/feed/${post.id}` : ''}
         title="Share Post"
         type="post"
+      />
+      <ReactionsModal
+        reactions={reactionsModalData}
+        isOpen={reactionsModalOpen}
+        onClose={() => setReactionsModalOpen(false)}
+        postOrCommentTitle="Post"
       />
     </RequireAuth>
   );

@@ -7,6 +7,7 @@ import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import { PostActionsMenu } from "@/components/feed/PostActionsMenu";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
+import { ReactionsModal } from "@/components/feed/ReactionsModal";
 import ShareModal from "@/components/modals/ShareModal";
 import ImageGallery from "@/components/ImageGallery";
 import FeedFilters from "@/components/FeedFilters";
@@ -81,6 +82,8 @@ export default function FeedPage() {
   const [showFriendPosts, setShowFriendPosts] = useState(true);
   const [showPagePosts, setShowPagePosts] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+  const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
+  const [reactionsModalData, setReactionsModalData] = useState<Reaction[]>([]);
 
   useEffect(() => {
     pendingReactionsRef.current = pendingReactions;
@@ -580,11 +583,28 @@ export default function FeedPage() {
                 </div>
               )}
 
+              {reactionSummary.total > 0 && (
+                <div className="mt-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReactionsModalData(post.reactions || []);
+                      setReactionsModalOpen(true);
+                    }}
+                    className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    Show reactions ({reactionSummary.total})
+                  </button>
+                </div>
+              )}
+
               <footer className="mt-4 flex flex-wrap items-center gap-4 text-sm text-gray-600">
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => setOpenReactionPickerPostId(showReactionPicker ? null : post.id)}
+                    onClick={() => {
+                      setOpenReactionPickerPostId(showReactionPicker ? null : post.id);
+                    }}
                     aria-pressed={liked}
                     disabled={reactionBusy}
                     aria-label={liked ? "Remove your reaction" : "React to this post"}
@@ -615,7 +635,6 @@ export default function FeedPage() {
                         />
                       </svg>
                     )}
-                    {reactionSummary.total}
                   </button>
                   {showReactionPicker && (
                     <ReactionPicker
@@ -794,6 +813,12 @@ export default function FeedPage() {
         shareUrl={shareModalPost ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/feed/${shareModalPost.id}` : ''}
         title="Share Post"
         type="post"
+      />
+      <ReactionsModal
+        reactions={reactionsModalData}
+        isOpen={reactionsModalOpen}
+        onClose={() => setReactionsModalOpen(false)}
+        postOrCommentTitle="Post"
       />
     </>
   );
