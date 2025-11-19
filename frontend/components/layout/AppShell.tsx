@@ -14,6 +14,7 @@ import { usePaginatedResource } from "@/hooks/usePaginatedResource";
 import { useNotifications } from "@/hooks/useNotifications";
 import { usePageInvites } from "@/hooks/usePageInvites";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { Dog } from 'lucide-react';
 
 const NAV_LINKS = [
   {
@@ -170,6 +171,13 @@ const NAV_LINKS = [
           strokeLinejoin="round"
         />
       </svg>
+    ),
+  },
+  {
+    label: "Animals",
+    href: "/app/animals",
+    icon: (
+      <Dog size={18} aria-hidden="true" />
     ),
   },
   {

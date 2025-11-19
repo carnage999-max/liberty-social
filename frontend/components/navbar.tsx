@@ -106,6 +106,18 @@ export default function Navbar() {
           >
             Marketplace
           </Link>
+          <Link
+            href="/app/animals"
+            className="btn-primary px-4 py-2 inline-flex items-center justify-center"
+          >
+            Animals
+          </Link>
+          <Link
+            href="/app/breeders"
+            className="btn-primary px-4 py-2 inline-flex items-center justify-center"
+          >
+            Breeders
+          </Link>
           {showProfile ? (
             <>
               <Link
@@ -217,6 +229,20 @@ export default function Navbar() {
             className="block w-full text-left px-4 py-3 rounded-lg btn-primary"
           >
             Marketplace
+          </Link>
+          <Link
+            href="/app/animals"
+            onClick={() => setOpen(false)}
+            className="mt-2 block w-full text-left px-4 py-3 rounded-lg btn-primary"
+          >
+            Animals
+          </Link>
+          <Link
+            href="/app/breeders"
+            onClick={() => setOpen(false)}
+            className="mt-2 block w-full text-left px-4 py-3 rounded-lg btn-primary"
+          >
+            Breeders
           </Link>
           <Link
             href="/app/reels"
