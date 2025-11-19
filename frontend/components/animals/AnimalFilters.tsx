@@ -87,18 +87,18 @@ export default function AnimalFilters({ onFiltersChange }: AnimalFiltersProps) {
         <label className="block text-sm font-medium text-gray-700">
           Price Range
         </label>
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-2 sm:items-center">
           <input
             type="number"
-            placeholder="Min"
+            placeholder="Min price"
             value={filters.price_min}
             onChange={(e) => handleFilterChange("price_min", e.target.value)}
             className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
-          <span className="text-gray-500">-</span>
+          <span className="hidden sm:inline text-gray-500 shrink-0">-</span>
           <input
             type="number"
-            placeholder="Max"
+            placeholder="Max price"
             value={filters.price_max}
             onChange={(e) => handleFilterChange("price_max", e.target.value)}
             className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
