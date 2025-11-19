@@ -53,14 +53,14 @@ export default function AnimalListingsSection() {
       </div>
 
       {/* Search & Filters */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar Filters */}
-        <div className="lg:col-span-1">
+      <div className="flex flex-col lg:grid lg:grid-cols-4 gap-6">
+        {/* Filters: stack above listings on mobile, sidebar on desktop */}
+        <div className="w-full lg:col-span-1 lg:w-auto mb-4 lg:mb-0">
           <AnimalFilters onFiltersChange={setFilters} />
         </div>
 
         {/* Main Content */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="w-full lg:col-span-3 space-y-6">
           {/* Search Bar */}
           <div className="flex gap-3">
             <input
@@ -102,7 +102,7 @@ export default function AnimalListingsSection() {
             </div>
           ) : displayedListings.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {displayedListings.map((listing) => (
                   <AnimalListingCard
                     key={listing.id}
