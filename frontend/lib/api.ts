@@ -27,12 +27,32 @@ export type PaginatedResponse<T> = {
   results: T[];
 };
 
+/**
+ * Get the stored access token from localStorage
+ * Uses the same STORAGE_KEY as AuthProvider
+ */
+function getStoredAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("liberty_auth_v1");
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return data.accessToken || null;
+  } catch {
+    return null;
+  }
+}
+
 function withAuthHeaders(opts: Options = {}) {
   const h: Record<string, string> = {
     "Content-Type": "application/json",
     ...(opts.headers || {}),
   };
-  if (opts.token) h.Authorization = `Bearer ${opts.token}`;
+  
+  // Use provided token or fetch from localStorage
+  const token = opts.token || getStoredAccessToken();
+  if (token) h.Authorization = `Bearer ${token}`;
+  
   return h;
 }
 
