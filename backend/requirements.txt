@@ -1,5 +1,9 @@
 asgiref==3.10.0
+billiard==4.2.1
 celery==5.4.0
+click==8.1.7
+kombu==5.3.4
+vine==5.1.0
 attrs==25.4.0
 autobahn==25.10.2
 Automat==25.4.16
