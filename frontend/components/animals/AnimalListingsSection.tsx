@@ -112,7 +112,7 @@ export default function AnimalListingsSection() {
                     category={listing.category}
                     price={listing.price}
                     listing_type={listing.listing_type}
-                    location={`${listing.city}, ${listing.state}`}
+                    location={listing.location}
                     animal_listing_media={listing.animal_listing_media}
                     status={listing.status}
                     risk_score={listing.risk_score}

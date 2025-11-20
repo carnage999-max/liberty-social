@@ -8,9 +8,10 @@ import { useAuth } from "@/lib/auth-context";
 
 interface ReviewsSectionProps {
   listingId: string;
+  sellerId?: string;
 }
 
-export default function ReviewsSection({ listingId }: ReviewsSectionProps) {
+export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionProps) {
   const { user, isAuthenticated } = useAuth();
   const { show: showToast } = useToast();
   const [reviews, setReviews] = useState<any[]>([]);
@@ -22,6 +23,9 @@ export default function ReviewsSection({ listingId }: ReviewsSectionProps) {
     review_text: "",
   });
 
+  // Check if current user is the seller
+  const isCurrentUserSeller = user?.id === sellerId;
+
   useEffect(() => {
     loadReviews();
   }, [listingId]);
@@ -30,9 +34,12 @@ export default function ReviewsSection({ listingId }: ReviewsSectionProps) {
     try {
       setLoading(true);
       const data = await getListingReviews(listingId);
-      setReviews(data);
+      // Handle both array response and paginated response with results property
+      const reviewsList = Array.isArray(data) ? data : (data.results || []);
+      setReviews(reviewsList);
     } catch (error) {
       console.error("Failed to load reviews:", error);
+      setReviews([]);
     } finally {
       setLoading(false);
     }
@@ -122,7 +129,7 @@ export default function ReviewsSection({ listingId }: ReviewsSectionProps) {
           </div>
 
           {/* Leave Review Button */}
-          {!showForm && (
+          {!showForm && !isCurrentUserSeller && (
             <button
               onClick={() => setShowForm(true)}
               className="mb-6 w-full rounded-lg border border-blue-600 px-4 py-2.5 font-medium text-blue-600 transition hover:bg-blue-50"
@@ -131,8 +138,15 @@ export default function ReviewsSection({ listingId }: ReviewsSectionProps) {
             </button>
           )}
 
+          {/* Can't review own listing message */}
+          {isCurrentUserSeller && (
+            <div className="mb-6 rounded-lg bg-gray-50 border border-gray-200 p-4 text-center">
+              <p className="text-sm text-gray-600">You are the seller of this listing</p>
+            </div>
+          )}
+
           {/* Review Form */}
-          {showForm && (
+          {showForm && !isCurrentUserSeller && (
             <form onSubmit={handleSubmitReview} className="mb-6 rounded-lg bg-blue-50 border border-blue-200 p-4 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">

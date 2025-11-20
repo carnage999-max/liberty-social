@@ -17,7 +17,7 @@ interface AnimalListingCardProps {
   location: string;
   animal_listing_media?: Array<{
     id: string;
-    image: string;
+    url: string;
   }>;
   status: string;
   risk_score?: number;
@@ -42,7 +42,7 @@ export default function AnimalListingCard({
   risk_score,
   seller,
 }: AnimalListingCardProps) {
-  const imageUrl = animal_listing_media?.[0]?.image || null;
+  const imageUrl = animal_listing_media?.[0]?.url || null;
   const isHighRisk = risk_score && risk_score > 60;
   const isVerified = seller?.verification?.status === "verified";
 
