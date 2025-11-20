@@ -88,7 +88,7 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
   }
 
   const images = listing.animal_listing_media || [];
-  const mainImage = images[selectedImageIndex]?.media_file || null;
+  const mainImage = images[selectedImageIndex]?.url || null;
 
   return (
     <div className="space-y-8 pb-12">
@@ -101,7 +101,7 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
         <span className="text-gray-900 font-medium">{listing.title}</span>
       </div>
 
-      {/* Main Content Grid */}
+      {/* Main Content - No Sticky Elements */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Image Gallery */}
         <div className="lg:col-span-2 space-y-4">
@@ -140,9 +140,9 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
                       : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  {img.media_file && (
+                  {img.url && (
                     <Image
-                      src={img.media_file}
+                      src={img.url}
                       alt={`${listing.title} ${idx}`}
                       fill
                       className="object-cover"
@@ -225,13 +225,13 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
           )}
 
           {/* Reviews */}
-          <ReviewsSection listingId={id} />
+          <ReviewsSection listingId={id} sellerId={listing.seller?.id} />
         </div>
 
         {/* Sidebar */}
         <div className="space-y-4">
           {/* Price Card */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 sticky top-6">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6">
             <div className="mb-6">
               {listing.price ? (
                 <div>
@@ -405,10 +405,10 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
                 href={`/app/animals/${related.id}`}
                 className="group rounded-2xl border border-gray-200 bg-white overflow-hidden hover:shadow-lg transition"
               >
-                {related.animal_listing_media?.[0]?.media_file && (
+                {related.animal_listing_media?.[0]?.url && (
                   <div className="relative aspect-square bg-gray-100">
                     <Image
-                      src={related.animal_listing_media[0].media_file}
+                      src={related.animal_listing_media[0].url}
                       alt={related.title}
                       fill
                       className="object-cover group-hover:scale-105 transition"

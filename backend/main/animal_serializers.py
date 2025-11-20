@@ -306,6 +306,8 @@ class AnimalListingListSerializer(serializers.ModelSerializer):
     seller = UserSerializer(read_only=True)
     category = AnimalCategorySerializer(read_only=True)
     primary_image = serializers.SerializerMethodField()
+    animal_listing_media = serializers.SerializerMethodField()
+    risk_score = serializers.SerializerMethodField()
     seller_verified = serializers.SerializerMethodField()
 
     class Meta:
@@ -323,6 +325,8 @@ class AnimalListingListSerializer(serializers.ModelSerializer):
             "seller",
             "category",
             "primary_image",
+            "animal_listing_media",
+            "risk_score",
             "seller_verified",
             "status",
             "views_count",
@@ -334,6 +338,15 @@ class AnimalListingListSerializer(serializers.ModelSerializer):
         """Get URL of primary image."""
         media = obj.media.filter(is_primary=True).first()
         return media.url if media else None
+
+    def get_animal_listing_media(self, obj):
+        """Get all media for listing."""
+        media_items = obj.media.all()
+        return [{"id": m.id, "url": m.url, "media_type": m.media_type} for m in media_items]
+
+    def get_risk_score(self, obj):
+        """Get risk score for listing."""
+        return obj.get_risk_score()
 
     def get_seller_verified(self, obj):
         """Check if seller is verified."""
