@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { createAnimalListing, uploadListingMedia } from "@/lib/animals";
+import { useState, useEffect } from "react";
+import { createAnimalListing, updateAnimalListing, uploadListingMedia, getAnimalListing } from "@/lib/animals";
 import { useToast } from "@/components/Toast";
 import { useAnimalCategories } from "@/hooks/useAnimalCategories";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+
+interface AnimalListingFormProps {
+  listingId?: string; // Optional - if provided, form is in edit mode
+}
 
 // US States mapping for state codes
 const US_STATES = {
@@ -89,10 +93,12 @@ interface UploadPreview {
   type: "image" | "document";
 }
 
-export default function AnimalListingForm() {
+export default function AnimalListingForm({ listingId }: AnimalListingFormProps) {
   const router = useRouter();
   const { show: showToast } = useToast();
   const { categories, loading: categoriesLoading } = useAnimalCategories();
+  const [isEditMode] = useState(!!listingId);
+  const [loading, setLoading] = useState(isEditMode);
   const [currentStep, setCurrentStep] = useState<Step>("basic");
   const [submitting, setSubmitting] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -114,6 +120,56 @@ export default function AnimalListingForm() {
     media_files: [],
     conditions_accepted: false,
   });
+
+  // Load existing listing data when in edit mode
+  useEffect(() => {
+    if (isEditMode && listingId) {
+      loadListingData();
+    }
+  }, [isEditMode, listingId]);
+
+  const loadListingData = async () => {
+    try {
+      const listing = await getAnimalListing(listingId!);
+      
+      // Convert API response to form data
+      const ageYears = listing.age_years || 0;
+      const ageMonths = listing.age_months || 0;
+      
+      setFormData({
+        title: listing.title || "",
+        breed: listing.breed || "",
+        category: listing.category || "",
+        description: listing.description || "",
+        gender: listing.gender || "unknown",
+        age_value: ageYears > 0 ? ageYears : ageMonths,
+        age_unit: ageYears > 0 ? "years" : "months",
+        color: listing.color || "",
+        listing_type: listing.listing_type || "sale",
+        city: listing.location?.split(",")[0] || "", // Extract city from location
+        state: listing.state_code || "",
+        price: listing.price ? parseFloat(String(listing.price)) : undefined,
+        health_documents: listing.vet_documentation ? [listing.vet_documentation] : [],
+        media_files: [],
+        conditions_accepted: false,
+      });
+
+      // Load existing media previews
+      if (listing.media && listing.media.length > 0) {
+        const previews = listing.media.map((m: any) => ({
+          file: null,
+          preview: m.url,
+          mediaType: m.media_type,
+        }));
+        setMediaPreview(previews);
+      }
+    } catch (error) {
+      console.error("Failed to load listing:", error);
+      showToast("Failed to load listing data", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const steps: { id: Step; label: string; description: string }[] = [
     { id: "basic", label: "Basic Info", description: "Title, breed, category" },
@@ -227,7 +283,7 @@ export default function AnimalListingForm() {
         age_months = Math.floor(formData.age_value / 30);
       }
 
-      // Create listing
+      // Create or update listing data
       const listingData = {
         title: formData.title,
         breed: formData.breed,
@@ -243,24 +299,32 @@ export default function AnimalListingForm() {
         state_code: formData.state,
       };
 
-      const listing = await createAnimalListing(listingData);
+      let listing;
+      if (isEditMode && listingId) {
+        // Update existing listing
+        listing = await updateAnimalListing(listingId, listingData);
+      } else {
+        // Create new listing
+        listing = await createAnimalListing(listingData);
+      }
 
-      // Upload media
-      if (mediaPreview.length > 0) {
+      // Upload media (only if there are new files to upload)
+      const newMedia = mediaPreview.filter((m) => m.file !== null);
+      if (newMedia.length > 0) {
         const formDataMedia = new FormData();
-        mediaPreview.forEach((m) => {
-          formDataMedia.append("media_files", m.file);
+        newMedia.forEach((m) => {
+          if (m.file) formDataMedia.append("media_files", m.file);
         });
-        // Pass listing ID to uploadListingMedia
         await uploadListingMedia(listing.id, formDataMedia);
       }
 
-      showToast("Listing created successfully!", "success");
+      const message = isEditMode ? "Listing updated successfully!" : "Listing created successfully!";
+      showToast(message, "success");
 
       router.push(`/app/animals/${listing.id}`);
     } catch (error: any) {
-      console.error("Listing creation error:", error);
-      const errorMsg = error?.message || "Failed to create listing";
+      console.error("Listing operation error:", error);
+      const errorMsg = error?.message || (isEditMode ? "Failed to update listing" : "Failed to create listing");
       showToast(errorMsg, "error");
     } finally {
       setSubmitting(false);
@@ -271,9 +335,21 @@ export default function AnimalListingForm() {
     <div className="max-w-3xl mx-auto pb-12">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Listing</h1>
-        <p className="text-gray-600">List your animal safely and securely</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          {isEditMode ? "Edit Listing" : "Create Listing"}
+        </h1>
+        <p className="text-gray-600">
+          {isEditMode ? "Update your animal listing" : "List your animal safely and securely"}
+        </p>
       </div>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="mb-8 rounded-lg bg-gray-100 p-8 text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading listing data...</p>
+        </div>
+      )}
 
       {/* Progress Steps */}
       <div className="mb-8">
