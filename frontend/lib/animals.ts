@@ -88,7 +88,7 @@ export interface CreateListingPayload {
   age_months: number;
   color: string;
   listing_type: 'sale' | 'adoption' | 'rehoming';
-  price?: number;
+  price: number;
   description: string;
   state_code: string;
   location: string;

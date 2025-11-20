@@ -98,7 +98,7 @@ class AnimalSellerVerificationViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         """Create or update seller verification."""
-        verification, created = SellerVerification.objects.get_or_create(
+        verification, created = AnimalSellerVerification.objects.get_or_create(
             user=request.user
         )
 
@@ -126,10 +126,10 @@ class AnimalSellerVerificationViewSet(viewsets.ModelViewSet):
     def status(self, request):
         """Check current verification status."""
         try:
-            verification = SellerVerification.objects.get(user=request.user)
+            verification = AnimalSellerVerification.objects.get(user=request.user)
             serializer = self.get_serializer(verification)
             return Response(serializer.data)
-        except SellerVerification.DoesNotExist:
+        except AnimalSellerVerification.DoesNotExist:
             return Response(
                 {"message": "No verification found. Submit one to get started."},
                 status=status.HTTP_404_NOT_FOUND,
@@ -194,13 +194,13 @@ class AnimalListingViewSet(viewsets.ModelViewSet):
 
         # Check seller verification
         try:
-            verification = SellerVerification.objects.get(
+            verification = AnimalSellerVerification.objects.get(
                 user=self.request.user,
                 status="verified",
             )
             listing.seller_verification = verification
             listing.save()
-        except SellerVerification.DoesNotExist:
+        except AnimalSellerVerification.DoesNotExist:
             pass
 
         # Perform legal check
@@ -395,7 +395,7 @@ class BreederDirectoryViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Create breeder directory entry for user."""
         try:
-            verification = SellerVerification.objects.get(user=request.user)
+            verification = AnimalSellerVerification.objects.get(user=request.user)
             if not verification.is_verified:
                 return Response(
                     {
@@ -417,7 +417,7 @@ class BreederDirectoryViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
             )
 
-        except SellerVerification.DoesNotExist:
+        except AnimalSellerVerification.DoesNotExist:
             return Response(
                 {"error": "No verification found. Please verify as a seller first."},
                 status=status.HTTP_404_NOT_FOUND,
