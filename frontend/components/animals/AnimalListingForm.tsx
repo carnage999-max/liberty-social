@@ -159,6 +159,18 @@ export default function AnimalListingForm() {
     try {
       setSubmitting(true);
 
+      // Convert age to years/months format expected by backend
+      let age_years = 0;
+      let age_months = 0;
+      if (formData.age_unit === "years") {
+        age_years = formData.age_value;
+      } else if (formData.age_unit === "months") {
+        age_months = formData.age_value;
+      } else if (formData.age_unit === "days") {
+        // Convert days to months (approximation)
+        age_months = Math.floor(formData.age_value / 30);
+      }
+
       // Create listing
       const listingData = {
         title: formData.title,
@@ -166,13 +178,13 @@ export default function AnimalListingForm() {
         category: formData.category,
         description: formData.description,
         gender: formData.gender,
-        age_value: formData.age_value,
-        age_unit: formData.age_unit,
+        age_years,
+        age_months,
         color: formData.color,
         listing_type: formData.listing_type,
         price: formData.listing_type === "sale" ? formData.price : undefined,
-        city: formData.city,
-        state: formData.state,
+        location: `${formData.city}, ${formData.state}`,
+        state_code: formData.state,
       };
 
       const listing = await createAnimalListing(listingData);

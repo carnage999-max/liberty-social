@@ -166,6 +166,12 @@ class AnimalListingDetailSerializer(serializers.ModelSerializer):
 
     seller = UserSerializer(read_only=True)
     category = AnimalCategorySerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        queryset=AnimalCategory.objects.all(),
+        write_only=True,
+        required=False,
+        source="category"
+    )
     seller_verification = AnimalSellerVerificationSerializer(read_only=True)
     vet_documentation = VetDocumentationSerializer(read_only=True)
     media = AnimalListingMediaSerializer(many=True, read_only=True)
@@ -184,6 +190,7 @@ class AnimalListingDetailSerializer(serializers.ModelSerializer):
             "id",
             "seller",
             "category",
+            "category_id",
             "title",
             "description",
             "listing_type",

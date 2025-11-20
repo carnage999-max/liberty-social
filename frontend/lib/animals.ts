@@ -84,17 +84,14 @@ export interface CreateListingPayload {
   category: string; // Category ID
   breed: string;
   gender: 'male' | 'female' | 'unknown';
-  age_value: number;
-  age_unit: 'days' | 'months' | 'years';
+  age_years: number;
+  age_months: number;
   color: string;
-  size?: string;
   listing_type: 'sale' | 'adoption' | 'rehoming';
   price?: number;
   description: string;
-  state: string;
-  city: string;
-  health_certificate_url?: string;
-  vaccination_records_url?: string;
+  state_code: string;
+  location: string;
 }
 
 /**
