@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { getListingReviews, createReview } from "@/lib/animals";
 import { useToast } from "@/components/Toast";
@@ -22,6 +22,23 @@ export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionPr
     rating: 5,
     review_text: "",
   });
+  const [modalOpen, setModalOpen] = useState(false);
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+  const [evidencePreview, setEvidencePreview] = useState<string | null>(null);
+  const [evidenceError, setEvidenceError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png'];
+
+  const validateEvidenceFile = (file: File): string | null => {
+    if (file.size > MAX_FILE_SIZE) {
+      return `File size exceeds 5MB limit. Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB.`;
+    }
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return 'Only JPEG and PNG images are allowed.';
+    }
+    return null;
+  };
 
   // Check if current user is the seller
   const isCurrentUserSeller = user?.id === sellerId;
@@ -117,7 +134,18 @@ export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionPr
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-6">Reviews</h2>
+      <div className="flex items-start justify-between mb-6">
+        <h2 className="text-lg font-semibold text-gray-900">Reviews</h2>
+        {!isCurrentUserSeller && isAuthenticated && (
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="ml-4 rounded-lg border border-blue-600 px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
+          >
+            Leave a Review
+          </button>
+        )}
+      </div>
 
       {reviews.length > 0 ? (
         <>
@@ -140,9 +168,9 @@ export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionPr
           </div>
 
           {/* Leave Review Button */}
-          {!showForm && !isCurrentUserSeller && (
+          {!modalOpen && !isCurrentUserSeller && (
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => setModalOpen(true)}
               className="mb-6 w-full rounded-lg border border-blue-600 px-4 py-2.5 font-medium text-blue-600 transition hover:bg-blue-50"
             >
               Leave a Review
@@ -157,65 +185,202 @@ export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionPr
           )}
 
           {/* Review Form */}
-          {showForm && !isCurrentUserSeller && (
-            <form onSubmit={handleSubmitReview} className="mb-6 rounded-lg bg-blue-50 border border-blue-200 p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Rating
-                </label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, rating: star })}
-                      className="text-3xl transition hover:scale-110"
-                    >
-                      <span
-                        className={
-                          star <= formData.rating ? "text-yellow-400" : "text-gray-300"
+          {/* Modal-based review form */}
+          {modalOpen && !isCurrentUserSeller && (
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-40 bg-black/40"
+                onClick={() => setModalOpen(false)}
+                aria-hidden="true"
+              />
+
+              {/* Modal */}
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="w-full max-w-lg rounded-2xl bg-white p-6">
+                  <h3 className="text-lg font-semibold mb-4">Leave a Review</h3>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+
+                      // Validation
+                      if (!isAuthenticated) {
+                        showToast("Please sign in to leave a review", "error");
+                        return;
+                      }
+                      if (!evidenceFile) {
+                        showToast("Please upload evidence of purchase (image)", "error");
+                        return;
+                      }
+
+                      try {
+                        setSubmitting(true);
+
+                        // Upload evidence image
+                        const authData = (() => {
+                          try {
+                            const raw = localStorage.getItem("liberty_auth_v1");
+                            return raw ? JSON.parse(raw) : null;
+                          } catch {
+                            return null;
+                          }
+                        })();
+                        const accessToken = authData?.accessToken;
+
+                        const fileForm = new FormData();
+                        fileForm.append("file", evidenceFile as Blob);
+
+                        const uploadResp = await fetch("/api/uploads/images/", {
+                          method: "POST",
+                          headers: {
+                            Authorization: `Bearer ${accessToken || ""}`,
+                          },
+                          body: fileForm,
+                        });
+
+                        if (!uploadResp.ok) {
+                          const err = await uploadResp.json().catch(() => ({}));
+                          throw new Error(err.detail || "Failed to upload evidence image");
                         }
+
+                        const uploadJson = await uploadResp.json();
+                        const evidence_url = uploadJson.url || uploadJson.data?.url || null;
+
+                        if (!evidence_url) {
+                          throw new Error("Upload did not return a file URL");
+                        }
+
+                        // Submit review with evidence_url and seller id
+                        await createReview({
+                          listing: listingId,
+                          seller: sellerId || "",
+                          buyer: user?.id || "",
+                          rating: formData.rating,
+                          review_text: formData.review_text,
+                          evidence_url,
+                        } as any);
+
+                        showToast("Review submitted successfully", "success");
+                        setFormData({ rating: 5, review_text: "" });
+                        setEvidenceFile(null);
+                        setEvidencePreview(null);
+                        setModalOpen(false);
+                        await loadReviews();
+                      } catch (err: any) {
+                        showToast(err?.message || "Failed to submit review", "error");
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Rating
+                      </label>
+                      <div className="flex gap-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, rating: star })}
+                            className="text-3xl transition hover:scale-110"
+                          >
+                            <span
+                              className={
+                                star <= formData.rating ? "text-yellow-400" : "text-gray-300"
+                              }
+                            >
+                              ★
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Your Review
+                      </label>
+                      <textarea
+                        value={formData.review_text}
+                        onChange={(e) =>
+                          setFormData({ ...formData, review_text: e.target.value })
+                        }
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none resize-none"
+                        placeholder="Share your experience with this seller and animal..."
+                        rows={4}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-2">
+                        Evidence Image (required)
+                      </label>
+                      {evidenceError && (
+                        <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                          {evidenceError}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] || null;
+                            if (f) {
+                              const error = validateEvidenceFile(f);
+                              if (error) {
+                                setEvidenceError(error);
+                                setEvidenceFile(null);
+                                setEvidencePreview(null);
+                                return;
+                              }
+                              setEvidenceError(null);
+                            }
+                            setEvidenceFile(f);
+                            if (f) {
+                              setEvidencePreview(URL.createObjectURL(f));
+                            } else {
+                              setEvidencePreview(null);
+                            }
+                          }}
+                        />
+                        {evidenceFile && (
+                          <div className="text-xs text-gray-600">
+                            {(evidenceFile.size / 1024).toFixed(1)}KB
+                          </div>
+                        )}
+                        {evidencePreview && (
+                          <img src={evidencePreview} className="w-20 h-20 object-cover rounded" />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        disabled={submitting || !evidenceFile}
+                        className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:bg-gray-400"
                       >
-                        ★
-                      </span>
-                    </button>
-                  ))}
+                        {submitting ? "Submitting..." : "Submit Review"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalOpen(false);
+                        }}
+                        className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-900 transition hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
-                  Your Review
-                </label>
-                <textarea
-                  value={formData.review_text}
-                  onChange={(e) =>
-                    setFormData({ ...formData, review_text: e.target.value })
-                  }
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none resize-none"
-                  placeholder="Share your experience with this seller and animal..."
-                  rows={4}
-                  required
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:bg-gray-400"
-                >
-                  {submitting ? "Submitting..." : "Submit Review"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-900 transition hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+            </>
           )}
 
           {/* Reviews List */}

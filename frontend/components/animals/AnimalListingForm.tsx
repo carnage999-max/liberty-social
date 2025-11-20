@@ -651,9 +651,17 @@ export default function AnimalListingForm({ listingId }: AnimalListingFormProps)
         {/* Step 3: Health Documents */}
         {currentStep === "health" && (
           <div className="space-y-6">
+            <div className="rounded-lg border border-orange-300 bg-orange-50 p-4">
+              <p className="text-sm text-orange-900 font-medium mb-2">⚠️ Important Notice</p>
+              <p className="text-sm text-orange-800">
+                Listings <strong>without veterinary documentation</strong> will be labeled as "Unverified" and buyers will see a warning to proceed at their own risk.
+                Adding health documents builds trust and improves listing visibility.
+              </p>
+            </div>
+
             <p className="text-gray-600">
               Upload veterinary documents, vaccination records, and health certifications
-              (Optional but recommended for higher trust)
+              (Optional but strongly recommended for higher trust and visibility)
             </p>
 
             <div

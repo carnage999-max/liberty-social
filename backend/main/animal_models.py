@@ -545,6 +545,9 @@ class SellerReview(models.Model):
         help_text="Seller communicated clearly",
     )
 
+    # Evidence image URL provided by buyer when submitting review
+    evidence_url = models.URLField(blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
