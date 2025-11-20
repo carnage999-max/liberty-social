@@ -3,7 +3,7 @@
  * Handles all API calls for animal listings, verification, reviews, and breeders
  */
 
-import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
+import { apiGet, apiPost, apiPatch, apiDelete, API_BASE } from '@/lib/api';
 
 // ============================================================================
 // ANIMAL CATEGORIES
@@ -153,22 +153,69 @@ export interface ListingMediaPayload {
 
 /**
  * Upload media for listing
- * @param formData Form data with file and metadata
+ * Uploads files to S3 first, then creates media records in the database
+ * @param listingId The ID of the listing to upload media for
+ * @param formData Form data with media files (appended with key "media_files")
  */
-export async function uploadListingMedia(formData: FormData) {
-  const response = await fetch('/api/animals/media/', {
-    method: 'POST',
-    body: formData,
-    headers: {
-      'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-    },
-  });
+export async function uploadListingMedia(listingId: string, formData: FormData) {
+  // Get auth token
+  const authData = (() => {
+    try {
+      const raw = localStorage.getItem("liberty_auth_v1");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  })();
+  const accessToken = authData?.accessToken;
 
-  if (!response.ok) {
-    throw new Error('Failed to upload media');
+  // Extract files from FormData
+  const files = formData.getAll("media_files") as File[];
+  
+  if (files.length === 0) {
+    return [];
   }
 
-  return response.json();
+  try {
+    // Upload each file to S3 and collect URLs
+    const uploadPromises = files.map(async (file) => {
+      const fileFormData = new FormData();
+      fileFormData.append("file", file);
+
+      const uploadResponse = await fetch(`${API_BASE}/uploads/images/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken || ""}`,
+        },
+        body: fileFormData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json().catch(() => ({}));
+        throw new Error(errorData.detail || errorData.error || "File upload failed");
+      }
+
+      return uploadResponse.json();
+    });
+
+    const uploadedFiles = await Promise.all(uploadPromises);
+
+    // Now create media records in the database
+    const mediaRecords = await Promise.all(
+      uploadedFiles.map((uploadedFile) => {
+        return apiPost("/animals/media/", {
+          listing_id: listingId,
+          url: uploadedFile.url,
+          media_type: "photo",
+        });
+      })
+    );
+
+    return mediaRecords;
+  } catch (error: any) {
+    const errorMsg = error?.message || "Failed to upload media";
+    throw new Error(errorMsg);
+  }
 }
 
 /**
