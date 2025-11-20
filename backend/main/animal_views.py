@@ -135,6 +135,71 @@ class AnimalSellerVerificationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+    @action(detail=False, methods=["post"])
+    def submit_verification(self, request):
+        """
+        Submit KYC verification for review.
+        Required fields: full_name, phone_number, address, city, state_code, zip_code
+        Optional: id_document_url, breeder_license_number, breeder_license_url
+        """
+        try:
+            verification, created = AnimalSellerVerification.objects.get_or_create(
+                user=request.user
+            )
+            
+            # Validate required fields
+            required_fields = [
+                "full_name", "phone_number", "address", "city", "state_code", "zip_code"
+            ]
+            missing = [f for f in required_fields if not request.data.get(f)]
+            
+            if missing:
+                return Response(
+                    {"error": f"Missing required fields: {', '.join(missing)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Update verification with request data
+            serializer = self.get_serializer(verification, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            
+            # Set status to pending for manual review
+            if verification.status == "pending" or created:
+                verification.status = "pending"
+                verification.save()
+            
+            return Response({
+                "message": "Verification submitted for review",
+                "status": verification.status,
+                "verification": serializer.data
+            }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=False, methods=["get"])
+    def check_eligibility(self, request):
+        """Check if user is eligible to list animals."""
+        try:
+            verification = AnimalSellerVerification.objects.get(user=request.user)
+            is_verified = verification.is_verified
+            status_value = verification.status
+        except AnimalSellerVerification.DoesNotExist:
+            is_verified = False
+            status_value = "not_submitted"
+        
+        return Response({
+            "user_id": request.user.id,
+            "is_verified": is_verified,
+            "verification_status": status_value,
+            "can_list": is_verified,  # Can list without verification but will be marked unverified
+            "message": "You can list animals but unverified listings get lower visibility. Complete KYC to get verified badge." if not is_verified else "Your account is verified!"
+        })
+
 
 class AnimalListingViewSet(viewsets.ModelViewSet):
     """ViewSet for animal listings."""
@@ -182,7 +247,24 @@ class AnimalListingViewSet(viewsets.ModelViewSet):
                 | Q(breed__icontains=search_query)
             )
 
-        return queryset.order_by("-created_at")
+        queryset = queryset.order_by("-created_at")
+
+        # Filter by risk score (requires post-filtering since it's calculated)
+        risk_score_min = self.request.query_params.get("risk_score_min")
+        risk_score_max = self.request.query_params.get("risk_score_max")
+        if risk_score_min is not None or risk_score_max is not None:
+            listings = list(queryset)
+            filtered_listings = []
+            for listing in listings:
+                risk_score = listing.get_risk_score()
+                if risk_score_min is not None and risk_score < float(risk_score_min):
+                    continue
+                if risk_score_max is not None and risk_score > float(risk_score_max):
+                    continue
+                filtered_listings.append(listing.pk)
+            queryset = AnimalListing.objects.filter(pk__in=filtered_listings).order_by("-created_at")
+
+        return queryset
 
     def get_permissions(self):
         """Use looser permissions for read-only actions."""
@@ -340,14 +422,29 @@ class AnimalListingMediaViewSet(viewsets.ModelViewSet):
         return AnimalListingMedia.objects.none()
 
     def perform_create(self, serializer):
-        """Create media for listing."""
+        """Create media for listing with stock photo detection."""
+        from .utils.stock_photo_detector import StockPhotoDetector
+        
         listing_id = self.request.data.get("listing_id")
         listing = get_object_or_404(AnimalListing, id=listing_id)
 
         if listing.seller != self.request.user:
             raise PermissionDenied("Cannot add media to this listing.")
 
-        serializer.save(listing=listing)
+        media = serializer.save(listing=listing)
+        
+        # Check for stock photos
+        if media.url:
+            is_stock, confidence = StockPhotoDetector.detect(media.url)
+            media.is_stock_photo = is_stock
+            media.stock_photo_confidence = confidence
+            media.save()
+            
+            # Add to listing's scam flags if high confidence stock photo
+            if is_stock and confidence > 0.7:
+                if "stock_photo_detected" not in listing.scam_flags:
+                    listing.scam_flags.append("stock_photo_detected")
+                    listing.save()
 
 
 class SellerReviewViewSet(viewsets.ModelViewSet):

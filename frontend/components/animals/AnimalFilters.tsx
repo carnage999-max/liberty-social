@@ -14,12 +14,34 @@ export default function AnimalFilters({ onFiltersChange }: AnimalFiltersProps) {
     category_id: "",
     price_min: "",
     price_max: "",
+    risk_level: "",
   });
 
   const handleFilterChange = (key: string, value: string) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
-    onFiltersChange(newFilters);
+    
+    // Convert risk_level to risk_score_min/max for API
+    const apiFilters: Record<string, any> = { ...newFilters };
+    if (newFilters.risk_level === "low") {
+      apiFilters.risk_score_min = 0;
+      apiFilters.risk_score_max = 30;
+      delete apiFilters.risk_level;
+    } else if (newFilters.risk_level === "medium") {
+      apiFilters.risk_score_min = 31;
+      apiFilters.risk_score_max = 60;
+      delete apiFilters.risk_level;
+    } else if (newFilters.risk_level === "high") {
+      apiFilters.risk_score_min = 61;
+      apiFilters.risk_score_max = 100;
+      delete apiFilters.risk_level;
+    } else {
+      delete apiFilters.risk_score_min;
+      delete apiFilters.risk_score_max;
+      delete apiFilters.risk_level;
+    }
+    
+    onFiltersChange(apiFilters);
   };
 
   return (
@@ -106,6 +128,24 @@ export default function AnimalFilters({ onFiltersChange }: AnimalFiltersProps) {
         </div>
       </div>
 
+      {/* Risk Level */}
+      <div className="space-y-3">
+        <label htmlFor="risk_level" className="block text-sm font-medium text-gray-700">
+          Risk Level
+        </label>
+        <select
+          id="risk_level"
+          value={filters.risk_level}
+          onChange={(e) => handleFilterChange("risk_level", e.target.value)}
+          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        >
+          <option value="">All Risk Levels</option>
+          <option value="low">Low Risk (0-30)</option>
+          <option value="medium">Medium Risk (31-60)</option>
+          <option value="high">High Risk (61-100)</option>
+        </select>
+      </div>
+
       {/* Reset Button */}
       <button
         onClick={() => {
@@ -114,6 +154,7 @@ export default function AnimalFilters({ onFiltersChange }: AnimalFiltersProps) {
             category_id: "",
             price_min: "",
             price_max: "",
+            risk_level: "",
           });
           onFiltersChange({});
         }}
