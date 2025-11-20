@@ -48,6 +48,8 @@ export interface AnimalListingFilters {
   status?: 'available' | 'pending' | 'sold';
   seller_id?: string;
   search?: string;
+  risk_score_min?: number;
+  risk_score_max?: number;
   page?: number;
   limit?: number;
 }

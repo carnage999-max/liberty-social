@@ -154,14 +154,46 @@ export default function AnimalListingCard({
             <span className="line-clamp-1">{location}</span>
           </div>
 
-          {/* Footer: Price & Status */}
-          <div className="mt-auto flex items-center justify-between pt-2 border-t border-gray-100">
-            <span className="font-bold text-sm text-blue-600">
-              {getPriceDisplay()}
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-700 capitalize">
-              {status}
-            </span>
+          {/* Footer: Price, Risk Score & Status */}
+          <div className="mt-auto space-y-2 pt-2 border-t border-gray-100">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-sm text-blue-600">
+                {getPriceDisplay()}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-700 capitalize">
+                {status}
+              </span>
+            </div>
+            
+            {/* Risk Score Indicator */}
+            {risk_score !== undefined && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-600">Risk Score</span>
+                <div className="flex items-center gap-2">
+                  <div className="relative w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        risk_score <= 30
+                          ? "bg-green-500"
+                          : risk_score <= 60
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
+                      }`}
+                      style={{ width: `${risk_score}%` }}
+                    />
+                  </div>
+                  <span className={`text-xs font-semibold ${
+                    risk_score <= 30
+                      ? "text-green-600"
+                      : risk_score <= 60
+                      ? "text-yellow-600"
+                      : "text-red-600"
+                  }`}>
+                    {risk_score}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
