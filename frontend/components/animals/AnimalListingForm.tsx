@@ -7,6 +7,62 @@ import { useAnimalCategories } from "@/hooks/useAnimalCategories";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
+// US States mapping for state codes
+const US_STATES = {
+  "Alabama": "AL",
+  "Alaska": "AK",
+  "Arizona": "AZ",
+  "Arkansas": "AR",
+  "California": "CA",
+  "Colorado": "CO",
+  "Connecticut": "CT",
+  "Delaware": "DE",
+  "Florida": "FL",
+  "Georgia": "GA",
+  "Hawaii": "HI",
+  "Idaho": "ID",
+  "Illinois": "IL",
+  "Indiana": "IN",
+  "Iowa": "IA",
+  "Kansas": "KS",
+  "Kentucky": "KY",
+  "Louisiana": "LA",
+  "Maine": "ME",
+  "Maryland": "MD",
+  "Massachusetts": "MA",
+  "Michigan": "MI",
+  "Minnesota": "MN",
+  "Mississippi": "MS",
+  "Missouri": "MO",
+  "Montana": "MT",
+  "Nebraska": "NE",
+  "Nevada": "NV",
+  "New Hampshire": "NH",
+  "New Jersey": "NJ",
+  "New Mexico": "NM",
+  "New York": "NY",
+  "North Carolina": "NC",
+  "North Dakota": "ND",
+  "Ohio": "OH",
+  "Oklahoma": "OK",
+  "Oregon": "OR",
+  "Pennsylvania": "PA",
+  "Rhode Island": "RI",
+  "South Carolina": "SC",
+  "South Dakota": "SD",
+  "Tennessee": "TN",
+  "Texas": "TX",
+  "Utah": "UT",
+  "Vermont": "VT",
+  "Virginia": "VA",
+  "Washington": "WA",
+  "West Virginia": "WV",
+  "Wisconsin": "WI",
+  "Wyoming": "WY",
+} as const;
+
+const STATE_CODES = Object.values(US_STATES);
+
 type Step = "basic" | "pricing" | "health" | "media" | "review";
 
 interface FormData {
@@ -182,7 +238,7 @@ export default function AnimalListingForm() {
         age_months,
         color: formData.color,
         listing_type: formData.listing_type,
-        price: formData.listing_type === "sale" ? formData.price : undefined,
+        price: formData.listing_type === "sale" ? (formData.price || 0) : 0,
         location: `${formData.city}, ${formData.state}`,
         state_code: formData.state,
       };
@@ -202,8 +258,10 @@ export default function AnimalListingForm() {
       showToast("Listing created successfully!", "success");
 
       router.push(`/app/animals/${listing.id}`);
-    } catch (error) {
-      showToast("Failed to create listing", "error");
+    } catch (error: any) {
+      console.error("Listing creation error:", error);
+      const errorMsg = error?.message || "Failed to create listing";
+      showToast(errorMsg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -491,18 +549,24 @@ export default function AnimalListingForm() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <label htmlFor="state" className="block text-sm font-medium text-gray-900 mb-2">
                   State *
                 </label>
-                <input
-                  type="text"
+                <select
+                  id="state"
                   value={formData.state}
                   onChange={(e) =>
                     setFormData({ ...formData, state: e.target.value })
                   }
-                  placeholder="e.g., NY"
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 focus:border-blue-500 focus:outline-none"
-                />
+                >
+                  <option value="">Select a state</option>
+                  {Object.entries(US_STATES).map(([stateName, code]) => (
+                    <option key={code} value={code}>
+                      {stateName} ({code})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>

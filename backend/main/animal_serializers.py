@@ -165,13 +165,11 @@ class AnimalListingDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for animal listings with all relationships."""
 
     seller = UserSerializer(read_only=True)
-    category = AnimalCategorySerializer(read_only=True)
-    category_id = serializers.PrimaryKeyRelatedField(
+    category = serializers.PrimaryKeyRelatedField(
         queryset=AnimalCategory.objects.all(),
-        write_only=True,
         required=False,
-        source="category"
     )
+    category_name = serializers.SerializerMethodField()
     seller_verification = AnimalSellerVerificationSerializer(read_only=True)
     vet_documentation = VetDocumentationSerializer(read_only=True)
     media = AnimalListingMediaSerializer(many=True, read_only=True)
@@ -184,13 +182,19 @@ class AnimalListingDetailSerializer(serializers.ModelSerializer):
     risk_score = serializers.SerializerMethodField()
     seller_rating = serializers.SerializerMethodField()
 
+    def get_category_name(self, obj):
+        """Get the category name for display."""
+        if obj.category:
+            return obj.category.name
+        return None
+
     class Meta:
         model = AnimalListing
         fields = [
             "id",
             "seller",
             "category",
-            "category_id",
+            "category_name",
             "title",
             "description",
             "listing_type",
