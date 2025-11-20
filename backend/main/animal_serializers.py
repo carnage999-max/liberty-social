@@ -342,7 +342,9 @@ class AnimalListingListSerializer(serializers.ModelSerializer):
     def get_animal_listing_media(self, obj):
         """Get all media for listing."""
         media_items = obj.media.all()
-        return [{"id": m.id, "url": m.url, "media_type": m.media_type} for m in media_items]
+        return [
+            {"id": m.id, "url": m.url, "media_type": m.media_type} for m in media_items
+        ]
 
     def get_risk_score(self, obj):
         """Get risk score for listing."""

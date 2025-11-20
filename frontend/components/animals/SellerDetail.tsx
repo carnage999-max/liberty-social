@@ -72,7 +72,7 @@ export default function SellerDetail({ sellerId }: SellerDetailProps) {
         <span>/</span>
         <span className="text-gray-900 font-medium">Sellers</span>
         <span>/</span>
-        <span className="text-gray-900 font-medium">{seller.display_name}</span>
+        <span className="text-gray-900 font-medium">{seller.id}</span>
       </div>
 
       {/* Seller Card */}
@@ -80,9 +80,9 @@ export default function SellerDetail({ sellerId }: SellerDetailProps) {
         <div className="flex flex-col md:flex-row gap-8">
           {/* Avatar */}
           <div className="flex-shrink-0">
-            {seller.avatar ? (
+            {seller.profile_image_url ? (
               <Image
-                src={seller.avatar}
+                src={seller.profile_image_url}
                 alt={seller.display_name}
                 width={200}
                 height={200}
@@ -97,9 +97,10 @@ export default function SellerDetail({ sellerId }: SellerDetailProps) {
 
           {/* Seller Info */}
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">
               {seller.display_name}
             </h1>
+            <p className="text-lg text-gray-600 mb-4">@{seller.username}</p>
 
             {/* Rating */}
             <div className="flex items-center gap-4 mb-6">
@@ -172,7 +173,7 @@ export default function SellerDetail({ sellerId }: SellerDetailProps) {
       {listings.length > 0 && (
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            {seller.display_name}'s Listings
+            {seller.username}'s Listings
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {listings.map((listing) => (

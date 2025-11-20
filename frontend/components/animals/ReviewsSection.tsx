@@ -52,6 +52,12 @@ export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionPr
       return;
     }
 
+    // Prevent seller from reviewing their own listing
+    if (isCurrentUserSeller) {
+      showToast("You cannot review your own listing", "error");
+      return;
+    }
+
     try {
       setSubmitting(true);
       // Note: This needs to be adjusted based on the actual API requirements
@@ -103,6 +109,11 @@ export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionPr
       </div>
     );
   };
+
+  // Hide entire section if current user is the seller
+  if (isCurrentUserSeller) {
+    return null;
+  }
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6">
@@ -218,7 +229,7 @@ export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionPr
                       alt={review.reviewer.display_name}
                       width={40}
                       height={40}
-                      className="rounded-full flex-shrink-0"
+                      className="rounded-full shrink-0"
                     />
                   )}
                   <div className="flex-1 min-w-0">
