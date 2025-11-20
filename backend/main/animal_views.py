@@ -139,7 +139,9 @@ class AnimalSellerVerificationViewSet(viewsets.ModelViewSet):
 class AnimalListingViewSet(viewsets.ModelViewSet):
     """ViewSet for animal listings."""
 
-    permission_classes = [permissions.IsAuthenticated]
+    # Allow anonymous users to view listings (list/retrieve), but require
+    # authentication for create/update/delete actions.
+    # Use get_permissions to return different permission classes per action.
     filterset_fields = [
         "category",
         "state_code",
@@ -181,6 +183,12 @@ class AnimalListingViewSet(viewsets.ModelViewSet):
             )
 
         return queryset.order_by("-created_at")
+
+    def get_permissions(self):
+        """Use looser permissions for read-only actions."""
+        if self.action in ("list", "retrieve"):
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     def get_serializer_class(self):
         """Use list serializer for list view, detail for others."""
