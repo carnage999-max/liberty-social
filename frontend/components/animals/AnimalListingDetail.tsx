@@ -7,6 +7,7 @@ import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth-context";
 import ReviewsSection from "./ReviewsSection";
 import ImageGallery from "@/components/ImageGallery";
+import ShareModal from "@/components/modals/ShareModal";
 import Link from "next/link";
 
 interface AnimalListingDetailProps {
@@ -29,6 +30,7 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteConfirmed, setDeleteConfirmed] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -206,6 +208,15 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
                 </div>
               </div>
             )}
+            {/* Universal Share Button (visible to all users) */}
+            <div className="mt-3">
+              <button
+                onClick={() => setShareModalOpen(true)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-900 transition hover:bg-gray-50"
+              >
+                Share Listing
+              </button>
+            </div>
           </div>
 
           {/* Image Thumbnails */}
@@ -314,13 +325,36 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
 
         {/* Sidebar */}
         <div className="space-y-4">
+          {/* Unverified Badge - Show if missing vet docs or seller not verified */}
+          {(!listing.vet_documentation || 
+            listing.vet_documentation.documentation_type === "unknown" ||
+            !listing.seller?.is_verified) && (
+            <div className="rounded-2xl border border-orange-300 bg-orange-50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">⚠️</div>
+                <div>
+                  <h3 className="font-semibold text-orange-900 mb-1">Unverified Listing</h3>
+                  <p className="text-sm text-orange-800">
+                    {!listing.seller?.is_verified 
+                      ? "Seller identity not verified. " 
+                      : ""}
+                    {(!listing.vet_documentation || listing.vet_documentation.documentation_type === "unknown")
+                      ? "No vet documentation provided. "
+                      : ""}
+                    Proceed at your own risk.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Price Card */}
           <div className="rounded-2xl border border-gray-200 bg-white p-6">
             <div className="mb-6">
               {listing.price ? (
                 <div>
                   <div className="text-sm text-gray-600 mb-1">Price</div>
-                  <div className="text-4xl font-bold text-gray-900">
+                  <div className="text-4xl font-bold text-gray-900 max-w-full break-words whitespace-normal">
                     ${listing.price.toLocaleString()}
                   </div>
                 </div>
@@ -385,10 +419,7 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
                   Contact Seller
                 </button>
 
-                {/* Share Button */}
-                <button className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-900 transition hover:bg-gray-50">
-                  Share Listing
-                </button>
+                {/* Share Button removed from here - single universal button is below */}
 
                 {/* Contact Form */}
                 {contactFormOpen && (
@@ -433,6 +464,15 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
                 )}
               </>
             )}
+            {/* Universal Share Button (visible to all users) */}
+            <div className="mt-4">
+              <button
+                onClick={() => setShareModalOpen(true)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-900 transition hover:bg-gray-50"
+              >
+                Share Listing
+              </button>
+            </div>
           </div>
 
           {/* Seller Card */}
@@ -550,6 +590,15 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
         title={listing.title}
       />
 
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        shareUrl={typeof window !== "undefined" ? `${window.location.origin}/app/animals/${id}` : `/app/animals/${id}`}
+        title={listing.title}
+        type="post"
+      />
+
       {/* Delete Confirmation Modal */}
       {deleteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -601,6 +650,14 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
           </div>
         </div>
       )}
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        shareUrl={typeof window !== "undefined" ? `${window.location.origin}/app/animals/${id}` : `/app/animals/${id}`}
+        title={listing?.title || "Listing"}
+        type="post"
+      />
     </div>
   );
 }

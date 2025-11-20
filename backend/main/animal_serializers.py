@@ -143,6 +143,7 @@ class SellerReviewSerializer(serializers.ModelSerializer):
             "rating",
             "title",
             "comment",
+            "evidence_url",
             "accuracy",
             "health",
             "communication",

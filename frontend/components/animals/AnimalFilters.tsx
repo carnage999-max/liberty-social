@@ -93,7 +93,7 @@ export default function AnimalFilters({ onFiltersChange }: AnimalFiltersProps) {
             placeholder="Min price"
             value={filters.price_min}
             onChange={(e) => handleFilterChange("price_min", e.target.value)}
-            className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="flex-1 min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
           <span className="hidden sm:inline text-gray-500 shrink-0">-</span>
           <input
@@ -101,7 +101,7 @@ export default function AnimalFilters({ onFiltersChange }: AnimalFiltersProps) {
             placeholder="Max price"
             value={filters.price_max}
             onChange={(e) => handleFilterChange("price_max", e.target.value)}
-            className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="flex-1 min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
       </div>
