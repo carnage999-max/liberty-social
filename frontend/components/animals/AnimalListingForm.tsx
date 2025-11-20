@@ -251,8 +251,8 @@ export default function AnimalListingForm() {
         mediaPreview.forEach((m) => {
           formDataMedia.append("media_files", m.file);
         });
-        // uploadListingMedia expects just FormData now
-        await uploadListingMedia(formDataMedia);
+        // Pass listing ID to uploadListingMedia
+        await uploadListingMedia(listing.id, formDataMedia);
       }
 
       showToast("Listing created successfully!", "success");

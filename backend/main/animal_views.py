@@ -192,6 +192,9 @@ class AnimalListingViewSet(viewsets.ModelViewSet):
         """Create listing and set seller."""
         listing = serializer.save(seller=self.request.user)
 
+        # Auto-activate listing on creation
+        listing.status = "active"
+
         # Check seller verification
         try:
             verification = AnimalSellerVerification.objects.get(
@@ -199,7 +202,6 @@ class AnimalListingViewSet(viewsets.ModelViewSet):
                 status="verified",
             )
             listing.seller_verification = verification
-            listing.save()
         except AnimalSellerVerification.DoesNotExist:
             pass
 
