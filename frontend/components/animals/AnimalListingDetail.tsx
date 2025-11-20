@@ -5,6 +5,7 @@ import Image from "next/image";
 import { getAnimalListing, getAnimalListings } from "@/lib/animals";
 import { useToast } from "@/components/Toast";
 import ReviewsSection from "./ReviewsSection";
+import ImageGallery from "@/components/ImageGallery";
 import Link from "next/link";
 
 interface AnimalListingDetailProps {
@@ -17,6 +18,7 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
   const [relatedListings, setRelatedListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [contactFormOpen, setContactFormOpen] = useState(false);
   const [contactForm, setContactForm] = useState({
     message: "",
@@ -24,23 +26,37 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
   });
 
   useEffect(() => {
-    loadListing();
+    const controller = new AbortController();
+    loadListing(controller.signal);
+    return () => controller.abort();
   }, [id]);
 
-  const loadListing = async () => {
+  const loadListing = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      const data = await getAnimalListing(id);
+      const data = await getAnimalListing(id /* , opts? */);
+      // If the effect was aborted elsewhere, bail out
+      if (signal?.aborted) return;
       setListing(data);
 
-      // Load related listings from same category
-      const listings = await getAnimalListings({
-        category_id: data.category,
-        limit: 3,
-      });
-      setRelatedListings(listings.filter((l: any) => l.id !== id).slice(0, 3));
-    } catch (error) {
-      showToast("Failed to load listing details", "error");
+      // Load related listings from same category (backend expects `category` param)
+      try {
+  const listings = await getAnimalListings({ category_id: data.category, limit: 3 });
+        if (!signal?.aborted) {
+          setRelatedListings(listings.filter((l: any) => l.id !== id).slice(0, 3));
+        }
+      } catch (relErr) {
+        // Related listings are non-fatal; log but don't spam user
+        // Only show toast if it's a real error (not aborted)
+        if (!(relErr as any)?.message?.includes("aborted") && !signal?.aborted) {
+          console.error("Failed to load related listings:", relErr);
+        }
+      }
+    } catch (error: any) {
+      // If the fetch was aborted, don't show an error toast
+      if (error?.name === "AbortError") return;
+      console.error("Failed to load listing:", error);
+      showToast(error?.message || "Failed to load listing details", "error");
     } finally {
       setLoading(false);
     }
@@ -87,7 +103,9 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
     );
   }
 
-  const images = listing.animal_listing_media || [];
+  // Backend detail serializer exposes `media` (array of media objects)
+  // (list serializer exposes `animal_listing_media`). Use whichever is present.
+  const images = listing.media || listing.animal_listing_media || [];
   const mainImage = images[selectedImageIndex]?.url || null;
 
   return (
@@ -106,12 +124,15 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
         {/* Image Gallery */}
         <div className="lg:col-span-2 space-y-4">
           {mainImage && (
-            <div className="relative aspect-square rounded-2xl bg-gray-100 overflow-hidden border border-gray-200">
+            <button
+              onClick={() => setGalleryOpen(true)}
+              className="relative aspect-square rounded-2xl bg-gray-100 overflow-hidden border border-gray-200 hover:shadow-lg transition cursor-pointer group"
+            >
               <Image
                 src={mainImage}
                 alt={listing.title}
                 fill
-                className="object-cover"
+                className="object-cover group-hover:brightness-90 transition"
                 priority
               />
               {listing.risk_score > 60 && (
@@ -124,7 +145,13 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
                   ✓ Verified Seller
                 </div>
               )}
-            </div>
+              {/* Click to view hint */}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition">
+                <svg className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7" />
+                </svg>
+              </div>
+            </button>
           )}
 
           {/* Image Thumbnails */}
@@ -133,8 +160,11 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
               {images.map((img: any, idx: number) => (
                 <button
                   key={idx}
-                  onClick={() => setSelectedImageIndex(idx)}
-                  className={`flex-shrink-0 relative w-20 h-20 rounded-lg overflow-hidden border-2 transition ${
+                  onClick={() => {
+                    setSelectedImageIndex(idx);
+                    setGalleryOpen(true);
+                  }}
+                  className={`shrink-0 relative w-20 h-20 rounded-lg overflow-hidden border-2 transition ${
                     idx === selectedImageIndex
                       ? "border-blue-600"
                       : "border-gray-200 hover:border-gray-300"
@@ -431,6 +461,21 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
           </div>
         </div>
       )}
+
+      {/* Image Gallery Modal */}
+      <ImageGallery
+        open={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        images={images.map((img: any) => img.url).filter((url: string) => url)}
+        currentIndex={selectedImageIndex}
+        onNavigate={(direction) => {
+          const delta = direction === "prev" ? -1 : 1;
+          const newIndex = (selectedImageIndex + delta + images.length) % images.length;
+          setSelectedImageIndex(newIndex);
+        }}
+        onSelect={(index) => setSelectedImageIndex(index)}
+        title={listing.title}
+      />
     </div>
   );
 }
