@@ -321,7 +321,7 @@ export default function PageDetail() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-2xl font-semibold text-black">{page.name}</h1>
                   {page.is_verified && (
-                    <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-600">
+                    <span className="rounded-full bg-(--color-gold) px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-(--color-deeper-navy)">
                       Verified
                     </span>
                   )}
