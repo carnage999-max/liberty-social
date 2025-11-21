@@ -5,7 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiPost } from "@/lib/api";
 import type { Notification } from "@/lib/types";
 import { useNotifications } from "@/hooks/useNotifications";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
 
@@ -26,6 +26,32 @@ export default function NotificationsPage() {
   } = useNotifications();
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
+  const [autoMarkedOnMount, setAutoMarkedOnMount] = useState(false);
+
+  // Auto-mark all notifications as read when page loads with unread notifications
+  useEffect(() => {
+    if (!accessToken || loading || autoMarkedOnMount || unreadCount === 0) return;
+
+    const autoMarkAll = async () => {
+      try {
+        setMarkingAll(true);
+        await apiPost("/notifications/mark_all_read/", undefined, {
+          token: accessToken,
+          cache: "no-store",
+        });
+        await refresh();
+        setAutoMarkedOnMount(true);
+      } catch (err) {
+        console.error(err);
+        // Don't show toast for auto-mark, just silently fail
+        setAutoMarkedOnMount(true);
+      } finally {
+        setMarkingAll(false);
+      }
+    };
+
+    autoMarkAll();
+  }, [accessToken, loading, autoMarkedOnMount, unreadCount, refresh]);
 
   const handleMarkRead = useCallback(
     async (notificationId: number, e?: React.MouseEvent) => {
