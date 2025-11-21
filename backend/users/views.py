@@ -30,6 +30,7 @@ from .serializers import (
     UserSerializer,
     UserSettingsSerializer,
     FriendshipHistorySerializer,
+    UserStatusSerializer,
 )
 from .emails import send_welcome_email, send_password_changed_email
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -826,4 +827,18 @@ class FriendshipHistoryViewSet(ModelViewSet):
             created_at__gte=thirty_days_ago,
         ).select_related("friend")
         serializer = self.get_serializer(removals, many=True)
+        return Response(serializer.data)
+
+
+class OnlineUsersView(APIView):
+    """View for fetching currently online users"""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get list of currently online users"""
+        online_users = User.objects.filter(is_online=True).exclude(
+            id=request.user.id
+        )
+        serializer = UserStatusSerializer(online_users, many=True)
         return Response(serializer.data)

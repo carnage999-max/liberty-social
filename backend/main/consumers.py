@@ -3,9 +3,11 @@ import json
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.contrib.auth.models import AnonymousUser
+from django.utils import timezone
 
 from .models import ConversationParticipant
 from .realtime import conversation_group_name, notification_group_name
+from users.models import User
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
@@ -118,3 +120,93 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
                 "payload": event.get("data"),
             }
         )
+
+
+class UserStatusConsumer(AsyncJsonWebsocketConsumer):
+    """Tracks and broadcasts user online/offline status in real-time."""
+
+    async def connect(self):
+        user = self.scope.get("user")
+        if not user or isinstance(user, AnonymousUser) or user.is_anonymous:
+            await self.close(code=4401)
+            return
+
+        self.user_id = str(user.id)
+        self.group_name = "user_status"  # Global group for all online users
+
+        # Mark user as online
+        await self._set_user_online(self.user_id, True)
+
+        # Add user to the global status group
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+        # Notify all clients that this user is online
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "user.status.changed",
+                "user_id": self.user_id,
+                "is_online": True,
+            },
+        )
+
+        await self.send_json({"type": "connection.ack", "user_id": self.user_id})
+
+    async def disconnect(self, code):
+        if hasattr(self, "user_id"):
+            # Mark user as offline
+            await self._set_user_online(self.user_id, False)
+
+            # Notify all clients that this user is offline
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    "type": "user.status.changed",
+                    "user_id": self.user_id,
+                    "is_online": False,
+                },
+            )
+
+        if hasattr(self, "group_name"):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive_json(self, content, **kwargs):
+        message_type = content.get("type")
+        if message_type == "ping":
+            # Update last_activity on ping to track active users
+            if hasattr(self, "user_id"):
+                await self._update_user_activity(self.user_id)
+            await self.send_json({"type": "pong"})
+
+    async def user_status_changed(self, event):
+        """Handle user status change events from other connections."""
+        await self.send_json(
+            {
+                "type": "user.status.changed",
+                "user_id": event.get("user_id"),
+                "is_online": event.get("is_online"),
+            }
+        )
+
+    @sync_to_async
+    def _set_user_online(self, user_id, is_online):
+        """Update user's online status in database."""
+        try:
+            user = User.objects.get(id=user_id)
+            user.is_online = is_online
+            user.last_activity = timezone.now()
+            user.save(update_fields=["is_online", "last_activity"])
+        except User.DoesNotExist:
+            pass
+
+    @sync_to_async
+    def _update_user_activity(self, user_id):
+        """Update user's last activity timestamp."""
+        try:
+            user = User.objects.get(id=user_id)
+            user.last_activity = timezone.now()
+            user.save(update_fields=["last_activity"])
+        except User.DoesNotExist:
+            pass
+

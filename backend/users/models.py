@@ -57,6 +57,11 @@ class User(AbstractUser):
     profile_image_url = models.URLField(_("Display Picture"), null=True, blank=True)
     bio = models.TextField(_("Bio"), null=True, blank=True)
     gender = models.CharField(_("Gender"), max_length=50, default="Not specified")
+    
+    # Online status tracking
+    is_online = models.BooleanField(_("Is Online"), default=False)
+    last_seen = models.DateTimeField(_("Last Seen"), auto_now=True)
+    last_activity = models.DateTimeField(_("Last Activity"), auto_now=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
