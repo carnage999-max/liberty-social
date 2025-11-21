@@ -6,6 +6,8 @@ import ProfileCard from "@/components/profile/ProfileCard";
 import FriendsList from "@/components/friends/FriendsList";
 import ProfileImageModal from "@/components/profile/ProfileImageModal";
 import OnlineUsers from "@/components/OnlineUsers";
+import ReportBug from "@/components/BugReport";
+import CollapsibleFloatingButtons from "@/components/CollapsibleFloatingButtons";
 import { useAuth } from "@/lib/auth-context";
 import { API_BASE, apiPost, apiGet } from "@/lib/api";
 import type { Post, Visibility, FriendRequest } from "@/lib/types";
@@ -40,6 +42,21 @@ const NAV_LINKS = [
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
           d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "Pages",
+    href: "/app/pages",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M4 4h8v8H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"
           stroke="currentColor"
           strokeWidth="2"
           strokeLinecap="round"
@@ -122,28 +139,6 @@ const NAV_LINKS = [
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path
           d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    label: "Pages",
-    href: "/app/pages",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M9 22V12h6v10"
           stroke="currentColor"
           strokeWidth="2"
           strokeLinecap="round"
@@ -245,6 +240,7 @@ export default function AppShell({ children }: AppShellProps) {
   const { accessToken, user, logout } = useAuth();
   const toast = useToast();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [showCompactLogo, setShowCompactLogo] = useState(false);
@@ -770,7 +766,13 @@ export default function AppShell({ children }: AppShellProps) {
         onCreated={handlePostCreated}
         onError={notifyError}
       />
-      <FloatingCreateButton onOpen={openCreateModal} />
+      
+      <CollapsibleFloatingButtons 
+        onCreatePost={openCreateModal}
+        onReportBug={() => setIsBugReportOpen(true)}
+      />
+      
+      <ReportBug />
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[var(--color-deep-navy)]/95 shadow-lg backdrop-blur-sm sm:hidden">
@@ -780,7 +782,9 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/feed")}
               aria-label="View feed"
-              className="relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg"
+              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg ${
+                pathname?.startsWith("/app/feed") ? "border-2 border-(--color-gold)" : ""
+              }`}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
@@ -797,7 +801,9 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/friends")}
               aria-label="View friends"
-              className="relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg border-2 border-(--color-gold)"
+              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg ${
+                pathname?.startsWith("/app/friends") ? "border-2 border-(--color-gold)" : ""
+              }`}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
@@ -814,7 +820,9 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/pages")}
               aria-label="View pages"
-              className="relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg"
+              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg ${
+                pathname?.startsWith("/app/pages") ? "border-2 border-(--color-gold)" : ""
+              }`}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
@@ -831,7 +839,9 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/marketplace")}
               aria-label="View marketplace"
-              className="relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg"
+              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg ${
+                pathname?.startsWith("/app/marketplace") ? "border-2 border-(--color-gold)" : ""
+              }`}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
@@ -855,7 +865,9 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/notifications")}
               aria-label="View notifications"
-              className="relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg"
+              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg ${
+                pathname?.startsWith("/app/notifications") ? "border-2 border-(--color-gold)" : ""
+              }`}
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
@@ -1281,20 +1293,5 @@ function CreatePostModal({
         </form>
       </div>
     </div>
-  );
-}
-
-function FloatingCreateButton({ onOpen }: { onOpen: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-label="Create post"
-      onClick={onOpen}
-      className="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full btn-primary text-white shadow-metallic transition hover:scale-105 active:scale-95 sm:bottom-8"
-    >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    </button>
   );
 }
