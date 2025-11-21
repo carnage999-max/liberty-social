@@ -9,12 +9,15 @@ import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import ShareModal from "@/components/modals/ShareModal";
 
+type TabType = "create" | "discover" | "invitations" | "liked";
+
 export default function PagesIndexPage() {
   const { accessToken } = useAuth();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [pages, setPages] = useState<BusinessPage[]>([]);
   const [managedPages, setManagedPages] = useState<BusinessPage[]>([]);
+  const [activeTab, setActiveTab] = useState<TabType>("discover");
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareModalPage, setShareModalPage] = useState<BusinessPage | null>(null);
 
@@ -53,74 +56,129 @@ export default function PagesIndexPage() {
     };
   }, [accessToken, toast]);
 
-  return (
-    <div className="space-y-8">
-      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-(--color-silver-mid)">Business Pages</h1>
-          <p className="text-sm text-(--color-muted)">Discover and manage business profiles.</p>
-        </div>
-        <div className="flex gap-3">
-          <Link
-            href="/app/admin-invites"
-            className="rounded-full border border-(--color-border) px-4 py-2 text-sm font-semibold text-(--color-silver-mid) transition hover:border-(--color-gold)"
-          >
-            View invites
-          </Link>
-          <Link
-            href="/app/pages/create"
-            className="rounded-full bg-(--color-deep-navy) px-4 py-2 text-sm font-semibold text-white transition hover:bg-(--color-gold)"
-          >
-            Create page
-          </Link>
-        </div>
-      </header>
+  const tabs: { id: TabType; label: string }[] = [
+    { id: "create", label: "Create Page" },
+    { id: "discover", label: "Discover" },
+    { id: "invitations", label: "Invitations" },
+    { id: "liked", label: "Liked/Following" },
+  ];
 
+  return (
+    <div className="space-y-6">
+      {/* Tabs */}
+      <div className="flex overflow-x-auto border-b border-gray-200 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex gap-6 sm:gap-8">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`whitespace-nowrap pb-3 text-sm font-semibold transition ${
+                activeTab === tab.id
+                  ? "border-b-2 border-(--color-gold) text-(--color-deep-navy)"
+                  : "text-(--color-muted) hover:text-(--color-silver-mid)"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab Content */}
       {loading ? (
         <div className="flex justify-center py-16">
           <Spinner />
         </div>
       ) : (
         <>
-          {managedPages.length > 0 && (
-            <section>
-              <h2 className="mb-3 text-lg font-semibold text-(--color-silver-mid)">Pages you manage</h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                {managedPages.map((page) => (
-                  <PageCard 
-                    key={page.id} 
-                    page={page}
-                    onShare={() => {
-                      setShareModalPage(page);
-                      setShareModalOpen(true);
-                    }}
-                  />
-                ))}
+          {activeTab === "create" && (
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold text-(--color-silver-mid)">Create a New Page</h2>
+              <div className="rounded-2xl border border-(--color-border) bg-white/70 p-8 text-center">
+                <p className="mb-4 text-(--color-muted)">Start a new business page to engage with your community.</p>
+                <Link
+                  href="/app/pages/create"
+                  className="inline-flex items-center gap-2 rounded-full btn-primary px-6 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 5v14M5 12h14"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  Create Page
+                </Link>
               </div>
             </section>
           )}
 
-          <section>
-            <h2 className="mb-3 text-lg font-semibold text-(--color-silver-mid)">All pages</h2>
-            {pages.length === 0 ? (
-              <p className="text-sm text-(--color-muted)">No pages found yet. Be the first to create one!</p>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {pages.map((page) => (
-                  <PageCard 
-                    key={page.id} 
-                    page={page}
-                    onShare={() => {
-                      setShareModalPage(page);
-                      setShareModalOpen(true);
-                    }}
-                  />
-                ))}
+          {activeTab === "discover" && (
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold text-(--color-silver-mid)">Discover Pages</h2>
+              {pages.length === 0 ? (
+                <div className="rounded-2xl border border-(--color-border) bg-white/70 p-8 text-center">
+                  <p className="text-(--color-muted)">No pages found yet. Be the first to create one!</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {pages.map((page) => (
+                    <PageCard 
+                      key={page.id} 
+                      page={page}
+                      onShare={() => {
+                        setShareModalPage(page);
+                        setShareModalOpen(true);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {activeTab === "invitations" && (
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold text-(--color-silver-mid)">Page Invitations</h2>
+              <div className="rounded-2xl border border-(--color-border) bg-white/70 p-8 text-center">
+                <p className="mb-4 text-(--color-muted)">Pending invitations to manage pages will appear here.</p>
+                <Link
+                  href="/app/admin-invites"
+                  className="inline-flex items-center gap-2 rounded-full bg-(--color-deep-navy) px-6 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  View All Invites
+                </Link>
               </div>
-            )}
-          </section>
+            </section>
+          )}
+
+          {activeTab === "liked" && (
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold text-(--color-silver-mid)">Pages You're Following</h2>
+              {managedPages.length === 0 ? (
+                <div className="rounded-2xl border border-(--color-border) bg-white/70 p-8 text-center">
+                  <p className="text-(--color-muted)">Pages you follow will appear here.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {managedPages.map((page) => (
+                    <PageCard 
+                      key={page.id} 
+                      page={page}
+                      onShare={() => {
+                        setShareModalPage(page);
+                        setShareModalOpen(true);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </>
       )}
+
       <ShareModal
         isOpen={shareModalOpen}
         onClose={() => {

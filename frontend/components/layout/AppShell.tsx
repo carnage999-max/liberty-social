@@ -354,6 +354,13 @@ export default function AppShell({ children }: AppShellProps) {
     [router, closeNav]
   );
 
+  // Check if current route should hide sidebar
+  const shouldHideSidebar = useCallback(() => {
+    if (!pathname) return false;
+    const hiddenRoutes = ["/app/users/", "/app/settings", "/app/marketplace", "/app/animals", "/app/breeders", "/app/pages"];
+    return hiddenRoutes.some(route => pathname.startsWith(route));
+  }, [pathname]);
+
   // compute a best-effort href to the current user's public profile
   const myProfileHref = (() => {
     try {
@@ -651,11 +658,11 @@ export default function AppShell({ children }: AppShellProps) {
         </div>
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pt-6 sm:px-6 lg:flex-row">
-        {isDesktop && (
+        {isDesktop && !shouldHideSidebar() && (
           <aside className="hidden lg:block lg:w-64 lg:max-w-[260px]">
             <div className="space-y-6 lg:sticky lg:top-28">
-              {!pathname?.startsWith("/app/users/") && <ProfileCard />}
-              {!pathname?.startsWith("/app/users/") && <FriendsList />}
+              <ProfileCard />
+              <FriendsList />
               <nav
                 aria-label="Primary"
                 className="space-y-4 rounded-[16px] bg-white/85 p-4 shadow-sm backdrop-blur-md"
@@ -736,17 +743,17 @@ export default function AppShell({ children }: AppShellProps) {
         )}
 
         <main className="flex-1 min-w-0">
-          {!isDesktop && !pathname?.startsWith("/app/users/") && (
+          {!isDesktop && !shouldHideSidebar() && (
             <div className="mb-6 lg:hidden">
               <ProfileCard profileHref={myProfileHref} className="items-start text-left sm:items-center sm:text-center" />
             </div>
           )}
-          {!isDesktop && !pathname?.startsWith("/app/users/") && (
+          {!isDesktop && !shouldHideSidebar() && (
             <div className="mb-6 lg:hidden">
               <FriendsList />
             </div>
           )}
-          {!pathname?.startsWith("/app/users/") && <OnlineUsers maxUsers={6} title="Who's Online?" />}
+          {!shouldHideSidebar() && <OnlineUsers maxUsers={6} title="Who's Online?" />}
           <div className={`${pathname?.startsWith("/app/users/") ? "mt-1" : "mt-4 sm:mt-6"}`}>{children}</div>
         </main>
       </div>
