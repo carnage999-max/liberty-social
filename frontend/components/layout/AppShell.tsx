@@ -7,7 +7,7 @@ import FriendsList from "@/components/friends/FriendsList";
 import ProfileImageModal from "@/components/profile/ProfileImageModal";
 import OnlineUsers from "@/components/OnlineUsers";
 import ReportBug from "@/components/BugReport";
-import CollapsibleFloatingButtons from "@/components/CollapsibleFloatingButtons";
+import FloatingCreateButton from "@/components/CollapsibleFloatingButtons";
 import { useAuth } from "@/lib/auth-context";
 import { API_BASE, apiPost, apiGet } from "@/lib/api";
 import type { Post, Visibility, FriendRequest } from "@/lib/types";
@@ -240,7 +240,6 @@ export default function AppShell({ children }: AppShellProps) {
   const { accessToken, user, logout } = useAuth();
   const toast = useToast();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isBugReportOpen, setIsBugReportOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [showCompactLogo, setShowCompactLogo] = useState(false);
@@ -767,11 +766,7 @@ export default function AppShell({ children }: AppShellProps) {
         onError={notifyError}
       />
       
-      <CollapsibleFloatingButtons 
-        onCreatePost={openCreateModal}
-        onReportBug={() => setIsBugReportOpen(true)}
-      />
-      
+      <FloatingCreateButton onOpen={openCreateModal} />
       <ReportBug />
 
       {/* Mobile Bottom Navigation */}
