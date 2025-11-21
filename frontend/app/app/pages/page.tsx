@@ -74,7 +74,7 @@ export default function PagesIndexPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`whitespace-nowrap pb-3 text-sm font-semibold transition ${
                 activeTab === tab.id
-                  ? "border-b-2 border-(--color-gold) text-(--color-deep-navy)"
+                  ? "border-b-2 border-(--color-gold) text-(--color-gold)"
                   : "text-(--color-muted) hover:text-(--color-silver-mid)"
               }`}
             >
