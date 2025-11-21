@@ -53,6 +53,21 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         return user
 
 
+class UserStatusSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for online user status display"""
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "profile_image_url",
+            "is_online",
+            "last_seen",
+            "last_activity",
+        ]
+        read_only_fields = ["id", "username", "profile_image_url", "is_online", "last_seen", "last_activity"]
+
+
 class UserSerializer(serializers.ModelSerializer):
     phone_number = serializers.CharField(
         allow_null=True, allow_blank=True, required=False
@@ -74,8 +89,10 @@ class UserSerializer(serializers.ModelSerializer):
             "bio",
             "gender",
             "date_joined",
+            "is_online",
+            "last_seen",
         ]
-        read_only_fields = ["id", "email", "date_joined"]
+        read_only_fields = ["id", "email", "date_joined", "is_online", "last_seen"]
 
     def validate_username(self, value):
         value = value.strip()
