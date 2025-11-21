@@ -45,11 +45,11 @@ export default function ReportBug() {
                 {/* Peeking button - shows when dismissed */}
                 <button
                     onClick={() => setDismissed(false)}
-                    className="fixed bottom-24 left-2 z-40 h-14 w-6 bg-(--color-gold) text-(--color-deeper-navy) rounded-r-full shadow-metallic hover:scale-105 transition-transform flex items-center justify-center text-xl overflow-hidden group"
+                    className="fixed bottom-24 left-2 z-40 h-14 w-6 bg-(--color-gold)/20 text-(--color-deeper-navy) rounded-r-full shadow-md hover:bg-(--color-gold)/40 transition-all flex items-center justify-center text-xl overflow-hidden group"
                     aria-label="Show bug report"
                     title="Show bug report"
                 >
-                    <span className="group-hover:scale-150 transition-transform">🐞</span>
+                    <span className="group-hover:scale-150 transition-transform opacity-60 group-hover:opacity-100">🐞</span>
                 </button>
             </>
         );
