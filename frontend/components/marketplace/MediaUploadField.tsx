@@ -167,7 +167,7 @@ export default function MediaUploadField({
                   />
                   {/* Primary Badge */}
                   {index === 0 && (
-                    <div className="absolute top-1 left-1 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">
+                    <div className="absolute top-1 left-1 bg-(--color-gold) text-(--color-deeper-navy) text-xs font-bold px-2 py-1 rounded">
                       Primary
                     </div>
                   )}
