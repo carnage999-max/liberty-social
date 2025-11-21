@@ -18,7 +18,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000/api"
 export default function PagePostForm({ pageId, accessToken, onPostCreated }: PagePostFormProps) {
   const toast = useToast();
   const [content, setContent] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "followers" | "private">("public");
+  const [visibility, setVisibility] = useState<"public" | "followers" | "private">("private");
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export default function PagePostForm({ pageId, accessToken, onPostCreated }: Pag
       return [];
     });
     setContent("");
-    setVisibility("public");
+    setVisibility("private");
     setError(null);
   };
 

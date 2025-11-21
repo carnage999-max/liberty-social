@@ -44,7 +44,7 @@ export default function PagePostEditModal({
   const [deleting, setDeleting] = useState(false);
 
   const [content, setContent] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "followers" | "private">("public");
+  const [visibility, setVisibility] = useState<"public" | "followers" | "private">("private");
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
