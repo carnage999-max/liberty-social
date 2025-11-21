@@ -11,9 +11,12 @@ export default function FloatingCreateButton({ onOpen }: { onOpen: () => void })
         {/* Peeking button - shows when dismissed */}
         <button
           onClick={() => setDismissed(false)}
-          className="fixed bottom-24 right-2 z-40 h-14 w-6 bg-blue-600/20 text-white rounded-l-full shadow-md hover:bg-blue-600/40 transition-all flex items-center justify-center overflow-hidden group"
+          className="fixed bottom-24 right-2 z-40 h-14 w-6 rounded-l-full shadow-metallic hover:opacity-80 transition-all flex items-center justify-center overflow-hidden group btn-primary text-white"
           aria-label="Show create post"
           title="Create post"
+          style={{
+            opacity: 0.6,
+          }}
         >
           <span className="group-hover:scale-150 transition-transform opacity-60 group-hover:opacity-100">+</span>
         </button>

@@ -134,7 +134,7 @@ export default function BreederCard({
         {/* Action Button */}
         <Link
           href={`/app/breeders/${id}`}
-          className="block w-full text-center rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white transition hover:bg-blue-700"
+          className="block w-full text-center rounded-lg btn-primary px-4 py-2.5 font-medium text-white transition hover:opacity-90"
         >
           View Profile
         </Link>
