@@ -196,17 +196,21 @@ class UserStatusConsumer(AsyncJsonWebsocketConsumer):
             user = User.objects.get(id=user_id)
             user.is_online = is_online
             user.last_activity = timezone.now()
-            user.save(update_fields=["is_online", "last_activity"])
+            if is_online:
+                # When coming online, update last_seen as well
+                user.last_seen = timezone.now()
+            user.save(update_fields=["is_online", "last_activity", "last_seen"])
         except User.DoesNotExist:
             pass
 
     @sync_to_async
     def _update_user_activity(self, user_id):
-        """Update user's last activity timestamp."""
+        """Update user's last activity and last seen timestamps."""
         try:
             user = User.objects.get(id=user_id)
             user.last_activity = timezone.now()
-            user.save(update_fields=["last_activity"])
+            user.last_seen = timezone.now()
+            user.save(update_fields=["last_activity", "last_seen"])
         except User.DoesNotExist:
             pass
 

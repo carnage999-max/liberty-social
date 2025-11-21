@@ -5,6 +5,7 @@ import Navbar from "../components/navbar";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/Toast";
 import ReportBug from "@/components/BugReport";
+import { UserStatusProvider } from "@/lib/user-status-provider";
 
 
 export const metadata: Metadata = {
@@ -89,6 +90,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-background text-textLight transition-colors duration-300 antialiased">
         <AuthProvider>
+          <UserStatusProvider>
           <ToastProvider>
             <Navbar />
             <main className="pb-20">
@@ -141,6 +143,7 @@ export default function RootLayout({
               </div>
             </footer>
           </ToastProvider>
+          </UserStatusProvider>
         </AuthProvider>
       </body>
     </html>
