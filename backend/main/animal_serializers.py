@@ -16,6 +16,7 @@ from .animal_models import (
     SellerReview,
     SuspiciousActivityLog,
     BreederDirectory,
+    AdminActionLog,
 )
 from users.serializers import UserSerializer
 
@@ -310,6 +311,7 @@ class AnimalListingListSerializer(serializers.ModelSerializer):
     animal_listing_media = serializers.SerializerMethodField()
     risk_score = serializers.SerializerMethodField()
     seller_verified = serializers.SerializerMethodField()
+    has_vet_documentation = serializers.SerializerMethodField()
 
     class Meta:
         model = AnimalListing
@@ -329,6 +331,7 @@ class AnimalListingListSerializer(serializers.ModelSerializer):
             "animal_listing_media",
             "risk_score",
             "seller_verified",
+            "has_vet_documentation",
             "status",
             "views_count",
             "created_at",
@@ -356,6 +359,13 @@ class AnimalListingListSerializer(serializers.ModelSerializer):
         if obj.seller_verification:
             return obj.seller_verification.is_verified
         return False
+
+    def get_has_vet_documentation(self, obj):
+        """Return True if the listing has vet documentation attached."""
+        try:
+            return obj.vet_documentation is not None
+        except Exception:
+            return False
 
 
 class BreederDirectorySerializer(serializers.ModelSerializer):
@@ -393,3 +403,19 @@ class BreederDirectorySerializer(serializers.ModelSerializer):
         if obj.seller:
             return UserSerializer(obj.seller.user).data
         return None
+
+class AdminActionLogSerializer(serializers.ModelSerializer):
+    performed_by = UserSerializer(read_only=True)
+
+    class Meta:
+        model = AdminActionLog
+        fields = [
+            "id",
+            "action_type",
+            "target_type",
+            "target_id",
+            "performed_by",
+            "notes",
+            "created_at",
+        ]
+        read_only_fields = fields

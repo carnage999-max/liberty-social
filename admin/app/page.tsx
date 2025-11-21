@@ -1,24 +1,24 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { MetricCard } from "@/components/MetricCard";
 import { SignupTrend } from "@/components/SignupTrend";
 import { ApiError, fetchMetrics, login } from "@/lib/api";
-import type { AdminMetrics } from "@/lib/types";
+import type { AdminMetrics, SignupDailyEntry, SignupMonthlyEntry } from "@/lib/types";
 
 const TOKEN_STORAGE_KEY = "liberty-social-admin-access-token";
 
 type AuthStep = "idle" | "working";
 
 export default function AdminDashboardPage() {
-  const [token, setToken] = useState<string | null>(null);
-  const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
+  const [token, setToken] = useState(null as string | null);
+  const [metrics, setMetrics] = useState(null as AdminMetrics | null);
   const [loading, setLoading] = useState(false);
-  const [authStep, setAuthStep] = useState<AuthStep>("idle");
-  const [error, setError] = useState<string | null>(null);
+  const [authStep, setAuthStep] = useState("idle" as AuthStep);
+  const [error, setError] = useState(null as string | null);
   const [form, setForm] = useState({ username: "", password: "" });
-  const [lastFetched, setLastFetched] = useState<string | null>(null);
+  const [lastFetched, setLastFetched] = useState(null as string | null);
 
   // Load persisted token on first render
   useEffect(() => {
@@ -69,7 +69,7 @@ export default function AdminDashboardPage() {
     void loadMetrics(token);
   }, [token, loadMetrics]);
 
-  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAuthStep("working");
     try {
@@ -103,7 +103,7 @@ export default function AdminDashboardPage() {
 
   const dailyEntries = useMemo(() => {
     if (!metrics) return [];
-    return metrics.signups_per_day.map((entry) => ({
+    return metrics.signups_per_day.map((entry: SignupDailyEntry) => ({
       id: entry.date,
       label: dayjs(entry.date).format("DD MMM"),
       value: entry.count,
@@ -112,7 +112,7 @@ export default function AdminDashboardPage() {
 
   const monthlyEntries = useMemo(() => {
     if (!metrics) return [];
-    return metrics.signups_per_month.map((entry) => ({
+    return metrics.signups_per_month.map((entry: SignupMonthlyEntry) => ({
       id: entry.month,
       label: dayjs(entry.month).format("MMM YYYY"),
       value: entry.count,
@@ -146,8 +146,11 @@ export default function AdminDashboardPage() {
                 required
                 autoComplete="username"
                 value={form.username}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, username: event.target.value }))
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                  setForm((prev: { username: string; password: string }) => ({
+                    ...prev,
+                    username: event.target.value,
+                  }))
                 }
                 className="input"
                 placeholder="admin@example.com"
@@ -164,8 +167,11 @@ export default function AdminDashboardPage() {
                 required
                 autoComplete="current-password"
                 value={form.password}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, password: event.target.value }))
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                  setForm((prev: { username: string; password: string }) => ({
+                    ...prev,
+                    password: event.target.value,
+                  }))
                 }
                 className="input"
                 placeholder="••••••••"

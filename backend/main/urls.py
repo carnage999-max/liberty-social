@@ -36,6 +36,7 @@ from .animal_views import (
     AnimalListingMediaViewSet,
     SellerReviewViewSet,
     BreederDirectoryViewSet,
+    AdminActionLogViewSet,
 )
 from .views_uploads import UploadImageView
 
@@ -92,6 +93,7 @@ router.register(
 router.register("animals/media", AnimalListingMediaViewSet, basename="animal-media")
 router.register("animals/reviews", SellerReviewViewSet, basename="animal-reviews")
 router.register("animals/breeders", BreederDirectoryViewSet, basename="animal-breeders")
+router.register("admin/action-logs", AdminActionLogViewSet, basename="admin-action-logs")
 
 urlpatterns = [
     path("", include(router.urls)),

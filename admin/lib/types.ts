@@ -31,3 +31,13 @@ export interface LoginSuccess {
   refresh_token: string;
   user_id: string;
 }
+
+export type AdminActionLogEntry = {
+  id: number;
+  action_type: string;
+  target_type: string;
+  target_id: string;
+  performed_by?: { id?: number; username?: string } | null;
+  notes?: string | null;
+  created_at?: string | null;
+};

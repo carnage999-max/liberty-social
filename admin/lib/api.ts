@@ -98,3 +98,28 @@ export function fetchMetrics(token: string) {
     token,
   });
 }
+
+// KYC admin endpoints
+export function fetchKycSubmissions(token: string) {
+  return request<any[]>('/animals/verification/', { token });
+}
+
+export function approveKyc(token: string, id: number) {
+  return request(`/animals/verification/${id}/approve/`, {
+    method: 'POST',
+    token,
+  });
+}
+
+export function rejectKyc(token: string, id: number, reason?: string) {
+  return request(`/animals/verification/${id}/reject/`, {
+    method: 'POST',
+    token,
+    body: { reason: reason || '' },
+  });
+}
+
+export function fetchAdminLogs(token: string, page: number = 1, page_size: number = 50) {
+  const path = `/admin/action-logs/?page=${page}&page_size=${page_size}`;
+  return request<any>(path, { token });
+}

@@ -1,0 +1,15 @@
+<html>
+  <body>
+    <p>Hi {{ full_name|default:user.username }},</p>
+
+    <p>We reviewed your seller verification submission and, unfortunately, it couldn't be approved at this time.</p>
+
+    {% if reason %}
+    <p><strong>Reason:</strong> {{ reason }}</p>
+    {% endif %}
+
+    <p>Please review your submission and update any missing or incorrect information, then resubmit. If you need help, visit <a href="{{ support_url }}">our help center</a>.</p>
+
+    <p>Thanks,<br/>The Liberty Social Team</p>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+Admin Styling Patterns (Liberty Social)
+
+Purpose: keep a concise reference of existing admin UI classes and layout patterns so new admin pages match style.
+
+Layout
+- `.dashboard` : main admin shell
+- `.dashboard-container` : centered container for header/content/footer
+- `.dashboard-header` : header area with meta + actions
+- `.dashboard-header__meta` : left-side metadata (eyebrow, title, timestamp)
+- `.dashboard-actions` : right-side header actions
+- `.dashboard-content` : main scrollable content
+- `.dashboard-footer` : footer area for small notes
+
+Auth / Login
+- `.auth-shell` : centered auth background
+- `.auth-card` : auth card container
+- `.auth-eyebrow` : small label above title
+- `.auth-title` : main heading for auth pages
+- `.auth-subtitle` : short description under title
+- `.form`, `.field`, `.label`, `.input`, `.form-error` : form fields
+- `.btn`, `.btn--primary`, `.btn--outline`, `.btn--danger`, `.btn--success` : button types
+
+Cards & Metrics
+- `.metric-grid` : grid for metric cards
+- `.metric-card` : single metric card (used by MetricCard component)
+- `.trend-grid` : grid for trend charts
+
+List / Table
+- Use `.rounded-2xl border border-gray-200 bg-white p-6` for list containers
+- List item: `p-4 border rounded-lg flex items-center justify-between`
+- Use `.text-sm` for main labels and `.text-xs text-gray-600` for metadata
+- Buttons inside list: `.btn btn--outline` for links, `.btn btn--success` and `.btn btn--danger` for actions
+
+Forms & Actions
+- Keep action buttons to the right in the header using `.dashboard-actions` and `flex` utilities
+- Use confirmation prompt or modal for destructive actions (reject/approve) — can use `window.prompt` for minimal implementation
+
+Spacing & Typography
+- Headings: `.dashboard-title` / `.text-lg font-semibold`
+- Eyebrow / Meta: `.dashboard-eyebrow` / `.auth-eyebrow` small-caps style
+- Containers use `rounded-2xl` and `p-6` for consistent padding
+
+Accessibility
+- Buttons should include `aria-label` where the text is not descriptive
+- Links to uploaded documents open in new tab (`target="_blank" rel="noopener noreferrer"`)
+
+Notes
+- Prefer reusing existing components (MetricCard, SignupTrend) where relevant
+- Keep admin pages minimal and data-focused; heavy UI polish can be added later
+- For any new CSS utilities, follow existing Tailwind configuration in `admin/globals.css`

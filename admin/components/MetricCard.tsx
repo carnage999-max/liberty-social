@@ -1,10 +1,10 @@
 "use client";
-import type { ReactNode } from "react";
+import React from "react";
 
 type MetricCardProps = {
   title: string;
-  value: ReactNode;
-  subtitle?: ReactNode;
+  value: React.ReactNode;
+  subtitle?: React.ReactNode;
   tone?: "default" | "success" | "warning";
 };
 

@@ -23,7 +23,11 @@ from .animal_models import (
     SellerReview,
     SuspiciousActivityLog,
     BreederDirectory,
+    AdminActionLog,
 )
+from django import forms
+from django.utils import timezone
+from datetime import timedelta
 
 
 @admin.register(Post)
@@ -165,6 +169,63 @@ class AnimalSellerVerificationAdmin(admin.ModelAdmin):
     search_fields = ("user__username", "user__email", "full_name")
     list_filter = ("status", "created_at")
     readonly_fields = ("created_at", "updated_at", "verified_at")
+    
+    # Allow admin to approve/reject from list view with optional reason
+    actions = ["approve_selected", "reject_selected"]
+    class ActionForm(forms.Form):
+        rejection_reason = forms.CharField(required=False, label="Rejection reason")
+
+    action_form = ActionForm
+
+    def approve_selected(self, request, queryset):
+        """Admin action to approve selected verifications."""
+        for verification in queryset:
+            if verification.status != "verified":
+                verification.status = "verified"
+                verification.verified_at = timezone.now()
+                verification.verified_by = request.user
+                verification.expires_at = timezone.now() + timedelta(days=365)
+                verification.rejection_reason = ""
+                verification.save()
+                try:
+                    AdminActionLog.objects.create(
+                        action_type="approve_kyc",
+                        target_type="AnimalSellerVerification",
+                        target_id=str(verification.pk),
+                        performed_by=request.user,
+                        notes=f"Approved via admin action for user_id={verification.user_id}",
+                    )
+                except Exception:
+                    import logging
+
+                    logging.exception("Failed to create AdminActionLog in admin.approve_selected")
+        self.message_user(request, f"Approved {queryset.count()} verification(s).")
+    approve_selected.short_description = "Approve selected verifications"
+
+    def reject_selected(self, request, queryset):
+        """Admin action to reject selected verifications with optional reason."""
+        reason = request.POST.get("rejection_reason", "")
+        for verification in queryset:
+            verification.status = "rejected"
+            verification.rejection_reason = reason or "Rejected by admin"
+            verification.verified_at = None
+            verification.verified_by = None
+            verification.expires_at = None
+            verification.save()
+            try:
+                AdminActionLog.objects.create(
+                    action_type="reject_kyc",
+                    target_type="AnimalSellerVerification",
+                    target_id=str(verification.pk),
+                    performed_by=request.user,
+                    notes=f"Rejected via admin action for user_id={verification.user_id}; reason={reason}",
+                )
+            except Exception:
+                import logging
+
+                logging.exception("Failed to create AdminActionLog in admin.reject_selected")
+        self.message_user(request, f"Rejected {queryset.count()} verification(s).")
+    reject_selected.short_description = "Reject selected verifications"
 
 
 @admin.register(VetDocumentation)
@@ -244,3 +305,11 @@ class BreederDirectoryAdmin(admin.ModelAdmin):
     search_fields = ("seller__username", "seller__email")
     list_filter = ("created_at",)
     readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(AdminActionLog)
+class AdminActionLogAdmin(admin.ModelAdmin):
+    list_display = ("id", "action_type", "target_type", "target_id", "performed_by", "created_at")
+    search_fields = ("target_type", "target_id", "performed_by__username")
+    readonly_fields = ("created_at",)
+    list_filter = ("action_type", "created_at")
