@@ -901,7 +901,7 @@ export default function AnimalListingForm({ listingId }: AnimalListingFormProps)
               setCurrentStep(steps[currentIndex + 1].id);
             }}
             disabled={!canProceed()}
-            className="rounded-lg bg-blue-600 px-6 py-2.5 font-medium text-white transition hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="rounded-lg btn-primary px-6 py-2.5 font-medium text-white transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
           </button>

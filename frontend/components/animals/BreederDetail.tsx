@@ -127,7 +127,7 @@ export default function BreederDetail({ id }: BreederDetailProps) {
 
             <button
               onClick={() => setContactFormOpen(!contactFormOpen)}
-              className="rounded-lg bg-blue-600 px-6 py-2.5 font-medium text-white transition hover:bg-blue-700"
+              className="rounded-lg btn-primary px-6 py-2.5 font-medium text-white transition hover:opacity-90"
             >
               Contact Breeder
             </button>
@@ -368,7 +368,7 @@ export default function BreederDetail({ id }: BreederDetailProps) {
                 <div className="flex gap-2">
                   <button
                     type="submit"
-                    className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700"
+                    className="flex-1 rounded-lg btn-primary px-4 py-2 font-medium text-white transition hover:opacity-90"
                   >
                     Send
                   </button>

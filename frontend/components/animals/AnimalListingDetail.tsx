@@ -398,7 +398,7 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
                 {/* Owner Actions */}
                 <Link
                   href={`/app/animals/${id}/edit`}
-                  className="w-full block text-center rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 mb-3"
+                  className="w-full block text-center rounded-lg btn-primary px-4 py-3 font-semibold text-white transition hover:opacity-90 mb-3"
                 >
                   Edit Listing
                 </Link>

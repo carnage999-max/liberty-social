@@ -140,7 +140,7 @@ export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionPr
           <button
             type="button"
             onClick={() => setModalOpen(true)}
-            className="ml-4 rounded-lg border border-blue-600 px-3 py-1.5 text-sm font-medium text-blue-600 transition hover:bg-blue-50"
+            className="ml-4 rounded-lg btn-primary px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90"
           >
             Leave a Review
           </button>
@@ -171,7 +171,7 @@ export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionPr
           {!modalOpen && !isCurrentUserSeller && (
             <button
               onClick={() => setModalOpen(true)}
-              className="mb-6 w-full rounded-lg border border-blue-600 px-4 py-2.5 font-medium text-blue-600 transition hover:bg-blue-50"
+              className="mb-6 w-full rounded-lg btn-primary px-4 py-2.5 font-medium text-white transition hover:opacity-90"
             >
               Leave a Review
             </button>
@@ -363,7 +363,7 @@ export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionPr
                       <button
                         type="submit"
                         disabled={submitting || !evidenceFile}
-                        className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:bg-gray-400"
+                        className="flex-1 rounded-lg btn-primary px-4 py-2 font-medium text-white transition hover:opacity-90 disabled:opacity-50"
                       >
                         {submitting ? "Submitting..." : "Submit Review"}
                       </button>
@@ -430,7 +430,7 @@ export default function ReviewsSection({ listingId, sellerId }: ReviewsSectionPr
           {isAuthenticated && (
             <button
               onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700"
+              className="inline-flex items-center gap-2 rounded-lg btn-primary px-4 py-2 font-medium text-white transition hover:opacity-90"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 5v14M5 12h14" />

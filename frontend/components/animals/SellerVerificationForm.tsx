@@ -298,7 +298,7 @@ export default function SellerVerificationForm() {
             <button
               type="button"
               onClick={() => setStep(step + 1)}
-              className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700"
+              className="flex-1 btn-primary px-4 py-2 font-medium text-white transition hover:opacity-90 rounded-lg"
             >
               Next
             </button>
@@ -307,7 +307,7 @@ export default function SellerVerificationForm() {
             <button
               type="submit"
               disabled={loading || !formData.identity_document_url || !formData.address_proof_url}
-              className="flex-1 rounded-lg bg-blue-600 px-4 py-2 font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 btn-primary px-4 py-2 font-medium text-white transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
             >
               {loading ? "Submitting..." : "Submit Verification"}
             </button>
