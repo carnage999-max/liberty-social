@@ -27,6 +27,8 @@ interface AnimalListingCardProps {
       status: string;
     };
   };
+  seller_verified?: boolean;
+  has_vet_documentation?: boolean;
 }
 
 export default function AnimalListingCard({
@@ -41,10 +43,14 @@ export default function AnimalListingCard({
   status,
   risk_score,
   seller,
+  seller_verified,
+  has_vet_documentation,
 }: AnimalListingCardProps) {
   const imageUrl = animal_listing_media?.[0]?.url || null;
   const isHighRisk = risk_score && risk_score > 60;
-  const isVerified = seller?.verification?.status === "verified";
+  const isVerified = seller_verified || seller?.verification?.status === "verified";
+  const hasVetDocs = typeof has_vet_documentation !== "undefined" ? has_vet_documentation : true;
+  const isUnverified = !isVerified || !hasVetDocs;
 
   const getPriceDisplay = () => {
     if (listing_type === "adoption") {
@@ -91,12 +97,22 @@ export default function AnimalListingCard({
               </div>
             )}
             {/* Verified Seller Badge */}
-            {isVerified && (
+            {isVerified && !isUnverified && (
               <div className="absolute top-2 left-2 rounded-full bg-green-500/90 px-2.5 py-1.5 text-xs font-semibold text-white flex items-center gap-1">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
                 </svg>
                 Verified
+              </div>
+            )}
+
+            {/* Unverified Badge (missing verification or vet docs) */}
+            {isUnverified && (
+              <div className="absolute top-2 left-2 rounded-full bg-yellow-500/95 px-2.5 py-1.5 text-xs font-semibold text-white flex items-center gap-1">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                </svg>
+                Unverified
               </div>
             )}
             {/* Media count badge */}

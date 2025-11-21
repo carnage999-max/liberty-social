@@ -117,6 +117,8 @@ export default function AnimalListingsSection() {
                     status={listing.status}
                     risk_score={listing.risk_score}
                     seller={listing.seller}
+                    seller_verified={listing.seller_verified}
+                    has_vet_documentation={listing.has_vet_documentation}
                   />
                 ))}
               </div>

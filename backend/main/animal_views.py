@@ -12,6 +12,9 @@ from django.utils import timezone
 from django.db.models import Q, Avg
 from django.shortcuts import get_object_or_404
 from datetime import timedelta
+from django.contrib.contenttypes.models import ContentType
+from .models import Notification
+from .emails import send_templated_email
 
 from .animal_models import (
     AnimalCategory,
@@ -22,6 +25,7 @@ from .animal_models import (
     SellerReview,
     SuspiciousActivityLog,
     BreederDirectory,
+    AdminActionLog,
 )
 from .animal_serializers import (
     AnimalCategorySerializer,
@@ -32,7 +36,10 @@ from .animal_serializers import (
     AnimalListingMediaSerializer,
     SellerReviewSerializer,
     BreederDirectorySerializer,
+    AdminActionLogSerializer,
 )
+from .emails import send_templated_email
+from django.core.mail import send_mail
 
 
 class AnimalCategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -199,6 +206,136 @@ class AnimalSellerVerificationViewSet(viewsets.ModelViewSet):
             "can_list": is_verified,  # Can list without verification but will be marked unverified
             "message": "You can list animals but unverified listings get lower visibility. Complete KYC to get verified badge." if not is_verified else "Your account is verified!"
         })
+
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAdminUser])
+    def approve(self, request, pk=None):
+        """Approve a seller verification (admin only)."""
+        verification = get_object_or_404(AnimalSellerVerification, pk=pk)
+        if verification.status == "verified":
+            return Response({"message": "Already verified."}, status=status.HTTP_200_OK)
+
+        verification.status = "verified"
+        verification.verified_at = timezone.now()
+        verification.verified_by = request.user
+        # default expiration: 1 year
+        verification.expires_at = timezone.now() + timedelta(days=365)
+        verification.rejection_reason = ""
+        verification.save()
+
+        # Audit log the approval
+        try:
+            AdminActionLog.objects.create(
+                action_type="approve_kyc",
+                target_type="AnimalSellerVerification",
+                target_id=str(verification.pk),
+                performed_by=request.user,
+                notes=f"Approved verification for user_id={verification.user_id}",
+            )
+        except Exception:
+            import logging
+
+            logging.exception("Failed to create AdminActionLog for KYC approval")
+
+        # Send templated email to the user (best-effort)
+        try:
+            if verification.user and verification.user.email:
+                ctx = {
+                    "user": verification.user,
+                    "full_name": verification.full_name,
+                    "verification": verification,
+                    "support_url": getattr(__import__("django.conf").conf.settings, "FRONTEND_URL", ""),
+                }
+                send_templated_email(
+                    "kyc_approved",
+                    ctx,
+                    "Your account verification has been approved",
+                    verification.user.email,
+                )
+
+                # Create in-app notification (this will also broadcast via channels)
+                try:
+                    ct = ContentType.objects.get_for_model(AnimalSellerVerification)
+                    Notification.objects.create(
+                        recipient=verification.user,
+                        actor=request.user,
+                        verb="kyc_approved",
+                        content_type=ct,
+                        object_id=verification.pk,
+                    )
+                except Exception:
+                    import logging
+
+                    logging.exception("Failed to create in-app notification for KYC approval")
+        except Exception:
+            import logging
+
+            logging.exception("Failed to send templated KYC approval email")
+
+        return Response({"message": "Verification approved.", "status": verification.status})
+
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAdminUser])
+    def reject(self, request, pk=None):
+        """Reject a seller verification with optional reason (admin only)."""
+        verification = get_object_or_404(AnimalSellerVerification, pk=pk)
+        reason = request.data.get("reason", "")
+        verification.status = "rejected"
+        verification.rejection_reason = reason
+        verification.verified_at = None
+        verification.verified_by = None
+        verification.expires_at = None
+        verification.save()
+
+        # Audit log the rejection
+        try:
+            AdminActionLog.objects.create(
+                action_type="reject_kyc",
+                target_type="AnimalSellerVerification",
+                target_id=str(verification.pk),
+                performed_by=request.user,
+                notes=f"Rejected verification for user_id={verification.user_id}; reason={reason}",
+            )
+        except Exception:
+            import logging
+
+            logging.exception("Failed to create AdminActionLog for KYC rejection")
+
+        # Send templated email to the user (best-effort)
+        try:
+            if verification.user and verification.user.email:
+                ctx = {
+                    "user": verification.user,
+                    "full_name": verification.full_name,
+                    "verification": verification,
+                    "reason": reason,
+                    "support_url": getattr(__import__("django.conf").conf.settings, "FRONTEND_URL", ""),
+                }
+                send_templated_email(
+                    "kyc_rejected",
+                    ctx,
+                    "Your account verification has been rejected",
+                    verification.user.email,
+                )
+
+                # Create in-app notification
+                try:
+                    ct = ContentType.objects.get_for_model(AnimalSellerVerification)
+                    Notification.objects.create(
+                        recipient=verification.user,
+                        actor=request.user,
+                        verb="kyc_rejected",
+                        content_type=ct,
+                        object_id=verification.pk,
+                    )
+                except Exception:
+                    import logging
+
+                    logging.exception("Failed to create in-app notification for KYC rejection")
+        except Exception:
+            import logging
+
+            logging.exception("Failed to send templated KYC rejection email")
+
+        return Response({"message": "Verification rejected.", "status": verification.status, "reason": reason})
 
 
 class AnimalListingViewSet(viewsets.ModelViewSet):
@@ -572,3 +709,15 @@ class BreederDirectoryViewSet(viewsets.ModelViewSet):
                 {"error": "Breeder directory entry not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+
+class AdminActionLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only viewset for admin audit logs."""
+
+    serializer_class = AdminActionLogSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def get_queryset(self):
+        return AdminActionLog.objects.select_related("performed_by").all().order_by(
+            "-created_at"
+        )

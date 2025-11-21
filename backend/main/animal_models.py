@@ -203,6 +203,35 @@ class VetDocumentation(models.Model):
     class Meta:
         verbose_name_plural = "Vet Documentations"
 
+
+class AdminActionLog(models.Model):
+    """Audit log for admin actions performed on marketplace objects."""
+
+    ACTION_CHOICES = (
+        ("approve_kyc", "Approve KYC"),
+        ("reject_kyc", "Reject KYC"),
+        ("other", "Other"),
+    )
+
+    action_type = models.CharField(max_length=50, choices=ACTION_CHOICES)
+    target_type = models.CharField(max_length=100)
+    target_id = models.CharField(max_length=100)
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="admin_actions",
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.get_action_type_display()} on {self.target_type}#{self.target_id} by {self.performed_by} at {self.created_at}"
+
     def __str__(self):
         return f"Vet Doc for Listing {self.listing.id} - {self.get_documentation_type_display()}"
 
