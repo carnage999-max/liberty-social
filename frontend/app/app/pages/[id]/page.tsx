@@ -336,7 +336,7 @@ export default function PageDetail() {
             </div>
 
             {/* Action buttons - full width on mobile, centered on desktop */}
-            <div className="flex flex-col gap-2 w-full relative z-40">
+            <div className="flex flex-col gap-2 w-full">
               <div className="flex gap-2 flex-wrap items-center">
                 <button
                   type="button"
@@ -391,7 +391,7 @@ export default function PageDetail() {
                 <button
                   type="button"
                   onClick={() => setShowOptions(true)}
-                  className="rounded-full border border-gray-300 px-3 py-2 text-gray-700 transition hover:bg-gray-50"
+                  className="rounded-full border border-gray-300 px-0 py-2 text-gray-700 transition hover:bg-gray-50"
                   title="More options"
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">

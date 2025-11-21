@@ -406,7 +406,7 @@ export default function PagePostForm({ pageId, accessToken, onPostCreated }: Pag
                 <button
                   type="submit"
                   disabled={isSubmitting || !content.trim()}
-                  className="rounded-lg bg-(--color-primary) px-6 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-70"
+                  className="rounded-lg btn-primary px-6 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-70"
                 >
                   {isSubmitting ? "Publishing..." : "Publish Post"}
                 </button>
