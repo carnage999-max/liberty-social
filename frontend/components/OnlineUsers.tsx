@@ -7,6 +7,30 @@ import Link from 'next/link';
 import { useToast } from '@/components/Toast';
 import { API_BASE } from '@/lib/api';
 
+// Add simple waving flag animation
+const flagStyle = `
+  @keyframes rippleWave {
+    0%, 100% {
+      filter: brightness(1);
+      transform: translateX(0px);
+    }
+    50% {
+      filter: brightness(1.05);
+      transform: translateX(2px);
+    }
+  }
+  
+  .flag-border {
+    animation: rippleWave 2.5s ease-in-out infinite;
+  }
+`;
+
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = flagStyle;
+  document.head.appendChild(style);
+}
+
 interface Friend {
   id: string;
   username: string;
@@ -250,53 +274,66 @@ export default function OnlineUsers({
             <div key={friend.id} className="group shrink-0 snap-start">
               <button
                 onClick={() => onUserClick?.(friend)}
-                className="relative h-32 w-24 transition-transform duration-200 hover:scale-105 focus:outline-none rounded-lg overflow-hidden"
+                className="relative transition-transform duration-200 hover:scale-105 focus:outline-none"
               >
-                {/* Friend Card - Story Style */}
-                <div className="relative h-full w-full">
-                  {/* Background Image or Gradient */}
-                  {friend.profile_image_url ? (
-                    <Image
-                      src={friend.profile_image_url}
-                      alt={friend.username || 'Friend'}
-                      fill
-                      className="object-cover"
-                      sizes="96px"
-                    />
-                  ) : (
-                    <div
-                      className="h-full w-full flex items-center justify-center"
-                      style={{
-                        background: 'linear-gradient(135deg, #921414 0%, #1b2849 100%)',
-                      }}
-                    >
-                      <span className="text-2xl font-bold text-white">
-                        {(friend.username?.[0] || 'F').toUpperCase()}
-                      </span>
+                {/* American Flag Border Container */}
+                <div className="relative w-32 h-32 flex items-center justify-center overflow-hidden"
+                  style={{
+                    backgroundImage: 'url(/flag-2.gif)',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
+                  }}
+                >
+                  {/* Circular Profile Image Container */}
+                  <div className="relative w-24 h-24 rounded-full overflow-hidden z-10 border-2 border-white shadow-lg">
+                    {/* Friend Card - Story Style */}
+                    <div className="relative h-full w-full">
+                      {/* Background Image or Gradient */}
+                      {friend.profile_image_url ? (
+                        <Image
+                          src={friend.profile_image_url}
+                          alt={friend.username || 'Friend'}
+                          fill
+                          className="object-cover"
+                          sizes="96px"
+                        />
+                      ) : (
+                        <div
+                          className="h-full w-full flex items-center justify-center"
+                          style={{
+                            background: 'linear-gradient(135deg, #921414 0%, #1b2849 100%)',
+                          }}
+                        >
+                          <span className="text-2xl font-bold text-white">
+                            {(friend.username?.[0] || 'F').toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Dark overlay for text readability */}
+                      <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/10 to-transparent"></div>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Dark overlay for text readability */}
-                  <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
-
-                  {/* Online Status Indicator - Top Right */}
-                  <div className="absolute top-2 right-2 z-10">
+                  {/* Online Status Indicator - Positioned outside circle */}
+                  <div className="absolute bottom-1 right-1 z-20">
                     {friend.is_online ? (
                       <div className="h-3 w-3 rounded-full border-2 border-white bg-green-500 shadow-md"></div>
                     ) : (
                       <div className="h-3 w-3 rounded-full border-2 border-white bg-gray-500 shadow-md"></div>
                     )}
                   </div>
+                </div>
 
-                  {/* Username and Status - Bottom */}
-                  <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
-                    <p className="truncate text-xs font-semibold">
-                      {friend.username}
-                    </p>
-                    <p className="truncate text-xs text-white/80">
-                      {friend.is_online ? 'Active now' : formatLastSeen(friend.last_seen)}
-                    </p>
-                  </div>
+                {/* Username and Status - Below the flag border */}
+                <div className="mt-2 text-center">
+                  <p className="truncate text-xs font-semibold text-gray-800">
+                    {friend.username}
+                  </p>
+                  <p className="truncate text-xs text-gray-600">
+                    {friend.is_online ? 'Active now' : formatLastSeen(friend.last_seen)}
+                  </p>
                 </div>
               </button>
             </div>
