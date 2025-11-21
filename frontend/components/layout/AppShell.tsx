@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import ProfileCard from "@/components/profile/ProfileCard";
 import FriendsList from "@/components/friends/FriendsList";
 import ProfileImageModal from "@/components/profile/ProfileImageModal";
+import OnlineUsers from "@/components/OnlineUsers";
 import { useAuth } from "@/lib/auth-context";
 import { API_BASE, apiPost, apiGet } from "@/lib/api";
 import type { Post, Visibility, FriendRequest } from "@/lib/types";
@@ -833,7 +834,7 @@ export default function AppShell({ children }: AppShellProps) {
               <FriendsList />
             </div>
           )}
-          {!pathname?.startsWith("/app/users/") && <CreatePostToolbar onOpen={openCreateModal} />}
+          {!pathname?.startsWith("/app/users/") && <OnlineUsers maxUsers={6} title="Who's Online?" />}
           <div className={`${pathname?.startsWith("/app/users/") ? "mt-1" : "mt-4 sm:mt-6"}`}>{children}</div>
         </main>
       </div>
@@ -853,35 +854,6 @@ export default function AppShell({ children }: AppShellProps) {
         onError={notifyError}
       />
       <FloatingCreateButton onOpen={openCreateModal} />
-    </div>
-  );
-}
-
-function CreatePostToolbar({ onOpen }: { onOpen: () => void }) {
-  return (
-    <div className="rounded-[18px] border border-gray-100 bg-white/90 p-4 shadow-sm backdrop-blur-sm sm:p-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-gray-800">Share something new</h2>
-          <p className="text-sm text-gray-500">
-            Post an update, start a discussion, or share a moment with your network.
-          </p>
-        </div>
-        <button
-          onClick={onOpen}
-          className="inline-flex items-center justify-center gap-2 rounded-full btn-primary px-5 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 5v14M5 12h14"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-          Start a post
-        </button>
-      </div>
     </div>
   );
 }
