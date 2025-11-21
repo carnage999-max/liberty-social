@@ -55,6 +55,7 @@ class RegisterUserSerializer(serializers.ModelSerializer):
 
 class UserStatusSerializer(serializers.ModelSerializer):
     """Lightweight serializer for online user status display"""
+
     class Meta:
         model = User
         fields = [
@@ -65,7 +66,14 @@ class UserStatusSerializer(serializers.ModelSerializer):
             "last_seen",
             "last_activity",
         ]
-        read_only_fields = ["id", "username", "profile_image_url", "is_online", "last_seen", "last_activity"]
+        read_only_fields = [
+            "id",
+            "username",
+            "profile_image_url",
+            "is_online",
+            "last_seen",
+            "last_activity",
+        ]
 
 
 class UserSerializer(serializers.ModelSerializer):

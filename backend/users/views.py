@@ -837,8 +837,6 @@ class OnlineUsersView(APIView):
 
     def get(self, request):
         """Get list of currently online users"""
-        online_users = User.objects.filter(is_online=True).exclude(
-            id=request.user.id
-        )
+        online_users = User.objects.filter(is_online=True).exclude(id=request.user.id)
         serializer = UserStatusSerializer(online_users, many=True)
         return Response(serializer.data)
