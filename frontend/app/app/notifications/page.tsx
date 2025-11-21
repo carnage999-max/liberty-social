@@ -226,11 +226,11 @@ export default function NotificationsPage() {
             })}
           </ul>
           {next && (
-            <div className="mt-6 flex justify-center">
+            <div className="mt-6 mb-10 flex justify-center">
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="rounded-lg border border-[var(--color-deep-navy)] px-5 py-2 text-sm font-semibold text-[var(--color-deep-navy)] transition hover:bg-[var(--color-deep-navy)] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg btn-primary px-5 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loadingMore ? "Loading..." : "Load more"}
               </button>
