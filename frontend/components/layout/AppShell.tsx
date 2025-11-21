@@ -354,13 +354,6 @@ export default function AppShell({ children }: AppShellProps) {
     [router, closeNav]
   );
 
-  // Check if current route should hide sidebar
-  const shouldHideSidebar = useCallback(() => {
-    if (!pathname) return false;
-    const hiddenRoutes = ["/app/users/", "/app/settings", "/app/marketplace", "/app/animals", "/app/breeders", "/app/pages"];
-    return hiddenRoutes.some(route => pathname.startsWith(route));
-  }, [pathname]);
-
   // compute a best-effort href to the current user's public profile
   const myProfileHref = (() => {
     try {
@@ -658,7 +651,7 @@ export default function AppShell({ children }: AppShellProps) {
         </div>
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pt-6 sm:px-6 lg:flex-row">
-        {isDesktop && !shouldHideSidebar() && (
+        {isDesktop && (
           <aside className="hidden lg:block lg:w-64 lg:max-w-[260px]">
             <div className="space-y-6 lg:sticky lg:top-28">
               <ProfileCard />
@@ -743,17 +736,17 @@ export default function AppShell({ children }: AppShellProps) {
         )}
 
         <main className="flex-1 min-w-0">
-          {!isDesktop && !shouldHideSidebar() && (
+          {!isDesktop && (
             <div className="mb-6 lg:hidden">
               <ProfileCard profileHref={myProfileHref} className="items-start text-left sm:items-center sm:text-center" />
             </div>
           )}
-          {!isDesktop && !shouldHideSidebar() && (
+          {!isDesktop && (
             <div className="mb-6 lg:hidden">
               <FriendsList />
             </div>
           )}
-          {!shouldHideSidebar() && <OnlineUsers maxUsers={6} title="Who's Online?" />}
+          <OnlineUsers maxUsers={6} title="Who's Online?" />
           <div className={`${pathname?.startsWith("/app/users/") ? "mt-1" : "mt-4 sm:mt-6"}`}>{children}</div>
         </main>
       </div>
