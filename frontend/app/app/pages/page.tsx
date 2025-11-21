@@ -84,6 +84,25 @@ export default function PagesIndexPage() {
         </div>
       </div>
 
+      {/* Pages You Manage */}
+      {!loading && managedPages.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-(--color-silver-mid)">Pages You Manage</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {managedPages.map((page) => (
+              <PageCard
+                key={page.id}
+                page={page}
+                onShare={() => {
+                  setShareModalPage(page);
+                  setShareModalOpen(true);
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Tab Content */}
       {loading ? (
         <div className="flex justify-center py-16">
