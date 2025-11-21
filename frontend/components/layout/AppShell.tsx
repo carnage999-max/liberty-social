@@ -654,8 +654,8 @@ export default function AppShell({ children }: AppShellProps) {
         {isDesktop && (
           <aside className="hidden lg:block lg:w-64 lg:max-w-[260px]">
             <div className="space-y-6 lg:sticky lg:top-28">
-              <ProfileCard />
-              <FriendsList />
+              {!pathname?.startsWith("/app/users/") && <ProfileCard />}
+              {!pathname?.startsWith("/app/users/") && <FriendsList />}
               <nav
                 aria-label="Primary"
                 className="space-y-4 rounded-[16px] bg-white/85 p-4 shadow-sm backdrop-blur-md"
@@ -736,13 +736,13 @@ export default function AppShell({ children }: AppShellProps) {
         )}
 
         <main className="flex-1 min-w-0">
-          {!isDesktop && (
+          {!isDesktop && !pathname?.startsWith("/app/users/") && (
             <div className="mb-6 lg:hidden">
               <ProfileCard profileHref={myProfileHref} className="items-start text-left sm:items-center sm:text-center" />
             </div>
           )}
-          {!isDesktop && (
-            <div className={`${pathname?.startsWith("/app/users/") ? "mb-2" : "mb-6"} lg:hidden`}>
+          {!isDesktop && !pathname?.startsWith("/app/users/") && (
+            <div className="mb-6 lg:hidden">
               <FriendsList />
             </div>
           )}
