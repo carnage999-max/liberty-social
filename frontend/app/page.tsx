@@ -1,8 +1,10 @@
 ﻿"use client";
 
 import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   type MouseEventHandler,
@@ -10,6 +12,7 @@ import {
 import Navbar from "../components/navbar";
 
 export default function LandingPage() {
+  const router = useRouter();
   const { user, isAuthenticated, hydrated } = useAuth();
   const rippleLayerRef = useRef<HTMLDivElement | null>(null);
   const spawnRipple = useCallback((x: number, y: number) => {
@@ -22,6 +25,13 @@ export default function LandingPage() {
     layer.appendChild(ripple);
     ripple.addEventListener("animationend", () => ripple.remove());
   }, []);
+
+  // Redirect authenticated users to feed
+  useEffect(() => {
+    if (hydrated && isAuthenticated && user) {
+      router.replace("/app/feed");
+    }
+  }, [hydrated, isAuthenticated, user, router]);
 
   const handleHeroClick = useCallback<MouseEventHandler<HTMLDivElement>>(
     (e) => {
