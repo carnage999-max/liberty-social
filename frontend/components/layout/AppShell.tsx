@@ -370,9 +370,10 @@ export default function AppShell({ children }: AppShellProps) {
   })();
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] pb-32">
+    <div className="min-h-screen bg-[var(--color-background)] pb-20 sm:pb-32">
       <header className="sticky top-0 z-30 header-bar text-white shadow-lg backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
+          {/* Mobile Header - Only Sandwich Menu */}
           <div className="flex items-center justify-between py-2 sm:hidden">
             <button
               type="button"
@@ -412,91 +413,7 @@ export default function AppShell({ children }: AppShellProps) {
                 </div>
               )}
             </button>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => handleNavigate("/app/friends")}
-                aria-label="View friends"
-                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30 border-2 border-(--color-gold)"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigate("/app/pages")}
-                aria-label="View pages"
-                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M9 22V12h6v10"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigate("/app/marketplace")}
-                aria-label="View marketplace"
-                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M6 2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M8 7h8M8 12h8M8 17h4"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleNavigate("/app/notifications")}
-                aria-label="View notifications"
-                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white shadow-sm transition hover:bg-white/30"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path
-                    d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                {notificationUnreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
-                    {notificationBadgeLabel}
-                  </span>
-                )}
-              </button>
-            </div>
+            <div className="w-9" />
           </div>
 
           <div className="hidden items-center justify-between gap-6 py-4 sm:flex">
@@ -854,6 +771,111 @@ export default function AppShell({ children }: AppShellProps) {
         onError={notifyError}
       />
       <FloatingCreateButton onOpen={openCreateModal} />
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[var(--color-deep-navy)]/95 shadow-lg backdrop-blur-sm sm:hidden">
+        <div className="mx-auto w-full max-w-6xl px-0">
+          <div className="flex items-center justify-around py-2">
+            <button
+              type="button"
+              onClick={() => handleNavigate("/app/feed")}
+              aria-label="View feed"
+              className="relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M4 4h6v6H4zM4 14h6v6H4zM14 4h6v6h-6zM14 14h6v6h-6z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="text-xs font-semibold">Feed</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleNavigate("/app/friends")}
+              aria-label="View friends"
+              className="relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg border-2 border-(--color-gold)"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="text-xs font-semibold">Friends</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleNavigate("/app/pages")}
+              aria-label="View pages"
+              className="relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M4 4h8v8H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="text-xs font-semibold">Pages</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleNavigate("/app/marketplace")}
+              aria-label="View marketplace"
+              className="relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M6 2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M8 7h8M8 12h8M8 17h4"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="text-xs font-semibold">Marketplace</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleNavigate("/app/notifications")}
+              aria-label="View notifications"
+              className="relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <span className="text-xs font-semibold">Notifications</span>
+              {notificationUnreadCount > 0 && (
+                <span className="absolute top-0 right-0 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                  {notificationBadgeLabel}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      </nav>
     </div>
   );
 }
@@ -1268,7 +1290,7 @@ function FloatingCreateButton({ onOpen }: { onOpen: () => void }) {
       type="button"
       aria-label="Create post"
       onClick={onOpen}
-      className="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full btn-primary text-white shadow-metallic transition hover:scale-105 active:scale-95"
+      className="fixed bottom-24 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full btn-primary text-white shadow-metallic transition hover:scale-105 active:scale-95 sm:bottom-8"
     >
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
