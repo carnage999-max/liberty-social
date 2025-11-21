@@ -903,7 +903,7 @@ function CreatePostModal({
   type MediaItem = { file: File; preview: string };
   const MAX_MEDIA_ITEMS = 6;
   const [content, setContent] = useState("");
-  const [visibility, setVisibility] = useState<Visibility>("public");
+  const [visibility, setVisibility] = useState<Visibility>("only_me");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
@@ -955,7 +955,7 @@ function CreatePostModal({
       return [];
     });
     setContent("");
-    setVisibility("public");
+    setVisibility("only_me");
     setSelectedPageId(null);
     setError(null);
   };
