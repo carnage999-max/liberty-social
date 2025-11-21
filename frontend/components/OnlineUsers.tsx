@@ -223,107 +223,82 @@ export default function OnlineUsers({
   }
 
   return (
-    <div
-      className={`relative overflow-hidden rounded-xl p-6 ${className}`}
-      style={{
-        background: 'linear-gradient(135deg, #dc2626 0%, #1e3a8a 100%)',
-      }}
-    >
-      {/* Decorative gradient overlay for depth */}
-      <div
-        className="absolute inset-0 opacity-10"
-        style={{
-          background: 'radial-gradient(circle at top right, rgba(255,255,255,0.3), transparent)',
-        }}
-      ></div>
+    <div className={`${className}`}>
+      {/* Header with title */}
+      <div className="mb-3 flex items-center justify-between px-1">
+        <h3
+          className="text-lg font-bold"
+          style={{ color: '#fbbf24' }} // Golden text
+        >
+          {title}
+        </h3>
+        <span
+          className="text-xs font-semibold px-2 py-1 rounded-full"
+          style={{
+            color: '#fbbf24',
+            backgroundColor: 'rgba(251, 191, 36, 0.1)',
+            border: '1px solid rgba(251, 191, 36, 0.3)',
+          }}
+        >
+          {showingType === 'online' ? '🟢 Online' : '📍 Recently Active'}
+        </span>
+      </div>
 
-      {/* Content */}
-      <div className="relative z-10">
-        {/* Header with title and type indicator */}
-        <div className="mb-4 flex items-center justify-between">
-          <h3
-            className="text-lg font-bold"
-            style={{ color: '#fbbf24' }} // Golden text
-          >
-            {title}
-          </h3>
-          <span
-            className="text-xs font-semibold px-2 py-1 rounded-full"
-            style={{
-              color: '#fbbf24',
-              backgroundColor: 'rgba(251, 191, 36, 0.1)',
-              border: '1px solid rgba(251, 191, 36, 0.3)',
-            }}
-          >
-            {showingType === 'online' ? '🟢 Online' : '📍 Recently Active'}
-          </span>
-        </div>
-
-        {/* Friends Horizontal Scroll */}
-        <div className="flex gap-3 overflow-x-auto pb-2 -mx-2 px-2 snap-x snap-mandatory">
+      {/* Friends Horizontal Scroll */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-2 px-2 snap-x snap-mandatory">
           {friends.map((friend) => (
-            <div key={friend.id} className="group shrink-0 w-24 snap-start">
+            <div key={friend.id} className="group shrink-0 snap-start">
               <button
                 onClick={() => onUserClick?.(friend)}
-                className="relative w-full transition-transform duration-200 hover:scale-105 focus:outline-none"
+                className="relative h-32 w-24 transition-transform duration-200 hover:scale-105 focus:outline-none rounded-lg overflow-hidden"
               >
-                {/* Friend Card */}
-                <div className="relative">
-                  {/* Avatar Container */}
-                  <div className="relative inline-block w-full">
-                    <div className="relative aspect-square w-full overflow-hidden rounded-lg border-2 border-yellow-300 bg-gray-200 shadow-lg">
-                      {friend.profile_image_url ? (
-                        <Image
-                          src={friend.profile_image_url}
-                          alt={friend.username || 'Friend'}
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 640px) 100px, (max-width: 768px) 80px, 100px"
-                        />
-                      ) : (
-                        <div
-                          className="flex h-full w-full items-center justify-center"
-                          style={{
-                            background: 'linear-gradient(to bottom right, rgb(248,113,113), rgb(37,99,235))',
-                          }}
-                        >
-                          <span className="text-xl font-bold text-white">
-                            {(friend.username?.[0] || 'F').toUpperCase()}
-                          </span>
-                        </div>
-                      )}
+                {/* Friend Card - Story Style */}
+                <div className="relative h-full w-full">
+                  {/* Background Image or Gradient */}
+                  {friend.profile_image_url ? (
+                    <Image
+                      src={friend.profile_image_url}
+                      alt={friend.username || 'Friend'}
+                      fill
+                      className="object-cover"
+                      sizes="96px"
+                    />
+                  ) : (
+                    <div
+                      className="h-full w-full flex items-center justify-center"
+                      style={{
+                        background: 'linear-gradient(135deg, #921414 0%, #1b2849 100%)',
+                      }}
+                    >
+                      <span className="text-2xl font-bold text-white">
+                        {(friend.username?.[0] || 'F').toUpperCase()}
+                      </span>
                     </div>
+                  )}
 
-                    {/* Online/Offline Indicator Dot */}
+                  {/* Dark overlay for text readability */}
+                  <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent"></div>
+
+                  {/* Online Status Indicator - Top Right */}
+                  <div className="absolute top-2 right-2 z-10">
                     {friend.is_online ? (
-                      <div className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-white bg-green-500 shadow-md"></div>
+                      <div className="h-3 w-3 rounded-full border-2 border-white bg-green-500 shadow-md"></div>
                     ) : (
-                      <div className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-white bg-gray-400 shadow-md"></div>
+                      <div className="h-3 w-3 rounded-full border-2 border-white bg-gray-500 shadow-md"></div>
                     )}
                   </div>
 
-                  {/* Username and Status Label */}
-                  <div className="mt-2 truncate">
-                    <p
-                      className="truncate text-xs font-semibold"
-                      style={{ color: '#fbbf24' }} // Golden text
-                    >
-                      @{friend.username}
+                  {/* Username and Status - Bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 p-2 text-white">
+                    <p className="truncate text-xs font-semibold">
+                      {friend.username}
                     </p>
-                    <p className="truncate text-xs text-white/70 mt-0.5">
-                      {friend.is_online ? 'online' : formatLastSeen(friend.last_seen)}
+                    <p className="truncate text-xs text-white/80">
+                      {friend.is_online ? 'Active now' : formatLastSeen(friend.last_seen)}
                     </p>
                   </div>
                 </div>
               </button>
-
-              {/* Tooltip on hover */}
-              <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 w-max -translate-x-1/2 transform rounded-md bg-gray-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
-                <div>{friend.username}</div>
-                <div className="text-gray-300">
-                  {friend.is_online ? 'Online now' : formatLastSeen(friend.last_seen)}
-                </div>
-              </div>
             </div>
           ))}
         </div>
@@ -346,7 +321,6 @@ export default function OnlineUsers({
             </Link>
           </div>
         )}
-      </div>
     </div>
   );
 }

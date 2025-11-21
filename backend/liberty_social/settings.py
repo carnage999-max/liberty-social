@@ -90,6 +90,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "liberty_social.middleware.UserActivityMiddleware",
 ]
 
 ROOT_URLCONF = "liberty_social.urls"
