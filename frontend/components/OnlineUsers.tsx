@@ -286,7 +286,7 @@ export default function OnlineUsers({
                   }}
                 >
                   {/* Circular Profile Image Container */}
-                  <div className="relative w-24 h-24 rounded-full overflow-hidden z-10 border-2 border-white shadow-lg">
+                  <div className="relative w-24 h-24 rounded-full overflow-hidden z-10 border-2 border-(--color-gold) shadow-lg">
                     {/* Friend Card - Story Style */}
                     <div className="relative h-full w-full">
                       {/* Background Image or Gradient */}
@@ -328,7 +328,7 @@ export default function OnlineUsers({
 
                 {/* Username and Status - Below the flag border */}
                 <div className="mt-2 text-center">
-                  <p className="truncate text-xs font-semibold text-gray-800">
+                  <p className="truncate text-xs font-semibold" style={{ color: '#fbbf24' }}>
                     {friend.username}
                   </p>
                   <p className="truncate text-xs text-gray-600">
