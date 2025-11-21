@@ -2,77 +2,50 @@
 
 import { useState } from "react";
 
-export default function CollapsibleFloatingButtons({
-  onCreatePost,
-  onReportBug,
-}: {
-  onCreatePost: () => void;
-  onReportBug: () => void;
-}) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+export default function FloatingCreateButton({ onOpen }: { onOpen: () => void }) {
+  const [dismissed, setDismissed] = useState(false);
+
+  if (dismissed) {
+    return (
+      <>
+        {/* Peeking button - shows when dismissed */}
+        <button
+          onClick={() => setDismissed(false)}
+          className="fixed bottom-24 right-2 z-40 h-14 w-6 btn-primary text-white rounded-l-full shadow-metallic hover:scale-105 transition-transform flex items-center justify-center overflow-hidden group"
+          aria-label="Show create post"
+          title="Create post"
+        >
+          <span className="group-hover:scale-150 transition-transform">+</span>
+        </button>
+      </>
+    );
+  }
 
   return (
-    <div className="fixed bottom-24 right-6 z-40 sm:bottom-8 flex flex-col items-end gap-3">
-      {/* Expanded buttons */}
-      {!isCollapsed && (
-        <>
-          {/* Create Post Button */}
+    <>
+      {/* Floating button with dismiss X */}
+      <div className="fixed bottom-24 right-6 z-40">
+        <div className="relative w-14 h-14">
           <button
             type="button"
             aria-label="Create post"
-            onClick={onCreatePost}
-            className="flex h-14 w-14 items-center justify-center rounded-full btn-primary text-white shadow-metallic transition hover:scale-105 active:scale-95"
+            onClick={onOpen}
+            className="absolute inset-0 flex h-14 w-14 items-center justify-center rounded-full btn-primary text-white shadow-metallic transition hover:scale-105 active:scale-95"
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
               <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
-
-          {/* Bug Report Button */}
+          {/* X button to dismiss */}
           <button
-            type="button"
-            aria-label="Report bug"
-            onClick={onReportBug}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-(--color-gold) text-(--color-deeper-navy) shadow-metallic hover:scale-105 transition-transform text-2xl"
-            title="Report a bug"
+            onClick={() => setDismissed(true)}
+            className="absolute -top-2 -right-2 h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md hover:bg-rose-600 transition-colors z-10"
+            aria-label="Dismiss create post button"
           >
-            🐞
+            ×
           </button>
-        </>
-      )}
-
-      {/* Toggle Button (always visible, slides to side when collapsed) */}
-      <button
-        type="button"
-        aria-label={isCollapsed ? "Show action buttons" : "Hide action buttons"}
-        aria-expanded={!isCollapsed}
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className={`flex h-14 w-14 items-center justify-center rounded-full transition-all duration-300 ease-out shadow-metallic hover:scale-105 active:scale-95 ${
-          isCollapsed
-            ? "bg-white/20 text-white"
-            : "bg-(--color-gold) text-(--color-deeper-navy)"
-        }`}
-      >
-        <svg
-          width="22"
-          height="22"
-          viewBox="0 0 24 24"
-          fill="none"
-          className={`transition-transform duration-300 ${isCollapsed ? "" : "rotate-45"}`}
-        >
-          <path
-            d="M12 5v14M5 12h14"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-      </button>
-
-      {/* Collapsed state - slide out indicator */}
-      {isCollapsed && (
-        <div className="absolute right-0 top-0 h-14 w-14 rounded-full bg-white/10 backdrop-blur-sm animate-pulse" />
-      )}
-    </div>
+        </div>
+      </div>
+    </>
   );
 }

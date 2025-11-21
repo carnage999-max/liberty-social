@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 export default function ReportBug() {
     const [open, setOpen] = useState(false);
+    const [dismissed, setDismissed] = useState(false);
     const [message, setMessage] = useState("");
     const [screenshot, setScreenshot] = useState<File | null>(null);
     const [sending, setSending] = useState(false);
@@ -38,23 +39,51 @@ export default function ReportBug() {
         }
     }
 
+    if (dismissed) {
+        return (
+            <>
+                {/* Peeking button - shows when dismissed */}
+                <button
+                    onClick={() => setDismissed(false)}
+                    className="fixed bottom-24 left-2 z-40 h-14 w-6 bg-(--color-gold) text-(--color-deeper-navy) rounded-r-full shadow-metallic hover:scale-105 transition-transform flex items-center justify-center text-xl overflow-hidden group"
+                    aria-label="Show bug report"
+                    title="Show bug report"
+                >
+                    <span className="group-hover:scale-150 transition-transform">🐞</span>
+                </button>
+            </>
+        );
+    }
+
     return (
         <>
-            {/* Floating button (brand) */}
-            <button
-                onClick={() => {
-                    setOpen(true);
-                    // Reset form state when opening to ensure clean slate
-                    setSent(false);
-                    setMessage("");
-                    setScreenshot(null);
-                }}
-                className="fixed bottom-24 left-6 bg-(--color-gold) text-(--color-deeper-navy) rounded-full w-14 h-14 shadow-metallic hover:scale-105 transition-transform flex items-center justify-center text-2xl z-50"
-                aria-label="Report Bug"
-                title="Report a bug"
-            >
-                🐞
-            </button>
+            {/* Floating button (brand) with dismiss X */}
+            <div className="fixed bottom-24 left-6 z-50">
+                <div className="relative w-14 h-14">
+                    <button
+                        onClick={() => {
+                            setOpen(true);
+                            // Reset form state when opening to ensure clean slate
+                            setSent(false);
+                            setMessage("");
+                            setScreenshot(null);
+                        }}
+                        className="absolute inset-0 bg-(--color-gold) text-(--color-deeper-navy) rounded-full shadow-metallic hover:scale-105 transition-transform flex items-center justify-center text-2xl"
+                        aria-label="Report Bug"
+                        title="Report a bug"
+                    >
+                        🐞
+                    </button>
+                    {/* X button to dismiss */}
+                    <button
+                        onClick={() => setDismissed(true)}
+                        className="absolute -top-2 -right-2 h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md hover:bg-rose-600 transition-colors z-10"
+                        aria-label="Dismiss bug report button"
+                    >
+                        ×
+                    </button>
+                </div>
+            </div>
 
             {/* Modal */}
             {open && (
