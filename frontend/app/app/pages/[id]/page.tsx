@@ -260,7 +260,24 @@ export default function PageDetail() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      <Link
+        href="/app/pages"
+        className="inline-flex items-center gap-2 rounded-full btn-primary px-4 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M15 18l-6-6 6-6"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        Back to pages
+      </Link>
+      
+      <div className="space-y-8">
       <Gallery
         isOpen={galleryOpen}
         onClose={() => setGalleryOpen(false)}
@@ -688,6 +705,7 @@ export default function PageDetail() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
