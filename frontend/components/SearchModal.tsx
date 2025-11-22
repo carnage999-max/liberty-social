@@ -7,12 +7,14 @@ import { apiGet } from "@/lib/api";
 
 type SearchResult = {
   id: number;
-  type: "post" | "user" | "page";
+  type: "post" | "user" | "page" | "marketplace" | "animal" | "breeder";
   title: string;
   description?: string;
   image?: string;
   href: string;
 };
+
+type SearchTab = "all" | "post" | "user" | "page" | "marketplace" | "animal" | "breeder";
 
 export default function SearchModal({
   open,
@@ -24,7 +26,14 @@ export default function SearchModal({
   const router = useRouter();
   const { accessToken } = useAuth();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [activeTab, setActiveTab] = useState<SearchTab>("all");
+  const [allResults, setAllResults] = useState<SearchResult[]>([]);
+  const [posts, setPosts] = useState<SearchResult[]>([]);
+  const [users, setUsers] = useState<SearchResult[]>([]);
+  const [pages, setPages] = useState<SearchResult[]>([]);
+  const [marketplace, setMarketplace] = useState<SearchResult[]>([]);
+  const [animals, setAnimals] = useState<SearchResult[]>([]);
+  const [breeders, setBreeders] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -37,68 +46,65 @@ export default function SearchModal({
   }, [open]);
 
   const performSearch = useCallback(
-    async (searchQuery: string) => {
+    async (searchQuery: string, entityType: SearchTab = "all") => {
       if (!searchQuery.trim() || !accessToken) {
-        setResults([]);
+        setAllResults([]);
+        setPosts([]);
+        setUsers([]);
+        setPages([]);
+        setMarketplace([]);
+        setAnimals([]);
+        setBreeders([]);
         return;
       }
 
       setSearching(true);
       try {
-        // Search posts
-        const postsResponse = await apiGet(
-          `/posts/?search=${encodeURIComponent(searchQuery)}&page_size=5`,
+        const response = await apiGet(
+          `/search/?q=${encodeURIComponent(searchQuery)}&type=${entityType}`,
           { token: accessToken }
         );
 
-        const postResults: SearchResult[] = (postsResponse.results || []).map(
-          (post: any) => ({
-            id: post.id,
-            type: "post",
-            title: post.content.substring(0, 50) + (post.content.length > 50 ? "..." : ""),
-            description: post.author?.username || "Unknown",
-            href: `/app/feed/${post.id}`,
-          })
-        );
-
-        // Search users
-        const usersResponse = await apiGet(
-          `/auth/users/?search=${encodeURIComponent(searchQuery)}&page_size=5`,
-          { token: accessToken }
-        );
-
-        const userResults: SearchResult[] = (usersResponse.results || []).map(
-          (user: any) => ({
-            id: user.id,
-            type: "user",
-            title: user.username || user.email,
-            description: `${user.first_name || ""} ${user.last_name || ""}`.trim(),
-            image: user.profile_image_url,
-            href: `/app/users/${user.id}`,
-          })
-        );
-
-        // Search pages
-        const pagesResponse = await apiGet(
-          `/pages/?search=${encodeURIComponent(searchQuery)}&page_size=5`,
-          { token: accessToken }
-        );
-
-        const pageResults: SearchResult[] = (pagesResponse.results || []).map(
-          (page: any) => ({
-            id: page.id,
-            type: "page",
-            title: page.name,
-            description: page.description?.substring(0, 50),
-            image: page.cover_image_url,
-            href: `/app/pages/${page.id}`,
-          })
-        );
-
-        setResults([...postResults, ...userResults, ...pageResults].slice(0, 15));
+        if (entityType === "all") {
+          setAllResults(response.all || []);
+          setPosts(response.posts || []);
+          setUsers(response.users || []);
+          setPages(response.pages || []);
+          setMarketplace(response.marketplace || []);
+          setAnimals(response.animals || []);
+          setBreeders(response.breeders || []);
+        } else {
+          // Update specific category
+          switch (entityType) {
+            case "post":
+              setPosts(response.posts || []);
+              break;
+            case "user":
+              setUsers(response.users || []);
+              break;
+            case "page":
+              setPages(response.pages || []);
+              break;
+            case "marketplace":
+              setMarketplace(response.marketplace || []);
+              break;
+            case "animal":
+              setAnimals(response.animals || []);
+              break;
+            case "breeder":
+              setBreeders(response.breeders || []);
+              break;
+          }
+        }
       } catch (error) {
         console.error("Search failed:", error);
-        setResults([]);
+        setAllResults([]);
+        setPosts([]);
+        setUsers([]);
+        setPages([]);
+        setMarketplace([]);
+        setAnimals([]);
+        setBreeders([]);
       } finally {
         setSearching(false);
       }
@@ -117,13 +123,29 @@ export default function SearchModal({
 
       if (value.trim()) {
         searchTimeoutRef.current = setTimeout(() => {
-          performSearch(value);
+          performSearch(value, activeTab);
         }, 300);
       } else {
-        setResults([]);
+        setAllResults([]);
+        setPosts([]);
+        setUsers([]);
+        setPages([]);
+        setMarketplace([]);
+        setAnimals([]);
+        setBreeders([]);
       }
     },
-    [performSearch]
+    [performSearch, activeTab]
+  );
+
+  const handleTabChange = useCallback(
+    (tab: SearchTab) => {
+      setActiveTab(tab);
+      if (query.trim()) {
+        performSearch(query, tab);
+      }
+    },
+    [query, performSearch]
   );
 
   const handleResultClick = useCallback(
@@ -131,18 +153,102 @@ export default function SearchModal({
       router.push(href);
       onClose();
       setQuery("");
-      setResults([]);
+      setAllResults([]);
+      setPosts([]);
+      setUsers([]);
+      setPages([]);
+      setMarketplace([]);
+      setAnimals([]);
+      setBreeders([]);
     },
     [router, onClose]
   );
 
+  const getCurrentResults = (): SearchResult[] => {
+    switch (activeTab) {
+      case "post":
+        return posts;
+      case "user":
+        return users;
+      case "page":
+        return pages;
+      case "marketplace":
+        return marketplace;
+      case "animal":
+        return animals;
+      case "breeder":
+        return breeders;
+      default:
+        return allResults;
+    }
+  };
+
+  const getResultIcon = (type: string) => {
+    switch (type) {
+      case "post":
+        return "📝";
+      case "user":
+        return "👤";
+      case "page":
+        return "📄";
+      case "marketplace":
+        return "🛒";
+      case "animal":
+        return "🐾";
+      case "breeder":
+        return "🏆";
+      default:
+        return "🔍";
+    }
+  };
+
+  const getResultLabel = (type: string) => {
+    switch (type) {
+      case "post":
+        return "Post";
+      case "user":
+        return "Person";
+      case "page":
+        return "Page";
+      case "marketplace":
+        return "Marketplace";
+      case "animal":
+        return "Animal";
+      case "breeder":
+        return "Breeder";
+      default:
+        return "Result";
+    }
+  };
+
+  const getResultGradient = (type: string) => {
+    switch (type) {
+      case "post":
+        return "from-blue-400 to-blue-600";
+      case "user":
+        return "from-purple-400 to-purple-600";
+      case "page":
+        return "from-green-400 to-green-600";
+      case "marketplace":
+        return "from-orange-400 to-orange-600";
+      case "animal":
+        return "from-pink-400 to-pink-600";
+      case "breeder":
+        return "from-yellow-400 to-yellow-600";
+      default:
+        return "from-gray-400 to-gray-600";
+    }
+  };
+
   if (!open) return null;
+
+  const currentResults = getCurrentResults();
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex flex-col sm:items-start sm:pt-20 sm:px-4">
-      <div className="w-full bg-white shadow-lg sm:rounded-lg sm:max-w-md">
+      <div className="w-full bg-white shadow-lg sm:rounded-lg sm:max-w-2xl max-h-[90vh] flex flex-col">
         {/* Search Header */}
-        <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 shrink-0">
           <svg
             width="20"
             height="20"
@@ -152,13 +258,13 @@ export default function SearchModal({
             strokeWidth="2"
             className="text-gray-400"
           >
-            <circle cx="11" cy="11" r="8" />
+            <circle cx="11" cy="11" r="8" fill="none" />
             <path d="m21 21-4.35-4.35" />
           </svg>
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Search posts, people, pages..."
+            placeholder="Search posts, people, pages, marketplace..."
             value={query}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="flex-1 bg-transparent outline-none text-sm text-gray-900 placeholder-gray-500"
@@ -166,7 +272,13 @@ export default function SearchModal({
               if (e.key === "Escape") {
                 onClose();
                 setQuery("");
-                setResults([]);
+                setAllResults([]);
+                setPosts([]);
+                setUsers([]);
+                setPages([]);
+                setMarketplace([]);
+                setAnimals([]);
+                setBreeders([]);
               }
             }}
           />
@@ -174,7 +286,13 @@ export default function SearchModal({
             <button
               onClick={() => {
                 setQuery("");
-                setResults([]);
+                setAllResults([]);
+                setPosts([]);
+                setUsers([]);
+                setPages([]);
+                setMarketplace([]);
+                setAnimals([]);
+                setBreeders([]);
                 searchInputRef.current?.focus();
               }}
               className="text-gray-400 hover:text-gray-600"
@@ -185,15 +303,36 @@ export default function SearchModal({
           )}
         </div>
 
+        {/* Tabs */}
+        {query && (
+          <div className="border-b border-gray-200 shrink-0 overflow-x-auto">
+            <div className="flex gap-1 px-2 min-w-max">
+              {(["all", "post", "user", "page", "marketplace", "animal", "breeder"] as SearchTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => handleTabChange(tab)}
+                  className={`px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors ${
+                    activeTab === tab
+                      ? "text-blue-600 border-b-2 border-blue-600"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  {tab === "all" ? "All" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Search Results */}
-        <div className="max-h-96 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto">
           {searching ? (
             <div className="flex items-center justify-center py-8 text-gray-500">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
             </div>
-          ) : results.length > 0 ? (
+          ) : currentResults.length > 0 ? (
             <ul className="divide-y divide-gray-200">
-              {results.map((result) => (
+              {currentResults.map((result) => (
                 <li key={`${result.type}-${result.id}`}>
                   <button
                     onClick={() => handleResultClick(result.href)}
@@ -201,13 +340,16 @@ export default function SearchModal({
                   >
                     {/* Icon/Avatar */}
                     <div className="flex-shrink-0">
-                      {result.type === "post" && (
-                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                          📝
+                      {(result.type === "user" || result.type === "page") && result.image ? (
+                        <div className={`h-10 w-10 ${result.type === "user" ? "rounded-full" : "rounded-lg"} overflow-hidden bg-gray-200`}>
+                          <img
+                            src={result.image}
+                            alt={result.title}
+                            className="h-full w-full object-cover"
+                          />
                         </div>
-                      )}
-                      {result.type === "user" && (
-                        <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-200">
+                      ) : (
+                        <div className={`h-10 w-10 ${result.type === "user" ? "rounded-full" : "rounded-lg"} bg-gradient-to-br ${getResultGradient(result.type)} flex items-center justify-center text-white text-xs`}>
                           {result.image ? (
                             <img
                               src={result.image}
@@ -215,24 +357,7 @@ export default function SearchModal({
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-purple-600 text-white font-bold text-xs">
-                              {result.title.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {result.type === "page" && (
-                        <div className="h-10 w-10 rounded-lg overflow-hidden bg-gray-200">
-                          {result.image ? (
-                            <img
-                              src={result.image}
-                              alt={result.title}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-green-400 to-green-600 text-white font-bold text-xs">
-                              📄
-                            </div>
+                            <span>{getResultIcon(result.type)}</span>
                           )}
                         </div>
                       )}
@@ -244,7 +369,7 @@ export default function SearchModal({
                         {result.title}
                       </h3>
                       {result.description && (
-                        <p className="text-xs text-gray-500 truncate">
+                        <p className="text-xs text-gray-500 truncate mt-0.5">
                           {result.description}
                         </p>
                       )}
@@ -253,9 +378,7 @@ export default function SearchModal({
                     {/* Badge */}
                     <div className="flex-shrink-0">
                       <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700">
-                        {result.type === "post" && "Post"}
-                        {result.type === "user" && "Person"}
-                        {result.type === "page" && "Page"}
+                        {getResultLabel(result.type)}
                       </span>
                     </div>
                   </button>
@@ -264,7 +387,7 @@ export default function SearchModal({
             </ul>
           ) : query ? (
             <div className="px-4 py-8 text-center text-gray-500 text-sm">
-              No results found for "{query}"
+              No {activeTab === "all" ? "" : activeTab} results found for "{query}"
             </div>
           ) : (
             <div className="px-4 py-8 text-center text-gray-400 text-sm">
