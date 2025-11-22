@@ -11,11 +11,61 @@ import { ReactionsModal } from "@/components/feed/ReactionsModal";
 import ShareModal from "@/components/modals/ShareModal";
 import ImageGallery from "@/components/ImageGallery";
 import FeedFilterTabs from "@/components/FeedFilterTabs";
+import FeedBackgroundModal from "@/components/modals/FeedBackgroundModal";
+import { useFeedBackground } from "@/hooks/useFeedBackground";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
 
 type FeedPost = Post;
+
+// Background theme class mapping
+const BACKGROUND_CLASSES: Record<string, string> = {
+  default: '',
+  american: 'feed-bg-american',
+  christmas: 'feed-bg-christmas',
+  halloween: 'feed-bg-halloween',
+  clouds: 'feed-bg-clouds',
+  nature: 'feed-bg-nature',
+  space: 'feed-bg-space',
+  ocean: 'feed-bg-ocean',
+  forest: 'feed-bg-forest',
+  sunset: 'feed-bg-sunset',
+  stars: 'feed-bg-stars',
+};
+
+// Post card styling based on theme
+function getPostCardClasses(theme: string): string {
+  const baseClasses = "rounded-[18px] border p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md sm:p-6";
+  
+  switch (theme) {
+    case 'default':
+      return `${baseClasses} border-gray-100 bg-white/90`;
+    case 'american':
+      return `${baseClasses} border-red-300/50 bg-white/85 shadow-red-200/20`;
+    case 'christmas':
+      return `${baseClasses} border-green-300/50 bg-white/85 shadow-green-200/20`;
+    case 'halloween':
+      return `${baseClasses} border-orange-300/50 bg-white/85 shadow-orange-200/20`;
+    case 'clouds':
+      return `${baseClasses} border-blue-200/50 bg-white/80 shadow-blue-100/20`;
+    case 'nature':
+      return `${baseClasses} border-green-200/50 bg-white/85 shadow-green-100/20`;
+    case 'space':
+      return `${baseClasses} border-purple-300/50 bg-white/90 shadow-purple-200/20`;
+    case 'ocean':
+      return `${baseClasses} border-cyan-300/50 bg-white/85 shadow-cyan-200/20`;
+    case 'forest':
+      return `${baseClasses} border-emerald-300/50 bg-white/85 shadow-emerald-200/20`;
+    case 'sunset':
+      return `${baseClasses} border-orange-200/50 bg-white/85 shadow-orange-100/20`;
+    case 'stars':
+      return `${baseClasses} border-indigo-300/50 bg-white/90 shadow-indigo-200/20`;
+    default:
+      return `${baseClasses} border-gray-100 bg-white/90`;
+  }
+}
 
 // Map old text reaction types to emojis for backward compatibility
 const REACTION_TYPE_TO_EMOJI: Record<string, string> = {
@@ -59,6 +109,7 @@ function summariseReactions(reactions: Reaction[]): ReactionSummary {
 export default function FeedPage() {
   const { accessToken, user } = useAuth();
   const toast = useToast();
+  const { theme: feedBackgroundTheme, changeTheme, mounted } = useFeedBackground();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [pagination, setPagination] = useState<
     Pick<PaginatedResponse<FeedPost>, "count" | "next">
@@ -84,6 +135,7 @@ export default function FeedPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
   const [reactionsModalData, setReactionsModalData] = useState<Reaction[]>([]);
+  const [backgroundModalOpen, setBackgroundModalOpen] = useState(false);
 
   useEffect(() => {
     pendingReactionsRef.current = pendingReactions;
@@ -484,8 +536,8 @@ export default function FeedPage() {
           const authorLabel = isPagePost
             ? post.page!.name
             : post.author.username ||
-              [post.author.first_name, post.author.last_name].filter(Boolean).join(" ") ||
-              post.author.email;
+            [post.author.first_name, post.author.last_name].filter(Boolean).join(" ") ||
+            post.author.email;
           
           const avatarUrl = isPagePost
             ? post.page!.profile_image_url
@@ -505,7 +557,7 @@ export default function FeedPage() {
           return (
             <article
               key={post.id}
-              className="rounded-[18px] border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md sm:p-6"
+              className={mounted ? getPostCardClasses(feedBackgroundTheme) : "rounded-[18px] border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md sm:p-6"}
             >
               <header className="mb-4 flex items-start justify-between gap-3">
                 {profileHref ? (
@@ -707,12 +759,37 @@ export default function FeedPage() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div 
+        className={`space-y-6 min-h-screen pb-8 ${mounted ? BACKGROUND_CLASSES[feedBackgroundTheme] || '' : ''}`}
+        style={{ 
+          position: 'relative',
+          padding: '1rem',
+          ...(mounted && feedBackgroundTheme === 'default' ? {
+            background: 'var(--bg-gradient)'
+          } : {})
+        }}
+      >
         <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-(--color-gold)">Your Feed</h1>
           </div>
         </header>
+
+        {/* Background Selector Button */}
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setBackgroundModalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-full border-2 border-(--color-gold) bg-(--color-deep-navy) px-4 py-2 text-sm font-semibold text-(--color-gold) transition hover:bg-(--color-gold) hover:text-(--color-deeper-navy)"
+            title="Change feed background"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2v20M2 12h20" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span>Background</span>
+          </button>
+        </div>
 
         <FeedFilterTabs onFiltersChange={(filters) => {
           setShowFriendPosts(filters.showFriendPosts);
@@ -829,6 +906,12 @@ export default function FeedPage() {
         isOpen={reactionsModalOpen}
         onClose={() => setReactionsModalOpen(false)}
         postOrCommentTitle="Post"
+      />
+      <FeedBackgroundModal
+        open={backgroundModalOpen}
+        onClose={() => setBackgroundModalOpen(false)}
+        currentTheme={feedBackgroundTheme}
+        onThemeChange={changeTheme}
       />
     </>
   );

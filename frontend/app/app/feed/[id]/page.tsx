@@ -1054,9 +1054,9 @@ export default function PostDetailPage() {
                       const authorLabel = isPagePost
                         ? post.page!.name
                         : post.author.username ||
-                          [post.author.first_name, post.author.last_name].filter(Boolean).join(" ") ||
-                          post.author.email ||
-                          "Profile";
+                            [post.author.first_name, post.author.last_name].filter(Boolean).join(" ") ||
+                            post.author.email ||
+                            "Profile";
                       const avatarUrl = isPagePost
                         ? post.page!.profile_image_url
                         : post.author.profile_image_url;
@@ -1073,30 +1073,30 @@ export default function PostDetailPage() {
                             onClick={(e) => {
                               e.preventDefault();
                               if (avatarUrl) {
-                                setProfileImageGallery({
+                          setProfileImageGallery({
                                   image: avatarUrl,
-                                  title: authorLabel,
-                                });
-                              }
-                            }}
+                            title: authorLabel,
+                          });
+                        }
+                      }}
                             disabled={!avatarUrl}
-                            className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 disabled:cursor-default disabled:hover:opacity-100"
-                          >
+                      className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 disabled:cursor-default disabled:hover:opacity-100"
+                    >
                             {avatarUrl ? (
-                              <Image
+                        <Image
                                 src={avatarUrl}
                                 alt={authorLabel}
-                                width={48}
-                                height={48}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <span className="text-base font-semibold text-gray-600">
+                          width={48}
+                          height={48}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-base font-semibold text-gray-600">
                                 {authorLabel?.[0]?.toUpperCase() || "U"}
-                              </span>
-                            )}
-                          </button>
-                          <div>
+                        </span>
+                      )}
+                    </button>
+                    <div>
                             <p className="text-sm font-semibold text-gray-900">{authorLabel}</p>
                             <p className="text-xs text-gray-500">
                               {new Date(post.created_at).toLocaleString()}
@@ -1134,10 +1134,10 @@ export default function PostDetailPage() {
                           </button>
                           <div>
                             <p className="text-sm font-semibold text-gray-900">{authorLabel}</p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(post.created_at).toLocaleString()}
-                            </p>
-                          </div>
+                      <p className="text-xs text-gray-500">
+                        {new Date(post.created_at).toLocaleString()}
+                      </p>
+                    </div>
                         </>
                       );
                     })()}

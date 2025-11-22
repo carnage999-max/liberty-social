@@ -373,15 +373,15 @@ export default function AppShell({ children }: AppShellProps) {
           {/* Mobile Header - Profile (left) | Liberty Social Logo/Text (center) | (Bug + Search + Hamburger aligned right) */}
           <div className="flex items-center justify-between py-2 sm:hidden">
             {user && (
-              <button
-                type="button"
+            <button
+              type="button"
                 onClick={() => {
                   if (myProfileHref) router.push(myProfileHref);
                 }}
                 aria-label="View profile"
                 className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-(--color-gold) bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30 flex items-center justify-center"
                 title="View profile"
-              >
+            >
                 {/* Flag background with blend mode */}
                 <div
                   className="absolute inset-0 rounded-full"
@@ -407,7 +407,7 @@ export default function AppShell({ children }: AppShellProps) {
                     </span>
                   )}
                 </div>
-              </button>
+            </button>
             )}
             {!user && <div className="w-9" />}
             <button
@@ -453,17 +453,17 @@ export default function AppShell({ children }: AppShellProps) {
                   <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </button>
-              <button
-                type="button"
+                <button
+                  type="button"
                 onClick={toggleNav}
                 aria-label="Toggle navigation"
                 aria-expanded={navOpen}
                 className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80"
-              >
+                >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M4 7h16M4 12h16M4 17h16" />
                 </svg>
-              </button>
+                </button>
             </div>
           </div>
 

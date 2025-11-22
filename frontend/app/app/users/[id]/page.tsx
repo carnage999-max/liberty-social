@@ -523,7 +523,7 @@ export default function UserProfilePage() {
                         <button
                           type="button"
                           onClick={() => {
-                            setProfileImageModalOpen(true);
+                              setProfileImageModalOpen(true);
                           }}
                           className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-(--color-deep-navy)/30 bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 sm:h-28 sm:w-28"
                         >
