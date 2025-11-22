@@ -18,6 +18,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 
+// Double-tap to like state
+type DoubleTapState = {
+  postId: number;
+  show: boolean;
+};
+
 type FeedPost = Post;
 
 // Background theme class mapping
@@ -137,6 +143,7 @@ export default function FeedPage() {
   const [reactionsModalData, setReactionsModalData] = useState<Reaction[]>([]);
   const [backgroundModalOpen, setBackgroundModalOpen] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
+  const [doubleTapAnimation, setDoubleTapAnimation] = useState<{ postId: number; show: boolean } | null>(null);
 
   useEffect(() => {
     pendingReactionsRef.current = pendingReactions;
@@ -449,6 +456,26 @@ export default function FeedPage() {
     [accessToken, posts, toast, updatePendingReaction, user]
   );
 
+  // Handle double-tap to like
+  const handleDoubleTap = useCallback(
+    (postId: number) => {
+      if (!accessToken || !user) {
+        toast.show("Sign in to react to posts.", "error");
+        return;
+      }
+      
+      // Show animation
+      setDoubleTapAnimation({ postId, show: true });
+      setTimeout(() => {
+        setDoubleTapAnimation((prev) => prev?.postId === postId ? { postId, show: false } : prev);
+      }, 600);
+      
+      // Trigger like reaction
+      handleToggleReaction(postId, "👍");
+    },
+    [accessToken, user, toast, handleToggleReaction]
+  );
+
   const renderPosts = () => {
     if (loading) {
       return (
@@ -558,12 +585,25 @@ export default function FeedPage() {
           return (
             <article
               key={post.id}
-              className={mounted ? (
+              onDoubleClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDoubleTap(post.id);
+              }}
+              className={`relative ${mounted ? (
                 typeof feedBackgroundTheme === 'string' && feedBackgroundTheme.startsWith('/backgrounds/')
                   ? "rounded-[18px] border border-gray-100/60 bg-white/60 p-5 shadow-sm backdrop-blur-md transition hover:shadow-md sm:p-6"
                   : getPostCardClasses(feedBackgroundTheme as string)
-              ) : "rounded-[18px] border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md sm:p-6"}
+              ) : "rounded-[18px] border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md sm:p-6"}`}
             >
+              {/* Double-tap like animation */}
+              {doubleTapAnimation?.postId === post.id && doubleTapAnimation.show && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                  <div className="double-tap-heart-animation">
+                    <span className="text-6xl">👍</span>
+                  </div>
+                </div>
+              )}
               <header className="mb-4 flex items-start justify-between gap-3">
                 {profileHref ? (
                   <Link href={profileHref} className="flex items-center gap-3 transition hover:opacity-90">

@@ -39,6 +39,7 @@ from .animal_views import (
     AdminActionLogViewSet,
 )
 from .views_uploads import UploadImageView
+from .search_views import UniversalSearchView
 
 router = DefaultRouter()
 router.register("posts", PostViewSet, basename="posts")
@@ -108,4 +109,5 @@ urlpatterns = [
         TestPushNotificationView.as_view(),
         name="test-push-notification",
     ),
+    path("search/", UniversalSearchView.as_view(), name="universal-search"),
 ]

@@ -44,13 +44,11 @@ function isValidTheme(value: string): boolean {
     "default",
     "american",
     "christmas",
-    "halloween",
     "clouds",
     "nature",
     "space",
     "ocean",
     "forest",
-    "sunset",
     "stars",
   ].includes(value);
 }

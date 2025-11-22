@@ -8,13 +8,11 @@ export type FeedBackgroundTheme =
   | "default"
   | "american"
   | "christmas"
-  | "halloween"
   | "clouds"
   | "nature"
   | "space"
   | "ocean"
   | "forest"
-  | "sunset"
   | "stars";
 
 interface FeedBackgroundModalProps {
@@ -28,13 +26,11 @@ const THEMES: Array<{ id: FeedBackgroundTheme; name: string; emoji: string; desc
   { id: "default", name: "Default", emoji: "🎨", description: "Clean default background" },
   { id: "american", name: "American", emoji: "🇺🇸", description: "Patriotic stars and stripes" },
   { id: "christmas", name: "Christmas", emoji: "🎄", description: "Festive holiday cheer" },
-  { id: "halloween", name: "Halloween", emoji: "🎃", description: "Spooky autumn vibes" },
   { id: "clouds", name: "Clouds", emoji: "☁️", description: "Soft floating clouds" },
   { id: "nature", name: "Nature", emoji: "🌿", description: "Natural greenery" },
   { id: "space", name: "Space", emoji: "🚀", description: "Cosmic stars and planets" },
   { id: "ocean", name: "Ocean", emoji: "🌊", description: "Calming ocean waves" },
   { id: "forest", name: "Forest", emoji: "🌲", description: "Woodland trees" },
-  { id: "sunset", name: "Sunset", emoji: "🌅", description: "Warm sunset colors" },
   { id: "stars", name: "Stars", emoji: "⭐", description: "Twinkling night sky" },
 ];
 
