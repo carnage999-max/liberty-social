@@ -136,13 +136,13 @@ export default function ProfileImageModal({
               </div>
             </button>
           ) : (
-            <Image
+          <Image
               src="/images/default-avatar.png"
-              alt="Profile image"
-              width={160}
-              height={160}
-              className="rounded-full object-cover border-4 border-(--color-deep-navy)/30"
-            />
+            alt="Profile image"
+            width={160}
+            height={160}
+            className="rounded-full object-cover border-4 border-(--color-deep-navy)/30"
+          />
           )}
 
           <div className="flex w-full flex-col gap-2">

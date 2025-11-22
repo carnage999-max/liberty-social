@@ -178,22 +178,22 @@ export default function PagesIndexPage() {
               {(() => {
                 const followedPages = pages.filter((page) => page.is_following === true);
                 return followedPages.length === 0 ? (
-                  <div className="rounded-2xl border border-(--color-border) bg-white/70 p-8 text-center">
-                    <p className="text-(--color-muted)">Pages you follow will appear here.</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-(--color-border) bg-white/70 p-8 text-center">
+                  <p className="text-(--color-muted)">Pages you follow will appear here.</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
                     {followedPages.map((page) => (
-                      <PageCard 
-                        key={page.id} 
-                        page={page}
-                        onShare={() => {
-                          setShareModalPage(page);
-                          setShareModalOpen(true);
-                        }}
-                      />
-                    ))}
-                  </div>
+                    <PageCard 
+                      key={page.id} 
+                      page={page}
+                      onShare={() => {
+                        setShareModalPage(page);
+                        setShareModalOpen(true);
+                      }}
+                    />
+                  ))}
+                </div>
                 );
               })()}
             </section>
