@@ -161,11 +161,13 @@ export default function ShareModal({
                     width="24"
                     height="24"
                     viewBox="0 0 24 24"
-                    fill="currentColor"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
                     className="transition group-hover:scale-110"
                     style={{ color: "var(--color-gold)" }}
                   >
-                    <path d={icon} />
+                    <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M12 2v10M7 7l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   <span className="text-xs font-medium text-white/70 group-hover:text-white/90">
                     {name}

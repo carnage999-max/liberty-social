@@ -4,7 +4,6 @@ import "./globals.css";
 import Navbar from "../components/navbar";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/Toast";
-import ReportBug from "@/components/BugReport";
 import { UserStatusProvider } from "@/lib/user-status-provider";
 
 
@@ -95,7 +94,6 @@ export default function RootLayout({
             <Navbar />
             <main className="pb-20">
               {children}
-              <ReportBug />
             </main>
 
             <footer className="border-t border-gray-200 bg-white">

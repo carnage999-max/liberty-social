@@ -477,13 +477,23 @@ export default function FeedPage() {
         {posts.map((post) => {
           const reactionSummary = summariseReactions(post.reactions ?? []);
           const mediaUrls = Array.isArray(post.media) ? post.media.filter(Boolean) : [];
-          const authorLabel =
-            post.author.username ||
-            [post.author.first_name, post.author.last_name].filter(Boolean).join(" ") ||
-            post.author.email;
-          const rawAuthorId = post.author?.id;
-          const profileHref =
-            rawAuthorId && rawAuthorId !== "undefined" ? `/app/users/${rawAuthorId}` : null;
+          
+          // Check if this is a page post
+          const isPagePost = post.author_type === "page" && post.page;
+          
+          const authorLabel = isPagePost
+            ? post.page!.name
+            : post.author.username ||
+              [post.author.first_name, post.author.last_name].filter(Boolean).join(" ") ||
+              post.author.email;
+          
+          const avatarUrl = isPagePost
+            ? post.page!.profile_image_url
+            : post.author.profile_image_url;
+          
+          const profileHref = isPagePost
+            ? `/app/pages/${post.page!.id}`
+            : (post.author?.id && post.author.id !== "undefined" ? `/app/users/${post.author.id}` : null);
           const currentUserReaction =
             user && post.reactions
               ? post.reactions.find((reaction) => reaction.user?.id === user.id)
@@ -503,12 +513,12 @@ export default function FeedPage() {
                     <AuthorMeta
                       authorLabel={authorLabel}
                       createdAt={post.created_at}
-                      avatarUrl={post.author.profile_image_url}
+                      avatarUrl={avatarUrl}
                       onAvatarClick={
-                        post.author.profile_image_url
+                        avatarUrl
                           ? () =>
                               setProfileImageGallery({
-                                image: post.author.profile_image_url!,
+                                image: avatarUrl,
                                 title: authorLabel || undefined,
                               })
                           : undefined
@@ -519,12 +529,12 @@ export default function FeedPage() {
                   <AuthorMeta
                     authorLabel={authorLabel}
                     createdAt={post.created_at}
-                    avatarUrl={post.author.profile_image_url}
+                    avatarUrl={avatarUrl}
                     onAvatarClick={
-                      post.author.profile_image_url
+                      avatarUrl
                         ? () =>
                             setProfileImageGallery({
-                              image: post.author.profile_image_url!,
+                              image: avatarUrl,
                               title: authorLabel || undefined,
                             })
                         : undefined
