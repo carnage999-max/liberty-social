@@ -136,6 +136,7 @@ export default function FeedPage() {
   const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
   const [reactionsModalData, setReactionsModalData] = useState<Reaction[]>([]);
   const [backgroundModalOpen, setBackgroundModalOpen] = useState(false);
+  const [filtersVisible, setFiltersVisible] = useState(false);
 
   useEffect(() => {
     pendingReactionsRef.current = pendingReactions;
@@ -557,7 +558,11 @@ export default function FeedPage() {
           return (
             <article
               key={post.id}
-              className={mounted ? getPostCardClasses(feedBackgroundTheme) : "rounded-[18px] border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md sm:p-6"}
+              className={mounted ? (
+                typeof feedBackgroundTheme === 'string' && feedBackgroundTheme.startsWith('/backgrounds/')
+                  ? "rounded-[18px] border border-gray-100/60 bg-white/60 p-5 shadow-sm backdrop-blur-md transition hover:shadow-md sm:p-6"
+                  : getPostCardClasses(feedBackgroundTheme as string)
+              ) : "rounded-[18px] border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md sm:p-6"}
             >
               <header className="mb-4 flex items-start justify-between gap-3">
                 {profileHref ? (
@@ -757,35 +762,75 @@ export default function FeedPage() {
     );
   };
 
+  // Check if background is a video
+  const isVideoBackground = mounted && 
+    typeof feedBackgroundTheme === 'string' && 
+    feedBackgroundTheme.startsWith('/backgrounds/') &&
+    /\.(mp4|webm|ogg|mov)$/i.test(feedBackgroundTheme);
+  
+  const isImageBackground = mounted && 
+    typeof feedBackgroundTheme === 'string' && 
+    feedBackgroundTheme.startsWith('/backgrounds/') &&
+    !isVideoBackground;
+
   return (
     <>
       <div 
-        className={`space-y-6 min-h-screen pb-8 ${mounted ? BACKGROUND_CLASSES[feedBackgroundTheme] || '' : ''}`}
+        className={`space-y-6 min-h-screen pb-8 ${
+          isImageBackground || isVideoBackground
+            ? ''
+            : mounted
+            ? BACKGROUND_CLASSES[feedBackgroundTheme as string] || ''
+            : ''
+        }`}
         style={{ 
           position: 'relative',
           padding: '1rem',
-          ...(mounted && feedBackgroundTheme === 'default' ? {
-            background: 'var(--bg-gradient)'
-          } : {})
+          ...(mounted ? (
+            isImageBackground
+              ? {
+                  backgroundImage: `url(${feedBackgroundTheme})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundAttachment: 'fixed',
+                }
+              : feedBackgroundTheme === 'default'
+              ? { background: 'var(--bg-gradient)' }
+              : {}
+          ) : {})
         }}
       >
+        {/* Video Background */}
+        {isVideoBackground && (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="fixed inset-0 w-full h-full object-cover -z-10"
+            style={{ pointerEvents: 'none' }}
+          >
+            <source src={feedBackgroundTheme as string} type={`video/${(feedBackgroundTheme as string).split('.').pop()}`} />
+          </video>
+        )}
         <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between relative z-10">
           <div>
             <h1 className={`text-2xl font-bold ${
-              feedBackgroundTheme === 'christmas' 
+              (typeof feedBackgroundTheme === 'string' && feedBackgroundTheme.startsWith('/backgrounds/')) || feedBackgroundTheme === 'christmas'
                 ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]' 
                 : 'text-(--color-gold)'
             }`}>Your Feed</h1>
           </div>
         </header>
 
-        {/* Background Selector Button */}
-        <div className="flex items-center justify-between relative z-10">
+        {/* Background and Filter Buttons */}
+        <div className="flex items-center gap-2 relative z-10">
           <button
             type="button"
             onClick={() => setBackgroundModalOpen(true)}
             className={`inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-sm font-semibold transition ${
-              feedBackgroundTheme === 'christmas'
+              (typeof feedBackgroundTheme === 'string' && feedBackgroundTheme.startsWith('/backgrounds/')) || feedBackgroundTheme === 'christmas'
                 ? 'border-white/80 bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]'
                 : 'border-(--color-gold) bg-(--color-deep-navy) text-(--color-gold) hover:bg-(--color-gold) hover:text-(--color-deeper-navy)'
             }`}
@@ -797,15 +842,37 @@ export default function FeedPage() {
             </svg>
             <span>Background</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setFiltersVisible(!filtersVisible)}
+            className={`inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-sm font-semibold transition ${
+              filtersVisible
+                ? (typeof feedBackgroundTheme === 'string' && feedBackgroundTheme.startsWith('/backgrounds/')) || feedBackgroundTheme === 'christmas'
+                  ? 'border-white/80 bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]'
+                  : 'border-(--color-gold) bg-(--color-gold) text-(--color-deeper-navy) hover:opacity-90'
+                : (typeof feedBackgroundTheme === 'string' && feedBackgroundTheme.startsWith('/backgrounds/')) || feedBackgroundTheme === 'christmas'
+                ? 'border-white/80 bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]'
+                : 'border-(--color-gold) bg-(--color-deep-navy) text-(--color-gold) hover:bg-(--color-gold) hover:text-(--color-deeper-navy)'
+            }`}
+            title={filtersVisible ? "Hide filters" : "Show filters"}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            <span>Filters</span>
+          </button>
         </div>
 
-        <FeedFilterTabs onFiltersChange={(filters) => {
-          setShowFriendPosts(filters.showFriendPosts);
-          setShowPagePosts(filters.showPagePosts);
-          setSelectedCategory(filters.selectedCategory);
-          // Reload feed with new filters
-          loadFeed(undefined, false, filters);
-        }} />
+        {/* Feed Filter Tabs - Hidden by default */}
+        {filtersVisible && (
+          <FeedFilterTabs onFiltersChange={(filters) => {
+            setShowFriendPosts(filters.showFriendPosts);
+            setShowPagePosts(filters.showPagePosts);
+            setSelectedCategory(filters.selectedCategory);
+            // Reload feed with new filters
+            loadFeed(undefined, false, filters);
+          }} />
+        )}
 
         <div className="flex flex-col gap-6 xl:flex-row">
           <div className="flex-1">{renderPosts()}</div>
