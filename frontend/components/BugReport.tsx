@@ -76,8 +76,11 @@ export default function ReportBug() {
                     </button>
                     {/* X button to dismiss */}
                     <button
-                        onClick={() => setDismissed(true)}
-                        className="absolute -top-2 -right-2 h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md hover:bg-rose-600 transition-colors z-10"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setDismissed(true);
+                        }}
+                        className="absolute -top-2 -right-2 h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md hover:bg-rose-600 transition-colors z-20"
                         aria-label="Dismiss bug report button"
                     >
                         ×
