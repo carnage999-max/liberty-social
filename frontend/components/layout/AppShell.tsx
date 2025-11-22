@@ -384,9 +384,9 @@ export default function AppShell({ children }: AppShellProps) {
               onClick={toggleNav}
               aria-label="Toggle navigation"
               aria-expanded={navOpen}
-              className="rounded-full bg-white/15 p-2 text-white transition hover:bg-white/25"
+              className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) p-2 text-[var(--color-deeper-navy)] transition hover:opacity-80"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                 <path
                   d="M4 7h16M4 12h16M4 17h16"
                   stroke="currentColor"
@@ -422,9 +422,9 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => setSearchModalOpen(true)}
                 aria-label="Search"
-                className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) w-9 h-9 flex items-center justify-center transition hover:opacity-80 text-gray-800"
+                className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) p-2 text-[var(--color-deeper-navy)] transition hover:opacity-80"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                   <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
                   <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
@@ -491,9 +491,9 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => handleNavigate("/app/friends")}
                 aria-label="View friends"
-                className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) w-10 h-10 flex items-center justify-center transition hover:opacity-80 text-gray-800"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path
                     d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
                     stroke="currentColor"
@@ -507,9 +507,9 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => handleNavigate("/app/pages")}
                 aria-label="View pages"
-                className="rounded-full bg-blue-500 border-2 border-(--color-gold) w-10 h-10 flex items-center justify-center transition hover:opacity-80 text-white"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path
                     d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"
                     stroke="currentColor"
@@ -530,9 +530,9 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => handleNavigate("/app/marketplace")}
                 aria-label="View marketplace"
-                className="rounded-full bg-green-500 border-2 border-(--color-gold) w-10 h-10 flex items-center justify-center transition hover:opacity-80 text-white"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path
                     d="M6 2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"
                     stroke="currentColor"
@@ -553,9 +553,9 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => handleNavigate("/app/notifications")}
                 aria-label="View notifications"
-                className="rounded-full bg-orange-500 border-2 border-(--color-gold) w-10 h-10 flex items-center justify-center transition hover:opacity-80 text-white relative"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path
                     d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
                     stroke="currentColor"
@@ -574,9 +574,9 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => setSearchModalOpen(true)}
                 aria-label="Search"
-                className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) w-9 h-9 flex items-center justify-center transition hover:opacity-80 text-gray-800"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
                   <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
@@ -869,11 +869,13 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/feed")}
               aria-label="View feed"
-              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg ${
-                pathname?.startsWith("/app/feed") ? "border-2 border-(--color-gold)" : ""
+              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition ${
+                pathname?.startsWith("/app/feed") 
+                  ? "bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)]" 
+                  : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path
                   d="M4 4h6v6H4zM4 14h6v6H4zM14 4h6v6h-6zM14 14h6v6h-6z"
                   stroke="currentColor"
@@ -888,11 +890,13 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/friends")}
               aria-label="View friends"
-              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg ${
-                pathname?.startsWith("/app/friends") ? "border-2 border-(--color-gold)" : ""
+              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition ${
+                pathname?.startsWith("/app/friends")
+                  ? "bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)]"
+                  : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path
                   d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
                   stroke="currentColor"
@@ -907,11 +911,13 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/pages")}
               aria-label="View pages"
-              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg ${
-                pathname?.startsWith("/app/pages") ? "border-2 border-(--color-gold)" : ""
+              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition ${
+                pathname?.startsWith("/app/pages")
+                  ? "bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)]"
+                  : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path
                   d="M4 4h8v8H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"
                   stroke="currentColor"
@@ -926,11 +932,13 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/marketplace")}
               aria-label="View marketplace"
-              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg ${
-                pathname?.startsWith("/app/marketplace") ? "border-2 border-(--color-gold)" : ""
+              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition ${
+                pathname?.startsWith("/app/marketplace")
+                  ? "bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)]"
+                  : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path
                   d="M6 2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"
                   stroke="currentColor"
@@ -952,11 +960,13 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/notifications")}
               aria-label="View notifications"
-              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 text-white transition hover:bg-white/10 rounded-lg ${
-                pathname?.startsWith("/app/notifications") ? "border-2 border-(--color-gold)" : ""
+              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition ${
+                pathname?.startsWith("/app/notifications")
+                  ? "bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)]"
+                  : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path
                   d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
                   stroke="currentColor"

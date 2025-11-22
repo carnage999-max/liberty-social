@@ -249,10 +249,10 @@ function PageCard({ page, onShare }: { page: BusinessPage; onShare: () => void }
       </Link>
       <button
         onClick={onShare}
-        className="flex-shrink-0 rounded-full border border-gray-200 p-2 text-gray-600 transition hover:bg-gray-100 hover:border-gray-300"
+        className="flex-shrink-0 rounded-full bg-(--color-gold) border-2 border-(--color-gold) p-2 text-(--color-deeper-navy) transition hover:opacity-80"
         aria-label="Share page"
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5">
           <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M12 2v10M7 7l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>

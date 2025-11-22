@@ -302,10 +302,10 @@ export default function PageDetail() {
               <button
                 type="button"
                 onClick={() => setShareModalOpen(true)}
-                className="rounded-full border border-gray-300 px-3 py-2 text-gray-700 transition hover:bg-gray-50"
+                className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) px-3 py-2 text-(--color-deeper-navy) transition hover:opacity-80"
                 title="Share this page"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.5">
                   <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M12 2v10M7 7l5-5 5 5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
@@ -370,7 +370,7 @@ export default function PageDetail() {
                   <button
                     type="button"
                     onClick={() => setShareModalOpen(true)}
-                    className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 md:hidden"
+                    className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) px-4 py-2 text-sm font-semibold text-(--color-deeper-navy) transition hover:opacity-80 md:hidden"
                     title="Share this page"
                   >
                     Share
@@ -396,7 +396,7 @@ export default function PageDetail() {
                     <button
                       type="button"
                       onClick={() => setShareModalOpen(true)}
-                      className="rounded-full border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                      className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) px-4 py-2 text-sm font-semibold text-(--color-deeper-navy) transition hover:opacity-80"
                       title="Share this page"
                     >
                       Share
