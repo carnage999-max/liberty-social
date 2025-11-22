@@ -39,6 +39,11 @@ const BACKGROUND_CLASSES: Record<string, string> = {
   forest: 'feed-bg-forest',
   sunset: 'feed-bg-sunset',
   stars: 'feed-bg-stars',
+  butterflies: 'feed-bg-butterflies',
+  dragons: 'feed-bg-dragons',
+  'christmas-trees': 'feed-bg-christmas-trees',
+  'music-notes': 'feed-bg-music-notes',
+  'pixel-hearts': 'feed-bg-pixel-hearts',
 };
 
 // Post card styling based on theme

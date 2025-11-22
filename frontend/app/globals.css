@@ -650,6 +650,192 @@
   50% { opacity: 0.5; }
 }
 
+@keyframes textileGlide {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-140px, -140px, 0); }
+}
+
+@keyframes emojiFloatSlow {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(-6%, -4%, 0) rotate(-1deg); }
+  100% { transform: translate3d(-12%, -8%, 0) rotate(1deg); }
+}
+
+@keyframes emojiPulse {
+  0%, 100% { opacity: 0.15; transform: scale(0.92); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+}
+
+@keyframes flowerTwinkle {
+  0% { opacity: 0.08; transform: translate3d(0, 0, 0); }
+  50% { opacity: 0.35; transform: translate3d(-3%, -2%, 0); }
+  100% { opacity: 0.08; transform: translate3d(2%, 3%, 0); }
+}
+
+.feed-bg-butterflies,
+.feed-bg-dragons,
+.feed-bg-christmas-trees,
+.feed-bg-music-notes,
+.feed-bg-pixel-hearts {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.feed-bg-butterflies {
+  background: radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.12), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.08), transparent 40%),
+    linear-gradient(135deg, #0d2419 0%, #143b2a 40%, #1f5b3f 100%);
+}
+
+.feed-bg-butterflies::before {
+  content: "";
+  position: absolute;
+  inset: -15%;
+  z-index: -1;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ctext y='52' font-size='48'%3E%26%23x1F98B%3B%3C/text%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='110'%3E%3Ctext y='70' font-size='60'%3E%26%23x1F98B%3B%3C/text%3E%3C/svg%3E");
+  background-size: 95px 95px, 140px 140px;
+  background-repeat: repeat;
+  background-position: 0 0, 50px 70px;
+  opacity: 0.85;
+  animation: emojiFloatSlow 48s linear infinite;
+  pointer-events: none;
+}
+
+.feed-bg-butterflies::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.12) 1px, transparent 6px),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.08) 1px, transparent 7px);
+  background-size: 200px 200px, 240px 240px;
+  opacity: 0.3;
+  animation: flowerTwinkle 32s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.feed-bg-dragons {
+  background: radial-gradient(circle at 10% 30%, rgba(255, 255, 255, 0.08), transparent 40%),
+    radial-gradient(circle at 90% 10%, rgba(255, 122, 0, 0.15), transparent 45%),
+    linear-gradient(135deg, #120f1a 0%, #271629 45%, #3b1d2c 100%);
+}
+
+.feed-bg-dragons::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  z-index: -1;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='110'%3E%3Ctext y='78' font-size='70'%3E%26%23x1F409%3B%3C/text%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Ctext y='62' font-size='54'%3E%26%23x1F432%3B%3C/text%3E%3C/svg%3E");
+  background-size: 150px 150px, 120px 120px;
+  background-repeat: repeat;
+  background-position: 20px -10px, 80px 50px;
+  opacity: 0.7;
+  mix-blend-mode: screen;
+  animation: emojiFloatSlow 62s linear infinite;
+  pointer-events: none;
+}
+
+.feed-bg-dragons::after {
+  content: "";
+  position: absolute;
+  inset: -5%;
+  z-index: -1;
+  background-image: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.16) 2px, transparent 7px),
+    radial-gradient(circle at 70% 80%, rgba(255, 97, 0, 0.2) 3px, transparent 8px);
+  background-size: 200px 200px;
+  opacity: 0.35;
+  animation: emojiPulse 20s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.feed-bg-christmas-trees {
+  background: linear-gradient(135deg, #0c2c1b 0%, #135233 45%, #187346 100%);
+}
+
+.feed-bg-christmas-trees::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/patterns/christmas-trees.svg");
+  background-size: 130px 130px;
+  background-repeat: repeat;
+  opacity: 0.7;
+  animation: textileGlide 55s linear infinite;
+  pointer-events: none;
+}
+
+.feed-bg-christmas-trees::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.3) 1px, transparent 5px),
+    radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.2) 1px, transparent 4px);
+  background-size: 200px 200px;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.feed-bg-music-notes {
+  background: radial-gradient(circle at 20% 20%, #3b2c7d, transparent 60%),
+    radial-gradient(circle at 80% 0%, #18224c, transparent 55%),
+    linear-gradient(135deg, #1d1838, #2b2a66);
+}
+
+.feed-bg-music-notes::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/patterns/music-notes.svg");
+  background-size: 160px 160px;
+  background-repeat: repeat;
+  opacity: 0.6;
+  animation: textileGlide 65s linear infinite;
+  pointer-events: none;
+}
+
+.feed-bg-music-notes::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(transparent 70%, rgba(255, 255, 255, 0.03)),
+    radial-gradient(circle, rgba(255, 255, 255, 0.04) 1px, transparent 2px);
+  background-size: 100% 6px, 180px 180px;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.feed-bg-pixel-hearts {
+  background: linear-gradient(135deg, #2a0f24 0%, #3d1434 40%, #551f46 100%);
+}
+
+.feed-bg-pixel-hearts::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/patterns/pixel-hearts.svg");
+  background-size: 150px 150px;
+  background-repeat: repeat;
+  opacity: 0.65;
+  animation: textileGlide 75s linear infinite;
+  pointer-events: none;
+}
+
+.feed-bg-pixel-hearts::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 15% 25%, rgba(255, 255, 255, 0.08) 0px, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.05) 0px, transparent 40%);
+  background-size: 260px 260px;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
 /* Double-tap to like animation */
 .double-tap-heart-animation {
   animation: doubleTapHeart 0.6s ease-out;
