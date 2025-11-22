@@ -372,7 +372,7 @@ export default function AppShell({ children }: AppShellProps) {
   })();
 
   return (
-    <div className="min-h-screen bg-[var(--color-background)] pb-20 sm:pb-32">
+    <div className="min-h-screen bg-[var(--color-background)] pb-24 sm:pb-32">
       <header className="sticky top-0 z-30 header-bar text-white shadow-lg backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
           {/* Mobile Header - Only Sandwich Menu */}
@@ -424,9 +424,10 @@ export default function AppShell({ children }: AppShellProps) {
                 aria-label="View profile"
                 className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-(--color-gold) bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30"
                 style={{
-                  backgroundImage: `url('${user.profile_image_url || '/images/logo.jpeg'}')`,
+                  backgroundImage: `url('/flag-2.gif'), url('${user.profile_image_url || '/images/logo.jpeg'}')`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
+                  backgroundBlendMode: 'multiply',
                 }}
               >
                 {!user.profile_image_url && (
