@@ -669,3 +669,37 @@
     opacity: 0;
   }
 }
+
+/* Feed Background Image/Video Contain on Desktop */
+/* Prevent stretching of images and videos in feed backgrounds on desktop */
+/* Mobile keeps object-cover, desktop uses object-contain to maintain aspect ratio */
+@media (min-width: 768px) {
+  /* Video background - use contain on desktop */
+  video.feed-bg-video {
+    object-fit: contain !important;
+    -webkit-object-fit: contain !important;
+  }
+  
+  /* Image background - use contain on desktop */
+  .feed-background-container {
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+  }
+}
+
+/* Utility class for feed background containers - use on desktop */
+.feed-bg-contain-desktop {
+  @media (min-width: 768px) {
+    & video,
+    & img {
+      object-fit: contain !important;
+    }
+    
+    &[style*="background"] {
+      background-size: contain !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+    }
+  }
+}

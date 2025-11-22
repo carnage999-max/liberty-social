@@ -818,7 +818,7 @@ export default function FeedPage() {
       <div 
         className={`space-y-6 min-h-screen pb-8 ${
           isImageBackground || isVideoBackground
-            ? ''
+            ? 'feed-background-container'
             : mounted
             ? BACKGROUND_CLASSES[feedBackgroundTheme as string] || ''
             : ''
@@ -848,7 +848,7 @@ export default function FeedPage() {
             loop
             muted
             playsInline
-            className="fixed inset-0 w-full h-full object-cover -z-10"
+            className="fixed inset-0 w-full h-full object-cover feed-bg-video -z-10"
             style={{ pointerEvents: 'none' }}
           >
             <source src={feedBackgroundTheme as string} type={`video/${(feedBackgroundTheme as string).split('.').pop()}`} />
@@ -1072,3 +1072,4 @@ function AuthorMeta({
     </div>
   );
 }
+
