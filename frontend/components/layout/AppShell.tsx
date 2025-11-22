@@ -743,12 +743,12 @@ export default function AppShell({ children }: AppShellProps) {
         )}
 
         <main className="flex-1 min-w-0">
-          {!isDesktop && (
+          {!isDesktop && !shouldHideSidePanels() && (
             <div className="mb-6 lg:hidden">
               <ProfileCard profileHref={myProfileHref} className="items-start text-left sm:items-center sm:text-center" />
             </div>
           )}
-          {!isDesktop && (
+          {!isDesktop && !shouldHideSidePanels() && (
             <div className="mb-6 lg:hidden">
               <FriendsList />
             </div>
