@@ -13,7 +13,12 @@ export type FeedBackgroundTheme =
   | "space"
   | "ocean"
   | "forest"
-  | "stars";
+  | "stars"
+  | "butterflies"
+  | "dragons"
+  | "christmas-trees"
+  | "music-notes"
+  | "pixel-hearts";
 
 interface FeedBackgroundModalProps {
   open: boolean;
@@ -32,6 +37,11 @@ const THEMES: Array<{ id: FeedBackgroundTheme; name: string; emoji: string; desc
   { id: "ocean", name: "Ocean", emoji: "🌊", description: "Calming ocean waves" },
   { id: "forest", name: "Forest", emoji: "🌲", description: "Woodland trees" },
   { id: "stars", name: "Stars", emoji: "⭐", description: "Twinkling night sky" },
+  { id: "butterflies", name: "Butterflies", emoji: "🦋", description: "Pastel butterfly textile print" },
+  { id: "dragons", name: "Dragons", emoji: "🐉", description: "Mythic dragon silhouettes" },
+  { id: "christmas-trees", name: "Mini Trees", emoji: "🎄", description: "Retro tree textile pattern" },
+  { id: "music-notes", name: "Music Notes", emoji: "🎶", description: "Purple synthwave notes" },
+  { id: "pixel-hearts", name: "Pixel Hearts", emoji: "💖", description: "Retro pixel-heart grid" },
 ];
 
 export default function FeedBackgroundModal({

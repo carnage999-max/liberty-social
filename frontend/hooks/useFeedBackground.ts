@@ -50,6 +50,11 @@ function isValidTheme(value: string): boolean {
     "ocean",
     "forest",
     "stars",
+    "butterflies",
+    "dragons",
+    "christmas-trees",
+    "music-notes",
+    "pixel-hearts",
   ].includes(value);
 }
 
