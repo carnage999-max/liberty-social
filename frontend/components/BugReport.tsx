@@ -58,34 +58,35 @@ export default function ReportBug() {
     return (
         <>
             {/* Floating button (brand) with dismiss X */}
-            <div className="fixed bottom-24 left-6 z-50">
-                <div className="relative w-14 h-14">
-                    <button
-                        onClick={() => {
-                            setOpen(true);
-                            // Reset form state when opening to ensure clean slate
-                            setSent(false);
-                            setMessage("");
-                            setScreenshot(null);
-                        }}
-                        className="absolute inset-0 bg-(--color-gold) text-(--color-deeper-navy) rounded-full shadow-metallic hover:scale-105 transition-transform flex items-center justify-center text-2xl"
-                        aria-label="Report Bug"
-                        title="Report a bug"
-                    >
-                        🐞
-                    </button>
-                    {/* X button to dismiss */}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setDismissed(true);
-                        }}
-                        className="absolute -top-2 -right-2 h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md hover:bg-rose-600 transition-colors z-20"
-                        aria-label="Dismiss bug report button"
-                    >
-                        ×
-                    </button>
-                </div>
+            <div className="fixed bottom-24 left-6 z-50 w-14 h-14">
+                <button
+                    onClick={() => {
+                        setOpen(true);
+                        // Reset form state when opening to ensure clean slate
+                        setSent(false);
+                        setMessage("");
+                        setScreenshot(null);
+                    }}
+                    className="absolute inset-0 bg-(--color-gold) text-(--color-deeper-navy) rounded-full shadow-metallic hover:scale-105 transition-transform flex items-center justify-center text-2xl"
+                    aria-label="Report Bug"
+                    title="Report a bug"
+                >
+                    🐞
+                </button>
+                {/* X button to dismiss - positioned absolutely to float above the bug button */}
+                <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDismissed(true);
+                    }}
+                    type="button"
+                    className="absolute -top-2 -right-2 h-6 w-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs font-bold shadow-md hover:bg-rose-600 transition-colors z-50 pointer-events-auto"
+                    aria-label="Dismiss bug report button"
+                    style={{ cursor: 'pointer' }}
+                >
+                    ×
+                </button>
             </div>
 
             {/* Modal */}
