@@ -370,24 +370,46 @@ export default function AppShell({ children }: AppShellProps) {
     <div className="min-h-screen bg-[var(--color-background)] pb-24 sm:pb-32">
       <header className="sticky top-0 z-30 header-bar text-white shadow-lg backdrop-blur-sm">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-          {/* Mobile Header - Sandwich Menu | Liberty Social Logo/Text | (Search + Profile aligned right) */}
+          {/* Mobile Header - Profile (left) | Liberty Social Logo/Text (center) | (Bug + Search + Hamburger aligned right) */}
           <div className="flex items-center justify-between py-2 sm:hidden">
-            <button
-              type="button"
-              onClick={toggleNav}
-              aria-label="Toggle navigation"
-              aria-expanded={navOpen}
-              className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) p-2 text-[var(--color-deeper-navy)] transition hover:opacity-80"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  d="M4 7h16M4 12h16M4 17h16"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
+            {user && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (myProfileHref) router.push(myProfileHref);
+                }}
+                aria-label="View profile"
+                className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-(--color-gold) bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30 flex items-center justify-center"
+                title="View profile"
+              >
+                {/* Flag background with blend mode */}
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    backgroundImage: `url('/flag-2.gif')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
                 />
-              </svg>
-            </button>
+                
+                {/* Profile image with border */}
+                <div
+                  className="absolute inset-1 rounded-full border-2 border-(--color-gold) shadow-md"
+                  style={{
+                    backgroundImage: `url('${user.profile_image_url || '/images/logo.jpeg'}')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                >
+                  {!user.profile_image_url && (
+                    <span className="flex h-full w-full items-center justify-center bg-white/20 text-xs font-bold text-(--color-deeper-navy)">
+                      {(user.username || user.email || "U").charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              </button>
+            )}
+            {!user && <div className="w-9" />}
             <button
               type="button"
               onClick={() => handleNavigate("/app/feed")}
@@ -415,59 +437,33 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => setBugModalOpen(true)}
                 aria-label="Report bug"
-                className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) p-2 text-[var(--color-deeper-navy)] transition hover:opacity-80"
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80"
                 title="Report a bug"
               >
-                <span className="text-lg">🐞</span>
+                <span className="text-base">🐞</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSearchModalOpen(true)}
                 aria-label="Search"
-                className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) p-2 text-[var(--color-deeper-navy)] transition hover:opacity-80"
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
                   <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
               </button>
-              {user && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (myProfileHref) router.push(myProfileHref);
-                  }}
-                  aria-label="View profile"
-                  className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-(--color-gold) bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30 flex items-center justify-center"
-                  title="View profile"
-                >
-                  {/* Flag background with blend mode */}
-                  <div
-                    className="absolute inset-0 rounded-full"
-                    style={{
-                      backgroundImage: `url('/flag-2.gif')`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                    }}
-                  />
-                  
-                  {/* Profile image with border */}
-                  <div
-                    className="absolute inset-1 rounded-full border-2 border-(--color-gold) shadow-md"
-                    style={{
-                      backgroundImage: `url('${user.profile_image_url || '/images/logo.jpeg'}')`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                    }}
-                  >
-                    {!user.profile_image_url && (
-                      <span className="flex h-full w-full items-center justify-center bg-white/20 text-xs font-bold text-(--color-deeper-navy)">
-                        {(user.username || user.email || "U").charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={toggleNav}
+                aria-label="Toggle navigation"
+                aria-expanded={navOpen}
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M4 7h16M4 12h16M4 17h16" />
+                </svg>
+              </button>
             </div>
           </div>
 
