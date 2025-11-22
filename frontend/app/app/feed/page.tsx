@@ -37,31 +37,31 @@ const BACKGROUND_CLASSES: Record<string, string> = {
 
 // Post card styling based on theme
 function getPostCardClasses(theme: string): string {
-  const baseClasses = "rounded-[18px] border p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md sm:p-6";
+  const baseClasses = "rounded-[18px] border p-5 shadow-sm backdrop-blur-md transition hover:shadow-md sm:p-6";
   
   switch (theme) {
     case 'default':
       return `${baseClasses} border-gray-100 bg-white/90`;
     case 'american':
-      return `${baseClasses} border-red-300/50 bg-white/85 shadow-red-200/20`;
+      return `${baseClasses} border-red-300/60 bg-white/60 shadow-red-200/30`;
     case 'christmas':
-      return `${baseClasses} border-green-300/50 bg-white/85 shadow-green-200/20`;
+      return `${baseClasses} border-green-300/60 bg-white/60 shadow-green-200/30`;
     case 'halloween':
-      return `${baseClasses} border-orange-300/50 bg-white/85 shadow-orange-200/20`;
+      return `${baseClasses} border-orange-300/60 bg-white/60 shadow-orange-200/30`;
     case 'clouds':
-      return `${baseClasses} border-blue-200/50 bg-white/80 shadow-blue-100/20`;
+      return `${baseClasses} border-blue-200/60 bg-white/55 shadow-blue-100/30`;
     case 'nature':
-      return `${baseClasses} border-green-200/50 bg-white/85 shadow-green-100/20`;
+      return `${baseClasses} border-green-200/60 bg-white/60 shadow-green-100/30`;
     case 'space':
-      return `${baseClasses} border-purple-300/50 bg-white/90 shadow-purple-200/20`;
+      return `${baseClasses} border-purple-300/60 bg-white/65 shadow-purple-200/30`;
     case 'ocean':
-      return `${baseClasses} border-cyan-300/50 bg-white/85 shadow-cyan-200/20`;
+      return `${baseClasses} border-cyan-300/60 bg-white/60 shadow-cyan-200/30`;
     case 'forest':
-      return `${baseClasses} border-emerald-300/50 bg-white/85 shadow-emerald-200/20`;
+      return `${baseClasses} border-emerald-300/60 bg-white/60 shadow-emerald-200/30`;
     case 'sunset':
-      return `${baseClasses} border-orange-200/50 bg-white/85 shadow-orange-100/20`;
+      return `${baseClasses} border-orange-200/60 bg-white/60 shadow-orange-100/30`;
     case 'stars':
-      return `${baseClasses} border-indigo-300/50 bg-white/90 shadow-indigo-200/20`;
+      return `${baseClasses} border-indigo-300/60 bg-white/65 shadow-indigo-200/30`;
     default:
       return `${baseClasses} border-gray-100 bg-white/90`;
   }
@@ -769,18 +769,26 @@ export default function FeedPage() {
           } : {})
         }}
       >
-        <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between relative z-10">
           <div>
-            <h1 className="text-2xl font-bold text-(--color-gold)">Your Feed</h1>
+            <h1 className={`text-2xl font-bold ${
+              feedBackgroundTheme === 'christmas' 
+                ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]' 
+                : 'text-(--color-gold)'
+            }`}>Your Feed</h1>
           </div>
         </header>
 
         {/* Background Selector Button */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between relative z-10">
           <button
             type="button"
             onClick={() => setBackgroundModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full border-2 border-(--color-gold) bg-(--color-deep-navy) px-4 py-2 text-sm font-semibold text-(--color-gold) transition hover:bg-(--color-gold) hover:text-(--color-deeper-navy)"
+            className={`inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-sm font-semibold transition ${
+              feedBackgroundTheme === 'christmas'
+                ? 'border-white/80 bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]'
+                : 'border-(--color-gold) bg-(--color-deep-navy) text-(--color-gold) hover:bg-(--color-gold) hover:text-(--color-deeper-navy)'
+            }`}
             title="Change feed background"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
