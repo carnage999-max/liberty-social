@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useToast } from "@/components/Toast";
 import { API_BASE, apiPatch } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import ImageGallery from "@/components/ImageGallery";
 
 export default function ProfileImageModal({
   open,
@@ -21,6 +22,7 @@ export default function ProfileImageModal({
   const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -104,13 +106,44 @@ export default function ProfileImageModal({
         </div>
 
         <div className="mt-4 flex flex-col items-center gap-4">
-          <Image
-            src={currentImageUrl || "/images/default-avatar.png"}
-            alt="Profile image"
-            width={160}
-            height={160}
-            className="rounded-full object-cover border-4 border-(--color-deep-navy)/30"
-          />
+          {currentImageUrl ? (
+            <button
+              type="button"
+              onClick={() => setGalleryOpen(true)}
+              className="group relative overflow-hidden rounded-full border-4 border-(--color-deep-navy)/30 transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
+            >
+              <Image
+                src={currentImageUrl}
+                alt="Profile image"
+                width={160}
+                height={160}
+                className="rounded-full object-cover transition-transform group-hover:scale-105"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition group-hover:bg-black/20 rounded-full">
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </button>
+          ) : (
+            <Image
+              src="/images/default-avatar.png"
+              alt="Profile image"
+              width={160}
+              height={160}
+              className="rounded-full object-cover border-4 border-(--color-deep-navy)/30"
+            />
+          )}
 
           <div className="flex w-full flex-col gap-2">
             <button
@@ -136,6 +169,16 @@ export default function ProfileImageModal({
 
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
       </div>
+      
+      {currentImageUrl && (
+        <ImageGallery
+          open={galleryOpen}
+          onClose={() => setGalleryOpen(false)}
+          images={[currentImageUrl]}
+          currentIndex={0}
+          title="Profile photo"
+        />
+      )}
     </div>
   );
 }

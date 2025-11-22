@@ -4,11 +4,10 @@ import { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState } from
 import { usePathname, useRouter } from "next/navigation";
 import ProfileCard from "@/components/profile/ProfileCard";
 import FriendsList from "@/components/friends/FriendsList";
-import ProfileImageModal from "@/components/profile/ProfileImageModal";
 import OnlineUsers from "@/components/OnlineUsers";
-import ReportBug from "@/components/BugReport";
 import FloatingCreateButton from "@/components/CollapsibleFloatingButtons";
 import SearchModal from "@/components/SearchModal";
+import BugReportModal from "@/components/BugReportModal";
 import { useAuth } from "@/lib/auth-context";
 import { API_BASE, apiPost, apiGet } from "@/lib/api";
 import type { Post, Visibility, FriendRequest } from "@/lib/types";
@@ -152,21 +151,10 @@ const NAV_LINKS = [
     label: "Marketplace",
     href: "/app/marketplace",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          d="M6 2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M8 7h8M8 12h8M8 17h4"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+        <path d="M3 6h18" />
+        <path d="M16 10a4 4 0 0 1-8 0" />
       </svg>
     ),
   },
@@ -245,7 +233,7 @@ export default function AppShell({ children }: AppShellProps) {
   const [navOpen, setNavOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [showCompactLogo, setShowCompactLogo] = useState(false);
-  const [mobileProfileModalOpen, setMobileProfileModalOpen] = useState(false);
+  const [bugModalOpen, setBugModalOpen] = useState(false);
   const { count: incomingFriendRequests } = usePaginatedResource<FriendRequest>(
     "/auth/friend-requests/",
     {
@@ -359,7 +347,12 @@ export default function AppShell({ children }: AppShellProps) {
   // Check if current route should hide side panels (FriendsList and OnlineUsers)
   const shouldHideSidePanels = useCallback(() => {
     if (!pathname) return false;
-    const hiddenRoutes = ["/app/settings", "/app/marketplace", "/app/animals", "/app/breeders", "/app/pages"];
+    // Hide side panels for detail pages (fullscreen mode)
+    // /app/pages/[id] and /app/users/[id] should be fullscreen
+    if (pathname.startsWith("/app/pages/") && pathname !== "/app/pages") return true;
+    if (pathname.startsWith("/app/users/") && pathname !== "/app/users") return true;
+    // Also hide for other specific routes
+    const hiddenRoutes = ["/app/settings", "/app/marketplace", "/app/animals", "/app/breeders"];
     return hiddenRoutes.some(route => pathname.startsWith(route));
   }, [pathname]);
 
@@ -420,11 +413,20 @@ export default function AppShell({ children }: AppShellProps) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                onClick={() => setBugModalOpen(true)}
+                aria-label="Report bug"
+                className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) p-2 text-[var(--color-deeper-navy)] transition hover:opacity-80"
+                title="Report a bug"
+              >
+                <span className="text-lg">🐞</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setSearchModalOpen(true)}
                 aria-label="Search"
                 className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) p-2 text-[var(--color-deeper-navy)] transition hover:opacity-80"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
                   <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
@@ -437,6 +439,7 @@ export default function AppShell({ children }: AppShellProps) {
                   }}
                   aria-label="View profile"
                   className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-(--color-gold) bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30 flex items-center justify-center"
+                  title="View profile"
                 >
                   {/* Flag background with blend mode */}
                   <div
@@ -489,18 +492,21 @@ export default function AppShell({ children }: AppShellProps) {
             <div className="flex items-center gap-3">
               <button
                 type="button"
+                onClick={() => setBugModalOpen(true)}
+                aria-label="Report bug"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
+                title="Report a bug"
+              >
+                <span className="text-xl">🐞</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => handleNavigate("/app/friends")}
                 aria-label="View friends"
                 className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path
-                    d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />
                 </svg>
               </button>
               <button
@@ -509,21 +515,9 @@ export default function AppShell({ children }: AppShellProps) {
                 aria-label="View pages"
                 className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path
-                    d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M9 22V12h6v10"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" />
+                  <path d="M9 22V12h6v10" />
                 </svg>
               </button>
               <button
@@ -532,21 +526,10 @@ export default function AppShell({ children }: AppShellProps) {
                 aria-label="View marketplace"
                 className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path
-                    d="M6 2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <path
-                    d="M8 7h8M8 12h8M8 17h4"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                  <path d="M3 6h18" />
+                  <path d="M16 10a4 4 0 0 1-8 0" />
                 </svg>
               </button>
               <button
@@ -555,14 +538,8 @@ export default function AppShell({ children }: AppShellProps) {
                 aria-label="View notifications"
                 className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path
-                    d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
                 </svg>
                 {notificationUnreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
@@ -576,7 +553,7 @@ export default function AppShell({ children }: AppShellProps) {
                 aria-label="Search"
                 className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
                   <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
@@ -589,6 +566,7 @@ export default function AppShell({ children }: AppShellProps) {
                 }}
                 aria-label="View profile"
                 className="relative h-9 w-9 overflow-hidden rounded-full border border-white/40 bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30"
+                title="View profile"
               >
                 {user ? (
                   user.profile_image_url ? (
@@ -838,12 +816,6 @@ export default function AppShell({ children }: AppShellProps) {
         </main>
       </div>
 
-      <ProfileImageModal
-        open={mobileProfileModalOpen}
-        onClose={() => setMobileProfileModalOpen(false)}
-        currentImageUrl={user?.profile_image_url}
-        userId={user?.id}
-      />
 
       <SearchModal
         open={searchModalOpen}
@@ -859,7 +831,16 @@ export default function AppShell({ children }: AppShellProps) {
       />
       
       <FloatingCreateButton onOpen={openCreateModal} />
-      <ReportBug />
+      
+      {/* Bug Report Modal */}
+      {bugModalOpen && (
+        <BugReportModal
+          open={bugModalOpen}
+          onClose={() => {
+            setBugModalOpen(false);
+          }}
+        />
+      )}
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[var(--color-deep-navy)]/95 shadow-lg backdrop-blur-sm sm:hidden">
@@ -875,14 +856,8 @@ export default function AppShell({ children }: AppShellProps) {
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path
-                  d="M4 4h6v6H4zM4 14h6v6H4zM14 4h6v6h-6zM14 14h6v6h-6z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 4h6v6H4zM4 14h6v6H4zM14 4h6v6h-6zM14 14h6v6h-6z" />
               </svg>
               <span className="text-xs font-semibold">Feed</span>
             </button>
@@ -896,14 +871,8 @@ export default function AppShell({ children }: AppShellProps) {
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path
-                  d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />
               </svg>
               <span className="text-xs font-semibold">Friends</span>
             </button>
@@ -917,14 +886,9 @@ export default function AppShell({ children }: AppShellProps) {
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path
-                  d="M4 4h8v8H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" />
+                <path d="M9 22V12h6v10" />
               </svg>
               <span className="text-xs font-semibold">Pages</span>
             </button>
@@ -938,21 +902,10 @@ export default function AppShell({ children }: AppShellProps) {
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path
-                  d="M6 2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M8 7h8M8 12h8M8 17h4"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                <path d="M3 6h18" />
+                <path d="M16 10a4 4 0 0 1-8 0" />
               </svg>
               <span className="text-xs font-semibold">Marketplace</span>
             </button>
@@ -966,14 +919,8 @@ export default function AppShell({ children }: AppShellProps) {
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path
-                  d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
               <span className="text-xs font-semibold">Notifications</span>
               {notificationUnreadCount > 0 && (

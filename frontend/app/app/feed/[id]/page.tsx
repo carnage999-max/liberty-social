@@ -1049,48 +1049,98 @@ export default function PostDetailPage() {
               <>
                 <header className="mb-5 flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (post.author.profile_image_url) {
-                          const authorLabel =
-                            post.author.username ||
-                            [post.author.first_name, post.author.last_name].filter(Boolean).join(" ") ||
-                            post.author.email ||
-                            "Profile";
-                          setProfileImageGallery({
-                            image: post.author.profile_image_url,
-                            title: authorLabel,
-                          });
-                        }
-                      }}
-                      disabled={!post.author.profile_image_url}
-                      className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 disabled:cursor-default disabled:hover:opacity-100"
-                    >
-                      {post.author.profile_image_url ? (
-                        <Image
-                          src={post.author.profile_image_url}
-                          alt={post.author.username || post.author.email}
-                          width={48}
-                          height={48}
-                          className="h-full w-full object-cover"
-                        />
+                    {(() => {
+                      const isPagePost = post.author_type === "page" && post.page;
+                      const authorLabel = isPagePost
+                        ? post.page!.name
+                        : post.author.username ||
+                          [post.author.first_name, post.author.last_name].filter(Boolean).join(" ") ||
+                          post.author.email ||
+                          "Profile";
+                      const avatarUrl = isPagePost
+                        ? post.page!.profile_image_url
+                        : post.author.profile_image_url;
+                      const profileHref = isPagePost
+                        ? `/app/pages/${post.page!.id}`
+                        : post.author?.id && post.author.id !== "undefined"
+                        ? `/app/users/${post.author.id}`
+                        : null;
+
+                      return profileHref ? (
+                        <Link href={profileHref} className="flex items-center gap-3 transition hover:opacity-90">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (avatarUrl) {
+                                setProfileImageGallery({
+                                  image: avatarUrl,
+                                  title: authorLabel,
+                                });
+                              }
+                            }}
+                            disabled={!avatarUrl}
+                            className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 disabled:cursor-default disabled:hover:opacity-100"
+                          >
+                            {avatarUrl ? (
+                              <Image
+                                src={avatarUrl}
+                                alt={authorLabel}
+                                width={48}
+                                height={48}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-base font-semibold text-gray-600">
+                                {authorLabel?.[0]?.toUpperCase() || "U"}
+                              </span>
+                            )}
+                          </button>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{authorLabel}</p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(post.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                        </Link>
                       ) : (
-                        <span className="text-base font-semibold text-gray-600">
-                          {(post.author.username ||
-                            post.author.email)?.[0]?.toUpperCase() || "U"}
-                        </span>
-                      )}
-                    </button>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {post.author.username ||
-                          `${post.author.first_name} ${post.author.last_name}`}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {new Date(post.created_at).toLocaleString()}
-                      </p>
-                    </div>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (avatarUrl) {
+                                setProfileImageGallery({
+                                  image: avatarUrl,
+                                  title: authorLabel,
+                                });
+                              }
+                            }}
+                            disabled={!avatarUrl}
+                            className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gray-100 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40 disabled:cursor-default disabled:hover:opacity-100"
+                          >
+                            {avatarUrl ? (
+                              <Image
+                                src={avatarUrl}
+                                alt={authorLabel}
+                                width={48}
+                                height={48}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-base font-semibold text-gray-600">
+                                {authorLabel?.[0]?.toUpperCase() || "U"}
+                              </span>
+                            )}
+                          </button>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{authorLabel}</p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(post.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                   <PostActionsMenu
                     post={post}

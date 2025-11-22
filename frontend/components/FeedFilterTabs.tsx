@@ -12,8 +12,9 @@ interface FeedFilterTabsProps {
 }
 
 export default function FeedFilterTabs({ onFiltersChange }: FeedFilterTabsProps) {
-  const [friendPostsActive, setFriendPostsActive] = useState(true);
-  const [pagePostsActive, setPagePostsActive] = useState(true);
+  // Default: both inactive (white) = show all posts
+  const [friendPostsActive, setFriendPostsActive] = useState(false);
+  const [pagePostsActive, setPagePostsActive] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [tabsVisible, setTabsVisible] = useState(true);
   const prevFiltersRef = useRef<{
@@ -34,6 +35,30 @@ export default function FeedFilterTabs({ onFiltersChange }: FeedFilterTabsProps)
     });
   };
 
+  const toggleFriendPosts = () => {
+    if (friendPostsActive) {
+      // If active, deactivate it (show all posts)
+      setFriendPostsActive(false);
+      setPagePostsActive(false);
+    } else {
+      // If inactive, activate it and deactivate pages (show only friend posts)
+      setFriendPostsActive(true);
+      setPagePostsActive(false);
+    }
+  };
+
+  const togglePagePosts = () => {
+    if (pagePostsActive) {
+      // If active, deactivate it (show all posts)
+      setFriendPostsActive(false);
+      setPagePostsActive(false);
+    } else {
+      // If inactive, activate it and deactivate friends (show only page posts)
+      setFriendPostsActive(false);
+      setPagePostsActive(true);
+    }
+  };
+
   useEffect(() => {
     const currentFilters = {
       friendPostsActive,
@@ -51,15 +76,21 @@ export default function FeedFilterTabs({ onFiltersChange }: FeedFilterTabsProps)
       prevFiltersRef.current = currentFilters;
       // Convert selected categories to array format for backend
       const selectedArray = Array.from(selectedCategories);
+      
+      // When both are inactive (false), show all posts (both true to backend)
+      // When one is active, show only that type
+      const showFriendPosts = friendPostsActive || (!friendPostsActive && !pagePostsActive);
+      const showPagePosts = pagePostsActive || (!friendPostsActive && !pagePostsActive);
+      
       onFiltersChange({
-        showFriendPosts: friendPostsActive,
-        showPagePosts: pagePostsActive,
+        showFriendPosts,
+        showPagePosts,
         selectedCategory: selectedArray.length > 0 ? selectedArray.join(",") : undefined,
       });
     }
   }, [friendPostsActive, pagePostsActive, selectedCategories, onFiltersChange]);
 
-  const hasActiveFilters = !friendPostsActive || !pagePostsActive || selectedCategories.size > 0;
+  const hasActiveFilters = friendPostsActive || pagePostsActive || selectedCategories.size > 0;
 
   return (
     <div>
@@ -99,13 +130,13 @@ export default function FeedFilterTabs({ onFiltersChange }: FeedFilterTabsProps)
             <div className="flex items-center gap-3 min-w-min">
               {/* Friend Posts Tab */}
               <button
-                onClick={() => setFriendPostsActive(!friendPostsActive)}
+                onClick={toggleFriendPosts}
                 className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition border-2 whitespace-nowrap flex-shrink-0 ${
                   friendPostsActive
                     ? "bg-[var(--color-deep-navy)] text-white border-[var(--color-gold)]"
                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                 }`}
-                title="Toggle friend posts"
+                title={friendPostsActive ? "Show all posts" : "Show only friend posts"}
               >
                 <span>👥</span>
                 <span>Friends</span>
@@ -113,13 +144,13 @@ export default function FeedFilterTabs({ onFiltersChange }: FeedFilterTabsProps)
 
               {/* Page Posts Tab */}
               <button
-                onClick={() => setPagePostsActive(!pagePostsActive)}
+                onClick={togglePagePosts}
                 className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition border-2 whitespace-nowrap flex-shrink-0 ${
                   pagePostsActive
                     ? "bg-[var(--color-deep-navy)] text-white border-[var(--color-gold)]"
                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                 }`}
-                title="Toggle page posts"
+                title={pagePostsActive ? "Show all posts" : "Show only page posts"}
               >
                 <span>📄</span>
                 <span>Pages</span>
@@ -148,8 +179,8 @@ export default function FeedFilterTabs({ onFiltersChange }: FeedFilterTabsProps)
               {hasActiveFilters && (
                 <button
                   onClick={() => {
-                    setFriendPostsActive(true);
-                    setPagePostsActive(true);
+                    setFriendPostsActive(false);
+                    setPagePostsActive(false);
                     setSelectedCategories(new Set());
                   }}
                   className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium text-red-600 bg-red-50 border-2 border-red-200 hover:bg-red-100 transition whitespace-nowrap flex-shrink-0"

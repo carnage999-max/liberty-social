@@ -175,24 +175,27 @@ export default function PagesIndexPage() {
           {activeTab === "liked" && (
             <section className="space-y-4">
               <h2 className="text-lg font-semibold text-(--color-silver-mid)">Pages You're Following</h2>
-              {managedPages.length === 0 ? (
-                <div className="rounded-2xl border border-(--color-border) bg-white/70 p-8 text-center">
-                  <p className="text-(--color-muted)">Pages you follow will appear here.</p>
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {managedPages.map((page) => (
-                    <PageCard 
-                      key={page.id} 
-                      page={page}
-                      onShare={() => {
-                        setShareModalPage(page);
-                        setShareModalOpen(true);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
+              {(() => {
+                const followedPages = pages.filter((page) => page.is_following === true);
+                return followedPages.length === 0 ? (
+                  <div className="rounded-2xl border border-(--color-border) bg-white/70 p-8 text-center">
+                    <p className="text-(--color-muted)">Pages you follow will appear here.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {followedPages.map((page) => (
+                      <PageCard 
+                        key={page.id} 
+                        page={page}
+                        onShare={() => {
+                          setShareModalPage(page);
+                          setShareModalOpen(true);
+                        }}
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
             </section>
           )}
         </>
