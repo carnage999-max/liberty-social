@@ -415,7 +415,27 @@ export default function AppShell({ children }: AppShellProps) {
                 </div>
               )}
             </button>
-            <div className="w-9" />
+            {user && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (myProfileHref) router.push(myProfileHref);
+                }}
+                aria-label="View profile"
+                className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-(--color-gold) bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30"
+                style={{
+                  backgroundImage: `url('${user.profile_image_url || '/images/logo.jpeg'}')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              >
+                {!user.profile_image_url && (
+                  <span className="flex h-full w-full items-center justify-center">
+                    {(user.username || user.email || "U").charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
 
           <div className="hidden items-center justify-between gap-6 py-4 sm:flex">
@@ -570,14 +590,32 @@ export default function AppShell({ children }: AppShellProps) {
       {/* Mobile navigation - fixed overlay */}
       <div
         className={[
-          "sm:hidden fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md text-[var(--color-deep-navy)] shadow-xl transition-transform duration-300 ease-out",
+          "sm:hidden fixed inset-0 z-50 bg-white/98 backdrop-blur-md text-[var(--color-deep-navy)] shadow-xl transition-transform duration-300 ease-out flex flex-col",
           navOpen ? "translate-y-0" : "-translate-y-full",
         ].join(" ")}
-        style={{
-          paddingTop: "calc(var(--header-height, 80px) + 1rem)",
-        }}
       >
-        <div className="mx-4 space-y-4 pb-4 max-h-[calc(100vh-120px)] overflow-y-auto">
+        {/* Close button header */}
+        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-4">
+          <h2 className="text-lg font-semibold text-[var(--color-deep-navy)]">Menu</h2>
+          <button
+            type="button"
+            onClick={closeNav}
+            aria-label="Close navigation"
+            className="rounded-full bg-gray-100 p-2 text-gray-600 transition hover:text-gray-800"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M6 6l12 12M6 18L18 6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto mx-4 space-y-4 py-4">
           <nav aria-label="Mobile navigation" className="rounded-[16px] bg-white p-4 shadow-sm">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Navigation
@@ -622,6 +660,7 @@ export default function AppShell({ children }: AppShellProps) {
                   type="button"
                   onClick={() => {
                     void logout();
+                    closeNav();
                   }}
                   className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
                 >
