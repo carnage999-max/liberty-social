@@ -422,9 +422,9 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => setSearchModalOpen(true)}
                 aria-label="Search"
-                className="rounded-full bg-white/15 p-2 text-white transition hover:bg-white/25"
+                className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) w-9 h-9 flex items-center justify-center transition hover:opacity-80 text-gray-800"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                   <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
                   <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
@@ -491,9 +491,9 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => handleNavigate("/app/friends")}
                 aria-label="View friends"
-                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/30 border-2 border-(--color-gold)"
+                className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) w-10 h-10 flex items-center justify-center transition hover:opacity-80 text-gray-800"
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
                     d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
                     stroke="currentColor"
@@ -507,7 +507,7 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => handleNavigate("/app/pages")}
                 aria-label="View pages"
-                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/30"
+                className="rounded-full bg-blue-500 border-2 border-(--color-gold) w-10 h-10 flex items-center justify-center transition hover:opacity-80 text-white"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
@@ -530,7 +530,7 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => handleNavigate("/app/marketplace")}
                 aria-label="View marketplace"
-                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/30"
+                className="rounded-full bg-green-500 border-2 border-(--color-gold) w-10 h-10 flex items-center justify-center transition hover:opacity-80 text-white"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
@@ -553,7 +553,7 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => handleNavigate("/app/notifications")}
                 aria-label="View notifications"
-                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/30"
+                className="rounded-full bg-orange-500 border-2 border-(--color-gold) w-10 h-10 flex items-center justify-center transition hover:opacity-80 text-white relative"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
@@ -574,7 +574,7 @@ export default function AppShell({ children }: AppShellProps) {
                 type="button"
                 onClick={() => setSearchModalOpen(true)}
                 aria-label="Search"
-                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-[var(--color-deep-navy)] shadow-sm transition hover:bg-white/30"
+                className="rounded-full bg-(--color-gold) border-2 border-(--color-gold) w-9 h-9 flex items-center justify-center transition hover:opacity-80 text-gray-800"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
