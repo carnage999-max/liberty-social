@@ -8,6 +8,7 @@ import ProfileImageModal from "@/components/profile/ProfileImageModal";
 import OnlineUsers from "@/components/OnlineUsers";
 import ReportBug from "@/components/BugReport";
 import FloatingCreateButton from "@/components/CollapsibleFloatingButtons";
+import SearchModal from "@/components/SearchModal";
 import { useAuth } from "@/lib/auth-context";
 import { API_BASE, apiPost, apiGet } from "@/lib/api";
 import type { Post, Visibility, FriendRequest } from "@/lib/types";
@@ -240,6 +241,7 @@ export default function AppShell({ children }: AppShellProps) {
   const { accessToken, user, logout } = useAuth();
   const toast = useToast();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [showCompactLogo, setShowCompactLogo] = useState(false);
@@ -422,21 +424,46 @@ export default function AppShell({ children }: AppShellProps) {
                   if (myProfileHref) router.push(myProfileHref);
                 }}
                 aria-label="View profile"
-                className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-(--color-gold) bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30"
-                style={{
-                  backgroundImage: `url('/flag-2.gif'), url('${user.profile_image_url || '/images/logo.jpeg'}')`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  backgroundBlendMode: 'multiply',
-                }}
+                className="relative h-9 w-9 overflow-hidden rounded-full ) bg-white/20 text-sm font-semibold text-white shadow-sm transition hover:bg-white/30 flex items-center justify-center"
               >
-                {!user.profile_image_url && (
-                  <span className="flex h-full w-full items-center justify-center">
-                    {(user.username || user.email || "U").charAt(0).toUpperCase()}
-                  </span>
-                )}
+                {/* Flag background with blend mode */}
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    backgroundImage: `url('/flag-2.gif')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                />
+                
+                {/* Profile image with border */}
+                <div
+                  className="absolute inset-1 rounded-full border-2 border-(--color-gold) shadow-md"
+                  style={{
+                    backgroundImage: `url('${user.profile_image_url || '/images/logo.jpeg'}')`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                >
+                  {!user.profile_image_url && (
+                    <span className="flex h-full w-full items-center justify-center bg-white/20 text-xs font-bold text-(--color-deeper-navy)">
+                      {(user.username || user.email || "U").charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setSearchModalOpen(true)}
+              aria-label="Search"
+              className="rounded-full bg-white/15 p-2 text-white transition hover:bg-white/25"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
+                <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
 
           <div className="hidden items-center justify-between gap-6 py-4 sm:flex">
@@ -803,6 +830,11 @@ export default function AppShell({ children }: AppShellProps) {
         onClose={() => setMobileProfileModalOpen(false)}
         currentImageUrl={user?.profile_image_url}
         userId={user?.id}
+      />
+
+      <SearchModal
+        open={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
       />
 
       <CreatePostModal
