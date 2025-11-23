@@ -44,7 +44,7 @@ export default function PagePostEditModal({
   const [deleting, setDeleting] = useState(false);
 
   const [content, setContent] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "followers" | "private">("private");
+  const [visibility, setVisibility] = useState<"public" | "followers" | "private">("followers");
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -59,7 +59,7 @@ export default function PagePostEditModal({
         });
         setPost(data);
         setContent(data.content);
-        setVisibility((data.visibility as "public" | "followers" | "private") || "public");
+        setVisibility((data.visibility as "public" | "followers" | "private") || "followers");
         if (data.media_urls && data.media_urls.length > 0) {
           setMediaItems(
             data.media_urls.map((url) => ({

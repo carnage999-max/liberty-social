@@ -19,7 +19,7 @@ export default function PagePostForm({ pageId, accessToken, onPostCreated }: Pag
   const toast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [content, setContent] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "followers" | "private">("private");
+  const [visibility, setVisibility] = useState<"public" | "followers" | "private">("followers");
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export default function PagePostForm({ pageId, accessToken, onPostCreated }: Pag
       return [];
     });
     setContent("");
-    setVisibility("private");
+    setVisibility("followers");
     setError(null);
   };
 
