@@ -139,10 +139,8 @@ class PostViewSet(ModelViewSet):
         )
         mine = self.request.query_params.get("mine")
         if mine is not None and str(mine).lower() in ("1", "true", "yes"):
-            managed_pages = PageAdmin.objects.filter(
-                user=self.request.user
-            ).values_list("page_id", flat=True)
-            return qs.filter(Q(author=self.request.user) | Q(page_id__in=managed_pages))
+            # Only return personal posts (author_type="user"), exclude page posts
+            return qs.filter(author=self.request.user, author_type="user")
         return qs
 
     def perform_create(self, serializer):

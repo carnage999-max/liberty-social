@@ -223,7 +223,12 @@ class UserOverviewView(APIView):
             # viewer chose to block; still allow viewing profile metadata but hide posts
             can_view_posts = False
 
-        allowed_posts_qs = Post.objects.filter(author=target, deleted_at__isnull=True)
+        # Only count personal posts (author_type="user"), exclude page posts
+        allowed_posts_qs = Post.objects.filter(
+            author=target, 
+            deleted_at__isnull=True,
+            author_type="user"
+        )
         if not is_self:
             visibility_levels = ["public"]
             if is_friend:
