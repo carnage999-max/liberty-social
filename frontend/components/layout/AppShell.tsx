@@ -54,14 +54,9 @@ const NAV_LINKS = [
     label: "Pages",
     href: "/app/pages",
     icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          d="M4 4h8v8H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" />
+        <path d="M9 22V12h6v10" />
       </svg>
     ),
   },
@@ -655,7 +650,11 @@ export default function AppShell({ children }: AppShellProps) {
                           ].join(" ")}
                       >
                         <span className="flex items-center gap-2">
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-deep-navy)]/10 text-[var(--color-deep-navy)] transition group-hover:bg-[var(--color-deep-navy)]/15 group-hover:text-[var(--color-deep-navy)]">
+                          <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-sm transition ${
+                            active
+                              ? "bg-(--color-gold) border-(--color-gold) text-[var(--color-deeper-navy)]"
+                              : "bg-white/60 border-white/40 text-[var(--color-deep-navy)] group-hover:bg-white/80"
+                          }`}>
                             {link.icon}
                           </span>
                           <span>{link.label}</span>
@@ -742,7 +741,11 @@ export default function AppShell({ children }: AppShellProps) {
                             ].join(" ")}
                           >
                             <span className="flex items-center gap-2 text-[var(--color-deep-navy)]">
-                              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-deep-navy)]/10 text-[var(--color-deep-navy)] transition group-hover:bg-[var(--color-deep-navy)]/20">
+                              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-sm transition ${
+                                active
+                                  ? "bg-(--color-gold) border-(--color-gold) text-[var(--color-deeper-navy)]"
+                                  : "bg-white/60 border-white/40 text-[var(--color-deep-navy)] group-hover:bg-white/80"
+                              }`}>
                                 {link.icon}
                               </span>
                               <span>{link.label}</span>
@@ -852,9 +855,15 @@ export default function AppShell({ children }: AppShellProps) {
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M4 4h6v6H4zM4 14h6v6H4zM14 4h6v6h-6zM14 14h6v6h-6z" />
-              </svg>
+              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-sm transition ${
+                pathname?.startsWith("/app/feed")
+                  ? "bg-(--color-gold) border-(--color-gold) text-[var(--color-deeper-navy)]"
+                  : "bg-white/10 border-white/20 text-white"
+              }`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4 4h6v6H4zM4 14h6v6H4zM14 4h6v6h-6zM14 14h6v6h-6z" />
+                </svg>
+              </span>
               <span className="text-xs font-semibold">Feed</span>
             </button>
             <button
@@ -867,9 +876,15 @@ export default function AppShell({ children }: AppShellProps) {
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />
-              </svg>
+              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-sm transition ${
+                pathname?.startsWith("/app/friends")
+                  ? "bg-(--color-gold) border-(--color-gold) text-[var(--color-deeper-navy)]"
+                  : "bg-white/10 border-white/20 text-white"
+              }`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />
+                </svg>
+              </span>
               <span className="text-xs font-semibold">Friends</span>
             </button>
             <button
@@ -882,10 +897,16 @@ export default function AppShell({ children }: AppShellProps) {
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" />
-                <path d="M9 22V12h6v10" />
-              </svg>
+              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-sm transition ${
+                pathname?.startsWith("/app/pages")
+                  ? "bg-(--color-gold) border-(--color-gold) text-[var(--color-deeper-navy)]"
+                  : "bg-white/10 border-white/20 text-white"
+              }`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" />
+                  <path d="M9 22V12h6v10" />
+                </svg>
+              </span>
               <span className="text-xs font-semibold">Pages</span>
             </button>
             <button
@@ -898,11 +919,17 @@ export default function AppShell({ children }: AppShellProps) {
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                <path d="M3 6h18" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
+              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-sm transition ${
+                pathname?.startsWith("/app/marketplace")
+                  ? "bg-(--color-gold) border-(--color-gold) text-[var(--color-deeper-navy)]"
+                  : "bg-white/10 border-white/20 text-white"
+              }`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                  <path d="M3 6h18" />
+                  <path d="M16 10a4 4 0 0 1-8 0" />
+                </svg>
+              </span>
               <span className="text-xs font-semibold">Marketplace</span>
             </button>
             <button
@@ -915,9 +942,15 @@ export default function AppShell({ children }: AppShellProps) {
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
+              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-sm transition ${
+                pathname?.startsWith("/app/notifications")
+                  ? "bg-(--color-gold) border-(--color-gold) text-[var(--color-deeper-navy)]"
+                  : "bg-white/10 border-white/20 text-white"
+              }`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+              </span>
               <span className="text-xs font-semibold">Notifications</span>
               {notificationUnreadCount > 0 && (
                 <span className="absolute top-0 right-0 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
