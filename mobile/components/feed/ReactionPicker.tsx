@@ -8,20 +8,20 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Dimensions,
-  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { ReactionType } from '../../types';
+import AdvancedEmojiPicker from './AdvancedEmojiPicker';
 
 const REACTION_TYPES: ReactionType[] = ['like', 'love', 'haha', 'sad', 'angry'];
 
-const REACTION_IMAGES: Record<ReactionType, any> = {
-  like: require('../../assets/reactions_assets/like.png'),
-  love: require('../../assets/reactions_assets/love.png'),
-  haha: require('../../assets/reactions_assets/laugh.png'),
-  sad: require('../../assets/reactions_assets/sad.png'),
-  angry: require('../../assets/reactions_assets/angry.png'),
+const REACTION_EMOJIS: Record<ReactionType, string> = {
+  like: '👍',
+  love: '❤️',
+  haha: '😂',
+  sad: '😢',
+  angry: '😠',
 };
 
 const REACTION_LABELS: Record<ReactionType, string> = {
@@ -36,6 +36,7 @@ interface ReactionPickerProps {
   visible: boolean;
   onClose: () => void;
   onSelect: (reactionType: ReactionType) => void;
+  onSelectEmoji?: (emoji: string) => void;
   currentReaction?: ReactionType | null;
   position?: { x: number; y: number };
 }
@@ -44,12 +45,14 @@ export default function ReactionPicker({
   visible,
   onClose,
   onSelect,
+  onSelectEmoji,
   currentReaction,
   position,
 }: ReactionPickerProps) {
   const { colors, isDark } = useTheme();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const [showAdvancedPicker, setShowAdvancedPicker] = useState(false);
 
   React.useEffect(() => {
     if (visible) {
@@ -88,6 +91,22 @@ export default function ReactionPicker({
     onClose();
   };
 
+  const handleOpenAdvanced = () => {
+    setShowAdvancedPicker(true);
+  };
+
+  const handleAdvancedSelect = (emoji: string) => {
+    if (onSelectEmoji) {
+      onSelectEmoji(emoji);
+    }
+    setShowAdvancedPicker(false);
+    onClose();
+  };
+
+  const handleAdvancedClose = () => {
+    setShowAdvancedPicker(false);
+  };
+
   // Calculate position to center picker on button and keep it within screen bounds
   const getPickerPosition = () => {
     if (!position) return { left: '50%', top: 100 };
@@ -117,7 +136,7 @@ export default function ReactionPicker({
       position: 'absolute',
       top: pickerPos.top,
       left: typeof pickerPos.left === 'number' ? pickerPos.left : '50%',
-      width: 240,
+      width: 280,
       backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
       borderRadius: 28,
       paddingHorizontal: 8,
@@ -133,6 +152,19 @@ export default function ReactionPicker({
       borderWidth: 1,
       borderColor: colors.border,
     },
+    divider: {
+      width: 1,
+      height: 32,
+      marginHorizontal: 4,
+    },
+    moreButton: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+    },
     reactionButton: {
       width: 48,
       height: 48,
@@ -144,9 +176,8 @@ export default function ReactionPicker({
     reactionButtonActive: {
       backgroundColor: isDark ? 'rgba(79, 142, 247, 0.2)' : 'rgba(79, 142, 247, 0.1)',
     },
-    reactionImage: {
-      width: 36,
-      height: 36,
+    reactionEmoji: {
+      fontSize: 32,
     },
     reactionLabel: {
       position: 'absolute',
@@ -165,39 +196,61 @@ export default function ReactionPicker({
   if (!visible) return null;
 
   return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="none"
-      onRequestClose={onClose}
-    >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.backdrop}>
-          <Animated.View
-            style={[
-              styles.pickerContainer,
-              {
-                transform: [{ scale: scaleAnim }],
-                opacity: opacityAnim,
-              },
-            ]}
-          >
-            {REACTION_TYPES.map((type) => (
+    <>
+      <Modal
+        transparent
+        visible={visible}
+        animationType="none"
+        onRequestClose={onClose}
+      >
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={styles.backdrop}>
+            <Animated.View
+              style={[
+                styles.pickerContainer,
+                {
+                  transform: [{ scale: scaleAnim }],
+                  opacity: opacityAnim,
+                },
+              ]}
+            >
+              {REACTION_TYPES.map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.reactionButton,
+                    currentReaction === type && styles.reactionButtonActive,
+                  ]}
+                  onPress={() => handleSelect(type)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.reactionEmoji}>{REACTION_EMOJIS[type]}</Text>
+                </TouchableOpacity>
+              ))}
+
+              {/* More button to open advanced picker */}
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <TouchableOpacity
-                key={type}
-                style={[
-                  styles.reactionButton,
-                  currentReaction === type && styles.reactionButtonActive,
-                ]}
-                onPress={() => handleSelect(type)}
+                style={styles.moreButton}
+                onPress={handleOpenAdvanced}
                 activeOpacity={0.7}
               >
-                <Image source={REACTION_IMAGES[type]} style={styles.reactionImage} resizeMode="contain" />
+                <Ionicons name="add-circle-outline" size={28} color={colors.text} />
               </TouchableOpacity>
-            ))}
-          </Animated.View>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+            </Animated.View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Advanced Emoji Picker */}
+      {onSelectEmoji && (
+        <AdvancedEmojiPicker
+          visible={showAdvancedPicker}
+          onClose={handleAdvancedClose}
+          onSelect={handleAdvancedSelect}
+          currentReaction={currentReaction ? REACTION_EMOJIS[currentReaction] : null}
+        />
+      )}
+    </>
   );
 }

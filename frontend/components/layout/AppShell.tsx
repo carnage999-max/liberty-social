@@ -862,7 +862,7 @@ export default function AppShell({ children }: AppShellProps) {
               }`}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M4 4h6v6H4zM4 14h6v6H4zM14 4h6v6h-6zM14 14h6v6h-6z" />
-                </svg>
+              </svg>
               </span>
               <span className="text-xs font-semibold">Feed</span>
             </button>
@@ -883,7 +883,7 @@ export default function AppShell({ children }: AppShellProps) {
               }`}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />
-                </svg>
+              </svg>
               </span>
               <span className="text-xs font-semibold">Friends</span>
             </button>
@@ -905,7 +905,7 @@ export default function AppShell({ children }: AppShellProps) {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M3 9l9-7 9 7v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" />
                   <path d="M9 22V12h6v10" />
-                </svg>
+              </svg>
               </span>
               <span className="text-xs font-semibold">Pages</span>
             </button>
@@ -928,7 +928,7 @@ export default function AppShell({ children }: AppShellProps) {
                   <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
                   <path d="M3 6h18" />
                   <path d="M16 10a4 4 0 0 1-8 0" />
-                </svg>
+              </svg>
               </span>
               <span className="text-xs font-semibold">Marketplace</span>
             </button>
@@ -949,7 +949,7 @@ export default function AppShell({ children }: AppShellProps) {
               }`}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
+              </svg>
               </span>
               <span className="text-xs font-semibold">Notifications</span>
               {notificationUnreadCount > 0 && (

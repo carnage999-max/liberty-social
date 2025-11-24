@@ -394,7 +394,8 @@ export default function UserProfileBottomSheet({
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: 20,
+      paddingBottom: 40,
+      flexGrow: 1,
     },
     profileHeader: {
       padding: 20,
@@ -461,8 +462,15 @@ export default function UserProfileBottomSheet({
       paddingHorizontal: 24,
       paddingVertical: 12,
       borderRadius: 24,
-      backgroundColor: colors.primary,
+      backgroundColor: '#192A4A',
+      borderWidth: 1,
+      borderColor: '#C8A25F',
       gap: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.4,
+      shadowRadius: 4,
+      elevation: 4,
     },
     actionButtonSecondary: {
       backgroundColor: 'transparent',
@@ -494,7 +502,7 @@ export default function UserProfileBottomSheet({
       borderBottomColor: 'transparent',
     },
     tabActive: {
-      borderBottomColor: colors.primary,
+      borderBottomColor: '#C8A25F',
     },
     tabText: {
       fontSize: 14,
@@ -502,7 +510,8 @@ export default function UserProfileBottomSheet({
       color: colors.textSecondary,
     },
     tabTextActive: {
-      color: colors.primary,
+      color: '#C8A25F',
+      fontWeight: '700',
     },
     loadingContainer: {
       flex: 1,
@@ -553,7 +562,7 @@ export default function UserProfileBottomSheet({
     seePostButtonText: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.primary,
+      color: '#C8A25F',
     },
     photosGrid: {
       flexDirection: 'row',
@@ -725,10 +734,15 @@ export default function UserProfileBottomSheet({
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
+              <ScrollView 
+                style={styles.content} 
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
                 {loading ? (
                   <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={colors.primary} />
+                    <ActivityIndicator size="large" color="#C8A25F" />
                   </View>
                 ) : profile ? (
                   <>
@@ -822,7 +836,7 @@ export default function UserProfileBottomSheet({
                                         }}
                                       >
                                         <Text style={styles.seePostButtonText}>See post</Text>
-                                        <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                                        <Ionicons name="chevron-forward" size={16} color="#C8A25F" />
                                       </TouchableOpacity>
                                     </View>
                                   </View>
@@ -864,7 +878,7 @@ export default function UserProfileBottomSheet({
                                           }}
                                         >
                                           <Text style={styles.seePostButtonText}>See post</Text>
-                                          <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                                          <Ionicons name="chevron-forward" size={16} color="#C8A25F" />
                                         </TouchableOpacity>
                                       </View>
                                     </View>

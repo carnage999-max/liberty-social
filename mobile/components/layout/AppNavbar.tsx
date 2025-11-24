@@ -1,4 +1,4 @@
-import React, { useMemo, ReactNode } from 'react';
+import React, { useMemo, ReactNode, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import { Ionicons } from '@expo/vector-icons';
+import SearchModal from '../SearchModal';
 
 interface AppNavbarProps {
   title?: string;
@@ -20,6 +21,7 @@ interface AppNavbarProps {
   showSettingsIcon?: boolean;
   showBackButton?: boolean;
   showMessageIcon?: boolean;
+  showSearchIcon?: boolean;
   onBackPress?: () => void;
   customRightButton?: ReactNode;
 }
@@ -31,12 +33,14 @@ export default function AppNavbar({
   showSettingsIcon = false,
   showBackButton = false,
   showMessageIcon = true,
+  showSearchIcon = true,
   onBackPress,
   customRightButton,
 }: AppNavbarProps = {}) {
   const { user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [searchModalVisible, setSearchModalVisible] = useState(false);
 
   const displayName = useMemo(() => {
     if (!user) return '';
@@ -167,6 +171,15 @@ export default function AppNavbar({
           customRightButton
         ) : (
           <>
+            {showSearchIcon && (
+              <TouchableOpacity
+                style={styles.profileButton}
+                onPress={() => setSearchModalVisible(true)}
+              >
+                <Ionicons name="search" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+
             {showMessageIcon && (
               <TouchableOpacity
                 style={styles.profileButton}
@@ -203,6 +216,11 @@ export default function AppNavbar({
           </>
         )}
       </View>
+
+      <SearchModal
+        visible={searchModalVisible}
+        onClose={() => setSearchModalVisible(false)}
+      />
     </LinearGradient>
   );
 }

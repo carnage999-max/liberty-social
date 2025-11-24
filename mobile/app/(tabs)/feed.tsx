@@ -24,7 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import AppNavbar from '../../components/layout/AppNavbar';
 import PostActionsMenu from '../../components/feed/PostActionsMenu';
-import ReactionPicker from '../../components/feed/ReactionPicker';
+import AdvancedEmojiPicker from '../../components/feed/AdvancedEmojiPicker';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
 import { SkeletonPost, Skeleton } from '../../components/common/Skeleton';
 import {
@@ -116,11 +116,11 @@ export default function FeedScreen() {
   const [reactionBusy, setReactionBusy] = useState<Record<number, boolean>>({});
   const [reachedEnd, setReachedEnd] = useState(false);
   const likeAnimationsRef = useRef<Record<number, Animated.Value>>({});
-  const [reactionPickerVisible, setReactionPickerVisible] = useState(false);
-  const [reactionPickerPostId, setReactionPickerPostId] = useState<number | null>(null);
-  const [reactionPickerPosition, setReactionPickerPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+  const [advancedEmojiPickerVisible, setAdvancedEmojiPickerVisible] = useState(false);
+  const [advancedEmojiPickerPostId, setAdvancedEmojiPickerPostId] = useState<number | null>(null);
   const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   type SuggestionItem =
     | { type: 'create' }
@@ -270,18 +270,35 @@ export default function FeedScreen() {
       showInfo('Please log in to react to posts.', 'Sign in required');
       return;
     }
-    // Get button position from layout event
-    const { pageX, pageY } = event.nativeEvent;
-    // Position picker centered on the button
-    setReactionPickerPosition({ x: pageX, y: pageY - 60 });
-    setReactionPickerPostId(post.id);
-    setReactionPickerVisible(true);
+    // Open advanced emoji picker directly
+    setAdvancedEmojiPickerPostId(post.id);
+    setAdvancedEmojiPickerVisible(true);
+  };
+
+  // Map reaction types to emojis (for backward compatibility)
+  const REACTION_TYPE_TO_EMOJI: Record<string, string> = {
+    "like": "👍",
+    "love": "❤️",
+    "haha": "😂",
+    "sad": "😢",
+    "angry": "😠",
+  };
+
+  // Convert reaction type to emoji (handles both old text types and new emoji types)
+  const getReactionEmoji = (reactionType: string): string => {
+    if (REACTION_TYPE_TO_EMOJI[reactionType]) {
+      return REACTION_TYPE_TO_EMOJI[reactionType];
+    }
+    return reactionType; // Already an emoji
   };
 
   const handleReactionSelect = async (postId: number, reactionType: ReactionType) => {
     if (!user) return;
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
+
+    // Convert reaction type to emoji
+    const emoji = getReactionEmoji(reactionType);
 
     const existingReaction = (post.reactions || []).find(
       (reaction) => reaction.user?.id === user.id
@@ -293,8 +310,8 @@ export default function FeedScreen() {
     const optimisticReactionId = -Math.floor(Math.random() * 1_000_000) - 1;
 
     if (existingReaction) {
-      if (existingReaction.reaction_type === reactionType) {
-        // Remove reaction if same type
+      if (getReactionEmoji(existingReaction.reaction_type) === emoji) {
+        // Remove reaction if same emoji
         setPosts((prev) =>
           prev.map((item) =>
             item.id === postId
@@ -313,7 +330,7 @@ export default function FeedScreen() {
         const optimisticReaction: Reaction = {
           ...existingReaction,
           id: optimisticReactionId,
-          reaction_type: reactionType,
+          reaction_type: emoji,
         };
         setPosts((prev) =>
           prev.map((item) =>
@@ -336,7 +353,7 @@ export default function FeedScreen() {
       // Add new reaction
       const optimisticReaction: Reaction = {
         id: optimisticReactionId,
-        reaction_type: reactionType,
+        reaction_type: emoji,
         created_at: new Date().toISOString(),
         user,
       };
@@ -360,13 +377,13 @@ export default function FeedScreen() {
 
     try {
       if (existingReaction) {
-        if (existingReaction.reaction_type === reactionType) {
+        if (getReactionEmoji(existingReaction.reaction_type) === emoji) {
           await apiClient.delete(`/reactions/${existingReaction.id}/`);
         } else {
           await apiClient.delete(`/reactions/${existingReaction.id}/`);
           const savedReaction = await apiClient.post<Reaction>('/reactions/', {
             post: postId,
-            reaction_type: reactionType,
+            reaction_type: emoji,
           });
           setPosts((prev) =>
             prev.map((item) =>
@@ -387,7 +404,144 @@ export default function FeedScreen() {
       } else {
         const savedReaction = await apiClient.post<Reaction>('/reactions/', {
           post: postId,
-          reaction_type: reactionType,
+          reaction_type: emoji,
+        });
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: [
+                    ...((item.reactions || []).filter(
+                      (reaction) => reaction.id !== optimisticReactionId
+                    ) || []),
+                    savedReaction,
+                  ],
+                }
+              : item
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error updating reaction:', error);
+      showError('Please try again in a moment.', 'Unable to update reaction');
+      setPosts(previousPosts);
+    } finally {
+      setReactionBusy((prev) => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  // Handle custom emoji reaction selection (from advanced picker)
+  const handleEmojiReactionSelect = async (postId: number, emoji: string) => {
+    if (!user) return;
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    const existingReaction = (post.reactions || []).find(
+      (reaction) => reaction.user?.id === user.id
+    );
+
+    setReactionBusy((prev) => ({ ...prev, [postId]: true }));
+
+    const previousPosts = posts;
+    const optimisticReactionId = -Math.floor(Math.random() * 1_000_000) - 1;
+
+    if (existingReaction) {
+      if (existingReaction.reaction_type === emoji) {
+        // Remove reaction if same emoji
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: (item.reactions || []).filter(
+                    (reaction) => reaction.id !== existingReaction.id
+                  ),
+                }
+              : item
+          )
+        );
+        animateLikeState(postId, false);
+      } else {
+        // Update reaction type
+        const optimisticReaction: Reaction = {
+          ...existingReaction,
+          id: optimisticReactionId,
+          reaction_type: emoji,
+        };
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: [
+                    ...((item.reactions || []).filter(
+                      (reaction) => reaction.id !== existingReaction.id
+                    ) || []),
+                    optimisticReaction,
+                  ],
+                }
+              : item
+          )
+        );
+        animateLikeState(postId, true);
+      }
+    } else {
+      // Add new reaction
+      const optimisticReaction: Reaction = {
+        id: optimisticReactionId,
+        reaction_type: emoji,
+        created_at: new Date().toISOString(),
+        user,
+      };
+      setPosts((prev) =>
+        prev.map((item) =>
+          item.id === postId
+            ? {
+                ...item,
+                reactions: [
+                  ...((item.reactions || []).filter(
+                    (reaction) => reaction.user?.id !== user.id
+                  ) || []),
+                  optimisticReaction,
+                ],
+              }
+            : item
+        )
+      );
+      animateLikeState(postId, true);
+    }
+
+    try {
+      if (existingReaction) {
+        if (existingReaction.reaction_type === emoji) {
+          await apiClient.delete(`/reactions/${existingReaction.id}/`);
+        } else {
+          await apiClient.delete(`/reactions/${existingReaction.id}/`);
+          const savedReaction = await apiClient.post<Reaction>('/reactions/', {
+            post: postId,
+            reaction_type: emoji,
+          });
+          setPosts((prev) =>
+            prev.map((item) =>
+              item.id === postId
+                ? {
+                    ...item,
+                    reactions: [
+                      ...((item.reactions || []).filter(
+                        (reaction) => reaction.id !== optimisticReactionId
+                      ) || []),
+                      savedReaction,
+                    ],
+                  }
+                : item
+            )
+          );
+        }
+      } else {
+        const savedReaction = await apiClient.post<Reaction>('/reactions/', {
+          post: postId,
+          reaction_type: emoji,
         });
         setPosts((prev) =>
           prev.map((item) =>
@@ -426,12 +580,87 @@ export default function FeedScreen() {
 
     if (existingReaction) {
       // Remove reaction
-      await handleReactionSelect(post.id, existingReaction.reaction_type);
+      const currentEmoji = getReactionEmoji(existingReaction.reaction_type);
+      // Convert emoji back to type for the handler
+      const reactionType = Object.keys(REACTION_TYPE_TO_EMOJI).find(
+        key => REACTION_TYPE_TO_EMOJI[key] === currentEmoji
+      ) || 'like';
+      await handleReactionSelect(post.id, reactionType as ReactionType);
     } else {
       // Add like reaction
       await handleReactionSelect(post.id, 'like');
     }
   };
+
+  // Handle double-tap to like
+  const [doubleTapAnimation, setDoubleTapAnimation] = useState<{ postId: number; show: boolean } | null>(null);
+  const lastTapRef = useRef<{ postId: number; time: number } | null>(null);
+  const doubleTapAnimationsRef = useRef<Record<number, Animated.Value>>({});
+
+  const getDoubleTapAnimation = useCallback(
+    (postId: number) => {
+      if (!doubleTapAnimationsRef.current[postId]) {
+        doubleTapAnimationsRef.current[postId] = new Animated.Value(0);
+      }
+      return doubleTapAnimationsRef.current[postId];
+    },
+    []
+  );
+
+  const handleDoubleTap = useCallback(
+    (postId: number) => {
+      if (!user) {
+        showInfo('Please log in to react to posts.', 'Sign in required');
+        return;
+      }
+
+      // Show animation
+      const anim = getDoubleTapAnimation(postId);
+      setDoubleTapAnimation({ postId, show: true });
+      
+      Animated.sequence([
+        Animated.spring(anim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 7,
+        }),
+        Animated.timing(anim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setDoubleTapAnimation((prev) => prev?.postId === postId ? { postId, show: false } : prev);
+      });
+
+      // Trigger like reaction
+      handleReactionSelect(postId, 'like');
+    },
+    [user, handleReactionSelect, getDoubleTapAnimation]
+  );
+
+  const handlePostPress = useCallback(
+    (postId: number) => {
+      const now = Date.now();
+      const lastTap = lastTapRef.current;
+
+      if (lastTap && lastTap.postId === postId && now - lastTap.time < 400) {
+        // Double tap detected
+        handleDoubleTap(postId);
+        lastTapRef.current = null;
+      } else {
+        // Single tap - store for potential double tap
+        lastTapRef.current = { postId, time: now };
+        setTimeout(() => {
+          if (lastTapRef.current?.postId === postId) {
+            lastTapRef.current = null;
+          }
+        }, 400);
+      }
+    },
+    [handleDoubleTap]
+  );
 
   const handleSharePost = async (post: FeedPost) => {
     try {
@@ -484,18 +713,9 @@ export default function FeedScreen() {
       ? (item.reactions || []).find((reaction) => reaction.user?.id === user.id)
       : null;
     const hasReacted = !!currentUserReaction;
-    const reactionType = currentUserReaction?.reaction_type || null;
+    const reactionEmoji = currentUserReaction ? getReactionEmoji(currentUserReaction.reaction_type) : null;
     const likeProcessing = !!reactionBusy[item.id];
     const likeAnimation = getLikeAnimation(item.id);
-    
-    // Reaction image mapping
-    const reactionImages: Record<string, any> = {
-      like: require('../../assets/reactions_assets/like.png'),
-      love: require('../../assets/reactions_assets/love.png'),
-      haha: require('../../assets/reactions_assets/laugh.png'),
-      sad: require('../../assets/reactions_assets/sad.png'),
-      angry: require('../../assets/reactions_assets/angry.png'),
-    };
 
     return (
       <View
@@ -507,6 +727,32 @@ export default function FeedScreen() {
           },
         ]}
       >
+        {/* Double-tap like animation */}
+        {doubleTapAnimation?.postId === item.id && doubleTapAnimation.show && (
+          <View style={styles.doubleTapAnimationContainer} pointerEvents="none">
+            <Animated.Text
+              style={[
+                styles.doubleTapEmoji,
+                {
+                  transform: [
+                    {
+                      scale: getDoubleTapAnimation(item.id).interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: [0, 1.3, 1],
+                      }),
+                    },
+                  ],
+                  opacity: getDoubleTapAnimation(item.id).interpolate({
+                    inputRange: [0, 0.5, 1],
+                    outputRange: [0, 1, 0],
+                  }),
+                },
+              ]}
+            >
+              👍
+            </Animated.Text>
+          </View>
+        )}
         <View style={styles.postHeaderRow}>
           <TouchableOpacity
             style={styles.postHeader}
@@ -532,44 +778,50 @@ export default function FeedScreen() {
           />
         </View>
 
-        {item.content && (
-          <Text style={[styles.postContent, { color: colors.text }]}>{item.content}</Text>
-        )}
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => handlePostPress(item.id)}
+          style={styles.postContentWrapper}
+        >
+          {item.content && (
+            <Text style={[styles.postContent, { color: colors.text }]}>{item.content}</Text>
+          )}
 
-        {galleryUrls.length > 0 && (
-          <View
-            style={[
-              styles.mediaGrid,
-              galleryUrls.length === 1
-                ? styles.mediaGridSingle
-                : galleryUrls.length === 2
-                ? styles.mediaGridDouble
-                : styles.mediaGridTriple,
-            ]}
-          >
-            {galleryUrls.slice(0, 9).map((url, index) => (
-              <TouchableOpacity
-                key={`${item.id}-media-${index}`}
-                style={[
-                  styles.mediaImageWrapper,
-                  galleryUrls.length === 1
-                    ? styles.mediaImageSingle
-                    : galleryUrls.length === 2
-                    ? styles.mediaImageDouble
-                    : styles.mediaImageTriple,
-                ]}
-                onPress={() => router.push(`/(tabs)/feed/${item.id}`)}
-                activeOpacity={0.9}
-              >
-                <Image
-                  source={{ uri: url }}
-                  style={styles.mediaImage}
-                  resizeMode="cover"
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
+          {galleryUrls.length > 0 && (
+            <View
+              style={[
+                styles.mediaGrid,
+                galleryUrls.length === 1
+                  ? styles.mediaGridSingle
+                  : galleryUrls.length === 2
+                  ? styles.mediaGridDouble
+                  : styles.mediaGridTriple,
+              ]}
+            >
+              {galleryUrls.slice(0, 9).map((url, index) => (
+                <TouchableOpacity
+                  key={`${item.id}-media-${index}`}
+                  style={[
+                    styles.mediaImageWrapper,
+                    galleryUrls.length === 1
+                      ? styles.mediaImageSingle
+                      : galleryUrls.length === 2
+                      ? styles.mediaImageDouble
+                      : styles.mediaImageTriple,
+                  ]}
+                  onPress={() => router.push(`/(tabs)/feed/${item.id}`)}
+                  activeOpacity={0.9}
+                >
+                  <Image
+                    source={{ uri: url }}
+                    style={styles.mediaImage}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </TouchableOpacity>
 
         <View style={styles.postActions}>
           <TouchableOpacity
@@ -578,12 +830,8 @@ export default function FeedScreen() {
             onLongPress={(e) => handleReactionLongPress(item, e)}
             disabled={likeProcessing}
           >
-            {hasReacted && reactionType ? (
-              <Image 
-                source={reactionImages[reactionType] || reactionImages.like} 
-                style={styles.reactionImage} 
-                resizeMode="contain"
-              />
+            {hasReacted && reactionEmoji ? (
+              <Text style={styles.reactionEmoji}>{reactionEmoji}</Text>
             ) : (
               <Ionicons
                 name="heart-outline"
@@ -646,7 +894,7 @@ export default function FeedScreen() {
                 { borderColor: isDark ? colors.backgroundSecondary : '#FFFFFF' },
               ]}
             >
-              <Ionicons name="add" size={24} color={colors.primary} />
+              <Ionicons name="add" size={24} color="#C8A25F" />
             </View>
           </LinearGradient>
           <Text style={[styles.storyName, { color: colors.text }]}>New Post</Text>
@@ -809,6 +1057,9 @@ export default function FeedScreen() {
       fontSize: 12,
       marginTop: 2,
     },
+    postContentWrapper: {
+      marginBottom: 0,
+    },
     postContent: {
       fontSize: 15,
       lineHeight: 22,
@@ -850,9 +1101,21 @@ export default function FeedScreen() {
       width: '100%',
       height: '100%',
     },
-    reactionImage: {
-      width: 20,
-      height: 20,
+    reactionEmoji: {
+      fontSize: 20,
+    },
+    doubleTapAnimationContainer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 10,
+    },
+    doubleTapEmoji: {
+      fontSize: 64,
     },
     suggestionsHeader: {
       paddingHorizontal: 20,
@@ -1079,7 +1342,20 @@ export default function FeedScreen() {
           </Text>
           <View style={styles.engagementActions}>
             <TouchableOpacity
-              style={[styles.engagementButton, styles.engagementPrimaryButton]}
+              style={[
+                styles.engagementButton, 
+                styles.engagementPrimaryButton,
+                {
+                  backgroundColor: '#192A4A',
+                  borderWidth: 1,
+                  borderColor: '#C8A25F',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.4,
+                  shadowRadius: 4,
+                  elevation: 4,
+                },
+              ]}
               onPress={() => router.push('/(tabs)/create-post')}
             >
               <Ionicons name="create-outline" size={18} color="#FFFFFF" />
@@ -1113,30 +1389,27 @@ export default function FeedScreen() {
     </View>
   );
 
-  const currentPost = reactionPickerPostId
-    ? posts.find((p) => p.id === reactionPickerPostId)
-    : null;
-  const currentReaction = currentPost
-    ? (currentPost.reactions || []).find((r) => r.user?.id === user?.id)
-    : null;
-
   return (
     <View style={styles.container}>
       <AppNavbar />
-      <ReactionPicker
-        visible={reactionPickerVisible}
+      <AdvancedEmojiPicker
+        visible={advancedEmojiPickerVisible}
         onClose={() => {
-          setReactionPickerVisible(false);
-          setReactionPickerPostId(null);
-          setReactionPickerPosition(undefined);
+          setAdvancedEmojiPickerVisible(false);
+          setAdvancedEmojiPickerPostId(null);
         }}
-        onSelect={(reactionType) => {
-          if (reactionPickerPostId) {
-            handleReactionSelect(reactionPickerPostId, reactionType);
+        onSelect={(emoji) => {
+          if (advancedEmojiPickerPostId) {
+            handleEmojiReactionSelect(advancedEmojiPickerPostId, emoji);
           }
         }}
-        currentReaction={currentReaction?.reaction_type || null}
-        position={reactionPickerPosition}
+        currentReaction={
+          advancedEmojiPickerPostId
+            ? (posts.find((p) => p.id === advancedEmojiPickerPostId)?.reactions || []).find(
+                (r) => r.user?.id === user?.id
+              )?.reaction_type || null
+            : null
+        }
       />
       <FlatList<FeedPost>
         data={posts}
@@ -1146,9 +1419,14 @@ export default function FeedScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
+            tintColor="#C8A25F"
           />
         }
+        onScroll={(event) => {
+          const currentScrollY = event.nativeEvent.contentOffset.y;
+          scrollY.setValue(currentScrollY);
+        }}
+        scrollEventThrottle={16}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         ListHeaderComponent={renderListHeader}

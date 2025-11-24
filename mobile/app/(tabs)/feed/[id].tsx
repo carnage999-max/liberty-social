@@ -35,7 +35,7 @@ import {
 import { API_BASE } from '../../../constants/API';
 import type { ImageSourcePropType } from 'react-native';
 import AppNavbar from '../../../components/layout/AppNavbar';
-import ReactionPicker from '../../../components/feed/ReactionPicker';
+import AdvancedEmojiPicker from '../../../components/feed/AdvancedEmojiPicker';
 import CommentActionsMenu from '../../../components/feed/CommentActionsMenu';
 import type { ReactionType } from '../../../types';
 import UserProfileBottomSheet from '../../../components/profile/UserProfileBottomSheet';
@@ -138,14 +138,30 @@ export default function PostDetailScreen() {
   const [replySubmitting, setReplySubmitting] = useState<Record<number, boolean>>({});
   const [expandedReplies, setExpandedReplies] = useState<number[]>([]);
   const [commentMedias, setCommentMedias] = useState<Record<number | 'new', Array<{ formData: FormData; uri: string }>>>({ new: [] });
-  const [reactionPickerVisible, setReactionPickerVisible] = useState(false);
-  const [reactionPickerPosition, setReactionPickerPosition] = useState<{ x: number; y: number } | undefined>(undefined);
-  const [commentReactionPickerVisible, setCommentReactionPickerVisible] = useState(false);
-  const [commentReactionPickerCommentId, setCommentReactionPickerCommentId] = useState<number | null>(null);
-  const [commentReactionPickerPosition, setCommentReactionPickerPosition] = useState<{ x: number; y: number } | undefined>(undefined);
+  const [advancedEmojiPickerVisible, setAdvancedEmojiPickerVisible] = useState(false);
+  const [advancedEmojiPickerPostId, setAdvancedEmojiPickerPostId] = useState<number | null>(null);
+  const [commentAdvancedEmojiPickerVisible, setCommentAdvancedEmojiPickerVisible] = useState(false);
+  const [commentAdvancedEmojiPickerCommentId, setCommentAdvancedEmojiPickerCommentId] = useState<number | null>(null);
   const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
   const likeAnimation = useRef(new Animated.Value(1)).current;
+
+  // Map reaction types to emojis (for backward compatibility)
+  const REACTION_TYPE_TO_EMOJI: Record<string, string> = {
+    "like": "👍",
+    "love": "❤️",
+    "haha": "😂",
+    "sad": "😢",
+    "angry": "😠",
+  };
+
+  // Convert reaction type to emoji (handles both old text types and new emoji types)
+  const getReactionEmoji = (reactionType: string): string => {
+    if (REACTION_TYPE_TO_EMOJI[reactionType]) {
+      return REACTION_TYPE_TO_EMOJI[reactionType];
+    }
+    return reactionType; // Already an emoji
+  };
 
   const loadPost = useCallback(async () => {
     try {
@@ -561,10 +577,8 @@ export default function PostDetailScreen() {
       showInfo('Please log in to react to comments.');
       return;
     }
-    const { pageX, pageY } = event.nativeEvent;
-    setCommentReactionPickerPosition({ x: pageX, y: pageY - 60 });
-    setCommentReactionPickerCommentId(commentId);
-    setCommentReactionPickerVisible(true);
+    setCommentAdvancedEmojiPickerCommentId(commentId);
+    setCommentAdvancedEmojiPickerVisible(true);
   };
 
   const handlePostReactionLongPress = (event: any) => {
@@ -572,13 +586,17 @@ export default function PostDetailScreen() {
       showInfo('Please log in to react to posts.');
       return;
     }
-    const { pageX, pageY } = event.nativeEvent;
-    setReactionPickerPosition({ x: pageX, y: pageY - 60 });
-    setReactionPickerVisible(true);
+    if (post) {
+      setAdvancedEmojiPickerPostId(post.id);
+      setAdvancedEmojiPickerVisible(true);
+    }
   };
 
   const handlePostReactionSelect = async (reactionType: ReactionType) => {
     if (!post || !user) return;
+
+    // Convert reaction type to emoji
+    const emoji = getReactionEmoji(reactionType);
 
     const existingReaction = (post.reactions || []).find(
       (reaction) => reaction.user?.id === user.id
@@ -588,8 +606,8 @@ export default function PostDetailScreen() {
     const previousPost = post;
 
     try {
-      if (existingReaction && existingReaction.reaction_type === reactionType) {
-        // Remove reaction if same type
+      if (existingReaction && getReactionEmoji(existingReaction.reaction_type) === emoji) {
+        // Remove reaction if same emoji
         await apiClient.delete(`/reactions/${existingReaction.id}/`);
       } else {
         // Delete old reaction if exists and add new one
@@ -598,7 +616,7 @@ export default function PostDetailScreen() {
         }
         await apiClient.post('/reactions/', {
           post: post.id,
-          reaction_type: reactionType,
+          reaction_type: emoji,
         });
       }
       // Reload post to get updated reactions
@@ -610,12 +628,108 @@ export default function PostDetailScreen() {
       setPost(previousPost);
     } finally {
       setReactionPending(false);
-      setReactionPickerVisible(false);
-      setReactionPickerPosition(undefined);
+      setAdvancedEmojiPickerVisible(false);
+      setAdvancedEmojiPickerPostId(null);
     }
   };
 
   const handleCommentReactionSelect = async (commentId: number, reactionType: ReactionType) => {
+    if (!post || !user) return;
+
+    // Convert reaction type to emoji
+    const emoji = getReactionEmoji(reactionType);
+
+    // Find the comment
+    let targetComment: Comment | undefined;
+    for (const comment of post.comments || []) {
+      if (comment.id === commentId) {
+        targetComment = comment;
+        break;
+      }
+      const reply = (comment.replies || []).find((r) => r.id === commentId);
+      if (reply) {
+        targetComment = reply;
+        break;
+      }
+    }
+
+    if (!targetComment) return;
+
+    const existingReaction = (targetComment.reactions || []).find(
+      (reaction) => reaction.user?.id === user.id
+    );
+
+    setReactionPending(true);
+    const previousPost = post;
+
+    try {
+      if (existingReaction && getReactionEmoji(existingReaction.reaction_type) === emoji) {
+        // Remove reaction if same emoji
+        await apiClient.delete(`/reactions/${existingReaction.id}/`);
+      } else {
+        // Delete old reaction if exists and add new one
+        if (existingReaction) {
+          await apiClient.delete(`/reactions/${existingReaction.id}/`);
+        }
+        await apiClient.post('/reactions/', {
+          comment: commentId,
+          reaction_type: emoji,
+        });
+      }
+      // Reload post to get updated reactions
+      const data = await apiClient.get<Post>(`/posts/${id}/`);
+      setPost(ensureNormalizedPost(data));
+    } catch (error) {
+      showError('Unable to react. Please try again later.');
+      setPost(previousPost);
+    } finally {
+      setReactionPending(false);
+      setCommentAdvancedEmojiPickerVisible(false);
+      setCommentAdvancedEmojiPickerCommentId(null);
+    }
+  };
+
+  // Handle custom emoji selection for posts (from advanced picker)
+  const handlePostEmojiSelect = async (emoji: string) => {
+    if (!post || !user) return;
+
+    const existingReaction = (post.reactions || []).find(
+      (reaction) => reaction.user?.id === user.id
+    );
+
+    setReactionPending(true);
+    const previousPost = post;
+
+    try {
+      if (existingReaction && existingReaction.reaction_type === emoji) {
+        // Remove reaction if same emoji
+        await apiClient.delete(`/reactions/${existingReaction.id}/`);
+      } else {
+        // Delete old reaction if exists and add new one
+        if (existingReaction) {
+          await apiClient.delete(`/reactions/${existingReaction.id}/`);
+        }
+        await apiClient.post('/reactions/', {
+          post: post.id,
+          reaction_type: emoji,
+        });
+      }
+      // Reload post to get updated reactions
+      const data = await apiClient.get<Post>(`/posts/${id}/`);
+      setPost(ensureNormalizedPost(data));
+      animateLikeState();
+    } catch (error) {
+      showError('Unable to react. Please try again later.');
+      setPost(previousPost);
+    } finally {
+      setReactionPending(false);
+      setAdvancedEmojiPickerVisible(false);
+      setAdvancedEmojiPickerPostId(null);
+    }
+  };
+
+  // Handle custom emoji selection for comments (from advanced picker)
+  const handleCommentEmojiSelect = async (commentId: number, emoji: string) => {
     if (!post || !user) return;
 
     // Find the comment
@@ -642,8 +756,8 @@ export default function PostDetailScreen() {
     const previousPost = post;
 
     try {
-      if (existingReaction && existingReaction.reaction_type === reactionType) {
-        // Remove reaction if same type
+      if (existingReaction && existingReaction.reaction_type === emoji) {
+        // Remove reaction if same emoji
         await apiClient.delete(`/reactions/${existingReaction.id}/`);
       } else {
         // Delete old reaction if exists and add new one
@@ -652,7 +766,7 @@ export default function PostDetailScreen() {
         }
         await apiClient.post('/reactions/', {
           comment: commentId,
-          reaction_type: reactionType,
+          reaction_type: emoji,
         });
       }
       // Reload post to get updated reactions
@@ -663,9 +777,8 @@ export default function PostDetailScreen() {
       setPost(previousPost);
     } finally {
       setReactionPending(false);
-      setCommentReactionPickerVisible(false);
-      setCommentReactionPickerCommentId(null);
-      setCommentReactionPickerPosition(undefined);
+      setCommentAdvancedEmojiPickerVisible(false);
+      setCommentAdvancedEmojiPickerCommentId(null);
     }
   };
 
@@ -922,7 +1035,7 @@ export default function PostDetailScreen() {
           onPress={() => handleAddAttachment('new')}
           accessibilityLabel="Add media"
         >
-          <Ionicons name="add-outline" size={20} color={colors.primary} />
+          <Ionicons name="add-outline" size={20} color="#C8A25F" />
         </TouchableOpacity>
         <TextInput
           style={styles.commentInput}
@@ -991,14 +1104,8 @@ export default function PostDetailScreen() {
     // Get total reaction count
     const totalReactionCount = (comment.reactions || []).length;
     
-    // Reaction image mapping
-    const reactionImages: Record<string, any> = {
-      like: require('../../../assets/reactions_assets/like.png'),
-      love: require('../../../assets/reactions_assets/love.png'),
-      haha: require('../../../assets/reactions_assets/laugh.png'),
-      sad: require('../../../assets/reactions_assets/sad.png'),
-      angry: require('../../../assets/reactions_assets/angry.png'),
-    };
+    // Get reaction emoji for display
+    const reactionEmoji = currentReactionType ? getReactionEmoji(currentReactionType) : null;
 
     const isTopLevelComment = depth === 0;
 
@@ -1122,12 +1229,8 @@ export default function PostDetailScreen() {
                   onLongPress={(event) => handleCommentReactionLongPress(comment.id, event)}
                   disabled={reactionPending}
                 >
-                  {currentReactionType ? (
-                    <Image 
-                      source={reactionImages[currentReactionType] || reactionImages.like} 
-                      style={styles.commentReactionImage} 
-                      resizeMode="contain"
-                    />
+                  {reactionEmoji ? (
+                    <Text style={styles.commentReactionEmoji}>{reactionEmoji}</Text>
                   ) : (
                     <Ionicons
                       name="heart-outline"
@@ -1183,7 +1286,7 @@ export default function PostDetailScreen() {
                     onPress={() => handleAddAttachment(comment.id)}
                     accessibilityLabel="Add media"
                   >
-                    <Ionicons name="add-outline" size={20} color={colors.primary} />
+                    <Ionicons name="add-outline" size={20} color="#C8A25F" />
                   </TouchableOpacity>
                   <TextInput
                     style={styles.commentInput}
@@ -1301,7 +1404,7 @@ export default function PostDetailScreen() {
     repliesToggleText: {
       fontSize: 13,
       fontWeight: '500',
-      color: colors.primary,
+      color: '#C8A25F',
     },
     replyComposer: {
       marginTop: 12,
@@ -1446,9 +1549,8 @@ export default function PostDetailScreen() {
       fontWeight: '500',
       color: colors.textSecondary,
     },
-    reactionImage: {
-      width: 22,
-      height: 22,
+    postReactionEmoji: {
+      fontSize: 22,
     },
     commentsSection: {
       paddingTop: 8,
@@ -1519,9 +1621,8 @@ export default function PostDetailScreen() {
       flex: 1,
       color: colors.text,
     },
-    commentReactionImage: {
-      width: 18,
-      height: 18,
+    commentReactionEmoji: {
+      fontSize: 18,
     },
     commentText: {
       fontSize: 14,
@@ -1589,10 +1690,17 @@ export default function PostDetailScreen() {
     },
     commentSendButton: {
       marginLeft: 10,
-      backgroundColor: colors.primary,
+      backgroundColor: '#192A4A',
       borderRadius: 16,
       paddingHorizontal: 14,
       paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: '#C8A25F',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.4,
+      shadowRadius: 4,
+      elevation: 4,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1686,15 +1794,7 @@ export default function PostDetailScreen() {
   );
   const hasReacted = !!currentReaction;
   const reactionType = currentReaction?.reaction_type;
-  
-  const reactionImages: Record<string, any> = {
-    like: require('../../../assets/reactions_assets/like.png'),
-    love: require('../../../assets/reactions_assets/love.png'),
-    haha: require('../../../assets/reactions_assets/laugh.png'),
-    wow: require('../../../assets/reactions_assets/wow.png'),
-    sad: require('../../../assets/reactions_assets/sad.png'),
-    angry: require('../../../assets/reactions_assets/angry.png'),
-  };
+  const reactionEmoji = reactionType ? getReactionEmoji(reactionType) : null;
   
   const totalReactions = (post.reactions || []).length;
   const likeCount = (post.reactions || []).filter(
@@ -1715,12 +1815,21 @@ export default function PostDetailScreen() {
           stickyHeaderIndices={[1]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          onScroll={(event) => {
+            const currentScrollY = event.nativeEvent.contentOffset.y;
+            if (currentScrollY > 50) {
+              (global as any).hideTabBar?.();
+            } else {
+              (global as any).showTabBar?.();
+            }
+          }}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
+              tintColor="#C8A25F"
+              colors={["#C8A25F"]}
             />
           }
         >
@@ -1795,13 +1904,9 @@ export default function PostDetailScreen() {
                   onLongPress={handlePostReactionLongPress}
                   disabled={reactionPending}
                 >
-                  {hasReacted && reactionType ? (
+                  {hasReacted && reactionEmoji ? (
                     <Animated.View style={{ transform: [{ scale: likeAnimation }] }}>
-                      <Image 
-                        source={reactionImages[reactionType] || reactionImages.like} 
-                        style={styles.reactionImage} 
-                        resizeMode="contain"
-                      />
+                      <Text style={styles.postReactionEmoji}>{reactionEmoji}</Text>
                     </Animated.View>
                   ) : (
                     <Animated.View style={{ transform: [{ scale: likeAnimation }] }}>
@@ -1858,38 +1963,36 @@ export default function PostDetailScreen() {
         </ScrollView>
       </View>
 
-      <ReactionPicker
-        visible={reactionPickerVisible}
+      <AdvancedEmojiPicker
+        visible={advancedEmojiPickerVisible}
         onClose={() => {
-          setReactionPickerVisible(false);
-          setReactionPickerPosition(undefined);
+          setAdvancedEmojiPickerVisible(false);
+          setAdvancedEmojiPickerPostId(null);
         }}
-        onSelect={handlePostReactionSelect}
+        onSelect={handlePostEmojiSelect}
         currentReaction={post?.reactions?.find(r => r.user?.id === user?.id)?.reaction_type || null}
-        position={reactionPickerPosition}
       />
 
-      <ReactionPicker
-        visible={commentReactionPickerVisible}
+      <AdvancedEmojiPicker
+        visible={commentAdvancedEmojiPickerVisible}
         onClose={() => {
-          setCommentReactionPickerVisible(false);
-          setCommentReactionPickerCommentId(null);
-          setCommentReactionPickerPosition(undefined);
+          setCommentAdvancedEmojiPickerVisible(false);
+          setCommentAdvancedEmojiPickerCommentId(null);
         }}
-        onSelect={(reactionType) => {
-          if (commentReactionPickerCommentId) {
-            handleCommentReactionSelect(commentReactionPickerCommentId, reactionType);
+        onSelect={(emoji) => {
+          if (commentAdvancedEmojiPickerCommentId) {
+            handleCommentEmojiSelect(commentAdvancedEmojiPickerCommentId, emoji);
           }
         }}
         currentReaction={
-          commentReactionPickerCommentId && post
+          commentAdvancedEmojiPickerCommentId && post
             ? (() => {
                 // Find the comment and get its current reaction
                 for (const comment of post.comments || []) {
-                  if (comment.id === commentReactionPickerCommentId) {
+                  if (comment.id === commentAdvancedEmojiPickerCommentId) {
                     return comment.reactions?.find(r => r.user?.id === user?.id)?.reaction_type || null;
                   }
-                  const reply = comment.replies?.find(r => r.id === commentReactionPickerCommentId);
+                  const reply = comment.replies?.find(r => r.id === commentAdvancedEmojiPickerCommentId);
                   if (reply) {
                     return reply.reactions?.find(r => r.user?.id === user?.id)?.reaction_type || null;
                   }
@@ -1898,7 +2001,6 @@ export default function PostDetailScreen() {
               })()
             : null
         }
-        position={commentReactionPickerPosition}
       />
 
       <UserProfileBottomSheet

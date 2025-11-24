@@ -49,6 +49,13 @@ export default function ProfileScreen() {
   const userId = params.userId ? Number(params.userId) : currentUser?.id;
   const isOwnProfile = userId === currentUser?.id;
 
+  // Load profile when userId is available
+  useEffect(() => {
+    if (userId && !profile) {
+      loadProfile();
+    }
+  }, [userId]);
+
   useEffect(() => {
     if (userId) {
       // Only load profile on initial mount or when userId changes

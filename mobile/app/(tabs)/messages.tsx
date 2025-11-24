@@ -21,6 +21,7 @@ import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import { SkeletonFriend } from '../../components/common/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ActiveFriends from '../../components/friends/ActiveFriends';
 
 export default function MessagesScreen() {
   const { colors, isDark } = useTheme();
@@ -417,6 +418,11 @@ export default function MessagesScreen() {
           keyExtractor={(item) => item.id.toString()}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
+          ListHeaderComponent={
+            <View style={{ marginBottom: 16 }}>
+              <ActiveFriends maxUsers={8} />
+            </View>
+          }
         />
       )}
 

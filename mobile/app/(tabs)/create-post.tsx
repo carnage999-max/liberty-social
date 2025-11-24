@@ -198,7 +198,14 @@ export default function CreatePostScreen() {
       borderRadius: 16,
       paddingVertical: 16,
       alignItems: 'center',
-      backgroundColor: colors.primary,
+      backgroundColor: '#192A4A',
+      borderWidth: 1,
+      borderColor: '#C8A25F',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.4,
+      shadowRadius: 4,
+      elevation: 4,
     },
     submitText: {
       color: '#FFFFFF',
@@ -308,7 +315,7 @@ export default function CreatePostScreen() {
                 style={[
                   themedStyles.visibilityButton,
                   {
-                    borderColor: isSelected ? colors.primary : colors.border,
+                    borderColor: isSelected ? '#C8A25F' : colors.border,
                     backgroundColor: isSelected
                       ? (isDark ? colors.backgroundSecondary : '#FFFFFF')
                       : 'transparent',
@@ -320,7 +327,7 @@ export default function CreatePostScreen() {
                 <Text
                   style={[
                     themedStyles.visibilityText,
-                    { color: isSelected ? colors.primary : colors.textSecondary },
+                    { color: isSelected ? '#C8A25F' : colors.textSecondary },
                   ]}
                 >
                   {formatVisibilityLabel(option)}

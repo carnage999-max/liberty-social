@@ -2,24 +2,77 @@ import { Tabs } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, Platform, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, Platform, StyleSheet, Image, TouchableOpacity, Modal, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import type { ParamListBase } from '@react-navigation/native';
 import type { BottomTabNavigationEventMap } from '@react-navigation/bottom-tabs';
 import type { NavigationHelpers } from '@react-navigation/native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../../utils/api';
 import { Notification, PaginatedResponse, FriendRequest } from '../../types';
+import { useRouter, usePathname } from 'expo-router';
 
 export default function TabsLayout() {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [unreadCount, setUnreadCount] = useState(0);
   const [friendRequestCount, setFriendRequestCount] = useState(0);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [tabBarVisible, setTabBarVisible] = useState(true);
+  const slideAnim = useRef(new Animated.Value(300)).current;
+  const tabBarTranslateY = useRef(new Animated.Value(0)).current;
+  const pathname = usePathname();
 
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 0;
+
+  // Global functions to control tab bar visibility
+  useEffect(() => {
+    (global as any).hideTabBar = () => {
+      if (tabBarVisible) {
+        setTabBarVisible(false);
+        tabBarTranslateY.setValue(200);
+      }
+    };
+
+    (global as any).showTabBar = () => {
+      if (!tabBarVisible) {
+        setTabBarVisible(true);
+        tabBarTranslateY.setValue(0);
+      }
+    };
+
+    // Show tab bar when route changes
+    if (pathname) {
+      (global as any).showTabBar?.();
+    }
+
+    return () => {
+      delete (global as any).hideTabBar;
+      delete (global as any).showTabBar;
+    };
+  }, [tabBarVisible, pathname, tabBarTranslateY]);
+
+  // Animate menu
+  useEffect(() => {
+    if (showMoreMenu) {
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 10,
+      }).start();
+    } else {
+      Animated.spring(slideAnim, {
+        toValue: 300,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 10,
+      }).start();
+    }
+  }, [showMoreMenu]);
 
   // Fetch unread notification count
   useEffect(() => {
@@ -77,54 +130,143 @@ export default function TabsLayout() {
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
-      borderTopColor: colors.border,
-      borderTopWidth: StyleSheet.hairlineWidth,
+      backgroundColor: 'rgba(26, 35, 53, 0.95)', // Deep navy with transparency
+      borderTopColor: 'rgba(255, 255, 255, 0.1)',
+      borderTopWidth: 1,
       paddingBottom: bottomPadding,
       paddingTop: 8,
-      paddingHorizontal: 16,
+      paddingHorizontal: 0,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 8,
     },
     tabBarContent: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
+      justifyContent: 'space-around',
+      paddingHorizontal: 4,
     },
     tabButton: {
-      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 2,
+      gap: 4,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+    },
+    tabButtonActive: {
+      backgroundColor: '#fbbf24', // Gold background when active
     },
     tabIconWrapper: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    tabLabel: {
-      fontSize: 11,
-      fontWeight: '600',
-    },
-    badge: {
-      position: 'absolute',
-      top: -2,
-      right: -2,
-      backgroundColor: '#FF4D4F',
-      borderRadius: 10,
-      minWidth: 18,
-      height: 18,
-      paddingHorizontal: 5,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 2,
-      borderColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    tabIconWrapperActive: {
+      backgroundColor: '#fbbf24', // Gold
+      borderColor: '#fbbf24',
+    },
+    tabIconWrapperInactive: {
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    tabLabel: {
+      fontSize: 10,
+      fontWeight: '600',
+    },
+    tabLabelActive: {
+      color: '#1a2335', // Deep navy
+    },
+    tabLabelInactive: {
+      color: '#FFFFFF',
+    },
+    badge: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      backgroundColor: '#FF4D4F',
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      paddingHorizontal: 5,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     badgeText: {
       color: '#FFFFFF',
-      fontSize: 10,
+      fontSize: 9,
       fontWeight: '700',
+    },
+    moreMenuContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 1000,
+    },
+    moreMenuBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    moreMenuContent: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingBottom: bottomPadding + 70,
+      paddingTop: 20,
+      paddingHorizontal: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    moreMenuHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    moreMenuTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+    },
+    moreMenuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      marginBottom: 8,
+    },
+    moreMenuItemIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    moreMenuItemLabel: {
+      fontSize: 16,
+      fontWeight: '600',
     },
   });
 
@@ -135,6 +277,17 @@ export default function TabsLayout() {
     notifications: 'notifications',
     profile: 'person',
   };
+
+  const openMoreMenu = () => {
+    setShowMoreMenu(true);
+  };
+
+  const MORE_MENU_ITEMS = [
+    { id: 'marketplace', label: 'Marketplace', icon: 'storefront-outline', route: '/(tabs)/marketplace' },
+    { id: 'pages', label: 'Pages', icon: 'business-outline', route: '/(tabs)/pages' },
+    { id: 'friend-requests', label: 'Friend Requests', icon: 'people-outline', route: '/(tabs)/friend-requests' },
+    { id: 'messages', label: 'Messages', icon: 'chatbubble-outline', route: '/(tabs)/messages' },
+  ];
 
   const renderTabBar = ({
     state,
@@ -151,10 +304,17 @@ export default function TabsLayout() {
     navigation: NavigationHelpers<ParamListBase, BottomTabNavigationEventMap>;
   }) => {
     return (
-      <View style={styles.tabBarContainer}>
+      <Animated.View 
+        style={[
+          styles.tabBarContainer,
+          {
+            transform: [{ translateY: tabBarTranslateY }],
+          },
+        ]}
+      >
         <View style={styles.tabBarContent}>
           {state.routes
-            .filter((route: any) => route.name !== 'settings')
+            .filter((route: any) => !['settings', 'more', 'marketplace', 'pages', 'friend-requests', 'messages'].includes(route.name))
             .map((route: any) => {
               const { options } = descriptors[route.key];
               const label =
@@ -180,156 +340,314 @@ export default function TabsLayout() {
                 });
 
                 if (!isFocused && !event.defaultPrevented) {
-                  navigation.navigate(route.name);
+                  if (route.name === 'profile') {
+                    // Navigate to user's own profile
+                    if (user?.id) {
+                      router.push(`/users/${user.id}` as any);
+                    }
+                  } else {
+                    navigation.navigate(route.name);
+                  }
                 }
               };
 
-              // For profile tab, show user's profile picture
+              // Handle profile tab with user image
               if (route.name === 'profile') {
                 const avatarSrc = user?.profile_image_url ? resolveRemoteUrl(user.profile_image_url) : null;
-                const avatarSource = avatarSrc ? { uri: avatarSrc } : DEFAULT_AVATAR;
-                const username = user?.username || 'Profile';
+                const firstLetter = user?.username?.[0]?.toUpperCase() || user?.first_name?.[0]?.toUpperCase() || 'P';
+                const profileSource = avatarSrc ? { uri: avatarSrc } : DEFAULT_AVATAR;
 
                 return (
-                  <TouchableOpacity key={route.key} style={styles.tabButton} onPress={onPress}>
+                  <TouchableOpacity
+                    key={route.key}
+                    style={[
+                      styles.tabButton,
+                      isFocused && styles.tabButtonActive,
+                    ]}
+                    onPress={onPress}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ position: 'relative' }}>
+                      <View
+                        style={[
+                          styles.tabIconWrapper,
+                          isFocused ? styles.tabIconWrapperActive : styles.tabIconWrapperInactive,
+                          { overflow: 'hidden' },
+                        ]}
+                      >
+                        {avatarSrc ? (
+                          <Image 
+                            source={profileSource} 
+                            style={{ width: '100%', height: '100%', borderRadius: 18 }}
+                          />
+                        ) : (
+                          <Text style={{
+                            fontSize: 16,
+                            fontWeight: '700',
+                            color: isFocused ? '#1a2335' : '#FFFFFF',
+                          }}>
+                            {firstLetter}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <Text
+                      style={[
+                        styles.tabLabel,
+                        isFocused ? styles.tabLabelActive : styles.tabLabelInactive,
+                      ]}
+                    >
+                      {firstLetter + (user?.username?.slice(1) || 'rofile')}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }
+
+
+              // Handle "more" menu differently
+              if (route.name === 'more') {
+                return (
+                  <TouchableOpacity
+                    key={route.key}
+                    style={[
+                      styles.tabButton,
+                      showMoreMenu && styles.tabButtonActive,
+                    ]}
+                    onPress={() => setShowMoreMenu(!showMoreMenu)}
+                    activeOpacity={0.7}
+                  >
                     <View
                       style={[
                         styles.tabIconWrapper,
-                        {
-                          borderWidth: 1.5,
-                          borderColor: isFocused ? colors.primary : 'transparent',
-                          overflow: 'hidden',
-                        },
+                        showMoreMenu ? styles.tabIconWrapperActive : styles.tabIconWrapperInactive,
                       ]}
                     >
-                      <Image 
-                        source={avatarSource} 
-                        style={{ width: '100%', height: '100%' }}
+                      <Ionicons
+                        name={iconName}
+                        size={18}
+                        color={showMoreMenu ? '#1a2335' : '#FFFFFF'}
                       />
                     </View>
                     <Text
                       style={[
                         styles.tabLabel,
-                        {
-                          color: isFocused ? colors.primary : colors.textSecondary,
-                        },
+                        showMoreMenu ? styles.tabLabelActive : styles.tabLabelInactive,
                       ]}
                     >
-                      {username}
+                      More
                     </Text>
                   </TouchableOpacity>
                 );
               }
 
               return (
-                <View key={route.key} style={styles.tabButton}>
-                  <View
-                    style={[
-                      styles.tabIconWrapper,
-                      {
-                        backgroundColor:
-                          isFocused && route.name === 'create-post'
-                            ? colors.primary
-                            : 'transparent',
-                        borderWidth: isFocused && route.name === 'create-post' ? 0 : 1,
-                        borderColor: isFocused ? colors.primary : 'transparent',
-                      },
-                    ]}
-                  >
-                    <TouchableOpacity onPress={onPress} style={{ position: 'relative' }}>
+                <TouchableOpacity
+                  key={route.key}
+                  style={[
+                    styles.tabButton,
+                    isFocused && styles.tabButtonActive,
+                  ]}
+                  onPress={onPress}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ position: 'relative' }}>
+                    <View
+                      style={[
+                        styles.tabIconWrapper,
+                        isFocused ? styles.tabIconWrapperActive : styles.tabIconWrapperInactive,
+                      ]}
+                    >
                       <Ionicons
                         name={iconName}
-                        size={route.name === 'create-post' ? 26 : 24}
-                        color={
-                          route.name === 'create-post'
-                            ? isFocused
-                              ? '#FFFFFF'
-                              : colors.primary
-                            : isFocused
-                            ? colors.primary
-                            : colors.textSecondary
-                        }
+                        size={18}
+                        color={isFocused ? '#1a2335' : '#FFFFFF'}
                       />
-                      {route.name === 'notifications' && unreadCount > 0 && (
-                        <View style={styles.badge}>
-                          <Text style={styles.badgeText}>
-                            {unreadCount > 99 ? '99+' : unreadCount}
-                          </Text>
-                        </View>
-                      )}
-                      {route.name === 'friends' && friendRequestCount > 0 && (
-                        <View style={styles.badge}>
-                          <Text style={styles.badgeText}>
-                            {friendRequestCount > 99 ? '99+' : friendRequestCount}
-                          </Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
+                    </View>
+                    {route.name === 'notifications' && unreadCount > 0 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Text>
+                      </View>
+                    )}
+                    {route.name === 'friends' && friendRequestCount > 0 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {friendRequestCount > 99 ? '99+' : friendRequestCount}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                   <Text
-                    onPress={onPress}
                     style={[
                       styles.tabLabel,
-                      {
-                        color: isFocused ? colors.primary : colors.textSecondary,
-                      },
+                      isFocused ? styles.tabLabelActive : styles.tabLabelInactive,
                     ]}
                   >
                     {label}
                   </Text>
-                </View>
+                </TouchableOpacity>
               );
             })}
         </View>
-      </View>
+      </Animated.View>
     );
   };
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: { display: 'none' },
-      }}
-      tabBar={renderTabBar}
-    >
-      <Tabs.Screen
-        name="feed"
-        options={{
-          title: 'Feed',
+    <>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: { display: 'none' },
         }}
-      />
-      <Tabs.Screen
-        name="friends"
-        options={{
-          title: 'Friends',
+        tabBar={renderTabBar}
+      >
+        <Tabs.Screen
+          name="feed"
+          options={{
+            title: 'Feed',
+          }}
+        />
+        <Tabs.Screen
+          name="friends"
+          options={{
+            title: 'Friends',
+          }}
+        />
+        <Tabs.Screen
+          name="create-post"
+          options={{
+            title: 'Create',
+          }}
+        />
+        <Tabs.Screen
+          name="notifications"
+          options={{
+            title: 'Notifications',
+            tabBarBadge: undefined,
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+          }}
+        />
+        <Tabs.Screen
+          name="more"
+          options={{
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="marketplace"
+          options={{
+            tabBarButton: () => null,
+          }}
+        />
+        <Tabs.Screen
+          name="pages"
+          options={{
+            tabBarButton: () => null,
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            tabBarButton: () => null,
+          }}
+        />
+        <Tabs.Screen
+          name="friend-requests"
+          options={{
+            tabBarButton: () => null,
+          }}
+        />
+        <Tabs.Screen
+          name="messages"
+          options={{
+            href: null,
+          }}
+        />
+      </Tabs>
+
+      {/* More Menu Modal */}
+      <Modal
+        visible={showMoreMenu}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowMoreMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.moreMenuBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowMoreMenu(false)}
+        >
+          <Animated.View
+            style={[
+              styles.moreMenuContent,
+              {
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <View style={styles.moreMenuHeader}>
+              <Text style={[styles.moreMenuTitle, { color: colors.text }]}>More Options</Text>
+              <TouchableOpacity onPress={() => setShowMoreMenu(false)}>
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {MORE_MENU_ITEMS.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.moreMenuItem}
+                onPress={() => {
+                  setShowMoreMenu(false);
+                  router.push(item.route as any);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.moreMenuItemIcon, { backgroundColor: colors.primary + '20' }]}>
+                  <Ionicons name={item.icon as any} size={22} color={colors.primary} />
+                </View>
+                <Text style={[styles.moreMenuItemLabel, { color: colors.text }]}>
+                  {item.label}
+                </Text>
+                <View style={{ flex: 1 }} />
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Floating More Button */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          right: 16,
+          bottom: bottomPadding + 80,
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: '#121A33', // Deep navy
+          borderWidth: 2,
+          borderColor: '#C8A25F', // Gold
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#C8A25F',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.4,
+          shadowRadius: 12,
+          elevation: 12,
         }}
-      />
-      <Tabs.Screen
-        name="create-post"
-        options={{
-          title: 'Create',
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: 'Notifications',
-          tabBarBadge: undefined,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          tabBarButton: () => null,
-        }}
-      />
-    </Tabs>
+        onPress={() => setShowMoreMenu(true)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="grid" size={24} color="#C8A25F" />
+      </TouchableOpacity>
+    </>
   );
 }
