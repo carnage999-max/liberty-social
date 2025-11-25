@@ -40,6 +40,7 @@ import CommentActionsMenu from '../../../components/feed/CommentActionsMenu';
 import type { ReactionType } from '../../../types';
 import UserProfileBottomSheet from '../../../components/profile/UserProfileBottomSheet';
 import { SkeletonPost } from '../../../components/common/Skeleton';
+import ImageGallery from '../../../components/common/ImageGallery';
 
 type NormalizedPost = Post & {
   mediaUrls: string[];
@@ -144,6 +145,9 @@ export default function PostDetailScreen() {
   const [commentAdvancedEmojiPickerCommentId, setCommentAdvancedEmojiPickerCommentId] = useState<number | null>(null);
   const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const likeAnimation = useRef(new Animated.Value(1)).current;
 
   // Map reaction types to emojis (for backward compatibility)
@@ -1183,8 +1187,16 @@ export default function PostDetailScreen() {
             {comment.media && comment.media.length > 0 && (
               <View style={styles.commentMediaGrid}>
                 {comment.media.map((url, index) => (
-                  <Image
+                  <TouchableOpacity
                     key={`comment-media-${index}`}
+                    onPress={() => {
+                      setGalleryImages(comment.media || []);
+                      setGalleryIndex(index);
+                      setGalleryVisible(true);
+                    }}
+                    activeOpacity={0.9}
+                  >
+                    <Image
                     source={{ uri: url }}
                     style={[
                       styles.commentMediaImage,
@@ -1194,6 +1206,7 @@ export default function PostDetailScreen() {
                     ]}
                     resizeMode="cover"
                   />
+                  </TouchableOpacity>
                 ))}
               </View>
             )}
@@ -1211,7 +1224,17 @@ export default function PostDetailScreen() {
               return (
                 <View style={styles.replySummaryContainer}>
                   {preview.map((uri, i) => (
-                    <Image key={`reply-summary-${i}`} source={{ uri }} style={styles.replySummaryImage} />
+                    <TouchableOpacity
+                      key={`reply-summary-${i}`}
+                      onPress={() => {
+                        setGalleryImages(replyMedia);
+                        setGalleryIndex(i);
+                        setGalleryVisible(true);
+                      }}
+                      activeOpacity={0.9}
+                    >
+                      <Image source={{ uri }} style={styles.replySummaryImage} />
+                    </TouchableOpacity>
                   ))}
                   {replyMedia.length > preview.length && (
                     <View style={styles.replySummaryMore}>
@@ -1876,7 +1899,7 @@ export default function PostDetailScreen() {
                   ]}
                 >
                   {mediaUrls.slice(0, 9).map((url: string, index: number) => (
-                    <View
+                    <TouchableOpacity
                       key={`post-media-${index}`}
                       style={[
                         styles.mediaImageWrapper,
@@ -1886,13 +1909,19 @@ export default function PostDetailScreen() {
                           ? styles.mediaImageDouble
                           : styles.mediaImageTriple,
                       ]}
+                      onPress={() => {
+                        setGalleryImages(mediaUrls);
+                        setGalleryIndex(index);
+                        setGalleryVisible(true);
+                      }}
+                      activeOpacity={0.9}
                     >
                       <Image
                         source={{ uri: url }}
                         style={styles.postMediaImage}
                         resizeMode="cover"
                       />
-                    </View>
+                    </TouchableOpacity>
                   ))}
                 </View>
               )}
@@ -2010,6 +2039,15 @@ export default function PostDetailScreen() {
           setProfileBottomSheetVisible(false);
           setSelectedUserId(null);
         }}
+      />
+
+      <ImageGallery
+        visible={galleryVisible}
+        onClose={() => setGalleryVisible(false)}
+        images={galleryImages}
+        initialIndex={galleryIndex}
+        title={post?.content ? post.content.substring(0, 50) + (post.content.length > 50 ? '...' : '') : undefined}
+        timestamp={post?.created_at}
       />
     </KeyboardAvoidingView>
   );

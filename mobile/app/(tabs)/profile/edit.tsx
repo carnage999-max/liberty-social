@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import AppNavbar from '../../../components/layout/AppNavbar';
 import * as ImagePicker from 'expo-image-picker';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../../utils/url';
+import ImageGallery from '../../../components/common/ImageGallery';
 
 export default function EditProfileScreen() {
   const { colors, isDark } = useTheme();
@@ -34,6 +35,9 @@ export default function EditProfileScreen() {
   const [profileImage, setProfileImage] = useState(user?.profile_image_url || '');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -172,7 +176,13 @@ export default function EditProfileScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <AppNavbar title="Edit Profile" showLogo={false} showProfileImage={false} showBackButton={true} />
+      <AppNavbar 
+        title="Edit Profile" 
+        showLogo={false} 
+        showProfileImage={false} 
+        showBackButton={true}
+        onBackPress={() => router.push('/(tabs)/profile')}
+      />
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -180,7 +190,25 @@ export default function EditProfileScreen() {
         showsVerticalScrollIndicator={true}
       >
         <View style={styles.avatarContainer}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => {
+              const images: string[] = [];
+              if (selectedImage) {
+                images.push(selectedImage);
+              } else if (profileImage) {
+                const resolved = resolveRemoteUrl(profileImage);
+                if (resolved) images.push(resolved);
+              }
+              if (images.length > 0) {
+                setGalleryImages(images);
+                setGalleryIndex(0);
+                setGalleryVisible(true);
+              }
+            }}
+          >
           <Image source={avatarSource} style={styles.avatar} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.changePhotoButton} onPress={handlePickImage}>
             <Ionicons name="camera" size={20} color={colors.primary} />
             <Text style={styles.changePhotoText}>Change Photo</Text>
@@ -245,6 +273,14 @@ export default function EditProfileScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      <ImageGallery
+        visible={galleryVisible}
+        onClose={() => setGalleryVisible(false)}
+        images={galleryImages}
+        initialIndex={galleryIndex}
+        title={user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : user?.username || 'Profile Image'}
+      />
     </KeyboardAvoidingView>
   );
 }

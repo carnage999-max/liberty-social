@@ -22,6 +22,7 @@ import { Conversation, PaginatedResponse } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
+import ImageGallery from '../common/ImageGallery';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -91,6 +92,9 @@ export default function UserProfileBottomSheet({
   const [startingConversation, setStartingConversation] = useState(false);
   const [optionsMenuVisible, setOptionsMenuVisible] = useState(false);
   const optionsMenuTranslateY = useRef(new RNAnimated.Value(0)).current;
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   const translateY = useSharedValue(0);
   const context = useSharedValue({ y: 0 });
@@ -901,11 +905,20 @@ export default function UserProfileBottomSheet({
                               {profile.stats.photos.map((url, index) => {
                                 const photoUri = resolveRemoteUrl(url);
                                 return photoUri ? (
-                                  <Image
+                                  <TouchableOpacity
                                     key={index}
+                                    onPress={() => {
+                                      setGalleryImages(profile.stats.photos.map(u => resolveRemoteUrl(u)).filter(Boolean));
+                                      setGalleryIndex(index);
+                                      setGalleryVisible(true);
+                                    }}
+                                    activeOpacity={0.9}
+                                  >
+                                    <Image
                                     source={{ uri: photoUri }}
                                     style={styles.photoImage}
                                   />
+                                  </TouchableOpacity>
                                 ) : null;
                               })}
                             </View>
@@ -983,6 +996,13 @@ export default function UserProfileBottomSheet({
           </RNAnimated.View>
         </Modal>
       </GestureHandlerRootView>
+
+      <ImageGallery
+        visible={galleryVisible}
+        onClose={() => setGalleryVisible(false)}
+        images={galleryImages}
+        initialIndex={galleryIndex}
+      />
     </Modal>
   );
 }

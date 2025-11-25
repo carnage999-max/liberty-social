@@ -22,6 +22,7 @@ import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR, resolveMediaUrls } from '../../utils/url';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
 import { SkeletonProfile, SkeletonFriend, Skeleton } from '../../components/common/Skeleton';
+import ImageGallery from '../../components/common/ImageGallery';
 
 type ProfileTab = 'posts' | 'photos' | 'friends';
 
@@ -44,6 +45,9 @@ export default function ProfileScreen() {
   const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
   const [loadedTabs, setLoadedTabs] = useState<Set<ProfileTab>>(new Set());
   const [startingConversation, setStartingConversation] = useState(false);
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   // If userId is provided in params, view that user's profile; otherwise view own profile
   const userId = params.userId ? Number(params.userId) : currentUser?.id;
@@ -468,11 +472,20 @@ export default function ProfileScreen() {
             onPress={() => router.push(`/(tabs)/feed/${post.id}`)}
           >
             {post.media && post.media.length > 0 ? (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => {
+                  setGalleryImages(post.media || []);
+                  setGalleryIndex(0);
+                  setGalleryVisible(true);
+                }}
+              >
               <Image
                 source={{ uri: post.media[0] }}
                 style={styles.postImage}
                 resizeMode="cover"
               />
+              </TouchableOpacity>
             ) : (
               <View style={[styles.postImage, { justifyContent: 'center', alignItems: 'center' }]}>
                 <Ionicons
@@ -520,8 +533,11 @@ export default function ProfileScreen() {
             key={`photo-${index}`}
             style={styles.postItem}
             onPress={() => {
-              // Could navigate to a photo viewer
+              setGalleryImages(photos);
+              setGalleryIndex(index);
+              setGalleryVisible(true);
             }}
+            activeOpacity={0.9}
           >
             <Image
               source={{ uri: photo }}
@@ -624,7 +640,18 @@ export default function ProfileScreen() {
         <View style={styles.profileHeader}>
           <View style={styles.profileTopSection}>
             <View style={styles.avatarContainer}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => {
+                  if (avatarUri) {
+                    setGalleryImages([avatarUri]);
+                    setGalleryIndex(0);
+                    setGalleryVisible(true);
+                  }
+                }}
+              >
               <Image source={avatarSource} style={styles.avatar} />
+              </TouchableOpacity>
               {isOwnProfile && (
                 <TouchableOpacity
                   style={styles.editProfileButton}
@@ -738,6 +765,13 @@ export default function ProfileScreen() {
           setProfileBottomSheetVisible(false);
           setSelectedUserId(null);
         }}
+      />
+
+      <ImageGallery
+        visible={galleryVisible}
+        onClose={() => setGalleryVisible(false)}
+        images={galleryImages}
+        initialIndex={galleryIndex}
       />
     </View>
   );

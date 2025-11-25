@@ -249,7 +249,7 @@ export default function BlockedUsersScreen() {
           showLogo={false} 
           showProfileImage={false} 
           showBackButton={true}
-          onBackPress={() => router.push('/(tabs)/settings')}
+          onBackPress={() => router.push('/(tabs)/profile')}
         />
         <FlatList
           data={[1, 2, 3, 4, 5]}

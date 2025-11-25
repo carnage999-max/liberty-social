@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
+import ImageGallery from '../../components/common/ImageGallery';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -44,6 +45,9 @@ export default function PageDetailScreen() {
   const { id } = useLocalSearchParams();
   const [page, setPage] = useState<BusinessPage | null>(null);
   const [loading, setLoading] = useState(true);
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   useEffect(() => {
     loadPage();
@@ -256,21 +260,40 @@ export default function PageDetailScreen() {
       <ScrollView style={styles.scrollView}>
         {/* Cover Image */}
         {coverImage ? (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => {
+              setGalleryImages([coverImage]);
+              setGalleryIndex(0);
+              setGalleryVisible(true);
+            }}
+          >
           <Image source={{ uri: coverImage }} style={styles.coverImage} resizeMode="cover" />
+          </TouchableOpacity>
         ) : (
           <View style={[styles.coverImage, { backgroundColor: colors.primary, opacity: 0.3 }]} />
         )}
 
         {/* Profile Section */}
         <View style={styles.profileSection}>
-          <View style={styles.profileImageContainer}>
+          <TouchableOpacity
+            style={styles.profileImageContainer}
+            activeOpacity={0.9}
+            onPress={() => {
+              if (profileImage) {
+                setGalleryImages([profileImage]);
+                setGalleryIndex(0);
+                setGalleryVisible(true);
+              }
+            }}
+          >
             <Image source={profileSource} style={styles.profileImage} />
             {page.is_verified && (
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark" size={16} color="#FFFFFF" />
               </View>
             )}
-          </View>
+          </TouchableOpacity>
 
           <Text style={[styles.pageName, { color: colors.text }]}>{page.name}</Text>
           
@@ -289,35 +312,35 @@ export default function PageDetailScreen() {
         </View>
 
         {/* Follow Button */}
-        <TouchableOpacity
-          style={[
+          <TouchableOpacity
+            style={[
             styles.followButton,
             page.is_following && styles.followingButton,
-          ]}
-          onPress={handleFollowToggle}
-        >
-          <Text
-            style={[
+            ]}
+            onPress={handleFollowToggle}
+          >
+            <Text
+              style={[
               styles.followButtonText,
               page.is_following && styles.followingButtonText,
-            ]}
-          >
-            {page.is_following ? 'Following' : 'Follow'}
-          </Text>
-        </TouchableOpacity>
-
+              ]}
+            >
+              {page.is_following ? 'Following' : 'Follow'}
+            </Text>
+          </TouchableOpacity>
+          
         {/* About Section */}
         {page.description && (
-          <View style={styles.content}>
+        <View style={styles.content}>
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>
               <Text style={styles.description}>{page.description}</Text>
             </View>
-          </View>
-        )}
+            </View>
+          )}
 
         {/* Contact Info */}
-        {(page.website_url || page.phone || page.email) && (
+          {(page.website_url || page.phone || page.email) && (
           <View style={styles.content}>
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Contact</Text>
@@ -355,8 +378,8 @@ export default function PageDetailScreen() {
                 </View>
               )}
             </View>
-          </View>
-        )}
+            </View>
+          )}
 
         {/* Posts Section */}
         <View style={styles.postsSection}>
@@ -367,6 +390,14 @@ export default function PageDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <ImageGallery
+        visible={galleryVisible}
+        onClose={() => setGalleryVisible(false)}
+        images={galleryImages}
+        initialIndex={galleryIndex}
+        title={page.name}
+      />
     </View>
   );
 }

@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
+import ImageGallery from '../../components/common/ImageGallery';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -56,6 +57,8 @@ export default function ListingDetailScreen() {
   const [offerPrice, setOfferPrice] = useState('');
   const [offerMessage, setOfferMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   useEffect(() => {
     loadListing();
@@ -358,6 +361,13 @@ export default function ListingDetailScreen() {
         {/* Image Gallery */}
         <View style={styles.imageContainer}>
           {images.length > 0 ? (
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={() => {
+                setGalleryIndex(currentImageIndex);
+                setGalleryVisible(true);
+              }}
+            >
             <ScrollView
               horizontal
               pagingEnabled
@@ -376,6 +386,7 @@ export default function ListingDetailScreen() {
                 />
               ))}
             </ScrollView>
+            </TouchableOpacity>
           ) : (
             <View style={[styles.image, styles.imagePlaceholder]}>
               <Ionicons name="image-outline" size={64} color={colors.textSecondary} />
@@ -540,6 +551,15 @@ export default function ListingDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <ImageGallery
+        visible={galleryVisible}
+        onClose={() => setGalleryVisible(false)}
+        images={images}
+        initialIndex={galleryIndex}
+        title={listing.title}
+        caption={listing.description}
+      />
     </View>
   );
 }

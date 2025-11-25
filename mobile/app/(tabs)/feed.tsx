@@ -27,6 +27,7 @@ import PostActionsMenu from '../../components/feed/PostActionsMenu';
 import AdvancedEmojiPicker from '../../components/feed/AdvancedEmojiPicker';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
 import { SkeletonPost, Skeleton } from '../../components/common/Skeleton';
+import ImageGallery from '../../components/common/ImageGallery';
 import {
   resolveMediaUrls,
   resolveRemoteUrl,
@@ -120,6 +121,9 @@ export default function FeedScreen() {
   const [advancedEmojiPickerPostId, setAdvancedEmojiPickerPostId] = useState<number | null>(null);
   const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const scrollY = useRef(new Animated.Value(0)).current;
 
   type SuggestionItem =
@@ -378,9 +382,23 @@ export default function FeedScreen() {
     try {
       if (existingReaction) {
         if (getReactionEmoji(existingReaction.reaction_type) === emoji) {
+          // Remove reaction - try to delete, but handle 404 gracefully
+          // The 404 can occur if the reaction was already deleted or doesn't exist
+          try {
+            if (existingReaction.id && existingReaction.id > 0) {
           await apiClient.delete(`/reactions/${existingReaction.id}/`);
+            }
+          } catch (deleteError: any) {
+            // If 404, the reaction might have already been deleted or doesn't exist
+            // This is fine - the optimistic update already removed it from the UI
+            if (deleteError?.response?.status !== 404) {
+              // Only throw if it's not a 404 - other errors should be handled
+              console.warn('Error deleting reaction (non-404):', deleteError);
+            }
+            // For 404, we silently continue as the reaction is already removed from UI
+          }
         } else {
-          await apiClient.delete(`/reactions/${existingReaction.id}/`);
+          // Update reaction type - POST will handle deletion of old reaction
           const savedReaction = await apiClient.post<Reaction>('/reactions/', {
             post: postId,
             reaction_type: emoji,
@@ -614,6 +632,14 @@ export default function FeedScreen() {
         return;
       }
 
+      const post = posts.find((p) => p.id === postId);
+      if (!post) return;
+
+      // Check if user already has a reaction
+      const existingReaction = (post.reactions || []).find(
+        (reaction) => reaction.user?.id === user.id
+      );
+
       // Show animation
       const anim = getDoubleTapAnimation(postId);
       setDoubleTapAnimation({ postId, show: true });
@@ -634,10 +660,23 @@ export default function FeedScreen() {
         setDoubleTapAnimation((prev) => prev?.postId === postId ? { postId, show: false } : prev);
       });
 
-      // Trigger like reaction
+      // If user already has a 'like' reaction, remove it; otherwise add it
+      if (existingReaction) {
+        const existingEmoji = getReactionEmoji(existingReaction.reaction_type);
+        const likeEmoji = getReactionEmoji('like');
+        if (existingEmoji === likeEmoji) {
+          // Remove the reaction
       handleReactionSelect(postId, 'like');
+        } else {
+          // Change to like
+          handleReactionSelect(postId, 'like');
+        }
+      } else {
+        // Add like reaction
+        handleReactionSelect(postId, 'like');
+      }
     },
-    [user, handleReactionSelect, getDoubleTapAnimation]
+    [user, handleReactionSelect, getDoubleTapAnimation, posts]
   );
 
   const handlePostPress = useCallback(
@@ -783,44 +822,48 @@ export default function FeedScreen() {
           onPress={() => handlePostPress(item.id)}
           style={styles.postContentWrapper}
         >
-          {item.content && (
-            <Text style={[styles.postContent, { color: colors.text }]}>{item.content}</Text>
-          )}
+        {item.content && (
+          <Text style={[styles.postContent, { color: colors.text }]}>{item.content}</Text>
+        )}
 
-          {galleryUrls.length > 0 && (
-            <View
-              style={[
-                styles.mediaGrid,
-                galleryUrls.length === 1
-                  ? styles.mediaGridSingle
-                  : galleryUrls.length === 2
-                  ? styles.mediaGridDouble
-                  : styles.mediaGridTriple,
-              ]}
-            >
-              {galleryUrls.slice(0, 9).map((url, index) => (
-                <TouchableOpacity
-                  key={`${item.id}-media-${index}`}
-                  style={[
-                    styles.mediaImageWrapper,
-                    galleryUrls.length === 1
-                      ? styles.mediaImageSingle
-                      : galleryUrls.length === 2
-                      ? styles.mediaImageDouble
-                      : styles.mediaImageTriple,
-                  ]}
-                  onPress={() => router.push(`/(tabs)/feed/${item.id}`)}
-                  activeOpacity={0.9}
-                >
-                  <Image
-                    source={{ uri: url }}
-                    style={styles.mediaImage}
-                    resizeMode="cover"
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+        {galleryUrls.length > 0 && (
+          <View
+            style={[
+              styles.mediaGrid,
+              galleryUrls.length === 1
+                ? styles.mediaGridSingle
+                : galleryUrls.length === 2
+                ? styles.mediaGridDouble
+                : styles.mediaGridTriple,
+            ]}
+          >
+            {galleryUrls.slice(0, 9).map((url, index) => (
+              <TouchableOpacity
+                key={`${item.id}-media-${index}`}
+                style={[
+                  styles.mediaImageWrapper,
+                  galleryUrls.length === 1
+                    ? styles.mediaImageSingle
+                    : galleryUrls.length === 2
+                    ? styles.mediaImageDouble
+                    : styles.mediaImageTriple,
+                ]}
+                onPress={() => {
+                  setGalleryImages(galleryUrls);
+                  setGalleryIndex(index);
+                  setGalleryVisible(true);
+                }}
+                activeOpacity={0.9}
+              >
+                <Image
+                  source={{ uri: url }}
+                  style={styles.mediaImage}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         </TouchableOpacity>
 
         <View style={styles.postActions}>
@@ -1456,6 +1499,13 @@ export default function FeedScreen() {
           setProfileBottomSheetVisible(false);
           setSelectedUserId(null);
         }}
+      />
+
+      <ImageGallery
+        visible={galleryVisible}
+        onClose={() => setGalleryVisible(false)}
+        images={galleryImages}
+        initialIndex={galleryIndex}
       />
     </View>
   );

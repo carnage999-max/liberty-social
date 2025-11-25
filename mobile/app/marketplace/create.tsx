@@ -66,14 +66,14 @@ export default function CreateListingScreen() {
 
   const pickImage = async () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true,
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
         aspect: [4, 3],
-        quality: 0.8,
-      });
+      quality: 0.8,
+    });
 
-      if (!result.canceled && result.assets) {
+    if (!result.canceled && result.assets) {
         setUploadingImage(true);
         const uploadedUrls: string[] = [];
 
@@ -163,7 +163,7 @@ export default function CreateListingScreen() {
         );
         await Promise.all(mediaPromises);
       }
-
+      
       showSuccess('Listing created successfully!');
       router.back();
     } catch (error) {
@@ -359,24 +359,24 @@ export default function CreateListingScreen() {
             </TouchableOpacity>
 
             {images.length > 0 && (
-              <View style={styles.imagesGrid}>
-                {images.map((uri, index) => (
+            <View style={styles.imagesGrid}>
+              {images.map((uri, index) => (
                   <View key={index} style={styles.imageContainer}>
-                    <Image source={{ uri }} style={styles.image} />
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => removeImage(index)}
-                    >
-                      <Ionicons name="close" size={16} color="#FFFFFF" />
-                    </TouchableOpacity>
+                  <Image source={{ uri }} style={styles.image} />
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => removeImage(index)}
+                  >
+                    <Ionicons name="close" size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
                     {index === 0 && (
                       <View style={styles.primaryBadge}>
                         <Text style={styles.primaryBadgeText}>Primary</Text>
                       </View>
                     )}
-                  </View>
-                ))}
-              </View>
+                </View>
+              ))}
+            </View>
             )}
           </View>
 

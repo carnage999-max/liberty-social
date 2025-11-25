@@ -33,27 +33,56 @@ export default function TabsLayout() {
     (global as any).hideTabBar = () => {
       if (tabBarVisible) {
         setTabBarVisible(false);
-        tabBarTranslateY.setValue(200);
+        Animated.timing(tabBarTranslateY, {
+          toValue: 200,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
       }
     };
 
     (global as any).showTabBar = () => {
       if (!tabBarVisible) {
         setTabBarVisible(true);
-        tabBarTranslateY.setValue(0);
       }
+      Animated.timing(tabBarTranslateY, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
     };
-
-    // Show tab bar when route changes
-    if (pathname) {
-      (global as any).showTabBar?.();
-    }
 
     return () => {
       delete (global as any).hideTabBar;
       delete (global as any).showTabBar;
     };
-  }, [tabBarVisible, pathname, tabBarTranslateY]);
+  }, [tabBarVisible, tabBarTranslateY]);
+
+  // Show tab bar when route changes to a main tab route
+  useEffect(() => {
+    if (pathname) {
+      // Check multiple possible pathname formats
+      const mainTabRouteNames = ['feed', 'friends', 'create-post', 'notifications', 'profile'];
+      const isMainTabRoute = mainTabRouteNames.some(routeName => {
+        // Check if pathname matches main tab routes
+        return pathname === `/(tabs)/${routeName}` ||
+               pathname.startsWith(`/(tabs)/${routeName}/`) ||
+               pathname === `/${routeName}` ||
+               pathname.startsWith(`/${routeName}/`) ||
+               (routeName === 'profile' && (pathname.includes('/profile') || pathname.includes('/users/')));
+      });
+      
+      if (isMainTabRoute) {
+        // Always show tab bar for main tab routes
+        setTabBarVisible(true);
+        Animated.timing(tabBarTranslateY, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+      }
+    }
+  }, [pathname, tabBarTranslateY]);
 
   // Animate menu
   useEffect(() => {
@@ -284,6 +313,7 @@ export default function TabsLayout() {
 
   const MORE_MENU_ITEMS = [
     { id: 'marketplace', label: 'Marketplace', icon: 'storefront-outline', route: '/(tabs)/marketplace' },
+    { id: 'animals', label: 'Animal Marketplace', icon: 'paw-outline', route: '/(tabs)/animals' },
     { id: 'pages', label: 'Pages', icon: 'business-outline', route: '/(tabs)/pages' },
     { id: 'friend-requests', label: 'Friend Requests', icon: 'people-outline', route: '/(tabs)/friend-requests' },
     { id: 'messages', label: 'Messages', icon: 'chatbubble-outline', route: '/(tabs)/messages' },
@@ -340,14 +370,8 @@ export default function TabsLayout() {
                 });
 
                 if (!isFocused && !event.defaultPrevented) {
-                  if (route.name === 'profile') {
-                    // Navigate to user's own profile
-                    if (user?.id) {
-                      router.push(`/users/${user.id}` as any);
-                    }
-                  } else {
-                    navigation.navigate(route.name);
-                  }
+                  // Always use navigation.navigate for tab routes to ensure proper tab bar visibility
+                  navigation.navigate(route.name);
                 }
               };
 
@@ -451,9 +475,9 @@ export default function TabsLayout() {
                   activeOpacity={0.7}
                 >
                   <View style={{ position: 'relative' }}>
-                    <View
-                      style={[
-                        styles.tabIconWrapper,
+                  <View
+                    style={[
+                      styles.tabIconWrapper,
                         isFocused ? styles.tabIconWrapperActive : styles.tabIconWrapperInactive,
                       ]}
                     >
@@ -463,20 +487,20 @@ export default function TabsLayout() {
                         color={isFocused ? '#1a2335' : '#FFFFFF'}
                       />
                     </View>
-                    {route.name === 'notifications' && unreadCount > 0 && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </Text>
-                      </View>
-                    )}
-                    {route.name === 'friends' && friendRequestCount > 0 && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>
-                          {friendRequestCount > 99 ? '99+' : friendRequestCount}
-                        </Text>
-                      </View>
-                    )}
+                      {route.name === 'notifications' && unreadCount > 0 && (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                          </Text>
+                        </View>
+                      )}
+                      {route.name === 'friends' && friendRequestCount > 0 && (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>
+                            {friendRequestCount > 99 ? '99+' : friendRequestCount}
+                          </Text>
+                        </View>
+                      )}
                   </View>
                   <Text
                     style={[
@@ -496,44 +520,44 @@ export default function TabsLayout() {
 
   return (
     <>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarStyle: { display: 'none' },
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: { display: 'none' },
+      }}
+      tabBar={renderTabBar}
+    >
+      <Tabs.Screen
+        name="feed"
+        options={{
+          title: 'Feed',
         }}
-        tabBar={renderTabBar}
-      >
-        <Tabs.Screen
-          name="feed"
-          options={{
-            title: 'Feed',
-          }}
-        />
-        <Tabs.Screen
-          name="friends"
-          options={{
-            title: 'Friends',
-          }}
-        />
-        <Tabs.Screen
-          name="create-post"
-          options={{
-            title: 'Create',
-          }}
-        />
-        <Tabs.Screen
-          name="notifications"
-          options={{
-            title: 'Notifications',
-            tabBarBadge: undefined,
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: 'Profile',
-          }}
-        />
+      />
+      <Tabs.Screen
+        name="friends"
+        options={{
+          title: 'Friends',
+        }}
+      />
+      <Tabs.Screen
+        name="create-post"
+        options={{
+          title: 'Create',
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Notifications',
+          tabBarBadge: undefined,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+        }}
+      />
         <Tabs.Screen
           name="more"
           options={{
@@ -553,11 +577,17 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="settings"
+          name="animals"
           options={{
             tabBarButton: () => null,
           }}
         />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          tabBarButton: () => null,
+        }}
+      />
         <Tabs.Screen
           name="friend-requests"
           options={{
@@ -570,7 +600,7 @@ export default function TabsLayout() {
             href: null,
           }}
         />
-      </Tabs>
+    </Tabs>
 
       {/* More Menu Modal */}
       <Modal

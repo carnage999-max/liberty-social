@@ -169,8 +169,36 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
   );
 
   const handleResultClick = useCallback(
-    (href: string) => {
-      router.push(href as any);
+    (result: SearchResult) => {
+      // Convert backend href format to mobile route format
+      let mobileRoute = result.href;
+      
+      // Convert /app/feed/{id} to /(tabs)/feed/{id}
+      if (result.type === 'post' && mobileRoute.startsWith('/app/feed/')) {
+        mobileRoute = mobileRoute.replace('/app/feed/', '/(tabs)/feed/');
+      }
+      // Convert /app/users/{id} to /(tabs)/users/{id}
+      else if (result.type === 'user' && mobileRoute.startsWith('/app/users/')) {
+        mobileRoute = mobileRoute.replace('/app/users/', '/(tabs)/users/');
+      }
+      // Convert /app/pages/{id} to /(tabs)/pages/{id}
+      else if (result.type === 'page' && mobileRoute.startsWith('/app/pages/')) {
+        mobileRoute = mobileRoute.replace('/app/pages/', '/(tabs)/pages/');
+      }
+      // Convert /app/marketplace/{id} to /marketplace/{id}
+      else if (result.type === 'marketplace' && mobileRoute.startsWith('/app/marketplace/')) {
+        mobileRoute = mobileRoute.replace('/app/marketplace/', '/marketplace/');
+      }
+      // Convert /app/animals/{id} to /animals/{id}
+      else if (result.type === 'animal' && mobileRoute.startsWith('/app/animals/')) {
+        mobileRoute = mobileRoute.replace('/app/animals/', '/animals/');
+      }
+      // Convert /app/breeders/{id} to /breeders/{id} (if exists)
+      else if (result.type === 'breeder' && mobileRoute.startsWith('/app/breeders/')) {
+        mobileRoute = mobileRoute.replace('/app/breeders/', '/breeders/');
+      }
+      
+      router.push(mobileRoute as any);
       onClose();
       setQuery('');
       setAllResults([]);
@@ -373,7 +401,7 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
                 renderItem={({ item: result }) => (
                   <TouchableOpacity
                     style={[styles.resultItem, dynamicStyles.resultItem]}
-                    onPress={() => handleResultClick(result.href)}
+                    onPress={() => handleResultClick(result)}
                     activeOpacity={0.7}
                   >
                     <View style={styles.resultContent}>

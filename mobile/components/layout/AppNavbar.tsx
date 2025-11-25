@@ -113,9 +113,9 @@ export default function AppNavbar({
       width: 36,
       height: 36,
       borderRadius: 18,
-      borderWidth: 1.5,
-      borderColor: 'rgba(255, 255, 255, 0.4)',
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      borderWidth: 2,
+      borderColor: '#C8A25F', // Gold border
+      backgroundColor: '#C8A25F', // Gold background
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
@@ -127,7 +127,7 @@ export default function AppNavbar({
     profileInitials: {
       fontSize: 14,
       fontWeight: '700',
-      color: '#FFFFFF',
+      color: '#1a2335',
     },
   });
 
@@ -176,7 +176,7 @@ export default function AppNavbar({
                 style={styles.profileButton}
                 onPress={() => setSearchModalVisible(true)}
               >
-                <Ionicons name="search" size={20} color="#FFFFFF" />
+                <Ionicons name="search" size={20} color="#1a2335" />
               </TouchableOpacity>
             )}
 
@@ -185,7 +185,7 @@ export default function AppNavbar({
                 style={styles.profileButton}
                 onPress={() => handleNavigate('/(tabs)/messages')}
               >
-                <Ionicons name="chatbubbles-outline" size={22} color="#FFFFFF" />
+                <Ionicons name="chatbubbles-outline" size={22} color="#1a2335" />
               </TouchableOpacity>
             )}
 
@@ -200,7 +200,7 @@ export default function AppNavbar({
                 {avatarSrc ? (
                   <Image source={avatarSource} style={styles.profileImage} />
                 ) : (
-                  <Text style={styles.profileInitials}>{initials}</Text>
+                  <Text style={[styles.profileInitials, { color: '#1a2335' }]}>{initials}</Text>
                 )}
               </TouchableOpacity>
             )}
@@ -210,7 +210,7 @@ export default function AppNavbar({
                 style={styles.profileButton}
                 onPress={() => handleNavigate('/(tabs)/settings')}
               >
-                <Ionicons name="settings-outline" size={22} color="#FFFFFF" />
+                <Ionicons name="settings-outline" size={22} color="#1a2335" />
               </TouchableOpacity>
             )}
           </>

@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
+import ImageGallery from '../../components/common/ImageGallery';
 
 interface BusinessPage {
   id: number;
@@ -41,6 +42,9 @@ export default function PagesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('discover');
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
 
   const loadPages = useCallback(async () => {
     try {
@@ -116,10 +120,24 @@ export default function PagesScreen() {
       >
         {/* Cover Image */}
         {item.cover_image_url ? (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => {
+              const images: string[] = [];
+              if (item.cover_image_url) images.push(resolveRemoteUrl(item.cover_image_url));
+              if (item.profile_image_url) images.push(resolveRemoteUrl(item.profile_image_url));
+              if (images.length > 0) {
+                setGalleryImages(images);
+                setGalleryIndex(0);
+                setGalleryVisible(true);
+              }
+            }}
+          >
           <Image
             source={{ uri: resolveRemoteUrl(item.cover_image_url) }}
             style={styles.coverImage}
           />
+          </TouchableOpacity>
         ) : (
           <View
             style={[
@@ -130,14 +148,27 @@ export default function PagesScreen() {
         )}
 
         {/* Profile Image */}
-        <View style={styles.profileImageContainer}>
+        <TouchableOpacity
+          style={styles.profileImageContainer}
+          activeOpacity={0.9}
+          onPress={() => {
+            const images: string[] = [];
+            if (item.profile_image_url) images.push(resolveRemoteUrl(item.profile_image_url));
+            if (item.cover_image_url) images.push(resolveRemoteUrl(item.cover_image_url));
+            if (images.length > 0) {
+              setGalleryImages(images);
+              setGalleryIndex(0);
+              setGalleryVisible(true);
+            }
+          }}
+        >
           <Image source={profileSource} style={styles.profileImage} />
           {item.is_verified && (
             <View style={styles.verifiedBadge}>
               <Ionicons name="checkmark-circle" size={20} color="#4F8EF7" />
             </View>
           )}
-        </View>
+        </TouchableOpacity>
 
         {/* Page Info */}
         <View style={styles.pageInfo}>
@@ -423,6 +454,13 @@ export default function PagesScreen() {
           ) : null
         }
         contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
+      />
+
+      <ImageGallery
+        visible={galleryVisible}
+        onClose={() => setGalleryVisible(false)}
+        images={galleryImages}
+        initialIndex={galleryIndex}
       />
     </View>
   );

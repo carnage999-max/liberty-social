@@ -197,33 +197,33 @@ export default function ReactionPicker({
 
   return (
     <>
-      <Modal
-        transparent
-        visible={visible}
-        animationType="none"
-        onRequestClose={onClose}
-      >
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.backdrop}>
-            <Animated.View
-              style={[
-                styles.pickerContainer,
-                {
-                  transform: [{ scale: scaleAnim }],
-                  opacity: opacityAnim,
-                },
-              ]}
-            >
-              {REACTION_TYPES.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.reactionButton,
-                    currentReaction === type && styles.reactionButtonActive,
-                  ]}
-                  onPress={() => handleSelect(type)}
-                  activeOpacity={0.7}
-                >
+    <Modal
+      transparent
+      visible={visible}
+      animationType="none"
+      onRequestClose={onClose}
+    >
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.backdrop}>
+          <Animated.View
+            style={[
+              styles.pickerContainer,
+              {
+                transform: [{ scale: scaleAnim }],
+                opacity: opacityAnim,
+              },
+            ]}
+          >
+            {REACTION_TYPES.map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.reactionButton,
+                  currentReaction === type && styles.reactionButtonActive,
+                ]}
+                onPress={() => handleSelect(type)}
+                activeOpacity={0.7}
+              >
                   <Text style={styles.reactionEmoji}>{REACTION_EMOJIS[type]}</Text>
                 </TouchableOpacity>
               ))}
@@ -237,10 +237,10 @@ export default function ReactionPicker({
               >
                 <Ionicons name="add-circle-outline" size={28} color={colors.text} />
               </TouchableOpacity>
-            </Animated.View>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+          </Animated.View>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
 
       {/* Advanced Emoji Picker */}
       {onSelectEmoji && (

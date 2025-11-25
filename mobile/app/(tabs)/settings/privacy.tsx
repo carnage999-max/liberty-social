@@ -259,7 +259,7 @@ export default function PrivacySettingsScreen() {
           showLogo={false} 
           showProfileImage={false} 
           showBackButton={true}
-          onBackPress={() => router.push('/(tabs)/settings')}
+          onBackPress={() => router.push('/(tabs)/profile')}
         />
         <SkeletonPrivacy />
       </View>

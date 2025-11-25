@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,24 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
 import { useRouter } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function CreatePageScreen() {
   const { colors, isDark } = useTheme();
   const { showError, showSuccess } = useToast();
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
+  const [profileImage, setProfileImage] = useState<{ uri: string; formData: FormData } | null>(null);
+  const [coverImage, setCoverImage] = useState<{ uri: string; formData: FormData } | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -28,6 +34,59 @@ export default function CreatePageScreen() {
     email: '',
   });
 
+  useEffect(() => {
+    requestPermissions();
+  }, []);
+
+  const requestPermissions = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      showError('Sorry, we need camera roll permissions to upload images!');
+    }
+  };
+
+  const handlePickImage = async (type: 'profile' | 'cover') => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: type === 'profile',
+        aspect: type === 'profile' ? [1, 1] : [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const formData = new FormData();
+        const filename = asset.uri.split('/').pop() || 'image.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const imageType = match ? `image/${match[1]}` : 'image/jpeg';
+        
+        formData.append('file', {
+          uri: asset.uri,
+          type: imageType,
+          name: filename,
+        } as any);
+
+        if (type === 'profile') {
+          setProfileImage({ uri: asset.uri, formData });
+        } else {
+          setCoverImage({ uri: asset.uri, formData });
+        }
+      }
+    } catch (error) {
+      showError('Failed to pick image');
+      console.error(error);
+    }
+  };
+
+  const handleRemoveImage = (type: 'profile' | 'cover') => {
+    if (type === 'profile') {
+      setProfileImage(null);
+    } else {
+      setCoverImage(null);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!form.name) {
       showError('Please enter a page name');
@@ -36,11 +95,46 @@ export default function CreatePageScreen() {
 
     try {
       setSubmitting(true);
-      await apiClient.post('/pages/', form);
+      setUploadingImage(true);
+
+      // Upload images first
+      let profileImageUrl = '';
+      let coverImageUrl = '';
+
+      if (profileImage) {
+        try {
+          const uploadResponse = await apiClient.postFormData('/uploads/images/', profileImage.formData);
+          profileImageUrl = uploadResponse.url || '';
+        } catch (error) {
+          console.error('Failed to upload profile image:', error);
+        }
+      }
+
+      if (coverImage) {
+        try {
+          const uploadResponse = await apiClient.postFormData('/uploads/images/', coverImage.formData);
+          coverImageUrl = uploadResponse.url || '';
+        } catch (error) {
+          console.error('Failed to upload cover image:', error);
+        }
+      }
+
+      setUploadingImage(false);
+
+      // Create page with image URLs
+      const pageData = {
+        ...form,
+        ...(profileImageUrl && { profile_image_url: profileImageUrl }),
+        ...(coverImageUrl && { cover_image_url: coverImageUrl }),
+      };
+
+      await apiClient.post('/pages/', pageData);
       showSuccess('Page created successfully!');
       router.back();
-    } catch (error) {
-      showError('Failed to create page');
+    } catch (error: any) {
+      setUploadingImage(false);
+      const errorMessage = error?.response?.data?.detail || error?.response?.data?.message || 'Failed to create page';
+      showError(errorMessage);
       console.error(error);
     } finally {
       setSubmitting(false);
@@ -136,14 +230,125 @@ export default function CreatePageScreen() {
       fontSize: 16,
       fontWeight: '600',
     },
+    imagePickerButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderStyle: 'dashed',
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+      marginBottom: 8,
+      gap: 8,
+    },
+    imagePickerText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    imagePreviewContainer: {
+      position: 'relative',
+      marginBottom: 8,
+    },
+    imagePreview: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      borderWidth: 2,
+      borderColor: colors.border,
+    },
+    coverImagePreview: {
+      width: '100%',
+      height: 180,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.border,
+    },
+    removeImageButton: {
+      position: 'absolute',
+      top: 4,
+      right: 4,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      borderRadius: 12,
+      padding: 4,
+    },
   });
+
+  useEffect(() => {
+    // Hide tab bar when entering create page
+    (global as any).hideTabBar?.();
+    
+    // Show tab bar when leaving
+    return () => {
+      (global as any).showTabBar?.();
+    };
+  }, []);
 
   return (
     <View style={styles.container}>
-      <AppNavbar showProfileImage={false} />
+      <AppNavbar 
+        showProfileImage={false} 
+        showSearchIcon={false}
+        showMessageIcon={false}
+        showBackButton={true}
+        onBackPress={() => {
+          (global as any).showTabBar?.();
+          router.back();
+        }}
+      />
       
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
+          {/* Profile Image */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Profile Image</Text>
+            {profileImage ? (
+              <View style={styles.imagePreviewContainer}>
+                <Image source={{ uri: profileImage.uri }} style={styles.imagePreview} />
+                <TouchableOpacity
+                  style={styles.removeImageButton}
+                  onPress={() => handleRemoveImage('profile')}
+                >
+                  <Ionicons name="close" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.imagePickerButton}
+                onPress={() => handlePickImage('profile')}
+              >
+                <Ionicons name="image-outline" size={24} color={colors.textSecondary} />
+                <Text style={styles.imagePickerText}>Pick Profile Image</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Cover Image */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Cover Image</Text>
+            {coverImage ? (
+              <View style={styles.imagePreviewContainer}>
+                <Image source={{ uri: coverImage.uri }} style={styles.coverImagePreview} />
+                <TouchableOpacity
+                  style={styles.removeImageButton}
+                  onPress={() => handleRemoveImage('cover')}
+                >
+                  <Ionicons name="close" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.imagePickerButton}
+                onPress={() => handlePickImage('cover')}
+              >
+                <Ionicons name="image-outline" size={24} color={colors.textSecondary} />
+                <Text style={styles.imagePickerText}>Pick Cover Image</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           <View style={styles.section}>
             <Text style={styles.label}>
               Page Name <Text style={styles.required}>*</Text>
@@ -233,11 +438,11 @@ export default function CreatePageScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+            style={[styles.submitButton, (submitting || uploadingImage) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || uploadingImage}
           >
-            {submitting ? (
+            {(submitting || uploadingImage) ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <Text style={styles.submitButtonText}>Create Page</Text>
