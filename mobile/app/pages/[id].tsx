@@ -18,6 +18,10 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import ImageGallery from '../../components/common/ImageGallery';
+import ContextMenu from '../../components/common/ContextMenu';
+import { Modal } from 'react-native';
+import InviteUsersModal from '../../components/pages/InviteUsersModal';
+import CreatePagePostModal from '../../components/pages/CreatePagePostModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -35,6 +39,11 @@ interface BusinessPage {
   phone?: string;
   email?: string;
   created_at: string;
+  owner?: {
+    id: string;
+  };
+  can_manage?: boolean;
+  user_role?: 'owner' | 'admin' | 'moderator' | 'editor';
 }
 
 export default function PageDetailScreen() {
@@ -48,10 +57,22 @@ export default function PageDetailScreen() {
   const [galleryVisible, setGalleryVisible] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [canManage, setCanManage] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
 
   useEffect(() => {
     loadPage();
   }, [id]);
+
+  useEffect(() => {
+    if (page) {
+      checkCanManage();
+    }
+  }, [page, user]);
 
   const loadPage = async () => {
     try {
@@ -67,22 +88,55 @@ export default function PageDetailScreen() {
     }
   };
 
+  const checkCanManage = async () => {
+    if (!page || !user) {
+      setCanManage(false);
+      return;
+    }
+    try {
+      // Try to fetch admins - if successful, user can manage
+      await apiClient.get(`/pages/${page.id}/admins/`);
+      setCanManage(true);
+    } catch (error) {
+      // If 403 or 404, user cannot manage
+      setCanManage(false);
+    }
+  };
+
   const handleFollowToggle = async () => {
     if (!page) return;
     try {
-      if (page.is_following) {
-        await apiClient.post(`/pages/${page.id}/unfollow/`, {});
-        showSuccess('Unfollowed page');
-      } else {
-        await apiClient.post(`/pages/${page.id}/follow/`, {});
-        showSuccess('Following page');
-      }
-      setPage({ ...page, is_following: !page.is_following });
+      const response = await apiClient.post<{ following: boolean; follower_count: number }>(`/pages/${page.id}/follow/`, {});
+      const newFollowingState = response.following;
+      showSuccess(newFollowingState ? 'Following page' : 'Unfollowed page');
+      setPage({ 
+        ...page, 
+        is_following: newFollowingState,
+        followers_count: response.follower_count || page.followers_count
+      });
     } catch (error) {
       showError('Failed to update follow status');
       console.error(error);
     }
   };
+
+  const handleDelete = async () => {
+    if (!page) return;
+    try {
+      setDeleting(true);
+      await apiClient.delete(`/pages/${page.id}/`);
+      showSuccess('Page deleted successfully');
+      router.push('/(tabs)/pages');
+    } catch (error) {
+      showError('Failed to delete page');
+      console.error(error);
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  // canManage is now set via checkCanManage function
 
   const styles = StyleSheet.create({
     container: {
@@ -221,6 +275,50 @@ export default function PageDetailScreen() {
       color: colors.textSecondary,
       marginTop: 12,
     },
+    menuButton: {
+      padding: 4,
+    },
+    deleteModalContainer: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      padding: 16,
+    },
+    deleteModalContent: {
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+      borderRadius: 16,
+      padding: 20,
+    },
+    deleteModalTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      marginBottom: 12,
+    },
+    deleteModalText: {
+      fontSize: 15,
+      lineHeight: 22,
+      marginBottom: 20,
+    },
+    deleteModalActions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    deleteModalButton: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    deleteModalCancel: {
+      backgroundColor: colors.border,
+    },
+    deleteModalDelete: {
+      backgroundColor: '#EF4444',
+    },
+    deleteModalButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+    },
   });
 
   if (loading) {
@@ -253,9 +351,39 @@ export default function PageDetailScreen() {
   const profileSource = profileImage ? { uri: profileImage } : DEFAULT_AVATAR;
   const coverImage = page.cover_image_url ? resolveRemoteUrl(page.cover_image_url) : null;
 
+  const contextMenuOptions = canManage
+    ? [
+        {
+          label: 'Edit Page',
+          icon: 'create-outline' as const,
+          onPress: () => router.push(`/pages/${id}/edit`),
+        },
+        {
+          label: 'Delete Page',
+          icon: 'trash-outline' as const,
+          onPress: () => setShowDeleteConfirm(true),
+          destructive: true,
+        },
+      ]
+    : [];
+
   return (
     <View style={styles.container}>
-      <AppNavbar showProfileImage={false} showBackButton={true} onBackPress={() => router.back()} />
+      <AppNavbar 
+        showProfileImage={false} 
+        showBackButton={true} 
+        onBackPress={() => router.back()}
+        customRightButton={
+          canManage ? (
+            <TouchableOpacity
+              style={styles.menuButton}
+              onPress={() => setShowContextMenu(true)}
+            >
+              <Ionicons name="ellipsis-vertical" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          ) : undefined
+        }
+      />
       
       <ScrollView style={styles.scrollView}>
         {/* Cover Image */}
@@ -311,23 +439,45 @@ export default function PageDetailScreen() {
           </View>
         </View>
 
-        {/* Follow Button */}
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
           <TouchableOpacity
             style={[
-            styles.followButton,
-            page.is_following && styles.followingButton,
+              styles.followButton,
+              page.is_following && styles.followingButton,
             ]}
             onPress={handleFollowToggle}
           >
             <Text
               style={[
-              styles.followButtonText,
-              page.is_following && styles.followingButtonText,
+                styles.followButtonText,
+                page.is_following && styles.followingButtonText,
               ]}
             >
               {page.is_following ? 'Following' : 'Follow'}
             </Text>
           </TouchableOpacity>
+          
+          {page.is_following && !canManage && (
+            <TouchableOpacity
+              style={styles.inviteButton}
+              onPress={() => setShowInviteModal(true)}
+            >
+              <Ionicons name="person-add-outline" size={20} color="#C8A25F" />
+              <Text style={styles.inviteButtonText}>Invite Users</Text>
+            </TouchableOpacity>
+          )}
+          
+          {canManage && (
+            <TouchableOpacity
+              style={styles.createPostButton}
+              onPress={() => setShowCreatePostModal(true)}
+            >
+              <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.createPostButtonText}>Create Post</Text>
+            </TouchableOpacity>
+          )}
+        </View>
           
         {/* About Section */}
         {page.description && (
@@ -397,6 +547,72 @@ export default function PageDetailScreen() {
         images={galleryImages}
         initialIndex={galleryIndex}
         title={page.name}
+      />
+
+      <ContextMenu
+        visible={showContextMenu}
+        onClose={() => setShowContextMenu(false)}
+        options={contextMenuOptions}
+      />
+
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={styles.deleteModalContainer}>
+          <View style={styles.deleteModalContent}>
+            <Text style={[styles.deleteModalTitle, { color: colors.text }]}>
+              Delete Page?
+            </Text>
+            <Text style={[styles.deleteModalText, { color: colors.text }]}>
+              This action cannot be undone. The page will be permanently deleted.
+            </Text>
+            <View style={styles.deleteModalActions}>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.deleteModalCancel]}
+                onPress={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+              >
+                <Text style={[styles.deleteModalButtonText, { color: colors.text }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.deleteModalDelete]}
+                onPress={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={[styles.deleteModalButtonText, { color: '#FFFFFF' }]}>
+                    Delete
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <InviteUsersModal
+        visible={showInviteModal}
+        pageId={page?.id || 0}
+        onClose={() => setShowInviteModal(false)}
+        onInvitesSent={() => {
+          loadPage();
+        }}
+      />
+
+      <CreatePagePostModal
+        visible={showCreatePostModal}
+        pageId={page?.id || 0}
+        onClose={() => setShowCreatePostModal(false)}
+        onPostCreated={() => {
+          loadPage();
+        }}
       />
     </View>
   );

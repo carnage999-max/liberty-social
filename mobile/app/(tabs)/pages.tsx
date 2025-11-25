@@ -80,18 +80,18 @@ export default function PagesScreen() {
       const page = pages.find((p) => p.id === pageId);
       if (!page) return;
 
-      if (page.is_following) {
-        await apiClient.post(`/pages/${pageId}/unfollow/`, {});
-        showSuccess('Unfollowed page');
-      } else {
-        await apiClient.post(`/pages/${pageId}/follow/`, {});
-        showSuccess('Following page');
-      }
+      const response = await apiClient.post<{ following: boolean; follower_count: number }>(`/pages/${pageId}/follow/`, {});
+      const newFollowingState = response.following;
+      showSuccess(newFollowingState ? 'Following page' : 'Unfollowed page');
 
       // Update local state
       setPages((prev) =>
         prev.map((p) =>
-          p.id === pageId ? { ...p, is_following: !p.is_following } : p
+          p.id === pageId ? { 
+            ...p, 
+            is_following: newFollowingState,
+            followers_count: response.follower_count || p.followers_count
+          } : p
         )
       );
     } catch (error) {

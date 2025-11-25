@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   Image,
   Modal,
@@ -18,7 +19,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAlert } from '../../contexts/AlertContext';
 import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
-import { Conversation, PaginatedResponse } from '../../types';
+import { Conversation, PaginatedResponse, Post } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
@@ -95,6 +96,10 @@ export default function UserProfileBottomSheet({
   const [galleryVisible, setGalleryVisible] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [userPosts, setUserPosts] = useState<any[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsNext, setPostsNext] = useState<string | null>(null);
+  const [postsReachedEnd, setPostsReachedEnd] = useState(false);
 
   const translateY = useSharedValue(0);
   const context = useSharedValue({ y: 0 });
@@ -139,14 +144,70 @@ export default function UserProfileBottomSheet({
     }
   };
 
+  const loadUserPosts = async (append = false) => {
+    if (!userId || !profile?.can_view_posts) return;
+    
+    try {
+      if (!append) {
+        setPostsLoading(true);
+        setUserPosts([]);
+        setPostsReachedEnd(false);
+      }
+      
+      let endpoint: string;
+      if (postsNext) {
+        // Use the next URL directly if available
+        endpoint = postsNext;
+      } else {
+        // Build initial endpoint - try with author filter
+        // Note: This assumes the backend supports filtering by author
+        // If not, we may need to use a different endpoint
+        endpoint = `/posts/?author=${userId}&author_type=user`;
+      }
+      
+      const response = await apiClient.get<PaginatedResponse<Post>>(endpoint);
+      
+      const newPosts = Array.isArray(response?.results) ? response.results : [];
+      if (append) {
+        setUserPosts((prev) => [...prev, ...newPosts]);
+      } else {
+        setUserPosts(newPosts);
+      }
+      
+      setPostsNext(response.next || null);
+      if (!response.next) {
+        setPostsReachedEnd(true);
+      }
+    } catch (error) {
+      console.error('Error loading user posts:', error);
+      // If filtering by author doesn't work, fall back to showing recent_posts from overview
+      if (!append && profile?.recent_posts) {
+        setUserPosts(profile.recent_posts);
+        setPostsReachedEnd(true);
+      }
+    } finally {
+      setPostsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (visible && userId) {
       translateY.value = withSpring(MAX_TRANSLATE_Y, { damping: 50 });
       loadProfile();
     } else {
       translateY.value = withTiming(0);
+      setActiveTab('overview');
+      setUserPosts([]);
+      setPostsNext(null);
+      setPostsReachedEnd(false);
     }
   }, [visible, userId]);
+
+  useEffect(() => {
+    if (activeTab === 'posts' && profile?.can_view_posts && userPosts.length === 0 && !postsLoading) {
+      loadUserPosts();
+    }
+  }, [activeTab, profile?.can_view_posts]);
 
   const loadProfile = async () => {
     if (!userId) return;
@@ -170,13 +231,19 @@ export default function UserProfileBottomSheet({
     });
   };
 
+  const scrollY = useSharedValue(0);
+  
   const gesture = Gesture.Pan()
+    .activeOffsetY(10) // Only activate when dragging down
     .onStart(() => {
       context.value = { y: translateY.value };
     })
     .onUpdate((event) => {
-      translateY.value = event.translationY + context.value.y;
-      translateY.value = Math.max(translateY.value, MAX_TRANSLATE_Y);
+      // Only allow dragging down if scroll is at the top
+      if (scrollY.value <= 0 && event.translationY > 0) {
+        translateY.value = event.translationY + context.value.y;
+        translateY.value = Math.max(translateY.value, MAX_TRANSLATE_Y);
+      }
     })
     .onEnd(() => {
       if (translateY.value > MAX_TRANSLATE_Y / 2) {
@@ -370,6 +437,7 @@ export default function UserProfileBottomSheet({
       top: SCREEN_HEIGHT,
       left: 0,
       right: 0,
+      flexDirection: 'column',
     },
     dragIndicator: {
       width: 40,
@@ -398,8 +466,7 @@ export default function UserProfileBottomSheet({
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: 40,
-      flexGrow: 1,
+      paddingBottom: 100, // Increased padding to ensure all content is scrollable
     },
     profileHeader: {
       padding: 20,
@@ -539,6 +606,22 @@ export default function UserProfileBottomSheet({
       borderWidth: 1,
       borderColor: colors.border,
       marginBottom: 12,
+    },
+    loadMoreButton: {
+      marginTop: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      borderRadius: 24,
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+      borderWidth: 1,
+      borderColor: '#C8A25F',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    loadMoreButtonText: {
+      color: '#C8A25F',
+      fontSize: 14,
+      fontWeight: '600',
     },
     postContent: {
       fontSize: 14,
@@ -731,19 +814,27 @@ export default function UserProfileBottomSheet({
         <GestureDetector gesture={gesture}>
           <Animated.View style={[styles.bottomSheet, rBottomSheetStyle]}>
             <View style={styles.dragIndicator} />
-              <View style={styles.header}>
-                <Text style={styles.name}>{displayName}</Text>
-                <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-                  <Ionicons name="close" size={24} color={colors.text} />
-                </TouchableOpacity>
-              </View>
+            <View style={styles.header}>
+              <Text style={styles.name}>{displayName}</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
 
-              <ScrollView 
-                style={styles.content} 
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={true}
-                nestedScrollEnabled={true}
-              >
+            <ScrollView 
+              style={styles.content} 
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              bounces={true}
+              scrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+              onScroll={(event) => {
+                'worklet';
+                scrollY.value = event.nativeEvent.contentOffset.y;
+              }}
+              scrollEventThrottle={16}
+            >
                 {loading ? (
                   <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#C8A25F" />
@@ -752,9 +843,22 @@ export default function UserProfileBottomSheet({
                   <>
                     <View style={styles.profileHeader}>
                       <View style={styles.profileTopSection}>
-                        <View style={styles.avatarContainer}>
+                        <TouchableOpacity 
+                          style={styles.avatarContainer}
+                          onPress={() => {
+                            if (profile.user.profile_image_url) {
+                              const profileImageUrl = resolveRemoteUrl(profile.user.profile_image_url);
+                              if (profileImageUrl) {
+                                setGalleryImages([profileImageUrl]);
+                                setGalleryIndex(0);
+                                setGalleryVisible(true);
+                              }
+                            }
+                          }}
+                          activeOpacity={0.8}
+                        >
                           <Image source={avatarSource} style={styles.avatar} />
-                        </View>
+                        </TouchableOpacity>
                         <View style={styles.profileInfo}>
                           <Text style={styles.name}>{displayName}</Text>
                           {profile.user.username && (
@@ -808,7 +912,7 @@ export default function UserProfileBottomSheet({
                       </TouchableOpacity>
                     </View>
 
-                    <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+                    <View style={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 }}>
                       {activeTab === 'overview' && (
                         <>
                           <Text style={[styles.emptyText, { textAlign: 'left', marginTop: 0, marginBottom: 12, fontSize: 16, fontWeight: '600' }]}>
@@ -856,42 +960,63 @@ export default function UserProfileBottomSheet({
                       {activeTab === 'posts' && (
                         <>
                           {profile.can_view_posts ? (
-                            profile.recent_posts.length > 0 ? (
-                              <View style={styles.postsContainer}>
-                                {profile.recent_posts.map((post) => {
-                                  const postDate = post.created_at 
-                                    ? new Date(post.created_at).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'short',
-                                        day: 'numeric',
-                                      })
-                                    : '';
+                            <>
+                              {postsLoading && userPosts.length === 0 ? (
+                                <View style={styles.loadingContainer}>
+                                  <ActivityIndicator size="large" color="#C8A25F" />
+                                </View>
+                              ) : userPosts.length > 0 ? (
+                                <>
+                                  <View style={styles.postsContainer}>
+                                    {userPosts.map((post) => {
+                                      const postDate = post.created_at 
+                                        ? new Date(post.created_at).toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'short',
+                                            day: 'numeric',
+                                          })
+                                        : '';
 
-                                  return (
-                                    <View key={post.id} style={styles.postCard}>
-                                      <Text style={styles.postContent} numberOfLines={3}>
-                                        {post.content}
-                                      </Text>
-                                      <View style={styles.postFooter}>
-                                        <Text style={styles.postDate}>{postDate}</Text>
-                                        <TouchableOpacity
-                                          style={styles.seePostButton}
-                                          onPress={() => {
-                                            handleClose();
-                                            router.push(`/(tabs)/feed/${post.id}`);
-                                          }}
-                                        >
-                                          <Text style={styles.seePostButtonText}>See post</Text>
-                                          <Ionicons name="chevron-forward" size={16} color="#C8A25F" />
-                                        </TouchableOpacity>
-                                      </View>
-                                    </View>
-                                  );
-                                })}
-                              </View>
-                            ) : (
-                              <Text style={styles.emptyText}>No posts yet</Text>
-                            )
+                                      return (
+                                        <View key={post.id} style={styles.postCard}>
+                                          <Text style={styles.postContent} numberOfLines={3}>
+                                            {post.content}
+                                          </Text>
+                                          <View style={styles.postFooter}>
+                                            <Text style={styles.postDate}>{postDate}</Text>
+                                            <TouchableOpacity
+                                              style={styles.seePostButton}
+                                              onPress={() => {
+                                                handleClose();
+                                                router.push(`/(tabs)/feed/${post.id}`);
+                                              }}
+                                            >
+                                              <Text style={styles.seePostButtonText}>See post</Text>
+                                              <Ionicons name="chevron-forward" size={16} color="#C8A25F" />
+                                            </TouchableOpacity>
+                                          </View>
+                                        </View>
+                                      );
+                                    })}
+                                  </View>
+                                  {!postsReachedEnd && (
+                                    <TouchableOpacity
+                                      style={styles.loadMoreButton}
+                                      onPress={() => loadUserPosts(true)}
+                                      disabled={postsLoading}
+                                    >
+                                      {postsLoading ? (
+                                        <ActivityIndicator size="small" color="#C8A25F" />
+                                      ) : (
+                                        <Text style={styles.loadMoreButtonText}>Load More</Text>
+                                      )}
+                                    </TouchableOpacity>
+                                  )}
+                                </>
+                              ) : (
+                                <Text style={styles.emptyText}>No posts yet</Text>
+                              )}
+                            </>
                           ) : (
                             <Text style={styles.emptyText}>Posts are private</Text>
                           )}

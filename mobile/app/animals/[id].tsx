@@ -20,6 +20,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import ImageGallery from '../../components/common/ImageGallery';
+import ContextMenu from '../../components/common/ContextMenu';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -75,6 +76,9 @@ export default function AnimalListingDetailScreen() {
   const [contactPhone, setContactPhone] = useState('');
   const [contactMessage, setContactMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [galleryVisible, setGalleryVisible] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
 
@@ -88,6 +92,58 @@ export default function AnimalListingDetailScreen() {
       (global as any).showTabBar?.();
     };
   }, [id]);
+
+  // All hooks must be called before any conditional returns
+  // Memoize images
+  const images = React.useMemo(() => {
+    if (!listing) return [];
+    const media = listing.media || listing.animal_listing_media || [];
+    return media.map((m: any) => {
+      const url = m.url || m.media_url || m.image_url;
+      return url ? resolveRemoteUrl(url) : null;
+    }).filter((url: string | null) => url !== null) as string[];
+  }, [listing]);
+
+  // Memoize seller avatar
+  const sellerAvatar = React.useMemo(() => {
+    if (!listing?.seller?.avatar) return null;
+    return resolveRemoteUrl(listing.seller.avatar);
+  }, [listing?.seller?.avatar]);
+
+  const sellerSource = React.useMemo(() => {
+    return sellerAvatar ? { uri: sellerAvatar } : DEFAULT_AVATAR;
+  }, [sellerAvatar]);
+
+  // Check ownership
+  const isOwner = React.useMemo(() => {
+    return user?.id === listing?.seller?.id;
+  }, [user?.id, listing?.seller?.id]);
+
+  const isHighRisk = React.useMemo(() => {
+    return listing?.risk_score ? listing.risk_score > 60 : false;
+  }, [listing?.risk_score]);
+
+  const isVerified = React.useMemo(() => {
+    return listing?.seller?.is_verified && listing?.vet_documentation?.documentation_type !== 'unknown';
+  }, [listing?.seller?.is_verified, listing?.vet_documentation?.documentation_type]);
+
+  // Context menu options
+  const contextMenuOptions = React.useMemo(() => {
+    if (!isOwner) return [];
+    return [
+      {
+        label: 'Edit Listing',
+        icon: 'create-outline' as const,
+        onPress: () => router.push(`/animals/${id}/edit`),
+      },
+      {
+        label: 'Delete Listing',
+        icon: 'trash-outline' as const,
+        onPress: () => setShowDeleteConfirm(true),
+        destructive: true,
+      },
+    ];
+  }, [isOwner, id, router]);
 
   const loadListing = async () => {
     try {
@@ -117,6 +173,22 @@ export default function AnimalListingDetailScreen() {
       console.error(error);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!listing) return;
+    try {
+      setDeleting(true);
+      await apiClient.delete(`/animals/listings/${listing.id}/`);
+      showSuccess('Listing deleted successfully');
+      router.push('/(tabs)/animals');
+    } catch (error) {
+      showError('Failed to delete listing');
+      console.error(error);
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -394,6 +466,50 @@ export default function AnimalListingDetailScreen() {
     statLabel: {
       fontSize: 12,
     },
+    menuButton: {
+      padding: 4,
+    },
+    deleteModalContainer: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      padding: 16,
+    },
+    deleteModalContent: {
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+      borderRadius: 16,
+      padding: 20,
+    },
+    deleteModalTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      marginBottom: 12,
+    },
+    deleteModalText: {
+      fontSize: 15,
+      lineHeight: 22,
+      marginBottom: 20,
+    },
+    deleteModalActions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    deleteModalButton: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    deleteModalCancel: {
+      backgroundColor: colors.border,
+    },
+    deleteModalDelete: {
+      backgroundColor: '#EF4444',
+    },
+    deleteModalButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+    },
   });
 
   if (loading) {
@@ -438,20 +554,6 @@ export default function AnimalListingDetailScreen() {
     );
   }
 
-  const images = React.useMemo(() => {
-    const media = listing?.media || listing?.animal_listing_media || [];
-    return media.map((m: any) => {
-      const url = m.url || m.media_url || m.image_url;
-      return url ? resolveRemoteUrl(url) : null;
-    }).filter((url: string | null) => url !== null) as string[];
-  }, [listing]);
-  const sellerAvatar = listing.seller?.avatar
-    ? resolveRemoteUrl(listing.seller.avatar)
-    : null;
-  const sellerSource = sellerAvatar ? { uri: sellerAvatar } : DEFAULT_AVATAR;
-  const isOwner = user?.id === listing.seller?.id;
-  const isHighRisk = listing.risk_score && listing.risk_score > 60;
-  const isVerified = listing.seller?.is_verified && listing.vet_documentation?.documentation_type !== 'unknown';
 
   return (
     <View style={styles.container}>
@@ -463,7 +565,17 @@ export default function AnimalListingDetailScreen() {
         onBackPress={() => {
           (global as any).showTabBar?.();
           router.push('/(tabs)/animals');
-        }} 
+        }}
+        customRightButton={
+          isOwner ? (
+            <TouchableOpacity
+              style={styles.menuButton}
+              onPress={() => setShowContextMenu(true)}
+            >
+              <Ionicons name="ellipsis-vertical" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          ) : undefined
+        }
       />
       
       <ScrollView style={styles.scrollView}>
@@ -722,6 +834,54 @@ export default function AnimalListingDetailScreen() {
         title={listing.title}
         caption={listing.description}
       />
+
+      <ContextMenu
+        visible={showContextMenu}
+        onClose={() => setShowContextMenu(false)}
+        options={contextMenuOptions}
+      />
+
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={styles.deleteModalContainer}>
+          <View style={styles.deleteModalContent}>
+            <Text style={[styles.deleteModalTitle, { color: colors.text }]}>
+              Delete Listing?
+            </Text>
+            <Text style={[styles.deleteModalText, { color: colors.text }]}>
+              This action cannot be undone. The listing will be permanently deleted.
+            </Text>
+            <View style={styles.deleteModalActions}>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.deleteModalCancel]}
+                onPress={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+              >
+                <Text style={[styles.deleteModalButtonText, { color: colors.text }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.deleteModalDelete]}
+                onPress={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={[styles.deleteModalButtonText, { color: '#FFFFFF' }]}>
+                    Delete
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

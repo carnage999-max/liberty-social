@@ -186,7 +186,7 @@ export default function TabsLayout() {
       borderRadius: 8,
     },
     tabButtonActive: {
-      backgroundColor: '#fbbf24', // Gold background when active
+      backgroundColor: '#C8A25F', // Gold background when active
     },
     tabIconWrapper: {
       width: 36,
@@ -202,8 +202,8 @@ export default function TabsLayout() {
       elevation: 2,
     },
     tabIconWrapperActive: {
-      backgroundColor: '#fbbf24', // Gold
-      borderColor: '#fbbf24',
+      backgroundColor: '#C8A25F', // Gold
+      borderColor: '#C8A25F',
     },
     tabIconWrapperInactive: {
       backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -315,6 +315,7 @@ export default function TabsLayout() {
     { id: 'marketplace', label: 'Marketplace', icon: 'storefront-outline', route: '/(tabs)/marketplace' },
     { id: 'animals', label: 'Animal Marketplace', icon: 'paw-outline', route: '/(tabs)/animals' },
     { id: 'pages', label: 'Pages', icon: 'business-outline', route: '/(tabs)/pages' },
+    { id: 'page-invites', label: 'Page Invites', icon: 'mail-outline', route: '/(tabs)/page-invites' },
     { id: 'friend-requests', label: 'Friend Requests', icon: 'people-outline', route: '/(tabs)/friend-requests' },
     { id: 'messages', label: 'Messages', icon: 'chatbubble-outline', route: '/(tabs)/messages' },
   ];
@@ -595,6 +596,12 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="page-invites"
+          options={{
+            tabBarButton: () => null,
+          }}
+        />
+        <Tabs.Screen
           name="messages"
           options={{
             href: null,
@@ -653,31 +660,33 @@ export default function TabsLayout() {
         </TouchableOpacity>
       </Modal>
 
-      {/* Floating More Button */}
-      <TouchableOpacity
-        style={{
-          position: 'absolute',
-          right: 16,
-          bottom: bottomPadding + 80,
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: '#121A33', // Deep navy
-          borderWidth: 2,
-          borderColor: '#C8A25F', // Gold
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#C8A25F',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.4,
-          shadowRadius: 12,
-          elevation: 12,
-        }}
-        onPress={() => setShowMoreMenu(true)}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="grid" size={24} color="#C8A25F" />
-      </TouchableOpacity>
+      {/* Floating More Button - Hidden on messages pages */}
+      {pathname && !pathname.includes('/messages') && (
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            right: 16,
+            bottom: bottomPadding + 80,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: '#121A33', // Deep navy
+            borderWidth: 2,
+            borderColor: '#C8A25F', // Gold
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#C8A25F',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.4,
+            shadowRadius: 12,
+            elevation: 12,
+          }}
+          onPress={() => setShowMoreMenu(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="grid" size={24} color="#C8A25F" />
+        </TouchableOpacity>
+      )}
     </>
   );
 }

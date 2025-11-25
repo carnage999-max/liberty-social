@@ -22,6 +22,7 @@ import { SkeletonFriend } from '../../components/common/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ActiveFriends from '../../components/friends/ActiveFriends';
+import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
 
 export default function MessagesScreen() {
   const { colors, isDark } = useTheme();
@@ -37,11 +38,13 @@ export default function MessagesScreen() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [creatingConversation, setCreatingConversation] = useState(false);
+  const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
   
   // Calculate FAB bottom position (account for tab bar + safe area)
   // Tab bar height: ~60px (icon + padding) + safe area bottom
   const tabBarHeight = 60;
-  const fabBottom = (insets.bottom > 0 ? insets.bottom : 0) + tabBarHeight + 16; // 16px spacing above tab bar
+  const fabBottom = (insets.bottom > 0 ? insets.bottom : 0) + tabBarHeight + 40; // 40px spacing above tab bar
 
   const loadConversations = async () => {
     try {
@@ -326,11 +329,14 @@ export default function MessagesScreen() {
       borderRadius: 28,
       alignItems: 'center',
       justifyContent: 'center',
-      elevation: 4,
-      shadowColor: '#000',
+      backgroundColor: '#192A4A',
+      borderWidth: 2,
+      borderColor: '#C8A25F',
+      shadowColor: '#C8A25F',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 3.84,
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 4,
     },
     modalContainer: {
       flex: 1,
@@ -420,7 +426,13 @@ export default function MessagesScreen() {
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
           ListHeaderComponent={
             <View style={{ marginBottom: 16 }}>
-              <ActiveFriends maxUsers={8} />
+              <ActiveFriends 
+                maxUsers={8} 
+                onUserClick={(user) => {
+                  setSelectedUserId(user.id);
+                  setProfileBottomSheetVisible(true);
+                }}
+              />
             </View>
           }
         />
@@ -428,10 +440,10 @@ export default function MessagesScreen() {
 
       {/* Floating Action Button */}
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary, bottom: fabBottom }]}
+        style={[styles.fab, { bottom: fabBottom }]}
         onPress={handleNewConversation}
       >
-        <Ionicons name="add" size={28} color="#FFFFFF" />
+        <Ionicons name="add" size={28} color="#C8A25F" />
       </TouchableOpacity>
 
       {/* New Conversation Modal */}
@@ -473,6 +485,15 @@ export default function MessagesScreen() {
           )}
         </View>
       </Modal>
+
+      <UserProfileBottomSheet
+        visible={profileBottomSheetVisible}
+        userId={selectedUserId}
+        onClose={() => {
+          setProfileBottomSheetVisible(false);
+          setSelectedUserId(null);
+        }}
+      />
     </View>
   );
 }

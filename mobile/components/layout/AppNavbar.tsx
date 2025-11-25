@@ -84,6 +84,11 @@ export default function AppNavbar({
       gap: 12,
       flex: 1,
     },
+    rightSection: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
     backButton: {
       padding: 4,
       marginLeft: -4,
@@ -168,9 +173,11 @@ export default function AppNavbar({
         </View>
 
         {customRightButton ? (
-          customRightButton
+          <View style={styles.rightSection}>
+            {customRightButton}
+          </View>
         ) : (
-          <>
+          <View style={styles.rightSection}>
             {showSearchIcon && (
               <TouchableOpacity
                 style={styles.profileButton}
@@ -213,7 +220,7 @@ export default function AppNavbar({
                 <Ionicons name="settings-outline" size={22} color="#1a2335" />
               </TouchableOpacity>
             )}
-          </>
+          </View>
         )}
       </View>
 

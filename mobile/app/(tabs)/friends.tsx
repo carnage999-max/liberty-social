@@ -18,6 +18,7 @@ import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
 import { SkeletonFriend } from '../../components/common/Skeleton';
+import ActiveFriends from '../../components/friends/ActiveFriends';
 
 export default function FriendsScreen() {
   const { colors, isDark } = useTheme();
@@ -345,6 +346,15 @@ export default function FriendsScreen() {
         }
         ListHeaderComponent={
           <>
+            <View style={{ marginBottom: 16 }}>
+              <ActiveFriends 
+                maxUsers={8} 
+                onUserClick={(user) => {
+                  setSelectedUserId(user.id);
+                  setProfileBottomSheetVisible(true);
+                }}
+              />
+            </View>
             {friends.length > 0 && (
               <View style={styles.friendsCountContainer}>
                 <Text style={[styles.friendsCountText, { color: colors.text }]}>
@@ -383,7 +393,7 @@ export default function FriendsScreen() {
             </Text>
           </View>
         }
-        contentContainerStyle={{ paddingVertical: 8, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingVertical: 8, paddingBottom: 100 }}
       />
 
       <UserProfileBottomSheet

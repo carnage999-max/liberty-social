@@ -15,7 +15,7 @@ export interface ImageGalleryProps {
   timestamp?: string;
 }
 
-export default function ImageGallery({
+export default function ImageGallery({  
   open,
   onClose,
   images,
