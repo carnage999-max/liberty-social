@@ -1,6 +1,6 @@
 import { API_BASE } from '../constants/API';
 
-export const DEFAULT_AVATAR = require('../assets/default-avatar.png');
+export const DEFAULT_AVATAR = require('../assets/default_avatar.png');
 
 const API_ORIGIN = API_BASE.replace(/\/?api\/?$/, '');
 
