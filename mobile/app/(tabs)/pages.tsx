@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   Image,
+  TextInput,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -25,7 +26,8 @@ interface BusinessPage {
   category?: string;
   profile_image_url?: string;
   cover_image_url?: string;
-  followers_count: number;
+  followers_count?: number;
+  follower_count?: number;
   is_following: boolean;
   is_verified?: boolean;
 }
@@ -45,6 +47,8 @@ export default function PagesScreen() {
   const [galleryVisible, setGalleryVisible] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadPages = useCallback(async () => {
     try {
@@ -90,7 +94,8 @@ export default function PagesScreen() {
           p.id === pageId ? { 
             ...p, 
             is_following: newFollowingState,
-            followers_count: response.follower_count || p.followers_count
+            followers_count: response.follower_count || p.followers_count || p.follower_count,
+            follower_count: response.follower_count || p.follower_count || p.followers_count
           } : p
         )
       );
@@ -189,7 +194,7 @@ export default function PagesScreen() {
             <View style={styles.stat}>
               <Ionicons name="people-outline" size={16} color={colors.textSecondary} />
               <Text style={[styles.statText, { color: colors.textSecondary }]}>
-                {item.followers_count} followers
+                {item.follower_count ?? item.followers_count ?? 0} followers
               </Text>
             </View>
             {item.category && (
@@ -232,16 +237,54 @@ export default function PagesScreen() {
   };
 
   const getDisplayedPages = () => {
+    let filtered: BusinessPage[] = [];
     switch (activeTab) {
       case 'following':
-        return pages.filter((p) => p.is_following);
+        filtered = pages.filter((p) => p.is_following);
+        break;
       case 'manage':
-        return managedPages;
+        filtered = managedPages;
+        break;
       case 'discover':
       default:
-        return pages;
+        filtered = pages;
+        break;
     }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter((p) => 
+        p.name.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query) ||
+        p.category?.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
   };
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Debounce search - no need to do anything else, filtering happens in getDisplayedPages
+    searchTimeoutRef.current = setTimeout(() => {
+      // Search is handled by getDisplayedPages which is called on render
+    }, 300);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const styles = StyleSheet.create({
     container: {
@@ -268,27 +311,41 @@ export default function PagesScreen() {
       fontSize: 14,
       fontWeight: '600',
     },
-    createButton: {
-      backgroundColor: '#192A4A', // Deep blue
-      margin: 16,
-      borderRadius: 12,
-      padding: 16,
+    searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      borderWidth: 1,
-      borderColor: '#C8A25F', // Gold border
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.4,
-      shadowRadius: 4,
-      elevation: 4,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      gap: 12,
     },
-    createButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontWeight: '600',
+    searchContainer: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 12,
+      borderWidth: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    searchIcon: {
+      marginRight: 8,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+    },
+    clearButton: {
+      marginLeft: 8,
+    },
+    createButtonIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: '#192A4A',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: '#C8A25F',
     },
     pageCard: {
       marginHorizontal: 16,
@@ -418,14 +475,33 @@ export default function PagesScreen() {
         ))}
       </View>
 
-      {/* Create Page Button */}
-      <TouchableOpacity
-        style={styles.createButton}
-        onPress={() => router.push('/pages/create')}
-      >
-        <Ionicons name="add-circle-outline" size={24} color="#FFFFFF" />
-        <Text style={styles.createButtonText}>Create a Page</Text>
-      </TouchableOpacity>
+      {/* Search and Create Button Row */}
+      <View style={styles.searchRow}>
+        <View style={[styles.searchContainer, { backgroundColor: isDark ? colors.backgroundSecondary : '#F8F9FF', borderColor: colors.border }]}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Search pages..."
+            placeholderTextColor={colors.textSecondary}
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              style={styles.clearButton}
+            >
+              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+        <TouchableOpacity
+          style={styles.createButtonIcon}
+          onPress={() => router.push('/pages/create')}
+        >
+          <Ionicons name="add-circle" size={32} color="#C8A25F" />
+        </TouchableOpacity>
+      </View>
 
       {/* Pages List */}
       <FlatList

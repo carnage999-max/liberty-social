@@ -36,7 +36,7 @@ export default function CreatePagePostModal({
   const { showSuccess, showError } = useToast();
   const [content, setContent] = useState('');
   const [selectedImages, setSelectedImages] = useState<Array<{ uri: string; formData: FormData }>>([]);
-  const [visibility, setVisibility] = useState<'public' | 'friends'>('public');
+  const [visibility, setVisibility] = useState<'public' | 'friends' | 'followers'>('followers');
   const [submitting, setSubmitting] = useState(false);
 
   const handlePickImages = async () => {
@@ -107,12 +107,12 @@ export default function CreatePagePostModal({
       // Create page post
       const payload: {
         content: string;
-        page: number;
+        page_id: number; // API expects page_id, not page
         visibility?: string;
         media_urls?: string[];
       } = {
         content: trimmedContent,
-        page: pageId,
+        page_id: pageId,
         visibility,
       };
 
@@ -120,20 +120,26 @@ export default function CreatePagePostModal({
         payload.media_urls = uploadedUrls;
       }
 
-      await apiClient.post('/posts/', payload);
+      console.log('Creating post with payload:', payload);
+      const response = await apiClient.post('/posts/', payload);
+      console.log('Post creation response:', response);
 
       // Reset form
       setContent('');
       setSelectedImages([]);
-      setVisibility('public');
+      setVisibility('followers');
 
       showSuccess('Page post created successfully!');
       onPostCreated?.();
       onClose();
     } catch (error: any) {
+      console.error('Post creation error:', error);
+      console.error('Error response:', error?.response?.data);
       const detail =
         error?.response?.data?.detail ||
         error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
         'Something went wrong while creating the post.';
       showError(detail);
     } finally {
@@ -145,7 +151,7 @@ export default function CreatePagePostModal({
     if (!submitting) {
       setContent('');
       setSelectedImages([]);
-      setVisibility('public');
+      setVisibility('followers');
       onClose();
     }
   };
@@ -160,17 +166,27 @@ export default function CreatePagePostModal({
       <View style={styles.overlay}>
         <View style={[styles.modalContent, { backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF' }]}>
           {/* Header */}
-          <View style={[styles.header, { borderBottomColor: '#C8A25F' }]}>
+          <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <Text style={[styles.title, { color: colors.text }]}>Create Page Post</Text>
             <TouchableOpacity onPress={handleClose} disabled={submitting}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          <ScrollView 
+            style={styles.content} 
+            contentContainerStyle={styles.contentContainer}
+            showsVerticalScrollIndicator={true}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+          >
             {/* Content Input */}
             <TextInput
-              style={[styles.textInput, { color: colors.text, backgroundColor: isDark ? colors.background : '#F8F9FF' }]}
+              style={[styles.textInput, { 
+                color: colors.text, 
+                backgroundColor: isDark ? colors.backgroundSecondary : '#F8F9FF',
+                borderColor: colors.border,
+              }]}
               placeholder="What's on your mind?"
               placeholderTextColor={colors.textSecondary}
               value={content}
@@ -178,6 +194,7 @@ export default function CreatePagePostModal({
               multiline
               numberOfLines={6}
               textAlignVertical="top"
+              editable={!submitting}
             />
 
             {/* Visibility Selector */}
@@ -188,7 +205,7 @@ export default function CreatePagePostModal({
                   style={[
                     styles.visibilityButton,
                     visibility === 'public' && styles.visibilityButtonActive,
-                    { borderColor: '#C8A25F' },
+                    { borderColor: colors.border },
                   ]}
                   onPress={() => setVisibility('public')}
                 >
@@ -197,8 +214,18 @@ export default function CreatePagePostModal({
                 <TouchableOpacity
                   style={[
                     styles.visibilityButton,
+                    visibility === 'followers' && styles.visibilityButtonActive,
+                    { borderColor: colors.border },
+                  ]}
+                  onPress={() => setVisibility('followers')}
+                >
+                  <Text style={[styles.visibilityButtonText, { color: colors.text }]}>Followers</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.visibilityButton,
                     visibility === 'friends' && styles.visibilityButtonActive,
-                    { borderColor: '#C8A25F' },
+                    { borderColor: colors.border },
                   ]}
                   onPress={() => setVisibility('friends')}
                 >
@@ -230,17 +257,17 @@ export default function CreatePagePostModal({
             {/* Add Images Button */}
             {selectedImages.length < MAX_IMAGES && (
               <TouchableOpacity
-                style={[styles.addImageButton, { borderColor: '#C8A25F' }]}
+                style={[styles.addImageButton, { borderColor: colors.border }]}
                 onPress={handlePickImages}
               >
-                <Ionicons name="image-outline" size={24} color="#C8A25F" />
-                <Text style={[styles.addImageText, { color: '#C8A25F' }]}>Add Images</Text>
+                <Ionicons name="image-outline" size={24} color={colors.primary} />
+                <Text style={[styles.addImageText, { color: colors.primary }]}>Add Images</Text>
               </TouchableOpacity>
             )}
           </ScrollView>
 
           {/* Footer */}
-          <View style={[styles.footer, { borderTopColor: '#C8A25F' }]}>
+          <View style={[styles.footer, { borderTopColor: colors.border }]}>
             <TouchableOpacity
               style={[styles.cancelButton, { borderColor: colors.border }]}
               onPress={handleClose}
@@ -249,7 +276,7 @@ export default function CreatePagePostModal({
               <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.submitButton}
+              style={[styles.submitButton, { borderColor: colors.border }]}
               onPress={handleSubmit}
               disabled={submitting || !content.trim()}
             >
@@ -282,10 +309,9 @@ const styles = StyleSheet.create({
   modalContent: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    height: '90%',
     maxHeight: '90%',
-    borderWidth: 2,
-    borderColor: '#C8A25F',
-    borderBottomWidth: 0,
+    flexDirection: 'column',
   },
   header: {
     flexDirection: 'row',
@@ -300,9 +326,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    minHeight: 200,
   },
   contentContainer: {
     padding: 20,
+    paddingBottom: 40,
   },
   textInput: {
     minHeight: 120,
@@ -311,7 +339,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#C8A25F',
   },
   visibilityContainer: {
     marginBottom: 20,
@@ -396,7 +423,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#C8A25F',
   },
   submitButtonGradient: {
     paddingVertical: 12,

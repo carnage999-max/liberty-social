@@ -19,28 +19,28 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useTheme } from '../../../contexts/ThemeContext';
-import { useAuth } from '../../../contexts/AuthContext';
-import { useToast } from '../../../contexts/ToastContext';
-import { apiClient } from '../../../utils/api';
-import { Post, Comment, Reaction } from '../../../types';
+import { useTheme } from '../../../../contexts/ThemeContext';
+import { useAuth } from '../../../../contexts/AuthContext';
+import { useToast } from '../../../../contexts/ToastContext';
+import { apiClient } from '../../../../utils/api';
+import { Post, Comment, Reaction } from '../../../../types';
 import { Ionicons } from '@expo/vector-icons';
-import ScreenHeader from '../../../components/layout/ScreenHeader';
-import PostActionsMenu from '../../../components/feed/PostActionsMenu';
+import ScreenHeader from '../../../../components/layout/ScreenHeader';
+import PostActionsMenu from '../../../../components/feed/PostActionsMenu';
 import {
   resolveMediaUrls,
   resolveRemoteUrl,
   DEFAULT_AVATAR,
-} from '../../../utils/url';
-import { API_BASE } from '../../../constants/API';
+} from '../../../../utils/url';
+import { API_BASE } from '../../../../constants/API';
 import type { ImageSourcePropType } from 'react-native';
-import AppNavbar from '../../../components/layout/AppNavbar';
-import AdvancedEmojiPicker from '../../../components/feed/AdvancedEmojiPicker';
-import CommentActionsMenu from '../../../components/feed/CommentActionsMenu';
-import type { ReactionType } from '../../../types';
-import UserProfileBottomSheet from '../../../components/profile/UserProfileBottomSheet';
-import { SkeletonPost } from '../../../components/common/Skeleton';
-import ImageGallery from '../../../components/common/ImageGallery';
+import AppNavbar from '../../../../components/layout/AppNavbar';
+import AdvancedEmojiPicker from '../../../../components/feed/AdvancedEmojiPicker';
+import CommentActionsMenu from '../../../../components/feed/CommentActionsMenu';
+import type { ReactionType } from '../../../../types';
+import UserProfileBottomSheet from '../../../../components/profile/UserProfileBottomSheet';
+import { SkeletonPost } from '../../../../components/common/Skeleton';
+import ImageGallery from '../../../../components/common/ImageGallery';
 
 type NormalizedPost = Post & {
   mediaUrls: string[];
@@ -121,8 +121,9 @@ const formatSortLabel = (sort: CommentSort) => {
   }
 };
 
-export default function PostDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+export default function PagePostDetailScreen() {
+  const { id: pageId, postId } = useLocalSearchParams<{ id: string; postId: string }>();
+  const id = postId; // Use postId for API calls
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
   const { showError, showSuccess, showInfo } = useToast();
@@ -792,8 +793,8 @@ export default function PostDetailScreen() {
 
   const handlePostMenuDeleted = useCallback((postId: number) => {
     setPost((prev) => (prev && prev.id === postId ? null : prev));
-    router.back();
-  }, [router]);
+    router.push(`/pages/${pageId}`);
+  }, [router, pageId]);
 
   const handleToggleReplies = useCallback((commentId: number) => {
     setExpandedReplies((prev) =>
@@ -1788,7 +1789,12 @@ export default function PostDetailScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <AppNavbar showBackButton={true} showLogo={false} showProfileImage={false} />
+        <AppNavbar 
+        showBackButton={true} 
+        onBackPress={() => router.push(`/pages/${pageId}`)}
+        showLogo={false} 
+        showProfileImage={false} 
+      />
         <ScrollView
           style={[styles.contentScroll, { backgroundColor: colors.background }]}
           contentContainerStyle={styles.contentScrollContent}
@@ -1838,7 +1844,12 @@ export default function PostDetailScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
-      <AppNavbar showBackButton={true} showLogo={false} showProfileImage={false} />
+      <AppNavbar 
+        showBackButton={true} 
+        onBackPress={() => router.push(`/pages/${pageId}`)}
+        showLogo={false} 
+        showProfileImage={false} 
+      />
 
       <View style={styles.pageContent}>
         <ScrollView

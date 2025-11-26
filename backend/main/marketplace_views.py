@@ -83,6 +83,11 @@ class MarketplaceListingViewSet(viewsets.ModelViewSet):
         if location:
             queryset = queryset.filter(location__icontains=location)
 
+        # Filter by seller ID
+        seller_id = self.request.query_params.get("seller_id") or self.request.query_params.get("seller")
+        if seller_id:
+            queryset = queryset.filter(seller_id=seller_id)
+
         return queryset
 
     def perform_create(self, serializer):

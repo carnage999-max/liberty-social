@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,12 @@ import {
   Image,
   ActivityIndicator,
   Dimensions,
+  FlatList,
+  TextInput,
+  Share,
+  KeyboardAvoidingView,
+  Platform,
+  Animated,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,14 +22,23 @@ import { apiClient } from '../../utils/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
-import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
+import { resolveRemoteUrl, DEFAULT_AVATAR, resolveMediaUrls } from '../../utils/url';
 import ImageGallery from '../../components/common/ImageGallery';
 import ContextMenu from '../../components/common/ContextMenu';
 import { Modal } from 'react-native';
 import InviteUsersModal from '../../components/pages/InviteUsersModal';
 import CreatePagePostModal from '../../components/pages/CreatePagePostModal';
+import SendAdminInviteModal from '../../components/pages/SendAdminInviteModal';
+import * as ImagePicker from 'expo-image-picker';
+import { Post, PaginatedResponse, Reaction, ReactionType } from '../../types';
+import PostActionsMenu from '../../components/feed/PostActionsMenu';
+import AdvancedEmojiPicker from '../../components/feed/AdvancedEmojiPicker';
+import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
+import { API_BASE } from '../../constants/API';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+type TabType = 'overview' | 'about' | 'contact' | 'photos';
 
 interface BusinessPage {
   id: number;
@@ -32,7 +47,8 @@ interface BusinessPage {
   category?: string;
   profile_image_url?: string;
   cover_image_url?: string;
-  followers_count: number;
+  followers_count?: number;
+  follower_count?: number; // API returns this field
   is_following: boolean;
   is_verified?: boolean;
   website_url?: string;
@@ -61,8 +77,27 @@ export default function PageDetailScreen() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [canManage, setCanManage] = useState(false);
+  const [canPost, setCanPost] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  const [showAdminInviteModal, setShowAdminInviteModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [nextPosts, setNextPosts] = useState<string | null>(null);
+  const [postContent, setPostContent] = useState('');
+  const [postImages, setPostImages] = useState<Array<{ uri: string; formData: FormData }>>([]);
+  const [submittingPost, setSubmittingPost] = useState(false);
+  const [reactingPosts, setReactingPosts] = useState<Record<number, boolean>>({});
+  const [reactionBusy, setReactionBusy] = useState<Record<number, boolean>>({});
+  const [doubleTapAnimation, setDoubleTapAnimation] = useState<{ postId: number; show: boolean } | null>(null);
+  const lastTapRef = useRef<{ postId: number; time: number } | null>(null);
+  const likeAnimationsRef = useRef<Record<number, Animated.Value>>({});
+  const doubleTapAnimationsRef = useRef<Record<number, Animated.Value>>({});
+  const [advancedEmojiPickerVisible, setAdvancedEmojiPickerVisible] = useState(false);
+  const [advancedEmojiPickerPostId, setAdvancedEmojiPickerPostId] = useState<number | null>(null);
+  const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
 
   useEffect(() => {
     loadPage();
@@ -71,18 +106,30 @@ export default function PageDetailScreen() {
   useEffect(() => {
     if (page) {
       checkCanManage();
+      if (activeTab === 'overview') {
+        loadPosts();
+      }
     }
-  }, [page, user]);
+  }, [page, activeTab]);
 
   const loadPage = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get<BusinessPage>(`/pages/${id}/`);
-      setPage(response);
+      const response = await apiClient.get<any>(`/pages/${id}/`);
+      // API returns follower_count, map it to followers_count for consistency
+      const pageData: BusinessPage = {
+        ...response,
+        followers_count: response.follower_count || response.followers_count || 0,
+      };
+      setPage(pageData);
+      // Set canPost based on user_role or can_manage - this is the primary check
+      const canPostValue = pageData.user_role === 'owner' || pageData.user_role === 'admin' || pageData.user_role === 'moderator' || pageData.can_manage;
+      console.log('Page data:', { user_role: pageData.user_role, can_manage: pageData.can_manage, canPost: canPostValue, followers_count: pageData.followers_count });
+      setCanPost(canPostValue);
     } catch (error) {
       showError('Failed to load page');
       console.error(error);
-      router.back();
+      router.push('/(tabs)/pages');
     } finally {
       setLoading(false);
     }
@@ -91,15 +138,37 @@ export default function PageDetailScreen() {
   const checkCanManage = async () => {
     if (!page || !user) {
       setCanManage(false);
+      // Don't reset canPost here - it's already set in loadPage
       return;
     }
     try {
-      // Try to fetch admins - if successful, user can manage
       await apiClient.get(`/pages/${page.id}/admins/`);
       setCanManage(true);
+      // Ensure canPost is set if user can manage
+      if (!canPost && (page.user_role === 'owner' || page.user_role === 'admin' || page.user_role === 'moderator' || page.can_manage)) {
+        setCanPost(true);
+      }
     } catch (error) {
-      // If 403 or 404, user cannot manage
       setCanManage(false);
+      // Don't reset canPost - keep the value from loadPage
+      // Only set it if user_role clearly allows posting
+      if (page.user_role === 'owner' || page.user_role === 'admin' || page.user_role === 'moderator') {
+        setCanPost(true);
+      }
+    }
+  };
+
+  const loadPosts = async () => {
+    if (!page) return;
+    try {
+      setLoadingPosts(true);
+      const response = await apiClient.get<PaginatedResponse<Post>>(`/pages/${page.id}/posts/`);
+      setPosts(response.results || []);
+      setNextPosts(response.next);
+    } catch (error) {
+      console.error('Failed to load posts:', error);
+    } finally {
+      setLoadingPosts(false);
     }
   };
 
@@ -109,14 +178,111 @@ export default function PageDetailScreen() {
       const response = await apiClient.post<{ following: boolean; follower_count: number }>(`/pages/${page.id}/follow/`, {});
       const newFollowingState = response.following;
       showSuccess(newFollowingState ? 'Following page' : 'Unfollowed page');
-      setPage({ 
-        ...page, 
-        is_following: newFollowingState,
-        followers_count: response.follower_count || page.followers_count
-      });
+      // Reload page to get updated followers_count
+      await loadPage();
     } catch (error) {
       showError('Failed to update follow status');
       console.error(error);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!page) return;
+    try {
+      const pageUrl = `${API_BASE.replace(/\/api\/?$/, '')}/pages/${page.id}`;
+      await Share.share({
+        message: `Check out ${page.name} on Liberty Social: ${pageUrl}`,
+        title: page.name,
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  const handlePickImages = async () => {
+    if (postImages.length >= 6) {
+      showError('You can upload up to 6 images per post.');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        selectionLimit: 6 - postImages.length,
+      });
+
+      if (!result.canceled && result.assets) {
+        const newImages = result.assets.map(asset => {
+          const formData = new FormData();
+          const filename = asset.uri.split('/').pop() || 'image.jpg';
+          formData.append('file', {
+            uri: asset.uri,
+            type: 'image/jpeg',
+            name: filename,
+          } as any);
+          return { uri: asset.uri, formData };
+        });
+        setPostImages(prev => [...prev, ...newImages]);
+      }
+    } catch (error) {
+      showError('Failed to pick images');
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setPostImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitPost = async () => {
+    if (!page || !postContent.trim()) return;
+
+    setSubmittingPost(true);
+    try {
+      // Upload images if any
+      const uploadedUrls: string[] = [];
+      if (postImages.length > 0) {
+        for (const image of postImages) {
+          try {
+            const uploadResponse = await apiClient.postFormData('/uploads/images/', image.formData);
+            if (uploadResponse.url) {
+              uploadedUrls.push(uploadResponse.url);
+            } else if (uploadResponse.urls && Array.isArray(uploadResponse.urls)) {
+              uploadedUrls.push(...uploadResponse.urls);
+            }
+          } catch (uploadError) {
+            console.error('Upload error:', uploadError);
+          }
+        }
+      }
+
+      const payload: any = {
+        content: postContent.trim(),
+        page_id: page.id, // API expects page_id, not page
+        // visibility is optional - backend will use default if not provided
+      };
+
+      if (uploadedUrls.length > 0) {
+        payload.media_urls = uploadedUrls;
+      }
+
+      console.log('Creating post with payload:', payload);
+      const response = await apiClient.post('/posts/', payload);
+      console.log('Post creation response:', response);
+
+      setPostContent('');
+      setPostImages([]);
+      showSuccess('Post created successfully!');
+      loadPosts();
+    } catch (error: any) {
+      console.error('Post creation error:', error);
+      console.error('Error response data:', error?.response?.data);
+      console.error('Error response status:', error?.response?.status);
+      const detail = error?.response?.data?.detail || error?.response?.data?.message || error?.response?.data?.error || 'Failed to create post';
+      showError(detail);
+    } finally {
+      setSubmittingPost(false);
     }
   };
 
@@ -136,7 +302,765 @@ export default function PageDetailScreen() {
     }
   };
 
-  // canManage is now set via checkCanManage function
+  // Helper functions for reactions and animations
+  const REACTION_TYPE_TO_EMOJI: Record<string, string> = {
+    "like": "👍",
+    "love": "❤️",
+    "haha": "😂",
+    "sad": "😢",
+    "angry": "😠",
+  };
+
+  const getReactionEmoji = (reactionType: string): string => {
+    if (REACTION_TYPE_TO_EMOJI[reactionType]) {
+      return REACTION_TYPE_TO_EMOJI[reactionType];
+    }
+    return reactionType;
+  };
+
+  const getLikeAnimation = useCallback(
+    (postId: number) => {
+      if (!likeAnimationsRef.current[postId]) {
+        likeAnimationsRef.current[postId] = new Animated.Value(1);
+      }
+      return likeAnimationsRef.current[postId];
+    },
+    []
+  );
+
+  const animateLikeState = useCallback(
+    (postId: number, liked: boolean) => {
+      const animation = getLikeAnimation(postId);
+      animation.stopAnimation();
+      Animated.sequence([
+        Animated.spring(animation, {
+          toValue: liked ? 1.3 : 0.9,
+          useNativeDriver: true,
+          stiffness: 260,
+          damping: 16,
+          mass: 0.7,
+        }),
+        Animated.spring(animation, {
+          toValue: 1,
+          useNativeDriver: true,
+          stiffness: 220,
+          damping: 14,
+          mass: 0.7,
+        }),
+      ]).start();
+    },
+    [getLikeAnimation]
+  );
+
+  const getDoubleTapAnimation = useCallback(
+    (postId: number) => {
+      if (!doubleTapAnimationsRef.current[postId]) {
+        doubleTapAnimationsRef.current[postId] = new Animated.Value(0);
+      }
+      return doubleTapAnimationsRef.current[postId];
+    },
+    []
+  );
+
+  const buildDisplayName = (author: Post['author']) =>
+    author?.username ||
+    [author?.first_name, author?.last_name].filter(Boolean).join(' ') ||
+    author?.email ||
+    'User';
+
+  const handleReactionSelect = async (postId: number, reactionType: ReactionType) => {
+    if (!user) return;
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    const emoji = getReactionEmoji(reactionType);
+    const existingReaction = (post.reactions || []).find(
+      (reaction) => reaction.user?.id === user.id
+    );
+
+    setReactionBusy((prev) => ({ ...prev, [postId]: true }));
+    const previousPosts = posts;
+    const optimisticReactionId = -Math.floor(Math.random() * 1_000_000) - 1;
+
+    if (existingReaction) {
+      if (getReactionEmoji(existingReaction.reaction_type) === emoji) {
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: (item.reactions || []).filter(
+                    (reaction) => reaction.id !== existingReaction.id
+                  ),
+                }
+              : item
+          )
+        );
+        animateLikeState(postId, false);
+      } else {
+        const optimisticReaction: Reaction = {
+          ...existingReaction,
+          id: optimisticReactionId,
+          reaction_type: emoji,
+        };
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: [
+                    ...((item.reactions || []).filter(
+                      (reaction) => reaction.id !== existingReaction.id
+                    ) || []),
+                    optimisticReaction,
+                  ],
+                }
+              : item
+          )
+        );
+        animateLikeState(postId, true);
+      }
+    } else {
+      const optimisticReaction: Reaction = {
+        id: optimisticReactionId,
+        reaction_type: emoji,
+        created_at: new Date().toISOString(),
+        user,
+      };
+      setPosts((prev) =>
+        prev.map((item) =>
+          item.id === postId
+            ? {
+                ...item,
+                reactions: [
+                  ...((item.reactions || []).filter(
+                    (reaction) => reaction.user?.id !== user.id
+                  ) || []),
+                  optimisticReaction,
+                ],
+              }
+            : item
+        )
+      );
+      animateLikeState(postId, true);
+    }
+
+    try {
+      if (existingReaction) {
+        if (getReactionEmoji(existingReaction.reaction_type) === emoji) {
+          try {
+            if (existingReaction.id && existingReaction.id > 0) {
+              await apiClient.delete(`/reactions/${existingReaction.id}/`);
+            }
+          } catch (deleteError: any) {
+            if (deleteError?.response?.status !== 404) {
+              console.warn('Error deleting reaction:', deleteError);
+            }
+          }
+        } else {
+          const savedReaction = await apiClient.post<Reaction>('/reactions/', {
+            post: postId,
+            reaction_type: emoji,
+          });
+          setPosts((prev) =>
+            prev.map((item) =>
+              item.id === postId
+                ? {
+                    ...item,
+                    reactions: [
+                      ...((item.reactions || []).filter(
+                        (reaction) => reaction.id !== optimisticReactionId
+                      ) || []),
+                      savedReaction,
+                    ],
+                  }
+                : item
+            )
+          );
+        }
+      } else {
+        const savedReaction = await apiClient.post<Reaction>('/reactions/', {
+          post: postId,
+          reaction_type: emoji,
+        });
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: [
+                    ...((item.reactions || []).filter(
+                      (reaction) => reaction.id !== optimisticReactionId
+                    ) || []),
+                    savedReaction,
+                  ],
+                }
+              : item
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error updating reaction:', error);
+      showError('Please try again in a moment.', 'Unable to update reaction');
+      setPosts(previousPosts);
+    } finally {
+      setReactionBusy((prev) => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  const handleEmojiReactionSelect = async (postId: number, emoji: string) => {
+    if (!user) return;
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
+    const existingReaction = (post.reactions || []).find(
+      (reaction) => reaction.user?.id === user.id
+    );
+
+    setReactionBusy((prev) => ({ ...prev, [postId]: true }));
+    const previousPosts = posts;
+    const optimisticReactionId = -Math.floor(Math.random() * 1_000_000) - 1;
+
+    if (existingReaction) {
+      if (existingReaction.reaction_type === emoji) {
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: (item.reactions || []).filter(
+                    (reaction) => reaction.id !== existingReaction.id
+                  ),
+                }
+              : item
+          )
+        );
+        animateLikeState(postId, false);
+      } else {
+        const optimisticReaction: Reaction = {
+          ...existingReaction,
+          id: optimisticReactionId,
+          reaction_type: emoji,
+        };
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: [
+                    ...((item.reactions || []).filter(
+                      (reaction) => reaction.id !== existingReaction.id
+                    ) || []),
+                    optimisticReaction,
+                  ],
+                }
+              : item
+          )
+        );
+        animateLikeState(postId, true);
+      }
+    } else {
+      const optimisticReaction: Reaction = {
+        id: optimisticReactionId,
+        reaction_type: emoji,
+        created_at: new Date().toISOString(),
+        user,
+      };
+      setPosts((prev) =>
+        prev.map((item) =>
+          item.id === postId
+            ? {
+                ...item,
+                reactions: [
+                  ...((item.reactions || []).filter(
+                    (reaction) => reaction.user?.id !== user.id
+                  ) || []),
+                  optimisticReaction,
+                ],
+              }
+            : item
+        )
+      );
+      animateLikeState(postId, true);
+    }
+
+    try {
+      if (existingReaction) {
+        if (existingReaction.reaction_type === emoji) {
+          await apiClient.delete(`/reactions/${existingReaction.id}/`);
+        } else {
+          await apiClient.delete(`/reactions/${existingReaction.id}/`);
+          const savedReaction = await apiClient.post<Reaction>('/reactions/', {
+            post: postId,
+            reaction_type: emoji,
+          });
+          setPosts((prev) =>
+            prev.map((item) =>
+              item.id === postId
+                ? {
+                    ...item,
+                    reactions: [
+                      ...((item.reactions || []).filter(
+                        (reaction) => reaction.id !== optimisticReactionId
+                      ) || []),
+                      savedReaction,
+                    ],
+                  }
+                : item
+            )
+          );
+        }
+      } else {
+        const savedReaction = await apiClient.post<Reaction>('/reactions/', {
+          post: postId,
+          reaction_type: emoji,
+        });
+        setPosts((prev) =>
+          prev.map((item) =>
+            item.id === postId
+              ? {
+                  ...item,
+                  reactions: [
+                    ...((item.reactions || []).filter(
+                      (reaction) => reaction.id !== optimisticReactionId
+                    ) || []),
+                    savedReaction,
+                  ],
+                }
+              : item
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error updating reaction:', error);
+      showError('Please try again in a moment.', 'Unable to update reaction');
+      setPosts(previousPosts);
+    } finally {
+      setReactionBusy((prev) => ({ ...prev, [postId]: false }));
+    }
+  };
+
+  const handleToggleLike = async (post: Post) => {
+    if (!user) {
+      showError('Please log in to react to posts.');
+      return;
+    }
+
+    const existingReaction = (post.reactions || []).find(
+      (reaction) => reaction.user?.id === user.id
+    );
+
+    if (existingReaction) {
+      const currentEmoji = getReactionEmoji(existingReaction.reaction_type);
+      const reactionType = Object.keys(REACTION_TYPE_TO_EMOJI).find(
+        key => REACTION_TYPE_TO_EMOJI[key] === currentEmoji
+      ) || 'like';
+      await handleReactionSelect(post.id, reactionType as ReactionType);
+    } else {
+      await handleReactionSelect(post.id, 'like');
+    }
+  };
+
+  const handleDoubleTap = useCallback(
+    (postId: number) => {
+      if (!user) {
+        showError('Please log in to react to posts.');
+        return;
+      }
+
+      const post = posts.find((p) => p.id === postId);
+      if (!post) return;
+
+      const existingReaction = (post.reactions || []).find(
+        (reaction) => reaction.user?.id === user.id
+      );
+
+      const anim = getDoubleTapAnimation(postId);
+      setDoubleTapAnimation({ postId, show: true });
+      
+      Animated.sequence([
+        Animated.spring(anim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 7,
+        }),
+        Animated.timing(anim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setDoubleTapAnimation((prev) => prev?.postId === postId ? { postId, show: false } : prev);
+      });
+
+      if (existingReaction) {
+        const existingEmoji = getReactionEmoji(existingReaction.reaction_type);
+        const likeEmoji = getReactionEmoji('like');
+        if (existingEmoji === likeEmoji) {
+          handleReactionSelect(postId, 'like');
+        } else {
+          handleReactionSelect(postId, 'like');
+        }
+      } else {
+        handleReactionSelect(postId, 'like');
+      }
+    },
+    [user, posts, getDoubleTapAnimation]
+  );
+
+  const handlePostPress = useCallback(
+    (postId: number) => {
+      const now = Date.now();
+      const lastTap = lastTapRef.current;
+
+      if (lastTap && lastTap.postId === postId && now - lastTap.time < 400) {
+        handleDoubleTap(postId);
+        lastTapRef.current = null;
+      } else {
+        lastTapRef.current = { postId, time: now };
+        setTimeout(() => {
+          if (lastTapRef.current?.postId === postId) {
+            lastTapRef.current = null;
+          }
+        }, 400);
+      }
+    },
+    [handleDoubleTap]
+  );
+
+  const handleReactionLongPress = (post: Post, event: any) => {
+    if (!user) {
+      showError('Please log in to react to posts.');
+      return;
+    }
+    setAdvancedEmojiPickerPostId(post.id);
+    setAdvancedEmojiPickerVisible(true);
+  };
+
+  const handleSharePost = async (post: Post) => {
+    try {
+      const shareMessage = [post.content, `${API_BASE.replace(/\/api\/?$/, '')}/feed/${post.id}`]
+        .filter(Boolean)
+        .join('\n\n');
+
+      await Share.share({
+        message: shareMessage,
+        title: 'Share post',
+      });
+    } catch (error) {
+      console.error('Error sharing post:', error);
+      showError('Please try again later.', 'Unable to share');
+    }
+  };
+
+  const handlePostUpdated = (nextPost: Post) => {
+    setPosts((prev) => prev.map((item) => (item.id === nextPost.id ? nextPost : item)));
+  };
+
+  const handlePostDeleted = (postId: number) => {
+    setPosts((prev) => prev.filter((item) => item.id !== postId));
+  };
+
+  const renderPost = ({ item }: { item: Post }) => {
+    // For page posts, show page name instead of author name
+    const isPagePost = (item as any).author_type === 'page' || (item as any).page !== null && (item as any).page !== undefined;
+    const displayName = isPagePost && (item as any).page
+      ? (item as any).page.name
+      : buildDisplayName(item.author);
+    
+    // For page posts, use page profile image; for user posts, use author avatar
+    const avatarSource = isPagePost && (item as any).page?.profile_image_url
+      ? { uri: resolveRemoteUrl((item as any).page.profile_image_url) }
+      : item.author?.profile_image_url
+      ? { uri: resolveRemoteUrl(item.author.profile_image_url) }
+      : DEFAULT_AVATAR;
+
+    const galleryUrls: string[] =
+      item.media && Array.isArray(item.media) && item.media.length > 0
+        ? resolveMediaUrls(item.media)
+        : resolveMediaUrls(Array.isArray(item.media) ? (item.media as any) : []);
+
+    const reactionCount = (item.reactions || []).length;
+    const commentCount = item.comments?.length || 0;
+    const currentUserReaction = user
+      ? (item.reactions || []).find((reaction) => reaction.user?.id === user.id)
+      : null;
+    const hasReacted = !!currentUserReaction;
+    const reactionEmoji = currentUserReaction ? getReactionEmoji(currentUserReaction.reaction_type) : null;
+    const likeProcessing = !!reactionBusy[item.id];
+    const likeAnimation = getLikeAnimation(item.id);
+
+    return (
+      <View
+        style={[
+          styles.postCard,
+          {
+            backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        {/* Double-tap like animation */}
+        {doubleTapAnimation?.postId === item.id && doubleTapAnimation.show && (
+          <View style={styles.doubleTapAnimationContainer} pointerEvents="none">
+            <Animated.Text
+              style={[
+                styles.doubleTapEmoji,
+                {
+                  transform: [
+                    {
+                      scale: getDoubleTapAnimation(item.id).interpolate({
+                        inputRange: [0, 0.5, 1],
+                        outputRange: [0, 1.3, 1],
+                      }),
+                    },
+                  ],
+                  opacity: getDoubleTapAnimation(item.id).interpolate({
+                    inputRange: [0, 0.5, 1],
+                    outputRange: [0, 1, 0],
+                  }),
+                },
+              ]}
+            >
+              👍
+            </Animated.Text>
+          </View>
+        )}
+        <View style={styles.postHeaderRow}>
+          <TouchableOpacity
+            style={styles.postHeader}
+            onPress={() => {
+              if (isPagePost && (item as any).page) {
+                router.push(`/pages/${(item as any).page.id}`);
+              } else {
+                setSelectedUserId(item.author.id);
+                setProfileBottomSheetVisible(true);
+              }
+            }}
+          >
+            <Image source={avatarSource} style={styles.avatar} />
+            <View style={styles.postHeaderText}>
+              <Text style={[styles.authorName, { color: colors.text }]}>{displayName}</Text>
+              <Text style={[styles.postTime, { color: colors.textSecondary }]}>
+                {new Date(item.created_at).toLocaleDateString()}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <PostActionsMenu
+            post={item}
+            currentUserId={user?.id ?? null}
+            onPostUpdated={handlePostUpdated}
+            onPostDeleted={handlePostDeleted}
+            normalizePost={(p) => p}
+          />
+        </View>
+
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => handlePostPress(item.id)}
+          style={styles.postContentWrapper}
+        >
+        {item.content && (
+          <Text style={[styles.postContent, { color: colors.text }]}>{item.content}</Text>
+        )}
+
+        {galleryUrls.length > 0 && (
+          <View
+            style={[
+              styles.mediaGrid,
+              galleryUrls.length === 1
+                ? styles.mediaGridSingle
+                : galleryUrls.length === 2
+                ? styles.mediaGridDouble
+                : styles.mediaGridTriple,
+            ]}
+          >
+            {galleryUrls.slice(0, 9).map((url, index) => (
+              <TouchableOpacity
+                key={`${item.id}-media-${index}`}
+                style={[
+                  styles.mediaImageWrapper,
+                  galleryUrls.length === 1
+                    ? styles.mediaImageSingle
+                    : galleryUrls.length === 2
+                    ? styles.mediaImageDouble
+                    : styles.mediaImageTriple,
+                ]}
+                onPress={() => {
+                  setGalleryImages(galleryUrls);
+                  setGalleryIndex(index);
+                  setGalleryVisible(true);
+                }}
+                activeOpacity={0.9}
+              >
+                <Image
+                  source={{ uri: url }}
+                  style={styles.mediaImage}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+        </TouchableOpacity>
+
+        <View style={styles.postActions}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleToggleLike(item)}
+            onLongPress={(e) => handleReactionLongPress(item, e)}
+            disabled={likeProcessing}
+          >
+            {hasReacted && reactionEmoji ? (
+              <Text style={styles.reactionEmoji}>{reactionEmoji}</Text>
+            ) : (
+              <Ionicons
+                name="heart-outline"
+                size={20}
+                color={colors.textSecondary}
+              />
+            )}
+            <Text style={[styles.actionText, { color: colors.textSecondary }]}>
+              {reactionCount}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push(`/pages/${id}/posts/${item.id}`)}
+          >
+            <Ionicons name="chatbubble-outline" size={20} color={colors.textSecondary} />
+            <Text style={[styles.actionText, { color: colors.textSecondary }]}>{commentCount}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleSharePost(item)}
+          >
+            <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return (
+          <View>
+            {/* Info Card */}
+            {(page?.description || page?.website_url || page?.phone || page?.email) && (
+              <View style={[styles.infoCard, { backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF', borderColor: colors.border }]}>
+                <Text style={[styles.infoCardTitle, { color: colors.text }]}>Page Information</Text>
+                {page?.description && (
+                  <Text style={[styles.infoCardText, { color: colors.text }]}>{page.description}</Text>
+                )}
+                {(page?.website_url || page?.phone || page?.email) && (
+                  <View style={styles.infoCardContact}>
+                    {page?.website_url && (
+                      <View style={styles.infoCardRow}>
+                        <Ionicons name="globe-outline" size={16} color={colors.primary} />
+                        <Text style={[styles.infoCardLink, { color: colors.primary }]}>{page.website_url}</Text>
+                      </View>
+                    )}
+                    {page?.phone && (
+                      <View style={styles.infoCardRow}>
+                        <Ionicons name="call-outline" size={16} color={colors.primary} />
+                        <Text style={[styles.infoCardText, { color: colors.text }]}>{page.phone}</Text>
+                      </View>
+                    )}
+                    {page?.email && (
+                      <View style={styles.infoCardRow}>
+                        <Ionicons name="mail-outline" size={16} color={colors.primary} />
+                        <Text style={[styles.infoCardText, { color: colors.text }]}>{page.email}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Posts */}
+            <View style={styles.postsContainer}>
+              <Text style={[styles.postsTitle, { color: colors.text }]}>Posts</Text>
+              {loadingPosts ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : posts.length > 0 ? (
+                <FlatList
+                  data={posts}
+                  renderItem={renderPost}
+                  keyExtractor={(item) => item.id.toString()}
+                  scrollEnabled={false}
+                />
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="newspaper-outline" size={48} color={colors.textSecondary} />
+                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No posts yet</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        );
+      case 'about':
+        return (
+          <View style={styles.tabContent}>
+            {page?.description ? (
+              <Text style={[styles.descriptionText, { color: colors.text }]}>{page.description}</Text>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No description available</Text>
+              </View>
+            )}
+          </View>
+        );
+      case 'contact':
+        return (
+          <View style={styles.tabContent}>
+            {page?.website_url || page?.phone || page?.email ? (
+              <View style={styles.contactList}>
+                {page?.website_url && (
+                  <TouchableOpacity style={[styles.contactItem, { borderColor: colors.border }]}>
+                    <Ionicons name="globe-outline" size={24} color={colors.primary} />
+                    <Text style={[styles.contactText, { color: colors.text }]}>{page.website_url}</Text>
+                  </TouchableOpacity>
+                )}
+                {page?.phone && (
+                  <TouchableOpacity style={[styles.contactItem, { borderColor: colors.border }]}>
+                    <Ionicons name="call-outline" size={24} color={colors.primary} />
+                    <Text style={[styles.contactText, { color: colors.text }]}>{page.phone}</Text>
+                  </TouchableOpacity>
+                )}
+                {page?.email && (
+                  <TouchableOpacity style={[styles.contactItem, { borderColor: colors.border }]}>
+                    <Ionicons name="mail-outline" size={24} color={colors.primary} />
+                    <Text style={[styles.contactText, { color: colors.text }]}>{page.email}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No contact information available</Text>
+              </View>
+            )}
+          </View>
+        );
+      case 'photos':
+        return (
+          <View style={styles.tabContent}>
+            <View style={styles.emptyContainer}>
+              <Ionicons name="images-outline" size={48} color={colors.textSecondary} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Photos coming soon</Text>
+            </View>
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -154,7 +1078,7 @@ export default function PageDetailScreen() {
     profileSection: {
       alignItems: 'center',
       marginTop: -50,
-      marginBottom: 20,
+      marginBottom: 16,
     },
     profileImageContainer: {
       width: 100,
@@ -181,44 +1105,56 @@ export default function PageDetailScreen() {
       fontSize: 24,
       fontWeight: '700',
       textAlign: 'center',
-      marginBottom: 6,
+      marginBottom: 8,
     },
-    pageCategory: {
+    categoryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+      gap: 8,
+    },
+    categoryContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    categoryIcon: {
+      marginRight: 4,
+    },
+    categoryText: {
       fontSize: 14,
       color: colors.textSecondary,
       textTransform: 'capitalize',
-      marginBottom: 12,
     },
-    statsRow: {
+    followersText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+    },
+    actionButtonsRow: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: 20,
+      paddingHorizontal: 16,
+      gap: 8,
       marginBottom: 16,
     },
-    stat: {
+    actionButton: {
+      flex: 1,
+      flexDirection: 'row',
       alignItems: 'center',
-    },
-    statValue: {
-      fontSize: 18,
-      fontWeight: '700',
-    },
-    statLabel: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      marginTop: 2,
+      justifyContent: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      gap: 6,
+      borderWidth: 1,
+      minHeight: 40,
     },
     followButton: {
-      marginHorizontal: 16,
       backgroundColor: '#192A4A',
-      paddingVertical: 12,
-      borderRadius: 10,
-      alignItems: 'center',
-      marginBottom: 20,
-      borderWidth: 1,
       borderColor: '#C8A25F',
-      shadowColor: '#000',
+      shadowColor: '#C8A25F',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.4,
+      shadowOpacity: 0.3,
       shadowRadius: 4,
       elevation: 4,
     },
@@ -226,54 +1162,291 @@ export default function PageDetailScreen() {
       backgroundColor: 'transparent',
       borderColor: colors.border,
     },
-    followButtonText: {
-      fontSize: 15,
+    actionButtonText: {
+      fontSize: 14,
       fontWeight: '600',
       color: '#FFFFFF',
     },
     followingButtonText: {
       color: colors.text,
     },
-    content: {
+    tabsContainer: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      marginBottom: 16,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 12,
+      alignItems: 'center',
+      borderBottomWidth: 2,
+      borderBottomColor: 'transparent',
+    },
+    tabActive: {
+      borderBottomColor: '#C8A25F',
+    },
+    tabText: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    tabContent: {
       padding: 16,
+      minHeight: 200,
     },
-    section: {
-      marginBottom: 24,
+    createPostContainer: {
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
     },
-    sectionTitle: {
+    createPostInputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8,
+    },
+    createPostInput: {
+      flex: 1,
+      minHeight: 40,
+      maxHeight: 100,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      fontSize: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    createPostImageButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary + '20',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    createPostExpandButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.primary + '10',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    createPostButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: '#192A4A',
+      borderWidth: 1,
+      borderColor: '#C8A25F',
+    },
+    createPostButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#FFFFFF',
+    },
+    createPostImagesPreview: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginTop: 8,
+    },
+    createPostImagePreview: {
+      width: 60,
+      height: 60,
+      borderRadius: 8,
+      position: 'relative',
+    },
+    createPostRemoveImage: {
+      position: 'absolute',
+      top: -4,
+      right: -4,
+      backgroundColor: '#FF4444',
+      borderRadius: 12,
+      width: 24,
+      height: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    infoCard: {
+      margin: 16,
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+    infoCardTitle: {
       fontSize: 16,
       fontWeight: '700',
       marginBottom: 12,
     },
-    description: {
-      fontSize: 15,
-      lineHeight: 22,
-      color: colors.text,
+    infoCardText: {
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: 12,
     },
-    infoRow: {
+    infoCardContact: {
+      gap: 8,
+    },
+    infoCardRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: 8,
+    },
+    infoCardLink: {
+      fontSize: 14,
+    },
+    postsContainer: {
+      paddingHorizontal: 16,
+      marginTop: 16,
+    },
+    postsTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      marginBottom: 12,
+    },
+    postCard: {
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      marginBottom: 12,
+    },
+    postHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
       marginBottom: 12,
       gap: 12,
     },
-    infoIcon: {
-      width: 24,
+    postHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
     },
-    infoText: {
+    avatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.border,
+      marginRight: 12,
+    },
+    postHeaderText: {
+      flex: 1,
+    },
+    authorName: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    postTime: {
+      fontSize: 12,
+      marginTop: 2,
+    },
+    postContentWrapper: {
+      marginBottom: 0,
+    },
+    postContent: {
+      fontSize: 15,
+      lineHeight: 22,
+      marginBottom: 12,
+    },
+    mediaGrid: {
+      gap: 8,
+      marginBottom: 12,
+    },
+    mediaGridSingle: {
+      flexDirection: 'row',
+    },
+    mediaGridDouble: {
+      flexDirection: 'row',
+    },
+    mediaGridTriple: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    mediaImageWrapper: {
+      borderRadius: 12,
+      overflow: 'hidden',
+      backgroundColor: colors.border,
+    },
+    mediaImageSingle: {
+      width: '100%',
+      aspectRatio: 16 / 9,
+    },
+    mediaImageDouble: {
+      flex: 1,
+      aspectRatio: 1,
+      marginRight: 8,
+    },
+    mediaImageTriple: {
+      width: '31%',
+      aspectRatio: 1,
+    },
+    mediaImage: {
+      width: '100%',
+      height: '100%',
+    },
+    reactionEmoji: {
+      fontSize: 20,
+    },
+    doubleTapAnimationContainer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 10,
+    },
+    doubleTapEmoji: {
+      fontSize: 64,
+    },
+    postActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    actionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginRight: 24,
+    },
+    actionText: {
+      marginLeft: 6,
+      fontSize: 14,
+    },
+    descriptionText: {
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    contactList: {
+      gap: 12,
+    },
+    contactItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+    contactText: {
       fontSize: 14,
       flex: 1,
     },
-    postsSection: {
-      padding: 16,
-    },
-    postsPlaceholder: {
+    emptyContainer: {
       alignItems: 'center',
+      justifyContent: 'center',
       padding: 32,
     },
-    postsPlaceholderText: {
+    emptyText: {
       fontSize: 14,
-      color: colors.textSecondary,
       marginTop: 12,
+    },
+    loadingContainer: {
+      padding: 32,
+      alignItems: 'center',
     },
     menuButton: {
       padding: 4,
@@ -324,7 +1497,12 @@ export default function PageDetailScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <AppNavbar showProfileImage={false} showBackButton={true} onBackPress={() => router.back()} />
+        <AppNavbar 
+          title={page?.name || 'Loading...'} 
+          showProfileImage={false} 
+          showBackButton={true} 
+          onBackPress={() => router.push('/(tabs)/pages')} 
+        />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -335,7 +1513,7 @@ export default function PageDetailScreen() {
   if (!page) {
     return (
       <View style={styles.container}>
-        <AppNavbar showProfileImage={false} showBackButton={true} onBackPress={() => router.back()} />
+        <AppNavbar showProfileImage={false} showBackButton={true} onBackPress={() => router.push('/(tabs)/pages')} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
             Page not found
@@ -350,6 +1528,17 @@ export default function PageDetailScreen() {
     : null;
   const profileSource = profileImage ? { uri: profileImage } : DEFAULT_AVATAR;
   const coverImage = page.cover_image_url ? resolveRemoteUrl(page.cover_image_url) : null;
+  const canInvite = canManage || page.is_following;
+  
+  // Fallback check: if user is the page owner (by owner.id or created_by), allow posting
+  const isPageOwner = user && (
+    (page.owner && String(page.owner.id) === String(user.id)) ||
+    (page as any).created_by?.id === user.id ||
+    page.user_role === 'owner'
+  );
+  
+  // Final canPost check - use canPost state OR isPageOwner
+  const finalCanPost = canPost || isPageOwner;
 
   const contextMenuOptions = canManage
     ? [
@@ -357,6 +1546,14 @@ export default function PageDetailScreen() {
           label: 'Edit Page',
           icon: 'create-outline' as const,
           onPress: () => router.push(`/pages/${id}/edit`),
+        },
+        {
+          label: 'Send Admin Invite',
+          icon: 'person-add-outline' as const,
+          onPress: () => {
+            setShowContextMenu(false);
+            setShowAdminInviteModal(true);
+          },
         },
         {
           label: 'Delete Page',
@@ -368,11 +1565,15 @@ export default function PageDetailScreen() {
     : [];
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <AppNavbar 
+        title={page.name}
         showProfileImage={false} 
         showBackButton={true} 
-        onBackPress={() => router.back()}
+        onBackPress={() => router.push('/(tabs)/pages')}
         customRightButton={
           canManage ? (
             <TouchableOpacity
@@ -396,7 +1597,7 @@ export default function PageDetailScreen() {
               setGalleryVisible(true);
             }}
           >
-          <Image source={{ uri: coverImage }} style={styles.coverImage} resizeMode="cover" />
+            <Image source={{ uri: coverImage }} style={styles.coverImage} resizeMode="cover" />
           </TouchableOpacity>
         ) : (
           <View style={[styles.coverImage, { backgroundColor: colors.primary, opacity: 0.3 }]} />
@@ -425,32 +1626,37 @@ export default function PageDetailScreen() {
 
           <Text style={[styles.pageName, { color: colors.text }]}>{page.name}</Text>
           
-          {page.category && (
-            <Text style={styles.pageCategory}>{page.category}</Text>
-          )}
-
-          <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Text style={[styles.statValue, { color: colors.text }]}>
-                {page.followers_count}
-              </Text>
-              <Text style={styles.statLabel}>Followers</Text>
-            </View>
+          {/* Category + Followers */}
+          <View style={styles.categoryRow}>
+            {page.category && (
+              <View style={styles.categoryContainer}>
+                <Ionicons name="pricetag-outline" size={14} color={colors.textSecondary} style={styles.categoryIcon} />
+                <Text style={styles.categoryText}>{page.category}</Text>
+              </View>
+            )}
+            {page.category && <Text style={styles.followersText}>•</Text>}
+            <Text style={styles.followersText}>{page.followers_count || 0} Followers</Text>
           </View>
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.actionButtonsContainer}>
+        <View style={styles.actionButtonsRow}>
           <TouchableOpacity
             style={[
+              styles.actionButton,
               styles.followButton,
               page.is_following && styles.followingButton,
             ]}
             onPress={handleFollowToggle}
           >
+            <Ionicons 
+              name={page.is_following ? "checkmark-circle" : "add-circle-outline"} 
+              size={18} 
+              color={page.is_following ? colors.text : '#FFFFFF'} 
+            />
             <Text
               style={[
-                styles.followButtonText,
+                styles.actionButtonText,
                 page.is_following && styles.followingButtonText,
               ]}
             >
@@ -458,87 +1664,98 @@ export default function PageDetailScreen() {
             </Text>
           </TouchableOpacity>
           
-          {page.is_following && !canManage && (
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: 'transparent', borderColor: colors.border }]}
+            onPress={handleShare}
+          >
+            <Ionicons name="share-outline" size={18} color={colors.text} />
+            <Text style={[styles.actionButtonText, { color: colors.text }]}>Share</Text>
+          </TouchableOpacity>
+
+          {canInvite && (
             <TouchableOpacity
-              style={styles.inviteButton}
+              style={[styles.actionButton, { backgroundColor: 'transparent', borderColor: colors.border }]}
               onPress={() => setShowInviteModal(true)}
             >
-              <Ionicons name="person-add-outline" size={20} color="#C8A25F" />
-              <Text style={styles.inviteButtonText}>Invite Users</Text>
+              <Ionicons name="person-add-outline" size={18} color={colors.text} />
+              <Text style={[styles.actionButtonText, { color: colors.text }]}>Invite</Text>
             </TouchableOpacity>
           )}
-          
-          {canManage && (
+        </View>
+
+        {/* Tabs */}
+        <View style={styles.tabsContainer}>
+          {(['overview', 'about', 'contact', 'photos'] as TabType[]).map((tab) => (
             <TouchableOpacity
-              style={styles.createPostButton}
-              onPress={() => setShowCreatePostModal(true)}
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
+              onPress={() => setActiveTab(tab)}
             >
-              <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-              <Text style={styles.createPostButtonText}>Create Post</Text>
+              <Text style={[styles.tabText, { color: activeTab === tab ? '#C8A25F' : colors.textSecondary }]}>
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </Text>
             </TouchableOpacity>
-          )}
+          ))}
         </View>
-          
-        {/* About Section */}
-        {page.description && (
-        <View style={styles.content}>
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>About</Text>
-              <Text style={styles.description}>{page.description}</Text>
-            </View>
-            </View>
-          )}
 
-        {/* Contact Info */}
-          {(page.website_url || page.phone || page.email) && (
-          <View style={styles.content}>
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Contact</Text>
-              
-              {page.website_url && (
-                <View style={styles.infoRow}>
-                  <View style={styles.infoIcon}>
-                    <Ionicons name="globe-outline" size={20} color={colors.primary} />
-                  </View>
-                  <Text style={[styles.infoText, { color: colors.text }]}>
-                    {page.website_url}
-                  </Text>
-                </View>
-              )}
-              
-              {page.phone && (
-                <View style={styles.infoRow}>
-                  <View style={styles.infoIcon}>
-                    <Ionicons name="call-outline" size={20} color={colors.primary} />
-                  </View>
-                  <Text style={[styles.infoText, { color: colors.text }]}>
-                    {page.phone}
-                  </Text>
-                </View>
-              )}
-              
-              {page.email && (
-                <View style={styles.infoRow}>
-                  <View style={styles.infoIcon}>
-                    <Ionicons name="mail-outline" size={20} color={colors.primary} />
-                  </View>
-                  <Text style={[styles.infoText, { color: colors.text }]}>
-                    {page.email}
-                  </Text>
-                </View>
-              )}
+        {/* Create Post Input (for admins/owners/moderators) */}
+        {finalCanPost && activeTab === 'overview' && (
+          <View style={styles.createPostContainer}>
+            <View style={styles.createPostInputContainer}>
+              <TouchableOpacity
+                style={styles.createPostImageButton}
+                onPress={handlePickImages}
+              >
+                <Ionicons name="image-outline" size={20} color={colors.primary} />
+              </TouchableOpacity>
+              <TextInput
+                style={[styles.createPostInput, { color: colors.text, backgroundColor: isDark ? colors.backgroundSecondary : '#F8F9FF' }]}
+                placeholder="What's on your mind?"
+                placeholderTextColor={colors.textSecondary}
+                value={postContent}
+                onChangeText={setPostContent}
+                multiline
+                maxLength={500}
+                editable={!submittingPost}
+              />
+              <TouchableOpacity
+                style={styles.createPostExpandButton}
+                onPress={() => setShowCreatePostModal(true)}
+              >
+                <Ionicons name="expand-outline" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.createPostButton}
+                onPress={handleSubmitPost}
+                disabled={!postContent.trim() || submittingPost}
+              >
+                {submittingPost ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.createPostButtonText}>Post</Text>
+                )}
+              </TouchableOpacity>
             </View>
-            </View>
-          )}
-
-        {/* Posts Section */}
-        <View style={styles.postsSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Posts</Text>
-          <View style={styles.postsPlaceholder}>
-            <Ionicons name="newspaper-outline" size={48} color={colors.textSecondary} />
-            <Text style={styles.postsPlaceholderText}>No posts yet</Text>
+            {postImages.length > 0 && (
+              <View style={styles.createPostImagesPreview}>
+                {postImages.map((image, index) => (
+                  <View key={index} style={styles.createPostImagePreview}>
+                    <Image source={{ uri: image.uri }} style={styles.createPostImagePreview} />
+                    <TouchableOpacity
+                      style={styles.createPostRemoveImage}
+                      onPress={() => handleRemoveImage(index)}
+                    >
+                      <Ionicons name="close" size={14} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
-        </View>
+        )}
+
+        {/* Tab Content */}
+        {renderTabContent()}
       </ScrollView>
 
       <ImageGallery
@@ -553,6 +1770,33 @@ export default function PageDetailScreen() {
         visible={showContextMenu}
         onClose={() => setShowContextMenu(false)}
         options={contextMenuOptions}
+      />
+
+      <AdvancedEmojiPicker
+        visible={advancedEmojiPickerVisible}
+        onClose={() => {
+          setAdvancedEmojiPickerVisible(false);
+          setAdvancedEmojiPickerPostId(null);
+        }}
+        onSelect={(emoji) => {
+          if (advancedEmojiPickerPostId) {
+            handleEmojiReactionSelect(advancedEmojiPickerPostId, emoji);
+          }
+        }}
+        currentReaction={
+          advancedEmojiPickerPostId && posts.find(p => p.id === advancedEmojiPickerPostId)
+            ? (posts.find(p => p.id === advancedEmojiPickerPostId)?.reactions || []).find(r => r.user?.id === user?.id)?.reaction_type || null
+            : null
+        }
+      />
+
+      <UserProfileBottomSheet
+        visible={profileBottomSheetVisible}
+        userId={selectedUserId}
+        onClose={() => {
+          setProfileBottomSheetVisible(false);
+          setSelectedUserId(null);
+        }}
       />
 
       <Modal
@@ -611,9 +1855,18 @@ export default function PageDetailScreen() {
         pageId={page?.id || 0}
         onClose={() => setShowCreatePostModal(false)}
         onPostCreated={() => {
+          loadPosts();
+        }}
+      />
+
+      <SendAdminInviteModal
+        visible={showAdminInviteModal}
+        pageId={page?.id || 0}
+        onClose={() => setShowAdminInviteModal(false)}
+        onInviteSent={() => {
           loadPage();
         }}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }

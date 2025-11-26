@@ -81,6 +81,13 @@ export interface Post {
   reactions: Reaction[];
   bookmarked?: boolean;
   bookmark_id?: number | null;
+  page?: {
+    id: number;
+    name: string;
+    profile_image_url?: string;
+    category?: string;
+  } | null;
+  author_type?: 'user' | 'page';
 }
 
 export interface Notification {

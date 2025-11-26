@@ -130,7 +130,8 @@ export default function CreatePageScreen() {
 
       await apiClient.post('/pages/', pageData);
       showSuccess('Page created successfully!');
-      router.back();
+      (global as any).showTabBar?.();
+      router.push('/(tabs)/pages');
     } catch (error: any) {
       setUploadingImage(false);
       const errorMessage = error?.response?.data?.detail || error?.response?.data?.message || 'Failed to create page';
@@ -295,7 +296,7 @@ export default function CreatePageScreen() {
         showBackButton={true}
         onBackPress={() => {
           (global as any).showTabBar?.();
-          router.back();
+          router.push('/(tabs)/pages');
         }}
       />
       

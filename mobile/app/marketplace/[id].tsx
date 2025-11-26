@@ -736,6 +736,55 @@ export default function ListingDetailScreen() {
         title={listing.title}
         caption={listing.description}
       />
+
+      <ContextMenu
+        visible={showContextMenu}
+        onClose={() => setShowContextMenu(false)}
+        options={contextMenuOptions}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteConfirm(false)}
+      >
+        <View style={styles.deleteModalContainer}>
+          <View style={styles.deleteModalContent}>
+            <Text style={[styles.deleteModalTitle, { color: colors.text }]}>
+              Delete Listing?
+            </Text>
+            <Text style={[styles.deleteModalText, { color: colors.text }]}>
+              This action cannot be undone. The listing will be permanently deleted.
+            </Text>
+            <View style={styles.deleteModalActions}>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.deleteModalCancel]}
+                onPress={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+              >
+                <Text style={[styles.deleteModalButtonText, { color: colors.text }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteModalButton, styles.deleteModalDelete]}
+                onPress={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={[styles.deleteModalButtonText, { color: '#FFFFFF' }]}>
+                    Delete
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

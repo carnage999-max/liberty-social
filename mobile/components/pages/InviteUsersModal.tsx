@@ -45,9 +45,16 @@ export default function InviteUsersModal({
   const [pageFollowers, setPageFollowers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (visible) {
-      loadFriends();
-      loadPageFollowers();
+    if (visible && pageId) {
+      // Reset state
+      setFriends([]);
+      setFilteredFriends([]);
+      setSearchQuery('');
+      setSelectedFriends(new Set());
+      // Load page followers first, then friends
+      loadPageFollowers().then(() => {
+        loadFriends();
+      });
     } else {
       setSearchQuery('');
       setSelectedFriends(new Set());
@@ -79,19 +86,40 @@ export default function InviteUsersModal({
   const loadFriends = async () => {
     try {
       setLoading(true);
+      
       const response = await apiClient.get<PaginatedResponse<Friend>>('/auth/friends/?page_size=100');
+      console.log('Friends API response:', response);
       
       let friendsList: Friend[] = [];
+      
+      // Handle paginated response - friends are wrapped in "friend" field
       if (response.results && Array.isArray(response.results)) {
-        friendsList = response.results.map((item: any) => item.friend || item).filter(Boolean);
+        friendsList = response.results.map((item: any) => {
+          console.log('Processing friend item:', item);
+          // FriendsSerializer wraps friend data in a "friend" field
+          return item.friend;
+        }).filter(Boolean);
       } else if (Array.isArray(response)) {
-        friendsList = response.map((item: any) => item.friend || item).filter(Boolean);
+        friendsList = response.map((item: any) => {
+          console.log('Processing friend item:', item);
+          return item.friend || item;
+        }).filter(Boolean);
       }
       
+      console.log('Extracted friends list:', friendsList.length, friendsList.map(f => ({ id: f.id, username: (f as any).username })));
+      
       // Filter out friends who already follow the page
-      const filtered = friendsList.filter(
-        (f) => !pageFollowers.has(String((f as any).friend?.id || f.id))
-      );
+      const currentFollowers = pageFollowers.size > 0 ? pageFollowers : new Set<string>();
+      const filtered = friendsList.filter((f) => {
+        const friendId = String(f.id || (f as any).id);
+        const shouldInclude = friendId && !currentFollowers.has(friendId);
+        if (!shouldInclude) {
+          console.log('Filtering out friend:', friendId, 'because they follow the page');
+        }
+        return shouldInclude;
+      });
+      
+      console.log('Final filtered friends:', filtered.length, 'Page followers:', currentFollowers.size);
       
       setFriends(filtered);
       setFilteredFriends(filtered);
@@ -105,29 +133,37 @@ export default function InviteUsersModal({
 
   const loadPageFollowers = async () => {
     try {
-      if (!pageId) return;
+      if (!pageId) return new Set<string>();
       const response = await apiClient.get(`/pages/${pageId}/followers/`);
       
       let followerIds: Set<string> = new Set();
       if (Array.isArray(response)) {
         followerIds = new Set(
           response
-            .map((item: any) => item.user?.id || item.user)
+            .map((item: any) => {
+              // Handle different response formats
+              const userId = item.user?.id || item.user_id || item.user || item.id;
+              return userId ? String(userId) : null;
+            })
             .filter(Boolean)
-            .map(String)
         );
       } else if (response.results && Array.isArray(response.results)) {
         followerIds = new Set(
           response.results
-            .map((item: any) => item.user?.id || item.user)
+            .map((item: any) => {
+              const userId = item.user?.id || item.user_id || item.user || item.id;
+              return userId ? String(userId) : null;
+            })
             .filter(Boolean)
-            .map(String)
         );
       }
       
       setPageFollowers(followerIds);
+      return followerIds;
     } catch (error) {
       console.error('Failed to load page followers:', error);
+      setPageFollowers(new Set<string>());
+      return new Set<string>();
     }
   };
 
@@ -171,18 +207,30 @@ export default function InviteUsersModal({
         friend_ids: friendIds,
       });
 
-      if (response.total_sent > 0) {
+      // Filter out "already invited" or "already following" errors silently
+      const significantErrors = response.errors?.filter((err: any) => {
+        const errorMsg = err.error?.toLowerCase() || '';
+        return !errorMsg.includes('already') && !errorMsg.includes('invite already sent');
+      }) || [];
+
+      const totalSent = response.total_sent || response.invites_sent?.length || 0;
+      
+      if (totalSent > 0) {
         showSuccess(
-          `Invites sent to ${response.total_sent} friend${response.total_sent > 1 ? 's' : ''}!`
+          `Invites sent to ${totalSent} friend${totalSent > 1 ? 's' : ''}!`
         );
         setSelectedFriends(new Set());
         onInvitesSent?.();
         onClose();
-      }
-
-      if (response.errors && response.errors.length > 0) {
-        const errorCount = response.errors.length;
+      } else if (significantErrors.length > 0) {
+        // Only show errors if they're not "already invited" type
+        const errorCount = significantErrors.length;
         showError(`${errorCount} invite${errorCount > 1 ? 's' : ''} could not be sent`);
+      } else if (response.errors && response.errors.length > 0) {
+        // All errors were "already invited" - show success message
+        showSuccess('All selected friends have already been invited or are already following this page.');
+        setSelectedFriends(new Set());
+        onClose();
       }
     } catch (error: any) {
       console.error('Failed to send invites:', error);
@@ -193,17 +241,17 @@ export default function InviteUsersModal({
   };
 
   const renderFriend = ({ item }: { item: Friend }) => {
-    const friendData = (item as any).friend || item;
-    const friendId = String(friendData.id);
+    // Friends are already extracted in loadFriends, so item is already the friend object
+    const friendId = String(item.id || (item as any).id);
     const isSelected = selectedFriends.has(friendId);
     const displayName =
-      friendData.username ||
-      `${friendData.first_name || ''} ${friendData.last_name || ''}`.trim() ||
-      friendData.email ||
+      (item as any).username ||
+      `${(item as any).first_name || ''} ${(item as any).last_name || ''}`.trim() ||
+      (item as any).email ||
       'Friend';
 
-    const avatarUri = friendData.profile_image_url
-      ? resolveRemoteUrl(friendData.profile_image_url)
+    const avatarUri = (item as any).profile_image_url
+      ? resolveRemoteUrl((item as any).profile_image_url)
       : null;
     const avatarSource = avatarUri ? { uri: avatarUri } : DEFAULT_AVATAR;
 
@@ -216,7 +264,7 @@ export default function InviteUsersModal({
             borderColor: isSelected ? '#C8A25F' : colors.border,
           },
         ]}
-        onPress={() => toggleFriend(friendData.id)}
+        onPress={() => toggleFriend(item.id || (item as any).id)}
         activeOpacity={0.7}
       >
         <View style={styles.friendCheckbox}>
@@ -227,9 +275,9 @@ export default function InviteUsersModal({
           <Text style={[styles.friendName, { color: colors.text }]} numberOfLines={1}>
             {displayName}
           </Text>
-          {friendData.bio && (
+          {(item as any).bio && (
             <Text style={[styles.friendBio, { color: colors.textSecondary }]} numberOfLines={1}>
-              {friendData.bio}
+              {(item as any).bio}
             </Text>
           )}
         </View>
@@ -239,8 +287,9 @@ export default function InviteUsersModal({
 
   const allSelected = filteredFriends.length > 0 && 
     filteredFriends.every((f) => {
-      const friendData = (f as any).friend || f;
-      return selectedFriends.has(String(friendData.id));
+      // Friends are already extracted, so f is the friend object
+      const friendId = String(f.id || (f as any).id);
+      return selectedFriends.has(friendId);
     });
 
   return (
@@ -264,7 +313,7 @@ export default function InviteUsersModal({
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
             <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
+              style={[styles.searchInput, { color: '#000000' }]}
               placeholder="Search friends..."
               placeholderTextColor={colors.textSecondary}
               value={searchQuery}
@@ -301,21 +350,34 @@ export default function InviteUsersModal({
             </View>
           ) : filteredFriends.length === 0 ? (
             <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                {searchQuery ? 'No friends found' : 'No friends to invite'}
+                {searchQuery ? 'No friends found' : friends.length === 0 ? 'No friends to invite' : 'All your friends already follow this page'}
               </Text>
+              {friends.length > 0 && !searchQuery && (
+                <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+                  You have {friends.length} friend{friends.length !== 1 ? 's' : ''}, but they all already follow this page.
+                </Text>
+              )}
             </View>
           ) : (
-            <FlatList
-              data={filteredFriends}
-              renderItem={renderFriend}
-              keyExtractor={(item) => {
-                const friendData = (item as any).friend || item;
-                return String(friendData.id);
-              }}
-              style={styles.friendsList}
-              contentContainerStyle={styles.friendsListContent}
-            />
+            <>
+              <Text style={[styles.debugText, { color: colors.textSecondary }]}>
+                Showing {filteredFriends.length} friend{filteredFriends.length !== 1 ? 's' : ''}
+              </Text>
+              <FlatList
+                data={filteredFriends}
+                renderItem={renderFriend}
+                keyExtractor={(item) => {
+                  const id = String(item.id || (item as any).id);
+                  console.log('FlatList keyExtractor for item:', id);
+                  return id;
+                }}
+                style={styles.friendsList}
+                contentContainerStyle={styles.friendsListContent}
+                extraData={filteredFriends.length}
+              />
+            </>
           )}
 
           {/* Footer */}
@@ -366,10 +428,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 500,
     maxHeight: '90%',
+    height: '90%',
     borderRadius: 20,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#C8A25F',
+    flexDirection: 'column',
   },
   header: {
     flexDirection: 'row',
@@ -444,12 +506,26 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    fontStyle: 'italic',
   },
   friendsList: {
     flex: 1,
   },
   friendsListContent: {
     padding: 16,
+    paddingBottom: 20,
   },
   friendItem: {
     flexDirection: 'row',
@@ -464,7 +540,6 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: '#C8A25F',
     marginRight: 12,
     alignItems: 'center',
     justifyContent: 'center',

@@ -159,10 +159,23 @@ export default function UserProfileBottomSheet({
         // Use the next URL directly if available
         endpoint = postsNext;
       } else {
-        // Build initial endpoint - try with author filter
-        // Note: This assumes the backend supports filtering by author
-        // If not, we may need to use a different endpoint
-        endpoint = `/posts/?author=${userId}&author_type=user`;
+        // Build initial endpoint - filter by author ID
+        // Use the user overview endpoint which returns user-specific posts
+        endpoint = `/auth/user/${userId}/overview/`;
+      }
+      
+      // If using overview endpoint, extract posts from the response
+      if (endpoint.includes('/overview/')) {
+        const overviewData = await apiClient.get<any>(endpoint);
+        const posts = overviewData?.recent_posts || [];
+        if (append) {
+          setUserPosts((prev) => [...prev, ...posts]);
+        } else {
+          setUserPosts(posts);
+        }
+        setPostsReachedEnd(true);
+        setPostsNext(null);
+        return;
       }
       
       const response = await apiClient.get<PaginatedResponse<Post>>(endpoint);

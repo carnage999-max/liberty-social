@@ -17,6 +17,7 @@ import AppNavbar from '../../components/layout/AppNavbar';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Dropdown from '../../components/common/Dropdown';
+import { US_STATES, STATE_CITIES, getStateCode } from '../../utils/usStatesCities';
 
 interface Category {
   id: number;
@@ -48,6 +49,8 @@ export default function CreateListingScreen() {
     price: '',
     category: '',
     condition: 'used',
+    state: '',
+    city: '',
     location: '',
     contact_preference: 'both',
     delivery_options: 'both',
@@ -86,7 +89,7 @@ export default function CreateListingScreen() {
       case 'basic':
         return !!(form.title && form.category);
       case 'details':
-        return !!(form.price && form.location);
+        return !!(form.price && form.state && form.city);
       case 'contact':
         return true; // Optional step
       case 'media':
@@ -186,13 +189,11 @@ export default function CreateListingScreen() {
       const uploadedUrls: string[] = [];
       for (const image of selectedImages) {
         try {
-          const response = await apiClient.post('/uploads/images/', image.formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
+          const response = await apiClient.postFormData('/uploads/images/', image.formData);
           if (response.url) {
             uploadedUrls.push(response.url);
+          } else if (response.urls && Array.isArray(response.urls) && response.urls.length > 0) {
+            uploadedUrls.push(...response.urls);
           }
         } catch (error) {
           console.error('Failed to upload image:', error);
@@ -219,10 +220,10 @@ export default function CreateListingScreen() {
 
       const listing = await apiClient.post('/marketplace/listings/', listingData);
 
-      // Link media to the listing
+      // Link media to the listing using the correct endpoint
       if (uploadedUrls.length > 0) {
         const mediaPromises = uploadedUrls.map((url, index) =>
-          apiClient.post('/marketplace/listings/media/', {
+          apiClient.post('/marketplace/media/', {
             listing_id: listing.id,
             url: url,
             order: index,

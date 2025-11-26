@@ -170,44 +170,74 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
 
   const handleResultClick = useCallback(
     (result: SearchResult) => {
-      // Convert backend href format to mobile route format
-      let mobileRoute = result.href;
+      let mobileRoute: string;
       
-      // Convert /app/feed/{id} to /(tabs)/feed/{id}
-      if (result.type === 'post' && mobileRoute.startsWith('/app/feed/')) {
-        mobileRoute = mobileRoute.replace('/app/feed/', '/(tabs)/feed/');
-      }
-      // Convert /app/users/{id} to /(tabs)/users/{id}
-      else if (result.type === 'user' && mobileRoute.startsWith('/app/users/')) {
-        mobileRoute = mobileRoute.replace('/app/users/', '/(tabs)/users/');
-      }
-      // Convert /app/pages/{id} to /(tabs)/pages/{id}
-      else if (result.type === 'page' && mobileRoute.startsWith('/app/pages/')) {
-        mobileRoute = mobileRoute.replace('/app/pages/', '/(tabs)/pages/');
-      }
-      // Convert /app/marketplace/{id} to /marketplace/{id}
-      else if (result.type === 'marketplace' && mobileRoute.startsWith('/app/marketplace/')) {
-        mobileRoute = mobileRoute.replace('/app/marketplace/', '/marketplace/');
-      }
-      // Convert /app/animals/{id} to /animals/{id}
-      else if (result.type === 'animal' && mobileRoute.startsWith('/app/animals/')) {
-        mobileRoute = mobileRoute.replace('/app/animals/', '/animals/');
-      }
-      // Convert /app/breeders/{id} to /breeders/{id} (if exists)
-      else if (result.type === 'breeder' && mobileRoute.startsWith('/app/breeders/')) {
-        mobileRoute = mobileRoute.replace('/app/breeders/', '/breeders/');
+      // Extract ID from href or use result.id
+      const id = result.id;
+      
+      // Route based on type
+      switch (result.type) {
+        case 'post':
+          // Extract post ID from href or use result.id
+          const postIdMatch = result.href.match(/\/feed\/(\d+)/) || result.href.match(/\/posts\/(\d+)/);
+          const postId = postIdMatch ? postIdMatch[1] : id.toString();
+          mobileRoute = `/(tabs)/feed/${postId}`;
+          break;
+        case 'user':
+          // Extract user ID from href or use result.id
+          const userIdMatch = result.href.match(/\/users\/(\d+)/);
+          const userId = userIdMatch ? userIdMatch[1] : id.toString();
+          mobileRoute = `/(tabs)/users/${userId}`;
+          break;
+        case 'page':
+          // Extract page ID from href or use result.id
+          const pageIdMatch = result.href.match(/\/pages\/(\d+)/);
+          const pageId = pageIdMatch ? pageIdMatch[1] : id.toString();
+          mobileRoute = `/pages/${pageId}`;
+          break;
+        case 'marketplace':
+          // Extract marketplace ID from href or use result.id
+          const marketplaceIdMatch = result.href.match(/\/marketplace\/(\d+)/);
+          const marketplaceId = marketplaceIdMatch ? marketplaceIdMatch[1] : id.toString();
+          mobileRoute = `/(tabs)/marketplace/${marketplaceId}`;
+          break;
+        case 'animal':
+          // Extract animal ID from href or use result.id
+          const animalIdMatch = result.href.match(/\/animals\/(\d+)/);
+          const animalId = animalIdMatch ? animalIdMatch[1] : id.toString();
+          mobileRoute = `/(tabs)/animals/${animalId}`;
+          break;
+        case 'breeder':
+          // Extract breeder ID from href or use result.id
+          const breederIdMatch = result.href.match(/\/breeders\/(\d+)/);
+          const breederId = breederIdMatch ? breederIdMatch[1] : id.toString();
+          mobileRoute = `/(tabs)/breeders/${breederId}`;
+          break;
+        default:
+          // Fallback: try to convert href format
+          mobileRoute = result.href
+            .replace('/app/feed/', '/(tabs)/feed/')
+            .replace('/app/users/', '/(tabs)/users/')
+            .replace('/app/pages/', '/pages/')
+            .replace('/app/marketplace/', '/(tabs)/marketplace/')
+            .replace('/app/animals/', '/(tabs)/animals/')
+            .replace('/app/breeders/', '/(tabs)/breeders/');
       }
       
-      router.push(mobileRoute as any);
-      onClose();
-      setQuery('');
-      setAllResults([]);
-      setPosts([]);
-      setUsers([]);
-      setPages([]);
-      setMarketplace([]);
-      setAnimals([]);
-      setBreeders([]);
+      try {
+        router.push(mobileRoute as any);
+        onClose();
+        setQuery('');
+        setAllResults([]);
+        setPosts([]);
+        setUsers([]);
+        setPages([]);
+        setMarketplace([]);
+        setAnimals([]);
+        setBreeders([]);
+      } catch (error) {
+        console.error('Navigation error:', error);
+      }
     },
     [router, onClose]
   );

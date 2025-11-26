@@ -42,30 +42,58 @@ export default function SellerDetailScreen() {
   const { colors, isDark } = useTheme();
   const { showError } = useToast();
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id: idParam } = useLocalSearchParams();
   const [seller, setSeller] = useState<SellerProfile | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Normalize the ID - handle both string and array cases from useLocalSearchParams
+  const sellerId = Array.isArray(idParam) ? idParam[0] : idParam;
+
   useEffect(() => {
-    loadSellerData();
-  }, [id]);
+    if (sellerId) {
+      loadSellerData();
+    }
+  }, [sellerId]);
 
   const loadSellerData = async () => {
+    if (!sellerId) return;
+    
     try {
       setLoading(true);
       
-      // Load seller's listings first
+      // Normalize seller ID to string for API call
+      const sellerIdStr = String(sellerId);
+      
+      // Load seller's listings - filter by seller_id
       const listingsData = await apiClient.get<any>(
-        `/marketplace/listings/?seller=${id}`
+        `/marketplace/listings/?seller_id=${sellerIdStr}`
       );
-      const listings = listingsData.results || [];
+      const allListings = listingsData.results || listingsData || [];
+      
+      // Additional client-side filtering to ensure only this seller's listings are shown
+      // Compare both as strings and as original types to handle UUID vs number cases
+      const listings = allListings.filter((listing: any) => {
+        const listingSellerId = listing.seller?.id;
+        if (!listingSellerId) return false;
+        
+        // Compare as strings (handles UUID strings)
+        if (String(listingSellerId) === sellerIdStr) return true;
+        
+        // Also compare as original types (handles numeric IDs)
+        if (listingSellerId === sellerId) return true;
+        
+        return false;
+      });
+      
+      console.log('Seller ID:', sellerId, 'Listings found:', listings.length, 'Total fetched:', allListings.length);
+      
       setListings(listings);
 
       // Extract seller info from listings or load from users endpoint
       if (listings.length > 0 && listings[0].seller) {
         setSeller({
-          id: listings[0].seller.id,
+          id: String(listings[0].seller.id),
           username: listings[0].seller.username,
           profile_image_url: listings[0].seller.profile_image_url,
           bio: '',
@@ -75,9 +103,9 @@ export default function SellerDetailScreen() {
       } else {
         // Try to load user profile as fallback
         try {
-          const userData = await apiClient.get<any>(`/auth/users/${id}/`);
+          const userData = await apiClient.get<any>(`/auth/users/${sellerIdStr}/`);
           setSeller({
-            id: userData.id,
+            id: String(userData.id),
             username: userData.username,
             profile_image_url: userData.profile_image_url,
             bio: userData.bio || '',
@@ -88,7 +116,7 @@ export default function SellerDetailScreen() {
           console.error('Could not load user profile:', userError);
           // Set minimal seller info
           setSeller({
-            id: id as string,
+            id: sellerIdStr,
             username: 'Seller',
             listings_count: listings.length,
             joined_date: new Date().toISOString(),

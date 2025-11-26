@@ -739,7 +739,16 @@ export default function FeedScreen() {
   }, [navigation, triggerRefresh]);
 
   const renderPost = ({ item }: { item: FeedPost }) => {
-    const displayName = buildDisplayName(item.author);
+    // For page posts, show page name instead of author name
+    const isPagePost = (item as any).author_type === 'page' || (item as any).page !== null && (item as any).page !== undefined;
+    const displayName = isPagePost && (item as any).page
+      ? (item as any).page.name
+      : buildDisplayName(item.author);
+    
+    // For page posts, use page profile image; for user posts, use author avatar
+    const avatarSource = isPagePost && (item as any).page?.profile_image_url
+      ? { uri: resolveRemoteUrl((item as any).page.profile_image_url) }
+      : item.authorAvatar;
 
     const galleryUrls: string[] =
       item.mediaUrls && item.mediaUrls.length
@@ -796,11 +805,15 @@ export default function FeedScreen() {
           <TouchableOpacity
             style={styles.postHeader}
             onPress={() => {
-              setSelectedUserId(item.author.id);
-              setProfileBottomSheetVisible(true);
+              if (isPagePost && (item as any).page) {
+                router.push(`/pages/${(item as any).page.id}`);
+              } else {
+                setSelectedUserId(item.author.id);
+                setProfileBottomSheetVisible(true);
+              }
             }}
           >
-            <Image source={item.authorAvatar} style={styles.avatar} />
+            <Image source={avatarSource} style={styles.avatar} />
             <View style={styles.postHeaderText}>
               <Text style={[styles.authorName, { color: colors.text }]}>{displayName}</Text>
               <Text style={[styles.postTime, { color: colors.textSecondary }]}>

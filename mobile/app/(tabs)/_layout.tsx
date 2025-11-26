@@ -62,7 +62,7 @@ export default function TabsLayout() {
   useEffect(() => {
     if (pathname) {
       // Check multiple possible pathname formats
-      const mainTabRouteNames = ['feed', 'friends', 'create-post', 'notifications', 'profile'];
+      const mainTabRouteNames = ['feed', 'reels', 'create-post', 'notifications', 'profile'];
       const isMainTabRoute = mainTabRouteNames.some(routeName => {
         // Check if pathname matches main tab routes
         return pathname === `/(tabs)/${routeName}` ||
@@ -286,9 +286,12 @@ export default function TabsLayout() {
       marginBottom: 8,
     },
     moreMenuItemIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 2,
+      borderColor: '#C8A25F', // Gold border
+      backgroundColor: '#C8A25F', // Gold background
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: 12,
@@ -301,7 +304,7 @@ export default function TabsLayout() {
 
   const TAB_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
     feed: 'home',
-    friends: 'people',
+    reels: 'film',
     'create-post': 'add',
     notifications: 'notifications',
     profile: 'person',
@@ -495,7 +498,7 @@ export default function TabsLayout() {
                           </Text>
                         </View>
                       )}
-                      {route.name === 'friends' && friendRequestCount > 0 && (
+                      {route.name === 'reels' && false && (
                         <View style={styles.badge}>
                           <Text style={styles.badgeText}>
                             {friendRequestCount > 99 ? '99+' : friendRequestCount}
@@ -535,9 +538,9 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="friends"
+        name="reels"
         options={{
-          title: 'Friends',
+          title: 'Reels',
         }}
       />
       <Tabs.Screen
@@ -646,8 +649,8 @@ export default function TabsLayout() {
                 }}
                 activeOpacity={0.7}
               >
-                <View style={[styles.moreMenuItemIcon, { backgroundColor: colors.primary + '20' }]}>
-                  <Ionicons name={item.icon as any} size={22} color={colors.primary} />
+                <View style={styles.moreMenuItemIcon}>
+                  <Ionicons name={item.icon as any} size={20} color="#1a2335" />
                 </View>
                 <Text style={[styles.moreMenuItemLabel, { color: colors.text }]}>
                   {item.label}
