@@ -73,12 +73,13 @@ class ApiClient {
   }
 
   async postFormData<T>(url: string, formData: FormData, config?: any): Promise<T> {
+    // Remove Content-Type header to let FormData set it automatically with boundary
+    const headers = { ...config?.headers };
+    delete headers['Content-Type'];
+    
     const response = await this.client.post(url, formData, {
       ...config,
-      headers: {
-        ...config?.headers,
-        'Content-Type': 'multipart/form-data',
-      },
+      headers,
     });
     return response.data;
   }

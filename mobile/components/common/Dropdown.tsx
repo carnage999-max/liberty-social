@@ -14,6 +14,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 interface DropdownOption {
   value: string;
   label: string;
+  icon?: string;
 }
 
 interface DropdownProps {
@@ -132,14 +133,24 @@ export default function Dropdown({
         onPress={() => setVisible(true)}
         activeOpacity={0.7}
       >
-        <Text
-          style={[
-            styles.dropdownText,
-            !selectedOption && styles.dropdownTextPlaceholder,
-          ]}
-        >
-          {selectedOption ? selectedOption.label : placeholder}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+          {selectedOption?.icon && (
+            <Ionicons 
+              name={selectedOption.icon as any} 
+              size={20} 
+              color={colors.textSecondary}
+              style={{ marginRight: 8 }}
+            />
+          )}
+          <Text
+            style={[
+              styles.dropdownText,
+              !selectedOption && styles.dropdownTextPlaceholder,
+            ]}
+          >
+            {selectedOption ? selectedOption.label : placeholder}
+          </Text>
+        </View>
         <Ionicons
           name={visible ? 'chevron-up' : 'chevron-down'}
           size={20}
@@ -178,15 +189,25 @@ export default function Dropdown({
                         ]}
                         onPress={() => handleSelect(item.value)}
                       >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <Text
-                            style={[
-                              styles.optionText,
-                              isSelected && styles.optionTextSelected,
-                            ]}
-                          >
-                            {item.label}
-                          </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                            {item.icon && (
+                              <Ionicons 
+                                name={item.icon as any} 
+                                size={20} 
+                                color={isSelected ? '#C8A25F' : colors.textSecondary}
+                                style={{ marginRight: 12 }}
+                              />
+                            )}
+                            <Text
+                              style={[
+                                styles.optionText,
+                                isSelected && styles.optionTextSelected,
+                              ]}
+                            >
+                              {item.label}
+                            </Text>
+                          </View>
                           {isSelected && (
                             <Ionicons name="checkmark" size={20} color="#C8A25F" />
                           )}

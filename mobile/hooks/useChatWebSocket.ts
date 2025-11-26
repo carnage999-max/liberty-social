@@ -93,29 +93,34 @@ export function useChatWebSocket({
       };
 
       ws.onerror = (error) => {
-        console.error('[WebSocket] Error:', error);
+        // Silently handle errors - polling will be used as fallback
+        console.log('[WebSocket] Connection error, will use polling fallback');
         onError?.(new Error('WebSocket connection error'));
       };
 
       ws.onclose = (event) => {
         const closeCode = event.code;
         const closeReason = event.reason || 'No reason provided';
-        console.log('[WebSocket] Disconnected', {
-          code: closeCode,
-          reason: closeReason,
-          conversationId,
-          wasClean: event.wasClean,
-        });
         
-        // Log specific error codes
+        // Only log non-normal closures for debugging
+        if (event.code !== 1000) {
+          console.log('[WebSocket] Disconnected', {
+            code: closeCode,
+            reason: closeReason,
+            conversationId,
+            wasClean: event.wasClean,
+          });
+        }
+        
+        // Log specific error codes only for debugging (not as errors)
         if (closeCode === 4401) {
-          console.error('[WebSocket] Authentication failed (401 Unauthorized)');
+          console.log('[WebSocket] Authentication failed (401) - using polling fallback');
         } else if (closeCode === 4403) {
-          console.error('[WebSocket] Access denied (403 Forbidden) - User may not be a participant in this conversation');
+          console.log('[WebSocket] Access denied (403) - using polling fallback');
         } else if (closeCode === 4400) {
-          console.error('[WebSocket] Bad request (400) - Invalid conversation ID');
+          console.log('[WebSocket] Bad request (400) - using polling fallback');
         } else if (closeCode === 1006) {
-          console.error('[WebSocket] Abnormal closure - Connection lost without close frame');
+          console.log('[WebSocket] Connection lost - using polling fallback');
         }
         
         setIsConnected(false);

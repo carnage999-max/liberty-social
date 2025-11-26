@@ -179,7 +179,14 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
       minHeight: 44,
     },
     buttonPrimary: {
-      backgroundColor: colors.primary,
+      backgroundColor: '#1D2B4F', // Metallic blue
+      borderWidth: 2,
+      borderColor: '#C8A25F', // Gold border
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 4,
     },
     buttonCancel: {
       backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',

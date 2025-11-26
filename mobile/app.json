@@ -16,14 +16,30 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.libertysocial.app"
+      "bundleIdentifier": "com.libertysocial.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload images and videos.",
+        "NSPhotoLibraryAddUsageDescription": "This app needs permission to save images to your photo library.",
+        "NSCameraUsageDescription": "This app needs access to your camera to take photos and videos.",
+        "NSMicrophoneUsageDescription": "This app needs access to your microphone to record videos with audio."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B3D91"
       },
-      "package": "com.libertysocial.app"
+      "package": "com.libertysocial.app",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO",
+        "CAMERA",
+        "RECORD_AUDIO",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -33,6 +49,13 @@
       "expo-router",
       "expo-secure-store",
       "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app needs access to your photos to upload images and videos.",
+          "cameraPermission": "The app needs access to your camera to take photos and videos."
+        }
+      ],
       [
         "expo-notifications",
         {

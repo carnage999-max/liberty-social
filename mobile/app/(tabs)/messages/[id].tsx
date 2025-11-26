@@ -10,6 +10,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   AppState,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useToast } from '../../../contexts/ToastContext';
@@ -21,6 +23,19 @@ import AppNavbar from '../../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../../utils/url';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useChatWebSocket } from '../../../hooks/useChatWebSocket';
+import * as ImagePicker from 'expo-image-picker';
+import AdvancedEmojiPicker from '../../../components/feed/AdvancedEmojiPicker';
+import { resolveMediaUrls } from '../../../utils/url';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+type MediaAttachment = {
+  uri: string;
+  type: 'image' | 'video';
+  mimeType?: string;
+  filename?: string;
+};
 
 export default function ConversationDetailScreen() {
   const { colors, isDark } = useTheme();
@@ -28,6 +43,7 @@ export default function ConversationDetailScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +51,8 @@ export default function ConversationDetailScreen() {
   const [messageText, setMessageText] = useState('');
   const [next, setNext] = useState<string | null>(null);
   const [pollingEnabled, setPollingEnabled] = useState(false);
+  const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
+  const [mediaAttachment, setMediaAttachment] = useState<MediaAttachment | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageIdRef = useRef<number | null>(null);
@@ -79,8 +97,7 @@ export default function ConversationDetailScreen() {
     }
   };
 
-  // WebSocket connection
-  // Convert id to number if it's a string
+  // WebSocket connection with better error handling
   const conversationId = id ? (typeof id === 'string' ? parseInt(id, 10) : Number(id)) : null;
   const { isConnected } = useChatWebSocket({
     conversationId: conversationId || 0,
@@ -102,15 +119,17 @@ export default function ConversationDetailScreen() {
       markAsRead();
     },
     onError: (error) => {
-      console.error('[WebSocket] Error:', error);
-      // Enable polling as fallback
+      // Silently enable polling - don't show error to user
+      console.log('[WebSocket] Connection error, using polling fallback');
       setPollingEnabled(true);
     },
     onConnect: () => {
+      console.log('[WebSocket] Connected successfully');
       setPollingEnabled(false);
     },
     onDisconnect: () => {
-      // Enable polling as fallback when WebSocket disconnects
+      // Silently enable polling as fallback when WebSocket disconnects
+      console.log('[WebSocket] Disconnected, using polling fallback');
       setPollingEnabled(true);
     },
   });
@@ -168,17 +187,120 @@ export default function ConversationDetailScreen() {
     };
   }, [id]);
 
+  const handlePickMedia = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showError('Permission to access media library is required');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsEditing: false,
+        quality: 0.8,
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        
+        // Check file size
+        if (asset.fileSize && asset.fileSize > MAX_FILE_SIZE) {
+          showError(`File size must be less than ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+          return;
+        }
+
+        const type = asset.type === 'video' ? 'video' : 'image';
+        const filename = asset.uri.split('/').pop() || (type === 'video' ? 'video.mp4' : 'image.jpg');
+        
+        // Determine MIME type from filename or asset type
+        let mimeType = 'image/jpeg';
+        if (type === 'video') {
+          mimeType = 'video/mp4';
+        } else {
+          const ext = filename.split('.').pop()?.toLowerCase();
+          if (ext === 'png') mimeType = 'image/png';
+          else if (ext === 'gif') mimeType = 'image/gif';
+          else if (ext === 'webp') mimeType = 'image/webp';
+          else mimeType = 'image/jpeg';
+        }
+        
+        setMediaAttachment({
+          uri: asset.uri,
+          type,
+          mimeType,
+          filename,
+        });
+      }
+    } catch (error) {
+      console.error('Error picking media:', error);
+      showError('Failed to pick media');
+    }
+  };
+
+  const removeMediaAttachment = () => {
+    setMediaAttachment(null);
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setMessageText((prev) => prev + emoji);
+    setEmojiPickerVisible(false);
+  };
+
   const sendMessage = async () => {
-    if (!messageText.trim() || sending) return;
+    if ((!messageText.trim() && !mediaAttachment) || sending) return;
 
     try {
       setSending(true);
+      let mediaUrl: string | null = null;
+
+      // Upload media if present
+      if (mediaAttachment) {
+        try {
+          const formData = new FormData();
+          const filename = mediaAttachment.filename || (mediaAttachment.type === 'video' ? 'video.mp4' : 'image.jpg');
+          const mimeType = mediaAttachment.mimeType || (mediaAttachment.type === 'video' ? 'video/mp4' : 'image/jpeg');
+          
+          formData.append('file', {
+            uri: mediaAttachment.uri,
+            type: mimeType,
+            name: filename,
+          } as any);
+
+          console.log('[Message] Uploading media:', { filename, mimeType, uri: mediaAttachment.uri.substring(0, 50) + '...' });
+          
+          const uploadResponse = await apiClient.postFormData<{ url: string }>(
+            '/uploads/images/',
+            formData
+          );
+          
+          console.log('[Message] Upload response:', uploadResponse);
+          
+          if (uploadResponse.url) {
+            mediaUrl = uploadResponse.url;
+          } else if ((uploadResponse as any).urls && Array.isArray((uploadResponse as any).urls) && (uploadResponse as any).urls.length > 0) {
+            mediaUrl = (uploadResponse as any).urls[0];
+          } else {
+            throw new Error('No URL in upload response');
+          }
+        } catch (error: any) {
+          console.error('[Message] Upload error:', error);
+          const errorMessage = error?.response?.data?.detail || error?.response?.data?.message || 'Failed to upload media';
+          showError(errorMessage);
+          setSending(false);
+          return;
+        }
+      }
+
       const response = await apiClient.post<Message>(
         `/conversations/${id}/messages/`,
         {
-          content: messageText.trim(),
+          content: messageText.trim() || null,
+          media_url: mediaUrl,
         }
       );
+      
       // Message will be added via WebSocket, but add it immediately for better UX
       setMessages((prev) => {
         // Check if message already exists (avoid duplicates from WebSocket)
@@ -188,6 +310,7 @@ export default function ConversationDetailScreen() {
         return [...prev, response];
       });
       setMessageText('');
+      removeMediaAttachment();
       lastMessageIdRef.current = response.id;
       // Scroll to bottom
       setTimeout(() => {
@@ -206,7 +329,7 @@ export default function ConversationDetailScreen() {
     if (conversation.title) return conversation.title;
     if (conversation.is_group) return 'Group Chat';
     const otherParticipant = conversation.participants.find(
-      (p) => p.user.id !== conversation.created_by.id
+      (p) => p.user.id !== user?.id
     );
     if (otherParticipant) {
       const u = otherParticipant.user;
@@ -244,6 +367,7 @@ export default function ConversationDetailScreen() {
       ? resolveRemoteUrl(item.sender.profile_image_url)
       : null;
     const avatarSource = avatarUrl ? { uri: avatarUrl } : DEFAULT_AVATAR;
+    const mediaUrl = item.media_url ? resolveMediaUrls(item.media_url)[0] : null;
 
     return (
       <View
@@ -268,9 +392,9 @@ export default function ConversationDetailScreen() {
               {item.sender.first_name || item.sender.username || 'User'}
             </Text>
           )}
-          {item.media_url && (
+          {mediaUrl && (
             <Image
-              source={{ uri: item.media_url }}
+              source={{ uri: mediaUrl }}
               style={styles.messageMedia}
               resizeMode="cover"
             />
@@ -304,9 +428,9 @@ export default function ConversationDetailScreen() {
       backgroundColor: colors.background,
     },
     messagesList: {
-      flex: 1,
       paddingHorizontal: 16,
       paddingVertical: 8,
+      flexGrow: 1,
     },
     messageContainer: {
       flexDirection: 'row',
@@ -356,24 +480,72 @@ export default function ConversationDetailScreen() {
       padding: 8,
     },
     inputContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.border,
       backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+    },
+    inputRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
       gap: 8,
+    },
+    mediaPreview: {
+      marginHorizontal: 16,
+      marginBottom: 8,
+      position: 'relative',
+    },
+    mediaPreviewImage: {
+      width: 100,
+      height: 100,
+      borderRadius: 12,
+    },
+    removeMediaButton: {
+      position: 'absolute',
+      top: -8,
+      right: -8,
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      width: 24,
+      height: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    inputWrapper: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 24,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: isDark ? colors.background : '#FFFFFF',
+      minHeight: 44,
+      maxHeight: 100,
     },
     textInput: {
       flex: 1,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 20,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
       fontSize: 15,
-      maxHeight: 100,
+      color: colors.text,
+      paddingVertical: 4,
+      maxHeight: 84,
+    },
+    emojiButton: {
+      width: 32,
+      height: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 4,
+    },
+    attachButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 8,
     },
     sendButton: {
       width: 40,
@@ -381,6 +553,7 @@ export default function ConversationDetailScreen() {
       borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
+      marginLeft: 8,
     },
     emptyContainer: {
       flex: 1,
@@ -395,12 +568,15 @@ export default function ConversationDetailScreen() {
     },
   });
 
+  const canSend = messageText.trim() || mediaAttachment;
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
       <AppNavbar
         title={getConversationTitle()}
         showLogo={false}
@@ -409,29 +585,32 @@ export default function ConversationDetailScreen() {
         showBackButton={true}
         onBackPress={() => router.back()}
       />
-      {loading ? (
-        <View style={styles.emptyContainer}>
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Loading...</Text>
-        </View>
-      ) : messages.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="chatbubbles-outline" size={64} color={colors.textSecondary} />
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            No messages yet
-          </Text>
-          <Text style={[styles.emptyText, { color: colors.textSecondary, fontSize: 14 }]}>
-            Start the conversation
-          </Text>
-        </View>
-      ) : (
-        <>
+      <View style={{ flex: 1 }}>
+        {loading ? (
+          <View style={styles.emptyContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Loading...</Text>
+          </View>
+        ) : messages.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="chatbubbles-outline" size={64} color={colors.textSecondary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              No messages yet
+            </Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary, fontSize: 14 }]}>
+              Start the conversation
+            </Text>
+          </View>
+        ) : (
           <FlatList
             ref={flatListRef}
             data={messages}
             renderItem={renderMessage}
             keyExtractor={(item) => item.id.toString()}
+            style={{ flex: 1 }}
             contentContainerStyle={styles.messagesList}
             inverted={false}
+            showsVerticalScrollIndicator={true}
             onContentSizeChange={() => {
               // Auto-scroll to bottom when content size changes
               setTimeout(() => {
@@ -445,43 +624,86 @@ export default function ConversationDetailScreen() {
               }, 100);
             }}
           />
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={[
-                styles.textInput,
-                {
-                  backgroundColor: isDark ? colors.background : '#FFFFFF',
-                  color: colors.text,
-                  borderColor: colors.border,
-                },
-              ]}
-              placeholder="Type a message..."
-              placeholderTextColor={colors.textSecondary}
-              value={messageText}
-              onChangeText={setMessageText}
-              multiline
-              maxLength={1000}
-            />
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                {
-                  backgroundColor: messageText.trim() ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={sendMessage}
-              disabled={!messageText.trim() || sending}
-            >
-              <Ionicons
-                name="send"
-                size={20}
-                color={messageText.trim() ? '#FFFFFF' : colors.textSecondary}
-              />
-            </TouchableOpacity>
+        )}
+        {!loading && (
+          <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 0 : 8) }]}>
+            {mediaAttachment && (
+              <View style={styles.mediaPreview}>
+                <Image
+                  source={{ uri: mediaAttachment.uri }}
+                  style={styles.mediaPreviewImage}
+                  resizeMode="cover"
+                />
+                <TouchableOpacity
+                  style={styles.removeMediaButton}
+                  onPress={removeMediaAttachment}
+                >
+                  <Ionicons name="close" size={16} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+            <View style={styles.inputRow}>
+              <TouchableOpacity
+                style={styles.attachButton}
+                onPress={handlePickMedia}
+                disabled={sending}
+              >
+                <Ionicons
+                  name="attach-outline"
+                  size={22}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Type a message..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={messageText}
+                  onChangeText={setMessageText}
+                  multiline
+                  maxLength={1000}
+                  editable={!sending}
+                />
+                <TouchableOpacity
+                  style={styles.emojiButton}
+                  onPress={() => setEmojiPickerVisible(true)}
+                  disabled={sending}
+                >
+                  <Text style={{ fontSize: 20 }}>😀</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.sendButton,
+                  {
+                    backgroundColor: canSend ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={sendMessage}
+                disabled={!canSend || sending}
+              >
+                {sending ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Ionicons
+                    name="send"
+                    size={20}
+                    color={canSend ? '#FFFFFF' : colors.textSecondary}
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </>
-      )}
-    </KeyboardAvoidingView>
+        )}
+      </View>
+      
+        <AdvancedEmojiPicker
+          visible={emojiPickerVisible}
+          onClose={() => setEmojiPickerVisible(false)}
+          onSelect={handleEmojiSelect}
+        />
+      </KeyboardAvoidingView>
+    </View>
   );
 }
-

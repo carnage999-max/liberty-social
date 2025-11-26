@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  RefreshControl,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -70,6 +71,7 @@ export default function PageDetailScreen() {
   const { id } = useLocalSearchParams();
   const [page, setPage] = useState<BusinessPage | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [galleryVisible, setGalleryVisible] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
@@ -112,9 +114,11 @@ export default function PageDetailScreen() {
     }
   }, [page, activeTab]);
 
-  const loadPage = async () => {
+  const loadPage = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) {
+        setLoading(true);
+      }
       const response = await apiClient.get<any>(`/pages/${id}/`);
       // API returns follower_count, map it to followers_count for consistency
       const pageData: BusinessPage = {
@@ -126,14 +130,52 @@ export default function PageDetailScreen() {
       const canPostValue = pageData.user_role === 'owner' || pageData.user_role === 'admin' || pageData.user_role === 'moderator' || pageData.can_manage;
       console.log('Page data:', { user_role: pageData.user_role, can_manage: pageData.can_manage, canPost: canPostValue, followers_count: pageData.followers_count });
       setCanPost(canPostValue);
+      if (activeTab === 'overview') {
+        loadPosts();
+      }
     } catch (error) {
       showError('Failed to load page');
       console.error(error);
-      router.push('/(tabs)/pages');
+      if (!isRefresh) {
+        router.push('/(tabs)/pages');
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const response = await apiClient.get<any>(`/pages/${id}/`);
+      const pageData: BusinessPage = {
+        ...response,
+        followers_count: response.follower_count || response.followers_count || 0,
+      };
+      setPage(pageData);
+      const canPostValue = pageData.user_role === 'owner' || pageData.user_role === 'admin' || pageData.user_role === 'moderator' || pageData.can_manage;
+      setCanPost(canPostValue);
+      if (activeTab === 'overview') {
+        // Reload posts
+        setLoadingPosts(true);
+        try {
+          const postsResponse = await apiClient.get<PaginatedResponse<Post>>(`/pages/${id}/posts/`);
+          setPosts(postsResponse.results || []);
+          setNextPosts(postsResponse.next || null);
+        } catch (error) {
+          console.error('Failed to load posts:', error);
+        } finally {
+          setLoadingPosts(false);
+        }
+      }
+    } catch (error) {
+      showError('Failed to refresh page');
+      console.error(error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [id, activeTab, showError]);
 
   const checkCanManage = async () => {
     if (!page || !user) {
@@ -1142,25 +1184,29 @@ export default function PageDetailScreen() {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 20,
       gap: 6,
+      backgroundColor: '#192A4A',
       borderWidth: 1,
-      minHeight: 40,
+      borderColor: '#C8A25F',
     },
     followButton: {
       backgroundColor: '#192A4A',
       borderColor: '#C8A25F',
-      shadowColor: '#C8A25F',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.3,
-      shadowRadius: 4,
-      elevation: 4,
     },
     followingButton: {
-      backgroundColor: 'transparent',
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
       borderColor: colors.border,
+    },
+    shareButton: {
+      backgroundColor: '#192A4A',
+      borderColor: '#C8A25F',
+    },
+    inviteButton: {
+      backgroundColor: '#192A4A',
+      borderColor: '#C8A25F',
     },
     actionButtonText: {
       fontSize: 14,
@@ -1169,6 +1215,7 @@ export default function PageDetailScreen() {
     },
     followingButtonText: {
       color: colors.text,
+      fontWeight: '600',
     },
     tabsContainer: {
       flexDirection: 'row',
@@ -1568,6 +1615,7 @@ export default function PageDetailScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={0}
     >
       <AppNavbar 
         title={page.name}
@@ -1586,7 +1634,21 @@ export default function PageDetailScreen() {
         }
       />
       
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={{ paddingBottom: 20 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Cover Image */}
         {coverImage ? (
           <TouchableOpacity
@@ -1665,20 +1727,20 @@ export default function PageDetailScreen() {
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: 'transparent', borderColor: colors.border }]}
+            style={[styles.actionButton, styles.shareButton]}
             onPress={handleShare}
           >
-            <Ionicons name="share-outline" size={18} color={colors.text} />
-            <Text style={[styles.actionButtonText, { color: colors.text }]}>Share</Text>
+            <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.actionButtonText}>Share</Text>
           </TouchableOpacity>
 
           {canInvite && (
             <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: 'transparent', borderColor: colors.border }]}
+              style={[styles.actionButton, styles.inviteButton]}
               onPress={() => setShowInviteModal(true)}
             >
-              <Ionicons name="person-add-outline" size={18} color={colors.text} />
-              <Text style={[styles.actionButtonText, { color: colors.text }]}>Invite</Text>
+              <Ionicons name="person-add-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Invite</Text>
             </TouchableOpacity>
           )}
         </View>

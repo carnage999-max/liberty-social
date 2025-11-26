@@ -25,6 +25,11 @@ type AuthMode = 'login' | 'register';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Frontend color constants
+const COLOR_GOLD = '#C8A25F';
+const COLOR_DEEP_NAVY = '#1D2B4F';
+const COLOR_DEEPER_NAVY = '#121A33';
+
 export default function AuthScreen() {
   const { colors, isDark } = useTheme();
   const { login } = useAuth();
@@ -184,19 +189,21 @@ export default function AuthScreen() {
   const styles = StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: isDark ? colors.background : '#F6F7FB',
     },
     scrollContent: {
       flexGrow: 1,
-      padding: 24,
+      padding: 16,
       paddingTop: 16,
     },
+    // Tab switcher - matching frontend
     tabContainer: {
       flexDirection: 'row',
-      backgroundColor: isDark ? colors.backgroundSecondary : '#F5F5F5',
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
       borderRadius: 12,
       padding: 4,
-      marginBottom: 32,
+      marginBottom: 24,
+      overflow: 'hidden',
     },
     tab: {
       flex: 1,
@@ -205,59 +212,81 @@ export default function AuthScreen() {
       borderRadius: 8,
     },
     activeTab: {
-      backgroundColor: colors.primary,
+      backgroundColor: COLOR_DEEP_NAVY,
     },
     tabText: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '600',
-      color: colors.textSecondary,
+      color: '#75829a',
     },
     activeTabText: {
       color: '#FFFFFF',
     },
     formContainer: {
-      width: SCREEN_WIDTH - 48,
+      width: '100%',
+    },
+    // Form card - matching frontend gradient card
+    formCard: {
+      borderRadius: 16,
+      padding: 20,
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.95)',
+      // Shadow effect
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 5,
+      marginBottom: 16,
     },
     title: {
       fontSize: 24,
       fontWeight: '700',
-      color: colors.text,
+      color: COLOR_DEEP_NAVY,
       marginBottom: 8,
-      textAlign: 'center',
     },
     subtitle: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: isDark ? colors.textSecondary : '#6B7280',
       marginBottom: 24,
-      textAlign: 'center',
     },
+    // Input styling - matching frontend
     input: {
-      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
-      borderRadius: 12,
-      padding: 16,
-      fontSize: 16,
-      color: colors.text,
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderRadius: 10,
+      padding: 12,
+      fontSize: 15,
+      color: '#111827',
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: 'rgba(200, 162, 95, 0.3)',
       marginBottom: 16,
+    },
+    inputFocused: {
+      borderColor: COLOR_GOLD,
+      borderWidth: 2,
+      backgroundColor: '#FFFFFF',
     },
     passwordContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
-      borderRadius: 12,
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderRadius: 10,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: 'rgba(200, 162, 95, 0.3)',
       marginBottom: 16,
+    },
+    passwordContainerFocused: {
+      borderColor: COLOR_GOLD,
+      borderWidth: 2,
+      backgroundColor: '#FFFFFF',
     },
     passwordInput: {
       flex: 1,
-      padding: 16,
-      fontSize: 16,
-      color: colors.text,
+      padding: 12,
+      fontSize: 15,
+      color: '#111827',
     },
     passwordToggle: {
-      padding: 16,
+      padding: 12,
     },
     row: {
       flexDirection: 'row',
@@ -266,12 +295,18 @@ export default function AuthScreen() {
     halfInput: {
       flex: 1,
     },
+    // Button - matching frontend btn-primary
     button: {
-      backgroundColor: colors.primary,
+      backgroundColor: COLOR_DEEP_NAVY,
       borderRadius: 12,
-      padding: 16,
+      padding: 14,
       alignItems: 'center',
       marginTop: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 3,
     },
     buttonText: {
       color: '#FFFFFF',
@@ -284,7 +319,7 @@ export default function AuthScreen() {
     label: {
       fontSize: 14,
       fontWeight: '600',
-      color: colors.text,
+      color: COLOR_DEEP_NAVY,
       marginBottom: 8,
     },
     forgotPasswordLink: {
@@ -294,8 +329,47 @@ export default function AuthScreen() {
     },
     forgotPasswordText: {
       fontSize: 14,
-      color: colors.primary,
+      color: COLOR_DEEP_NAVY,
       fontWeight: '600',
+    },
+    // Social buttons section
+    socialSection: {
+      marginTop: 24,
+    },
+    socialDivider: {
+      fontSize: 12,
+      letterSpacing: 1,
+      color: isDark ? colors.textSecondary : '#6B7280',
+      marginBottom: 12,
+      textAlign: 'center',
+    },
+    socialButtons: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    socialButton: {
+      flex: 1,
+      borderRadius: 10,
+      padding: 12,
+      backgroundColor: '#FFFFFF',
+      borderWidth: 1,
+      borderColor: COLOR_GOLD,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    socialButtonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    socialButtonText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: COLOR_DEEP_NAVY,
     },
     modalOverlay: {
       flex: 1,
@@ -309,11 +383,13 @@ export default function AuthScreen() {
       padding: 24,
       width: SCREEN_WIDTH - 48,
       maxWidth: 400,
+      borderWidth: 1,
+      borderColor: COLOR_GOLD,
     },
     modalTitle: {
       fontSize: 20,
       fontWeight: '700',
-      color: colors.text,
+      color: COLOR_DEEP_NAVY,
       marginBottom: 8,
     },
     modalSubtitle: {
@@ -340,7 +416,7 @@ export default function AuthScreen() {
     },
     modalSubmitButton: {
       flex: 1,
-      backgroundColor: colors.primary,
+      backgroundColor: COLOR_DEEP_NAVY,
       borderRadius: 12,
       padding: 16,
       alignItems: 'center',
@@ -350,173 +426,251 @@ export default function AuthScreen() {
       fontSize: 16,
       fontWeight: '600',
     },
+    errorText: {
+      fontSize: 12,
+      color: '#EF4444',
+      marginTop: -12,
+      marginBottom: 8,
+    },
   });
 
-  const renderLoginForm = () => (
-    <View style={styles.formContainer}>
-      <Text style={styles.title}>Welcome Back</Text>
-      <Text style={styles.subtitle}>Sign in to continue to Liberty Social</Text>
+  const renderLoginForm = () => {
+    const [focusedInput, setFocusedInput] = useState<string | null>(null);
 
-      <Text style={styles.label}>Username, Email, or Phone</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter your username, email, or phone"
-        placeholderTextColor={colors.textSecondary}
-        value={username}
-        onChangeText={setUsername}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        editable={!loading}
-      />
+    return (
+      <View style={styles.formCard}>
+        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.subtitle}>Sign in to continue to Liberty Social</Text>
 
-      <Text style={styles.label}>Password</Text>
-      <View style={styles.passwordContainer}>
+        <Text style={styles.label}>Username / Email / Phone</Text>
         <TextInput
-          style={styles.passwordInput}
-          placeholder="Enter your password"
-          placeholderTextColor={colors.textSecondary}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
+          style={[
+            styles.input,
+            focusedInput === 'identifier' && styles.inputFocused,
+          ]}
+          placeholder="alice / alice@example.com / +123456789"
+          placeholderTextColor="#9CA3AF"
+          value={username}
+          onChangeText={setUsername}
+          onFocus={() => setFocusedInput('identifier')}
+          onBlur={() => setFocusedInput(null)}
+          autoCapitalize="none"
+          keyboardType="email-address"
           editable={!loading}
         />
-        <TouchableOpacity
-          style={styles.passwordToggle}
-          onPress={() => setShowPassword(!showPassword)}
+
+        <Text style={styles.label}>Password</Text>
+        <View
+          style={[
+            styles.passwordContainer,
+            focusedInput === 'password' && styles.passwordContainerFocused,
+          ]}
         >
-          <Ionicons
-            name={showPassword ? 'eye-off' : 'eye'}
-            size={20}
-            color={colors.textSecondary}
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="********"
+            placeholderTextColor="#9CA3AF"
+            value={password}
+            onChangeText={setPassword}
+            onFocus={() => setFocusedInput('password')}
+            onBlur={() => setFocusedInput(null)}
+            secureTextEntry={!showPassword}
+            editable={!loading}
           />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.passwordToggle}
+            onPress={() => setShowPassword(!showPassword)}
+          >
+            <Ionicons
+              name={showPassword ? 'eye-off' : 'eye'}
+              size={20}
+              color="#6B7280"
+            />
+          </TouchableOpacity>
+        </View>
 
-      <TouchableOpacity
-        style={styles.forgotPasswordLink}
-        onPress={() => setShowForgotPassword(true)}
-      >
-        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleLogin}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderRegisterForm = () => (
-    <View style={styles.formContainer}>
-      <Text style={styles.title}>Create Account</Text>
-      <Text style={styles.subtitle}>Join Liberty Social today</Text>
-
-      <View style={styles.row}>
-        <TextInput
-          style={[styles.input, styles.halfInput]}
-          placeholder="First name"
-          placeholderTextColor={colors.textSecondary}
-          value={formData.first_name}
-          onChangeText={(text) => setFormData({ ...formData, first_name: text })}
-          editable={!loading}
-        />
-        <TextInput
-          style={[styles.input, styles.halfInput]}
-          placeholder="Last name"
-          placeholderTextColor={colors.textSecondary}
-          value={formData.last_name}
-          onChangeText={(text) => setFormData({ ...formData, last_name: text })}
-          editable={!loading}
-        />
-      </View>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Username"
-        placeholderTextColor={colors.textSecondary}
-        value={formData.username}
-        onChangeText={(text) => setFormData({ ...formData, username: text })}
-        autoCapitalize="none"
-        editable={!loading}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor={colors.textSecondary}
-        value={formData.email}
-        onChangeText={(text) => setFormData({ ...formData, email: text })}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        editable={!loading}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Phone number (optional)"
-        placeholderTextColor={colors.textSecondary}
-        value={formData.phone_number}
-        onChangeText={(text) => setFormData({ ...formData, phone_number: text })}
-        keyboardType="phone-pad"
-        editable={!loading}
-      />
-
-      <View style={styles.passwordContainer}>
-        <TextInput
-          style={styles.passwordInput}
-          placeholder="Password"
-          placeholderTextColor={colors.textSecondary}
-          value={formData.password}
-          onChangeText={(text) => setFormData({ ...formData, password: text })}
-          secureTextEntry={!showPassword}
-          editable={!loading}
-        />
         <TouchableOpacity
-          style={styles.passwordToggle}
-          onPress={() => setShowPassword(!showPassword)}
+          style={styles.forgotPasswordLink}
+          onPress={() => setShowForgotPassword(true)}
         >
-          <Ionicons
-            name={showPassword ? 'eye-off' : 'eye'}
-            size={20}
-            color={colors.textSecondary}
-          />
+          <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
         </TouchableOpacity>
-      </View>
 
-      <View style={styles.passwordContainer}>
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign in'}</Text>
+        </TouchableOpacity>
+
+        {/* Social buttons */}
+        <View style={styles.socialSection}>
+          <Text style={styles.socialDivider}>OR CONTINUE WITH</Text>
+          <View style={styles.socialButtons}>
+            <TouchableOpacity style={styles.socialButton} disabled>
+              <View style={styles.socialButtonContent}>
+                <Ionicons name="logo-google" size={18} color={COLOR_DEEP_NAVY} />
+                <Text style={styles.socialButtonText}>Google</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.socialButton} disabled>
+              <View style={styles.socialButtonContent}>
+                <Ionicons name="logo-apple" size={18} color={COLOR_DEEP_NAVY} />
+                <Text style={styles.socialButtonText}>Apple</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
+  const renderRegisterForm = () => {
+    const [focusedInput, setFocusedInput] = useState<string | null>(null);
+
+    return (
+      <View style={styles.formCard}>
+        <Text style={styles.title}>Create Account</Text>
+        <Text style={styles.subtitle}>Join Liberty Social today</Text>
+
+        <View style={styles.row}>
+          <TextInput
+            style={[styles.input, styles.halfInput]}
+            placeholder="First name"
+            placeholderTextColor="#9CA3AF"
+            value={formData.first_name}
+            onChangeText={(text) => setFormData({ ...formData, first_name: text })}
+            editable={!loading}
+          />
+          <TextInput
+            style={[styles.input, styles.halfInput]}
+            placeholder="Last name"
+            placeholderTextColor="#9CA3AF"
+            value={formData.last_name}
+            onChangeText={(text) => setFormData({ ...formData, last_name: text })}
+            editable={!loading}
+          />
+        </View>
+
         <TextInput
-          style={styles.passwordInput}
-          placeholder="Confirm password"
-          placeholderTextColor={colors.textSecondary}
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry={!showConfirmPassword}
+          style={styles.input}
+          placeholder="Username"
+          placeholderTextColor="#9CA3AF"
+          value={formData.username}
+          onChangeText={(text) => setFormData({ ...formData, username: text })}
+          autoCapitalize="none"
           editable={!loading}
         />
-        <TouchableOpacity
-          style={styles.passwordToggle}
-          onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-        >
-          <Ionicons
-            name={showConfirmPassword ? 'eye-off' : 'eye'}
-            size={20}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
-      </View>
 
-      <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
-        onPress={handleRegister}
-        disabled={loading}
-      >
-        <Text style={styles.buttonText}>{loading ? 'Creating account...' : 'Sign Up'}</Text>
-      </TouchableOpacity>
-    </View>
-  );
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#9CA3AF"
+          value={formData.email}
+          onChangeText={(text) => setFormData({ ...formData, email: text })}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          editable={!loading}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Phone number (optional)"
+          placeholderTextColor="#9CA3AF"
+          value={formData.phone_number}
+          onChangeText={(text) => setFormData({ ...formData, phone_number: text })}
+          keyboardType="phone-pad"
+          editable={!loading}
+        />
+
+        <View
+          style={[
+            styles.passwordContainer,
+            focusedInput === 'password' && styles.passwordContainerFocused,
+          ]}
+        >
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Password"
+            placeholderTextColor="#9CA3AF"
+            value={formData.password}
+            onChangeText={(text) => setFormData({ ...formData, password: text })}
+            onFocus={() => setFocusedInput('password')}
+            onBlur={() => setFocusedInput(null)}
+            secureTextEntry={!showPassword}
+            editable={!loading}
+          />
+          <TouchableOpacity
+            style={styles.passwordToggle}
+            onPress={() => setShowPassword(!showPassword)}
+          >
+            <Ionicons
+              name={showPassword ? 'eye-off' : 'eye'}
+              size={20}
+              color="#6B7280"
+            />
+          </TouchableOpacity>
+        </View>
+
+        <View
+          style={[
+            styles.passwordContainer,
+            focusedInput === 'confirm' && styles.passwordContainerFocused,
+          ]}
+        >
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Confirm password"
+            placeholderTextColor="#9CA3AF"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            onFocus={() => setFocusedInput('confirm')}
+            onBlur={() => setFocusedInput(null)}
+            secureTextEntry={!showConfirmPassword}
+            editable={!loading}
+          />
+          <TouchableOpacity
+            style={styles.passwordToggle}
+            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+          >
+            <Ionicons
+              name={showConfirmPassword ? 'eye-off' : 'eye'}
+              size={20}
+              color="#6B7280"
+            />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleRegister}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>{loading ? 'Creating account...' : 'Create account'}</Text>
+        </TouchableOpacity>
+
+        {/* Social buttons */}
+        <View style={styles.socialSection}>
+          <Text style={styles.socialDivider}>OR CONTINUE WITH</Text>
+          <View style={styles.socialButtons}>
+            <TouchableOpacity style={styles.socialButton} disabled>
+              <View style={styles.socialButtonContent}>
+                <Ionicons name="logo-google" size={18} color={COLOR_DEEP_NAVY} />
+                <Text style={styles.socialButtonText}>Google</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.socialButton} disabled>
+              <View style={styles.socialButtonContent}>
+                <Ionicons name="logo-apple" size={18} color={COLOR_DEEP_NAVY} />
+                <Text style={styles.socialButtonText}>Apple</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -524,6 +678,8 @@ export default function AuthScreen() {
         title="Liberty Social" 
         showLogo={true}
         showProfileImage={false}
+        showSearchIcon={false}
+        showMessageIcon={false}
       />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -541,7 +697,7 @@ export default function AuthScreen() {
               onPress={() => switchMode('login')}
             >
               <Text style={[styles.tabText, mode === 'login' && styles.activeTabText]}>
-                Sign In
+                Log in
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -549,7 +705,7 @@ export default function AuthScreen() {
               onPress={() => switchMode('register')}
             >
               <Text style={[styles.tabText, mode === 'register' && styles.activeTabText]}>
-                Sign Up
+                Sign up
               </Text>
             </TouchableOpacity>
           </View>
@@ -620,5 +776,3 @@ export default function AuthScreen() {
     </View>
   );
 }
-
-

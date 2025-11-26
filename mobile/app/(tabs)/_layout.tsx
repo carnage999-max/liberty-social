@@ -58,9 +58,23 @@ export default function TabsLayout() {
     };
   }, [tabBarVisible, tabBarTranslateY]);
 
-  // Show tab bar when route changes to a main tab route
+  // Show/hide tab bar based on route
   useEffect(() => {
     if (pathname) {
+      // Hide tab bar when in messages detail screen
+      const isMessagesDetail = pathname.includes('/messages/') && pathname !== '/(tabs)/messages';
+      
+      if (isMessagesDetail) {
+        // Hide tab bar for messages detail
+        setTabBarVisible(false);
+        Animated.timing(tabBarTranslateY, {
+          toValue: 200,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+        return;
+      }
+      
       // Check multiple possible pathname formats
       const mainTabRouteNames = ['feed', 'reels', 'create-post', 'notifications', 'profile'];
       const isMainTabRoute = mainTabRouteNames.some(routeName => {

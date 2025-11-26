@@ -18,6 +18,7 @@ import { apiClient } from '../../utils/api';
 import { UserProfileOverview, Post, Friend, PaginatedResponse, Conversation } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR, resolveMediaUrls } from '../../utils/url';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
@@ -33,6 +34,7 @@ export default function ProfileScreen() {
   const { showSuccess, showError: showToastError } = useToast();
   const router = useRouter();
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<UserProfileOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -331,7 +333,7 @@ export default function ProfileScreen() {
       marginRight: 6,
     },
     contentContainer: {
-      flex: 1,
+      minHeight: 400,
     },
     postsGrid: {
       flexDirection: 'row',
@@ -627,6 +629,7 @@ export default function ProfileScreen() {
       />
       <ScrollView
         style={styles.container}
+        contentContainerStyle={{ paddingBottom: (insets.bottom || 0) + 80 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

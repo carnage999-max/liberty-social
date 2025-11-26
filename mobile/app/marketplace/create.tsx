@@ -25,6 +25,28 @@ interface Category {
   slug: string;
 }
 
+// Category icon mapping
+const getCategoryIcon = (categoryName: string): string => {
+  const iconMap: Record<string, string> = {
+    'Electronics': 'phone-portrait-outline',
+    'Vehicles': 'car-outline',
+    'Home & Living': 'home-outline',
+    'Fashion': 'shirt-outline',
+    'Health & Beauty': 'medical-outline',
+    'Sports & Fitness': 'fitness-outline',
+    'Pets & Animals': 'paw-outline',
+    'Real Estate': 'business-outline',
+    'Baby & Kids': 'happy-outline',
+    'Food & Groceries': 'restaurant-outline',
+    'Services': 'construct-outline',
+    'Jobs': 'briefcase-outline',
+    'Agriculture': 'leaf-outline',
+    'Industrial & Business': 'cube-outline',
+    'Books, Art & Collectibles': 'library-outline',
+  };
+  return iconMap[categoryName] || 'grid-outline';
+};
+
 type Step = 'basic' | 'details' | 'contact' | 'media' | 'review';
 
 const steps: { id: Step; label: string; description: string }[] = [
@@ -354,7 +376,11 @@ export default function CreateListingScreen() {
       <Dropdown
         label="Category"
         required
-        options={categories.map(cat => ({ value: cat.id.toString(), label: cat.name }))}
+        options={categories.map(cat => ({ 
+          value: cat.id.toString(), 
+          label: cat.name,
+          icon: getCategoryIcon(cat.name)
+        }))}
         value={form.category}
         onSelect={(value) => setForm({ ...form, category: value })}
         placeholder="Select category"
@@ -382,14 +408,17 @@ export default function CreateListingScreen() {
         <Text style={styles.label}>
           Price <Text style={styles.required}>*</Text>
         </Text>
-        <TextInput
-          style={styles.input}
-          placeholder="0.00"
-          placeholderTextColor={colors.textSecondary}
-          keyboardType="numeric"
-          value={form.price}
-          onChangeText={(text) => setForm({ ...form, price: text })}
-        />
+        <View style={styles.priceInputContainer}>
+          <TextInput
+            style={styles.priceInput}
+            placeholder="0.00"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="numeric"
+            value={form.price}
+            onChangeText={(text) => setForm({ ...form, price: text })}
+          />
+          <Text style={styles.usdLabel}>USD</Text>
+        </View>
       </View>
 
       {/* Condition */}
@@ -471,6 +500,18 @@ export default function CreateListingScreen() {
         <Text style={styles.label}>
           Images <Text style={styles.required}>*</Text>
         </Text>
+        
+        {/* Info Card */}
+        <View style={styles.infoCard}>
+          <Ionicons name="information-circle-outline" size={20} color="#192A4A" style={styles.infoIcon} />
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>Upload Descriptive Images</Text>
+            <Text style={styles.infoText}>
+              Upload clear, high-quality images from multiple angles to help buyers better understand your item. Include images showing any unique features, condition details, or accessories.
+            </Text>
+          </View>
+        </View>
+
         <TouchableOpacity
           style={styles.uploadArea}
           onPress={handlePickImages}
@@ -688,9 +729,56 @@ export default function CreateListingScreen() {
       color: colors.text,
       backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
     },
+    priceInputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+    },
+    priceInput: {
+      flex: 1,
+      padding: 12,
+      fontSize: 15,
+      color: colors.text,
+    },
+    usdLabel: {
+      paddingRight: 12,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
     textArea: {
       height: 100,
       textAlignVertical: 'top',
+    },
+    infoCard: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? 'rgba(200, 162, 95, 0.1)' : 'rgba(25, 42, 74, 0.05)',
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(200, 162, 95, 0.2)' : 'rgba(25, 42, 74, 0.1)',
+    },
+    infoIcon: {
+      marginRight: 12,
+      marginTop: 2,
+    },
+    infoContent: {
+      flex: 1,
+    },
+    infoTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    infoText: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      lineHeight: 18,
     },
     uploadArea: {
       borderWidth: 2,

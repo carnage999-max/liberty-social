@@ -16,6 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../utils/api';
 import { Ionicons } from '@expo/vector-icons';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../utils/url';
+import UserProfileBottomSheet from './profile/UserProfileBottomSheet';
 
 type SearchResult = {
   id: number;
@@ -47,6 +48,8 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
   const [animals, setAnimals] = useState<SearchResult[]>([]);
   const [breeders, setBreeders] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
   const searchInputRef = useRef<TextInput>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -170,74 +173,109 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
 
   const handleResultClick = useCallback(
     (result: SearchResult) => {
-      let mobileRoute: string;
-      
       // Extract ID from href or use result.id
       const id = result.id;
       
       // Route based on type
       switch (result.type) {
+        case 'user':
+          // Open user profile bottom sheet
+          const userIdMatch = result.href.match(/\/users\/(\d+)/) || result.href.match(/\/app\/users\/(\d+)/);
+          const userId = userIdMatch ? userIdMatch[1] : id.toString();
+          setSelectedUserId(userId);
+          setProfileBottomSheetVisible(true);
+          onClose();
+          return;
+          
         case 'post':
           // Extract post ID from href or use result.id
-          const postIdMatch = result.href.match(/\/feed\/(\d+)/) || result.href.match(/\/posts\/(\d+)/);
+          const postIdMatch = result.href.match(/\/feed\/(\d+)/) || 
+                             result.href.match(/\/posts\/(\d+)/) ||
+                             result.href.match(/\/app\/feed\/(\d+)/);
           const postId = postIdMatch ? postIdMatch[1] : id.toString();
-          mobileRoute = `/(tabs)/feed/${postId}`;
+          router.push(`/(tabs)/feed/${postId}` as any);
           break;
-        case 'user':
-          // Extract user ID from href or use result.id
-          const userIdMatch = result.href.match(/\/users\/(\d+)/);
-          const userId = userIdMatch ? userIdMatch[1] : id.toString();
-          mobileRoute = `/(tabs)/users/${userId}`;
-          break;
+          
         case 'page':
           // Extract page ID from href or use result.id
-          const pageIdMatch = result.href.match(/\/pages\/(\d+)/);
+          const pageIdMatch = result.href.match(/\/pages\/(\d+)/) || 
+                             result.href.match(/\/app\/pages\/(\d+)/);
           const pageId = pageIdMatch ? pageIdMatch[1] : id.toString();
-          mobileRoute = `/pages/${pageId}`;
+          router.push(`/pages/${pageId}` as any);
           break;
+          
         case 'marketplace':
           // Extract marketplace ID from href or use result.id
-          const marketplaceIdMatch = result.href.match(/\/marketplace\/(\d+)/);
+          const marketplaceIdMatch = result.href.match(/\/marketplace\/(\d+)/) || 
+                                    result.href.match(/\/app\/marketplace\/(\d+)/);
           const marketplaceId = marketplaceIdMatch ? marketplaceIdMatch[1] : id.toString();
-          mobileRoute = `/(tabs)/marketplace/${marketplaceId}`;
+          router.push(`/marketplace/${marketplaceId}` as any);
           break;
+          
         case 'animal':
           // Extract animal ID from href or use result.id
-          const animalIdMatch = result.href.match(/\/animals\/(\d+)/);
+          const animalIdMatch = result.href.match(/\/animals\/(\d+)/) || 
+                               result.href.match(/\/app\/animals\/(\d+)/);
           const animalId = animalIdMatch ? animalIdMatch[1] : id.toString();
-          mobileRoute = `/(tabs)/animals/${animalId}`;
+          router.push(`/animals/${animalId}` as any);
           break;
+          
         case 'breeder':
           // Extract breeder ID from href or use result.id
-          const breederIdMatch = result.href.match(/\/breeders\/(\d+)/);
+          const breederIdMatch = result.href.match(/\/breeders\/(\d+)/) || 
+                                result.href.match(/\/app\/breeders\/(\d+)/);
           const breederId = breederIdMatch ? breederIdMatch[1] : id.toString();
-          mobileRoute = `/(tabs)/breeders/${breederId}`;
+          // Route to breeder profile (assuming it follows similar pattern to users)
+          router.push(`/breeders/${breederId}` as any);
           break;
+          
         default:
           // Fallback: try to convert href format
-          mobileRoute = result.href
+          let mobileRoute = result.href
             .replace('/app/feed/', '/(tabs)/feed/')
             .replace('/app/users/', '/(tabs)/users/')
             .replace('/app/pages/', '/pages/')
-            .replace('/app/marketplace/', '/(tabs)/marketplace/')
-            .replace('/app/animals/', '/(tabs)/animals/')
-            .replace('/app/breeders/', '/(tabs)/breeders/');
+            .replace('/app/marketplace/', '/marketplace/')
+            .replace('/app/animals/', '/animals/')
+            .replace('/app/breeders/', '/breeders/');
+          
+          // If still contains /app/, try to extract ID and route by type
+          if (mobileRoute.includes('/app/')) {
+            const fallbackIdMatch = result.href.match(/\/(\d+)\/?$/);
+            if (fallbackIdMatch) {
+              const fallbackId = fallbackIdMatch[1];
+              switch (result.type) {
+                case 'post':
+                  mobileRoute = `/(tabs)/feed/${fallbackId}`;
+                  break;
+                case 'page':
+                  mobileRoute = `/pages/${fallbackId}`;
+                  break;
+                case 'marketplace':
+                  mobileRoute = `/marketplace/${fallbackId}`;
+                  break;
+                case 'animal':
+                  mobileRoute = `/animals/${fallbackId}`;
+                  break;
+                default:
+                  console.warn('Unknown result type:', result.type, result.href);
+                  return;
+              }
+            }
+          }
+          
+          router.push(mobileRoute as any);
       }
       
-      try {
-        router.push(mobileRoute as any);
-        onClose();
-        setQuery('');
-        setAllResults([]);
-        setPosts([]);
-        setUsers([]);
-        setPages([]);
-        setMarketplace([]);
-        setAnimals([]);
-        setBreeders([]);
-      } catch (error) {
-        console.error('Navigation error:', error);
-      }
+      onClose();
+      setQuery('');
+      setAllResults([]);
+      setPosts([]);
+      setUsers([]);
+      setPages([]);
+      setMarketplace([]);
+      setAnimals([]);
+      setBreeders([]);
     },
     [router, onClose]
   );
@@ -489,6 +527,16 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
           </View>
         </View>
       </View>
+
+      {/* User Profile Bottom Sheet */}
+      <UserProfileBottomSheet
+        visible={profileBottomSheetVisible}
+        userId={selectedUserId}
+        onClose={() => {
+          setProfileBottomSheetVisible(false);
+          setSelectedUserId(null);
+        }}
+      />
     </Modal>
   );
 }
