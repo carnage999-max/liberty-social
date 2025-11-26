@@ -17,7 +17,7 @@ import AppNavbar from '../../components/layout/AppNavbar';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Dropdown from '../../components/common/Dropdown';
-import { US_STATES, STATE_CITIES, getStateCode } from '../../utils/usStatesCities';
+import { US_STATES, STATE_CITIES } from '../../utils/usStatesCities';
 
 interface Category {
   id: number;
@@ -51,7 +51,6 @@ export default function CreateListingScreen() {
     condition: 'used',
     state: '',
     city: '',
-    location: '',
     contact_preference: 'both',
     delivery_options: 'both',
   });
@@ -537,7 +536,11 @@ export default function CreateListingScreen() {
 
       <View style={styles.reviewSection}>
         <Text style={styles.reviewLabel}>Location</Text>
-        <Text style={styles.reviewValue}>{form.location || 'N/A'}</Text>
+        <Text style={styles.reviewValue}>
+          {form.city && form.state
+            ? `${form.city}, ${Object.keys(US_STATES).find(name => US_STATES[name as keyof typeof US_STATES] === form.state) || form.state}`
+            : 'N/A'}
+        </Text>
       </View>
 
       <View style={styles.reviewSection}>
