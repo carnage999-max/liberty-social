@@ -172,7 +172,7 @@ export default function CreateListingScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!form.title || !form.price || !form.location || !form.category) {
+    if (!form.title || !form.price || !form.state || !form.city || !form.category) {
       showError('Please fill in all required fields');
       return;
     }
@@ -205,14 +205,17 @@ export default function CreateListingScreen() {
         return;
       }
       
-      // Create the listing
+      // Create the listing - combine city and state for location
+      const stateName = Object.keys(US_STATES).find(name => US_STATES[name as keyof typeof US_STATES] === form.state) || form.state;
+      const locationString = `${form.city}, ${stateName}`;
+      
       const listingData = {
         title: form.title,
         description: form.description,
         price: parseFloat(form.price),
         category_id: parseInt(form.category),
         condition: form.condition,
-        location: form.location,
+        location: locationString,
         contact_preference: form.contact_preference,
         delivery_options: form.delivery_options,
         status: 'active',
@@ -399,19 +402,45 @@ export default function CreateListingScreen() {
         placeholder="Select condition"
       />
 
-      {/* Location */}
+      {/* State */}
       <View style={styles.section}>
         <Text style={styles.label}>
-          Location <Text style={styles.required}>*</Text>
+          State <Text style={styles.required}>*</Text>
         </Text>
-        <TextInput
-          style={styles.input}
-          placeholder="City, State"
-          placeholderTextColor={colors.textSecondary}
-          value={form.location}
-          onChangeText={(text) => setForm({ ...form, location: text })}
+        <Dropdown
+          label=""
+          required
+          options={Object.entries(US_STATES).map(([name, code]) => ({
+            value: code,
+            label: `${name} (${code})`,
+          }))}
+          value={form.state}
+          onSelect={(value) => {
+            setForm({ ...form, state: value, city: '' }); // Reset city when state changes
+          }}
+          placeholder="Select a state"
         />
       </View>
+
+      {/* City */}
+      {form.state && (
+        <View style={styles.section}>
+          <Text style={styles.label}>
+            City <Text style={styles.required}>*</Text>
+          </Text>
+          <Dropdown
+            label=""
+            required
+            options={STATE_CITIES[form.state]?.map(city => ({
+              value: city,
+              label: city,
+            })) || []}
+            value={form.city}
+            onSelect={(value) => setForm({ ...form, city: value })}
+            placeholder="Select a city"
+          />
+        </View>
+      )}
     </View>
   );
 
