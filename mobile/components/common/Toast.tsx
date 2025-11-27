@@ -18,6 +18,10 @@ export interface Toast {
   message: string;
   type: ToastType;
   duration?: number;
+  action?: {
+    label: string;
+    onPress: () => void;
+  };
 }
 
 interface ToastProps {
@@ -116,22 +120,40 @@ const ToastComponent: React.FC<ToastProps> = ({ toast, onDismiss }) => {
         },
       ]}
     >
-      <TouchableOpacity
-        style={styles.content}
-        onPress={dismiss}
-        activeOpacity={0.8}
-      >
+      <View style={styles.content}>
         <Ionicons name={getIcon()} size={20} color={iconColor} />
-        <Text
-          style={[
-            styles.message,
-            {
-              color: colors.text,
-            },
-          ]}
-        >
-          {toast.message}
-        </Text>
+        <View style={styles.messageContainer}>
+          <TouchableOpacity
+            onPress={dismiss}
+            activeOpacity={0.8}
+            style={{ flex: 1 }}
+          >
+            <Text
+              style={[
+                styles.message,
+                {
+                  color: colors.text,
+                },
+              ]}
+            >
+              {toast.message}
+            </Text>
+          </TouchableOpacity>
+          {toast.action && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => {
+                toast.action?.onPress();
+                dismiss();
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.actionText, { color: iconColor }]}>
+                {toast.action.label}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <TouchableOpacity
           style={styles.closeButton}
           onPress={dismiss}
@@ -143,7 +165,7 @@ const ToastComponent: React.FC<ToastProps> = ({ toast, onDismiss }) => {
             color={colors.textSecondary}
           />
         </TouchableOpacity>
-      </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 };
@@ -168,11 +190,22 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 12,
   },
-  message: {
+  messageContainer: {
     flex: 1,
+  },
+  message: {
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 20,
+    marginBottom: 4,
+  },
+  actionButton: {
+    marginTop: 4,
+    paddingVertical: 4,
+  },
+  actionText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   closeButton: {
     padding: 4,

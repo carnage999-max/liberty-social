@@ -7,8 +7,8 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useToast } from '../../../contexts/ToastContext';
@@ -329,7 +329,13 @@ export default function EditPageScreen() {
                 <Text style={styles.imageLabel}>Profile Image</Text>
                 {profileImage ? (
                   <View style={styles.imagePreview}>
-                    <Image source={{ uri: profileImage.uri }} style={styles.image} resizeMode="cover" />
+                    <Image 
+                      source={{ uri: profileImage.uri }} 
+                      style={styles.image} 
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={200}
+                    />
                   </View>
                 ) : (
                   <View style={styles.imagePlaceholder}>
@@ -351,7 +357,13 @@ export default function EditPageScreen() {
                 <Text style={styles.imageLabel}>Cover Image</Text>
                 {coverImage ? (
                   <View style={styles.imagePreview}>
-                    <Image source={{ uri: coverImage.uri }} style={styles.image} resizeMode="cover" />
+                    <Image 
+                      source={{ uri: coverImage.uri }} 
+                      style={styles.image} 
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={200}
+                    />
                   </View>
                 ) : (
                   <View style={styles.imagePlaceholder}>

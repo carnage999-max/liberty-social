@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   Dimensions,
   FlatList,
@@ -16,6 +15,7 @@ import {
   Animated,
   RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -31,6 +31,8 @@ import InviteUsersModal from '../../components/pages/InviteUsersModal';
 import CreatePagePostModal from '../../components/pages/CreatePagePostModal';
 import SendAdminInviteModal from '../../components/pages/SendAdminInviteModal';
 import * as ImagePicker from 'expo-image-picker';
+import { getApiBase } from '../../constants/API';
+import { storage } from '../../utils/storage';
 import { Post, PaginatedResponse, Reaction, ReactionType } from '../../types';
 import PostActionsMenu from '../../components/feed/PostActionsMenu';
 import AdvancedEmojiPicker from '../../components/feed/AdvancedEmojiPicker';
@@ -75,6 +77,8 @@ export default function PageDetailScreen() {
   const [galleryVisible, setGalleryVisible] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [galleryPhotoToPostMap, setGalleryPhotoToPostMap] = useState<Record<string, number>>({});
+  const [galleryPostId, setGalleryPostId] = useState<number | null>(null);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -88,7 +92,7 @@ export default function PageDetailScreen() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [nextPosts, setNextPosts] = useState<string | null>(null);
   const [postContent, setPostContent] = useState('');
-  const [postImages, setPostImages] = useState<Array<{ uri: string; formData: FormData }>>([]);
+  const [postImages, setPostImages] = useState<Array<{ uri: string }>>([]);
   const [submittingPost, setSubmittingPost] = useState(false);
   const [reactingPosts, setReactingPosts] = useState<Record<number, boolean>>({});
   const [reactionBusy, setReactionBusy] = useState<Record<number, boolean>>({});
@@ -108,7 +112,7 @@ export default function PageDetailScreen() {
   useEffect(() => {
     if (page) {
       checkCanManage();
-      if (activeTab === 'overview') {
+      if (activeTab === 'overview' || activeTab === 'photos') {
         loadPosts();
       }
     }
@@ -156,7 +160,7 @@ export default function PageDetailScreen() {
       setPage(pageData);
       const canPostValue = pageData.user_role === 'owner' || pageData.user_role === 'admin' || pageData.user_role === 'moderator' || pageData.can_manage;
       setCanPost(canPostValue);
-      if (activeTab === 'overview') {
+      if (activeTab === 'overview' || activeTab === 'photos') {
         // Reload posts
         setLoadingPosts(true);
         try {
@@ -200,12 +204,19 @@ export default function PageDetailScreen() {
     }
   };
 
-  const loadPosts = async () => {
+  const loadPosts = async (append = false) => {
     if (!page) return;
     try {
-      setLoadingPosts(true);
-      const response = await apiClient.get<PaginatedResponse<Post>>(`/pages/${page.id}/posts/`);
-      setPosts(response.results || []);
+      if (!append) {
+        setLoadingPosts(true);
+      }
+      const url = append && nextPosts ? nextPosts : `/pages/${page.id}/posts/`;
+      const response = await apiClient.get<PaginatedResponse<Post>>(url);
+      if (append) {
+        setPosts((prev) => [...prev, ...(response.results || [])]);
+      } else {
+        setPosts(response.results || []);
+      }
       setNextPosts(response.next);
     } catch (error) {
       console.error('Failed to load posts:', error);
@@ -213,6 +224,12 @@ export default function PageDetailScreen() {
       setLoadingPosts(false);
     }
   };
+
+  const loadMorePosts = useCallback(() => {
+    if (nextPosts && !loadingPosts && page) {
+      loadPosts(true);
+    }
+  }, [nextPosts, loadingPosts, page]);
 
   const handleFollowToggle = async () => {
     if (!page) return;
@@ -231,7 +248,7 @@ export default function PageDetailScreen() {
   const handleShare = async () => {
     if (!page) return;
     try {
-      const pageUrl = `${API_BASE.replace(/\/api\/?$/, '')}/pages/${page.id}`;
+      const pageUrl = `https://mylibertysocial.com/app/pages/${page.id}`;
       await Share.share({
         message: `Check out ${page.name} on Liberty Social: ${pageUrl}`,
         title: page.name,
@@ -256,16 +273,9 @@ export default function PageDetailScreen() {
       });
 
       if (!result.canceled && result.assets) {
-        const newImages = result.assets.map(asset => {
-          const formData = new FormData();
-          const filename = asset.uri.split('/').pop() || 'image.jpg';
-          formData.append('file', {
-            uri: asset.uri,
-            type: 'image/jpeg',
-            name: filename,
-          } as any);
-          return { uri: asset.uri, formData };
-        });
+        const newImages = result.assets.map(asset => ({
+          uri: asset.uri,
+        }));
         setPostImages(prev => [...prev, ...newImages]);
       }
     } catch (error) {
@@ -287,14 +297,43 @@ export default function PageDetailScreen() {
       if (postImages.length > 0) {
         for (const image of postImages) {
           try {
-            const uploadResponse = await apiClient.postFormData('/uploads/images/', image.formData);
+            // Use fetch directly like profile image upload (axios has issues with React Native FormData)
+            const base = getApiBase();
+            const url = `${base.replace(/\/+$/, '')}/uploads/images/`;
+            const accessToken = await storage.getAccessToken();
+            
+            // Create FormData fresh for each upload
+            const formData = new FormData();
+            const filename = image.uri.split('/').pop() || 'image.jpg';
+            formData.append('file', {
+              uri: image.uri,
+              type: 'image/jpeg',
+              name: filename,
+            } as any);
+
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: accessToken ? {
+                Authorization: `Bearer ${accessToken}`,
+              } : {},
+              body: formData,
+            });
+
+            if (!response.ok) {
+              throw new Error('Upload failed');
+            }
+
+            const uploadResponse = await response.json();
             if (uploadResponse.url) {
               uploadedUrls.push(uploadResponse.url);
-            } else if (uploadResponse.urls && Array.isArray(uploadResponse.urls)) {
+            } else if (uploadResponse.urls && Array.isArray(uploadResponse.urls) && uploadResponse.urls.length > 0) {
               uploadedUrls.push(...uploadResponse.urls);
             }
           } catch (uploadError) {
             console.error('Upload error:', uploadError);
+            showError('Failed to upload some images. Please try again.');
+            setSubmittingPost(false);
+            return;
           }
         }
       }
@@ -882,7 +921,13 @@ export default function PageDetailScreen() {
               }
             }}
           >
-            <Image source={avatarSource} style={styles.avatar} />
+            <Image 
+              source={avatarSource} 
+              style={styles.avatar} 
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
             <View style={styles.postHeaderText}>
               <Text style={[styles.authorName, { color: colors.text }]}>{displayName}</Text>
               <Text style={[styles.postTime, { color: colors.textSecondary }]}>
@@ -940,7 +985,9 @@ export default function PageDetailScreen() {
                 <Image
                   source={{ uri: url }}
                   style={styles.mediaImage}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={200}
                 />
               </TouchableOpacity>
             ))}
@@ -950,7 +997,7 @@ export default function PageDetailScreen() {
 
         <View style={styles.postActions}>
           <TouchableOpacity
-            style={styles.actionButton}
+            style={styles.postActionButton}
             onPress={() => handleToggleLike(item)}
             onLongPress={(e) => handleReactionLongPress(item, e)}
             disabled={likeProcessing}
@@ -970,7 +1017,7 @@ export default function PageDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.actionButton}
+            style={styles.postActionButton}
             onPress={() => router.push(`/pages/${id}/posts/${item.id}`)}
           >
             <Ionicons name="chatbubble-outline" size={20} color={colors.textSecondary} />
@@ -978,14 +1025,14 @@ export default function PageDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.actionButton}
+            style={styles.postActionButton}
             onPress={() => handleSharePost(item)}
           >
             <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
 
           {item.bookmarked && (
-            <View style={styles.actionButton}>
+            <View style={styles.postActionButton}>
               <Ionicons name="bookmark" size={20} color="#C8A25F" />
             </View>
           )}
@@ -1044,6 +1091,15 @@ export default function PageDetailScreen() {
                   renderItem={renderPost}
                   keyExtractor={(item) => item.id.toString()}
                   scrollEnabled={false}
+                  onEndReached={loadMorePosts}
+                  onEndReachedThreshold={0.5}
+                  ListFooterComponent={
+                    nextPosts ? (
+                      <View style={styles.loadMoreContainer}>
+                        <ActivityIndicator size="small" color={colors.primary} />
+                      </View>
+                    ) : null
+                  }
                 />
               ) : (
                 <View style={styles.emptyContainer}>
@@ -1098,12 +1154,92 @@ export default function PageDetailScreen() {
           </View>
         );
       case 'photos':
-        return (
-          <View style={styles.tabContent}>
-            <View style={styles.emptyContainer}>
-              <Ionicons name="images-outline" size={48} color={colors.textSecondary} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Photos coming soon</Text>
+        // Collect all photos from all posts with their post IDs
+        const allPhotos: Array<{ url: string; postId: number }> = [];
+        posts.forEach((post) => {
+          if (post.media && Array.isArray(post.media) && post.media.length > 0) {
+            const mediaUrls = resolveMediaUrls(post.media);
+            mediaUrls.forEach((url) => {
+              allPhotos.push({ url, postId: post.id });
+            });
+          }
+        });
+
+        if (loadingPosts) {
+          return (
+            <View style={styles.tabContent}>
+              <View style={styles.emptyContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Loading photos...</Text>
+              </View>
             </View>
+          );
+        }
+
+        if (allPhotos.length === 0) {
+          return (
+            <View style={styles.tabContent}>
+              <View style={styles.emptyContainer}>
+                <Ionicons name="images-outline" size={48} color={colors.textSecondary} />
+                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No photos yet</Text>
+                <Text style={[styles.emptySubText, { color: colors.textSecondary }]}>
+                  Photos from posts will appear here
+                </Text>
+              </View>
+            </View>
+          );
+        }
+
+        return (
+          <View style={styles.photosTabContent}>
+            <ScrollView 
+              contentContainerStyle={styles.photosGridContainer}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.photosGrid}>
+                {allPhotos.map((photo, index) => {
+                  const resolvedUrl = resolveRemoteUrl(photo.url);
+                  if (!resolvedUrl) return null;
+                  
+                  return (
+                    <TouchableOpacity
+                      key={`photo-${index}`}
+                      style={styles.photoItem}
+                      onPress={() => {
+                        // Open gallery with all photos, starting at this index
+                        const photoUrls = allPhotos.map((p) => p.url).filter((url) => resolveRemoteUrl(url) !== null);
+                        const photoToPostMap: Record<string, number> = {};
+                        allPhotos.forEach((p) => {
+                          if (resolveRemoteUrl(p.url)) {
+                            photoToPostMap[p.url] = p.postId;
+                          }
+                        });
+                        const currentIndex = photoUrls.findIndex((url) => url === photo.url);
+                        const finalIndex = currentIndex >= 0 ? currentIndex : 0;
+                        setGalleryImages(photoUrls);
+                        setGalleryIndex(finalIndex);
+                        setGalleryPhotoToPostMap(photoToPostMap);
+                        // Set initial post ID for the first photo
+                        const initialPhotoUrl = photoUrls[finalIndex];
+                        if (initialPhotoUrl && photoToPostMap[initialPhotoUrl]) {
+                          setGalleryPostId(photoToPostMap[initialPhotoUrl]);
+                        }
+                        setGalleryVisible(true);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Image
+                        source={{ uri: resolvedUrl }}
+                        style={styles.photoImage}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={200}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
           </View>
         );
       default:
@@ -1183,7 +1319,7 @@ export default function PageDetailScreen() {
     actionButtonsRow: {
       flexDirection: 'row',
       paddingHorizontal: 16,
-      gap: 8,
+      gap: 12,
       marginBottom: 16,
     },
     actionButton: {
@@ -1192,20 +1328,28 @@ export default function PageDetailScreen() {
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-      gap: 6,
+      paddingVertical: 10,
+      borderRadius: 8,
+      gap: 8,
       backgroundColor: '#192A4A',
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: '#C8A25F',
+      shadowColor: '#C8A25F',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 4,
     },
     followButton: {
       backgroundColor: '#192A4A',
       borderColor: '#C8A25F',
     },
     followingButton: {
-      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+      backgroundColor: isDark ? colors.backgroundSecondary : '#F5F5F5',
       borderColor: colors.border,
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
     },
     shareButton: {
       backgroundColor: '#192A4A',
@@ -1216,13 +1360,15 @@ export default function PageDetailScreen() {
       borderColor: '#C8A25F',
     },
     actionButtonText: {
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: 15,
+      fontWeight: '700',
       color: '#FFFFFF',
+      letterSpacing: 0.3,
     },
     followingButtonText: {
       color: colors.text,
-      fontWeight: '600',
+      fontWeight: '700',
+      letterSpacing: 0.3,
     },
     tabsContainer: {
       flexDirection: 'row',
@@ -1247,6 +1393,11 @@ export default function PageDetailScreen() {
     tabContent: {
       padding: 16,
       minHeight: 200,
+    },
+    photosTabContent: {
+      padding: 16,
+      minHeight: 200,
+      marginBottom: 20,
     },
     createPostContainer: {
       padding: 16,
@@ -1461,7 +1612,7 @@ export default function PageDetailScreen() {
       borderTopWidth: 1,
       borderTopColor: colors.border,
     },
-    actionButton: {
+    postActionButton: {
       flexDirection: 'row',
       alignItems: 'center',
       marginRight: 24,
@@ -1498,8 +1649,35 @@ export default function PageDetailScreen() {
       fontSize: 14,
       marginTop: 12,
     },
+    emptySubText: {
+      fontSize: 12,
+      marginTop: 8,
+      textAlign: 'center',
+    },
+    photosGridContainer: {
+      padding: 2,
+    },
+    photosGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'flex-start',
+    },
+    photoItem: {
+      width: (Dimensions.get('window').width - 4) / 3,
+      height: (Dimensions.get('window').width - 4) / 3,
+      margin: 1,
+      backgroundColor: colors.backgroundSecondary,
+    },
+    photoImage: {
+      width: '100%',
+      height: '100%',
+    },
     loadingContainer: {
       padding: 32,
+      alignItems: 'center',
+    },
+    loadMoreContainer: {
+      padding: 16,
       alignItems: 'center',
     },
     menuButton: {
@@ -1666,7 +1844,13 @@ export default function PageDetailScreen() {
               setGalleryVisible(true);
             }}
           >
-            <Image source={{ uri: coverImage }} style={styles.coverImage} resizeMode="cover" />
+            <Image 
+              source={{ uri: coverImage }} 
+              style={styles.coverImage} 
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
           </TouchableOpacity>
         ) : (
           <View style={[styles.coverImage, { backgroundColor: colors.primary, opacity: 0.3 }]} />
@@ -1685,7 +1869,13 @@ export default function PageDetailScreen() {
               }
             }}
           >
-            <Image source={profileSource} style={styles.profileImage} />
+            <Image 
+              source={profileSource} 
+              style={styles.profileImage} 
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
             {page.is_verified && (
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark" size={16} color="#FFFFFF" />
@@ -1720,7 +1910,7 @@ export default function PageDetailScreen() {
           >
             <Ionicons 
               name={page.is_following ? "checkmark-circle" : "add-circle-outline"} 
-              size={18} 
+              size={20} 
               color={page.is_following ? colors.text : '#FFFFFF'} 
             />
             <Text
@@ -1737,7 +1927,7 @@ export default function PageDetailScreen() {
             style={[styles.actionButton, styles.shareButton]}
             onPress={handleShare}
           >
-            <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+            <Ionicons name="share-outline" size={20} color="#FFFFFF" />
             <Text style={styles.actionButtonText}>Share</Text>
           </TouchableOpacity>
 
@@ -1746,7 +1936,7 @@ export default function PageDetailScreen() {
               style={[styles.actionButton, styles.inviteButton]}
               onPress={() => setShowInviteModal(true)}
             >
-              <Ionicons name="person-add-outline" size={18} color="#FFFFFF" />
+              <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Invite</Text>
             </TouchableOpacity>
           )}
@@ -1809,7 +1999,13 @@ export default function PageDetailScreen() {
               <View style={styles.createPostImagesPreview}>
                 {postImages.map((image, index) => (
                   <View key={index} style={styles.createPostImagePreview}>
-                    <Image source={{ uri: image.uri }} style={styles.createPostImagePreview} />
+                    <Image 
+                      source={{ uri: image.uri }} 
+                      style={styles.createPostImagePreview} 
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={200}
+                    />
                     <TouchableOpacity
                       style={styles.createPostRemoveImage}
                       onPress={() => handleRemoveImage(index)}
@@ -1829,10 +2025,32 @@ export default function PageDetailScreen() {
 
       <ImageGallery
         visible={galleryVisible}
-        onClose={() => setGalleryVisible(false)}
+        onClose={() => {
+          setGalleryVisible(false);
+          setGalleryPhotoToPostMap({});
+        }}
         images={galleryImages}
         initialIndex={galleryIndex}
         title={page.name}
+        onIndexChange={(index) => {
+          const currentPhotoUrl = galleryImages[index];
+          if (currentPhotoUrl && galleryPhotoToPostMap[currentPhotoUrl]) {
+            setGalleryPostId(galleryPhotoToPostMap[currentPhotoUrl]);
+          }
+        }}
+        actionButton={
+          galleryPostId
+            ? {
+                label: 'View post',
+                onPress: () => {
+                  setGalleryVisible(false);
+                  router.push(`/pages/${id}/posts/${galleryPostId}`);
+                  setGalleryPostId(null);
+                  setGalleryPhotoToPostMap({});
+                },
+              }
+            : undefined
+        }
       />
 
       <ContextMenu

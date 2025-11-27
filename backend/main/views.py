@@ -1193,12 +1193,14 @@ class NewsFeedView(APIView):
         print(f"[DEBUG] Friend IDs: {friend_ids}")
 
         # build queryset: public posts OR user's own posts OR friends' posts with friends visibility
+        # Exclude deleted posts (deleted_at is null)
         qs = (
             Post.objects.filter(
                 Q(visibility="public")
                 | Q(author=user)
                 | Q(author__id__in=friend_ids, visibility="friends")
             )
+            .filter(deleted_at__isnull=True)  # Exclude soft-deleted posts
             .select_related("author")
             .prefetch_related(
                 "comments__author",

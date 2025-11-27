@@ -6,12 +6,12 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   ImageSourcePropType,
   Share,
   Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAlert } from '../../contexts/AlertContext';
@@ -724,7 +724,7 @@ export default function FeedScreen() {
   };
 
   const handlePostDeleted = (postId: number) => {
-    setPosts((prev) => prev.filter((item) => item.id !== postId));
+    setPosts((prev) => prev.filter((item) => String(item.id) !== String(postId)));
   };
 
   useEffect(() => {
@@ -814,7 +814,13 @@ export default function FeedScreen() {
               }
             }}
           >
-            <Image source={avatarSource} style={styles.avatar} />
+            <Image 
+              source={avatarSource} 
+              style={styles.avatar} 
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
             <View style={styles.postHeaderText}>
               <Text style={[styles.authorName, { color: colors.text }]}>{displayName}</Text>
               <Text style={[styles.postTime, { color: colors.textSecondary }]}>
@@ -872,7 +878,10 @@ export default function FeedScreen() {
                 <Image
                   source={{ uri: url }}
                   style={styles.mediaImage}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={200}
+                  placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
                 />
               </TouchableOpacity>
             ))}
@@ -980,7 +989,13 @@ export default function FeedScreen() {
             setProfileBottomSheetVisible(true);
           }}
         >
-          <Image source={avatarSource} style={styles.storyAvatar} />
+          <Image 
+            source={avatarSource} 
+            style={styles.storyAvatar} 
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={200}
+          />
           <Text style={[styles.storyName, { color: colors.text }]} numberOfLines={1}>
             {displayName}
           </Text>

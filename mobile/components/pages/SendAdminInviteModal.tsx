@@ -59,7 +59,7 @@ export default function SendAdminInviteModal({
 
     setSubmitting(true);
     try {
-      await apiClient.post(`/pages/${pageId}/invite-admin/`, {
+      const response = await apiClient.post(`/pages/${pageId}/invite-admin/`, {
         email: email.trim(),
         role: role,
       });
@@ -71,12 +71,51 @@ export default function SendAdminInviteModal({
       onClose();
     } catch (error: any) {
       console.error('Failed to send admin invite:', error);
-      const detail =
-        error?.response?.data?.detail ||
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        'Failed to send admin invite';
-      showError(detail);
+      console.error('Error response:', error?.response?.data);
+      console.error('Error status:', error?.response?.status);
+      
+      // Extract error message from various possible locations
+      let errorMessage = 'Failed to send admin invite';
+      
+      if (error?.response?.data) {
+        const data = error.response.data;
+        
+        // Check for detail field (most common)
+        if (data.detail) {
+          errorMessage = data.detail;
+        }
+        // Check for message field
+        else if (data.message) {
+          errorMessage = data.message;
+        }
+        // Check for error field
+        else if (data.error) {
+          errorMessage = data.error;
+        }
+        // Check for email field errors (validation errors)
+        else if (data.email && Array.isArray(data.email)) {
+          errorMessage = data.email[0];
+        }
+        // Check for role field errors
+        else if (data.role && Array.isArray(data.role)) {
+          errorMessage = data.role[0];
+        }
+        // Check for non_field_errors
+        else if (data.non_field_errors && Array.isArray(data.non_field_errors)) {
+          errorMessage = data.non_field_errors[0];
+        }
+      }
+      
+      // Provide user-friendly messages for common errors
+      if (error?.response?.status === 404) {
+        errorMessage = 'User with this email not found. The user must be registered on Liberty Social.';
+      } else if (error?.response?.status === 400 && errorMessage.includes('already')) {
+        // Keep the backend message as it's already user-friendly
+      } else if (error?.response?.status === 403) {
+        errorMessage = 'You do not have permission to send admin invites for this page.';
+      }
+      
+      showError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -99,7 +138,13 @@ export default function SendAdminInviteModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+          <View style={styles.contentWrapper}>
+            <ScrollView 
+              style={styles.content} 
+              contentContainerStyle={styles.contentContainer}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
             {/* Email Input */}
             <View style={styles.inputGroup}>
               <Text style={[styles.label, { color: colors.text }]}>Email Address</Text>
@@ -121,6 +166,9 @@ export default function SendAdminInviteModal({
                 autoCorrect={false}
                 editable={!submitting}
               />
+              <Text style={[styles.helperText, { color: colors.textSecondary }]}>
+                The user must be registered on Liberty Social
+              </Text>
             </View>
 
             {/* Role Selection */}
@@ -181,6 +229,7 @@ export default function SendAdminInviteModal({
               )}
             </TouchableOpacity>
           </ScrollView>
+          </View>
         </View>
       </View>
     </Modal>
@@ -197,7 +246,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '90%',
+    minHeight: 400,
     paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    flexDirection: 'column',
   },
   header: {
     flexDirection: 'row',
@@ -215,12 +266,16 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 4,
   },
+  contentWrapper: {
+    flex: 1,
+  },
   content: {
     flex: 1,
   },
   contentContainer: {
     padding: 20,
     paddingBottom: 40,
+    minHeight: 300,
   },
   inputGroup: {
     marginBottom: 20,
@@ -229,6 +284,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
+  },
+  helperText: {
+    fontSize: 12,
+    marginTop: 6,
+    fontStyle: 'italic',
   },
   input: {
     height: 48,

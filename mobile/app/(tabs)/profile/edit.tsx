@@ -21,6 +21,8 @@ import AppNavbar from '../../../components/layout/AppNavbar';
 import * as ImagePicker from 'expo-image-picker';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../../utils/url';
 import ImageGallery from '../../../components/common/ImageGallery';
+import { getApiBase } from '../../../constants/API';
+import { storage } from '../../../utils/storage';
 
 export default function EditProfileScreen() {
   const { colors, isDark } = useTheme();
@@ -61,23 +63,43 @@ export default function EditProfileScreen() {
       // Upload new profile image if selected
       if (selectedImage) {
         try {
-        const formData = new FormData();
-        const filename = selectedImage.split('/').pop() || 'profile.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
+          // Create FormData fresh when uploading (React Native FormData can't be stored in state)
+          const formData = new FormData();
+          const filename = selectedImage.split('/').pop() || 'profile.jpg';
+          
+          formData.append('file', {
+            uri: selectedImage,
+            type: 'image/jpeg',
+            name: filename,
+          } as any);
 
-        formData.append('file', {
-          uri: selectedImage,
-          name: filename,
-          type,
-        } as any);
+          console.log('[Profile Edit] Uploading image:', { filename, uri: selectedImage.substring(0, 50) + '...' });
 
-          const uploadResponse = await apiClient.postFormData<{ url: string }>('/uploads/images/', formData);
+          // Use fetch directly like settings screen does (axios may have issues with React Native FormData)
+          const base = getApiBase();
+          const url = `${base.replace(/\/+$/, '')}/uploads/images/`;
+          const accessToken = await storage.getAccessToken();
+          
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: accessToken ? {
+              Authorization: `Bearer ${accessToken}`,
+            } : {},
+            body: formData,
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || errorData.message || 'Failed to upload image');
+          }
+
+          const uploadResponse = await response.json();
+          console.log('[Profile Edit] Upload response:', uploadResponse);
           
           if (uploadResponse.url) {
-        uploadedImageUrl = uploadResponse.url;
-          } else if ((uploadResponse as any).urls && Array.isArray((uploadResponse as any).urls) && (uploadResponse as any).urls.length > 0) {
-            uploadedImageUrl = (uploadResponse as any).urls[0];
+            uploadedImageUrl = uploadResponse.url;
+          } else if (uploadResponse.urls && Array.isArray(uploadResponse.urls) && uploadResponse.urls.length > 0) {
+            uploadedImageUrl = uploadResponse.urls[0];
           } else {
             throw new Error('No image URL returned from upload');
           }

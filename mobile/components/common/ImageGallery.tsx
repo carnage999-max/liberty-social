@@ -5,12 +5,12 @@ import {
   Modal,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Dimensions,
   ScrollView,
   PanResponder,
   Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { resolveRemoteUrl } from '../../utils/url';
@@ -25,6 +25,11 @@ export interface ImageGalleryProps {
   title?: string;
   caption?: string;
   timestamp?: string;
+  actionButton?: {
+    label: string;
+    onPress: () => void;
+  };
+  onIndexChange?: (index: number) => void;
 }
 
 export default function ImageGallery({
@@ -35,6 +40,8 @@ export default function ImageGallery({
   title,
   caption,
   timestamp,
+  actionButton,
+  onIndexChange,
 }: ImageGalleryProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -44,6 +51,7 @@ export default function ImageGallery({
     if (visible && images.length > 0) {
       const index = Math.max(0, Math.min(initialIndex, images.length - 1));
       setCurrentIndex(index);
+      onIndexChange?.(index);
       // Scroll to the initial index when modal opens
       setTimeout(() => {
         scrollViewRef.current?.scrollTo({
@@ -52,12 +60,13 @@ export default function ImageGallery({
         });
       }, 50);
     }
-  }, [visible, initialIndex, images.length]);
+  }, [visible, initialIndex, images.length, onIndexChange]);
 
   const handlePrevious = () => {
     if (currentIndex > 0) {
       const newIndex = currentIndex - 1;
       setCurrentIndex(newIndex);
+      onIndexChange?.(newIndex);
       scrollViewRef.current?.scrollTo({
         x: newIndex * SCREEN_WIDTH,
         animated: true,
@@ -69,6 +78,7 @@ export default function ImageGallery({
     if (currentIndex < images.length - 1) {
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
+      onIndexChange?.(newIndex);
       scrollViewRef.current?.scrollTo({
         x: newIndex * SCREEN_WIDTH,
         animated: true,
@@ -78,6 +88,7 @@ export default function ImageGallery({
 
   const handleSelect = (index: number) => {
     setCurrentIndex(index);
+    onIndexChange?.(index);
     scrollViewRef.current?.scrollTo({
       x: index * SCREEN_WIDTH,
       animated: true,
@@ -129,6 +140,7 @@ export default function ImageGallery({
             onMomentumScrollEnd={(e) => {
               const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
               setCurrentIndex(index);
+              onIndexChange?.(index);
             }}
             scrollEventThrottle={16}
             onScroll={Animated.event(
@@ -136,15 +148,21 @@ export default function ImageGallery({
               { useNativeDriver: false }
             )}
           >
-            {images.map((imageUrl, index) => (
-              <View key={index} style={styles.imageWrapper}>
-                <Image
-                  source={{ uri: resolveRemoteUrl(imageUrl) }}
-                  style={styles.image}
-                  resizeMode="contain"
-                />
-              </View>
-            ))}
+            {images.map((imageUrl, index) => {
+              const resolvedUrl = resolveRemoteUrl(imageUrl);
+              if (!resolvedUrl) return null;
+              return (
+                <View key={index} style={styles.imageWrapper}>
+                  <Image
+                    source={{ uri: resolvedUrl }}
+                    style={styles.image}
+                    contentFit="contain"
+                    cachePolicy="memory-disk"
+                    transition={200}
+                  />
+                </View>
+              );
+            })}
           </ScrollView>
 
           {/* Next Button */}
@@ -186,8 +204,19 @@ export default function ImageGallery({
           style={styles.infoContainer}
         >
           <View style={styles.infoContent}>
-            {/* Title and Timestamp */}
-            {(title || timestamp) && (
+            {/* Action Button - Prioritized */}
+            {actionButton && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={actionButton.onPress}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.actionButtonText}>{actionButton.label}</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Title and Timestamp - Only show if no action button or if explicitly needed */}
+            {!actionButton && (title || timestamp) && (
               <View style={styles.titleSection}>
                 {title && (
                   <Text style={styles.titleText}>{title}</Text>
@@ -200,8 +229,8 @@ export default function ImageGallery({
               </View>
             )}
 
-            {/* Caption */}
-            {caption && (
+            {/* Caption - Only show if no action button */}
+            {!actionButton && caption && (
               <Text style={styles.captionText}>{caption}</Text>
             )}
 
@@ -252,7 +281,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.7,
+    height: SCREEN_HEIGHT * 0.75,
   },
   navButton: {
     position: 'absolute',
@@ -299,9 +328,10 @@ const styles = StyleSheet.create({
   infoContainer: {
     borderTopWidth: 2,
     borderTopColor: '#C8A25F', // Golden border
-    paddingTop: 16,
-    paddingBottom: 32,
+    paddingTop: 12,
+    paddingBottom: 16,
     paddingHorizontal: 20,
+    maxHeight: 140,
   },
   infoContent: {
     alignItems: 'center',
@@ -347,6 +377,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.7)',
     marginTop: 4,
+  },
+  actionButton: {
+    marginTop: 0,
+    marginBottom: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#192A4A',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#C8A25F',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+    width: '100%',
+  },
+  actionButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
 });
 

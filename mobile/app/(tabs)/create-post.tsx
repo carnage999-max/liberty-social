@@ -17,6 +17,8 @@ import { useRouter } from 'expo-router';
 import { Visibility } from '../../types';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { Ionicons } from '@expo/vector-icons';
+import { getApiBase } from '../../constants/API';
+import { storage } from '../../utils/storage';
 
 const visibilityOptions: Visibility[] = ['public', 'friends', 'only_me'];
 
@@ -33,7 +35,7 @@ export default function CreatePostScreen() {
   const router = useRouter();
 
   const [content, setContent] = useState('');
-  const [selectedImages, setSelectedImages] = useState<Array<{ uri: string; formData: FormData }>>([]);
+  const [selectedImages, setSelectedImages] = useState<Array<{ uri: string }>>([]);
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [submitting, setSubmitting] = useState(false);
 
@@ -52,17 +54,9 @@ export default function CreatePostScreen() {
       });
 
       if (!result.canceled && result.assets) {
-        const newImages = result.assets.slice(0, 6 - selectedImages.length).map(asset => {
-          const formData = new FormData();
-          const filename = asset.uri.split('/').pop() || 'image.jpg';
-          formData.append('file', {
-            uri: asset.uri,
-            type: 'image/jpeg',
-            name: filename,
-          } as any);
-          
-          return { uri: asset.uri, formData };
-        });
+        const newImages = result.assets.slice(0, 6 - selectedImages.length).map(asset => ({
+          uri: asset.uri,
+        }));
 
         setSelectedImages(prev => [...prev, ...newImages]);
       }
@@ -90,14 +84,43 @@ export default function CreatePostScreen() {
       if (selectedImages.length > 0) {
         for (const image of selectedImages) {
           try {
-            const uploadResponse = await apiClient.postFormData('/uploads/images/', image.formData);
+            // Use fetch directly like profile image upload (axios has issues with React Native FormData)
+            const base = getApiBase();
+            const url = `${base.replace(/\/+$/, '')}/uploads/images/`;
+            const accessToken = await storage.getAccessToken();
+            
+            // Create FormData fresh for each upload
+            const formData = new FormData();
+            const filename = image.uri.split('/').pop() || 'image.jpg';
+            formData.append('file', {
+              uri: image.uri,
+              type: 'image/jpeg',
+              name: filename,
+            } as any);
+
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: accessToken ? {
+                Authorization: `Bearer ${accessToken}`,
+              } : {},
+              body: formData,
+            });
+
+            if (!response.ok) {
+              throw new Error('Upload failed');
+            }
+
+            const uploadResponse = await response.json();
             if (uploadResponse.url) {
               uploadedUrls.push(uploadResponse.url);
             } else if (uploadResponse.urls && Array.isArray(uploadResponse.urls) && uploadResponse.urls.length > 0) {
               uploadedUrls.push(...uploadResponse.urls);
             }
           } catch (uploadError) {
-            // Silently continue - user will see error if post creation fails
+            console.error('Image upload error:', uploadError);
+            showError('Failed to upload some images. Please try again.');
+            setSubmitting(false);
+            return;
           }
         }
       }
@@ -116,14 +139,24 @@ export default function CreatePostScreen() {
         payload.media_urls = uploadedUrls;
       }
 
-      await apiClient.post('/posts/', payload);
+      const createdPost = await apiClient.post<{ id: number }>('/posts/', payload);
 
       // Clear form
       setContent('');
       setSelectedImages([]);
       setVisibility('public');
 
-      showSuccess('Your post has been published!');
+      // Show success toast with "View post" action
+      showSuccess(
+        'Your post has been published!',
+        6000, // Longer duration (6 seconds)
+        {
+          label: 'View post',
+          onPress: () => {
+            router.push(`/(tabs)/feed/${createdPost.id}`);
+          },
+        }
+      );
       router.replace('/(tabs)/feed');
     } catch (error: any) {
       const detail =

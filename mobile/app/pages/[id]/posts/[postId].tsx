@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -17,6 +16,7 @@ import {
   FlatList,
   RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../../../../contexts/ThemeContext';
@@ -1074,6 +1074,9 @@ export default function PagePostDetailScreen() {
               <Image
                 source={{ uri: media.uri }}
                 style={styles.mediaPreview}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={200}
               />
               <TouchableOpacity
                 style={styles.removeMediaButton}
@@ -1133,7 +1136,13 @@ export default function PagePostDetailScreen() {
               setProfileBottomSheetVisible(true);
             }}
           >
-            <Image source={avatarSource} style={styles.commentAvatar} />
+            <Image 
+              source={avatarSource} 
+              style={styles.commentAvatar} 
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
           </TouchableOpacity>
           <View style={styles.commentContent}>
             <View style={styles.commentHeaderRow}>
@@ -1206,7 +1215,9 @@ export default function PagePostDetailScreen() {
                       comment.media.length === 2 && styles.commentMediaImageDouble,
                       comment.media.length >= 3 && styles.commentMediaImageTriple,
                     ]}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={200}
                   />
                   </TouchableOpacity>
                 ))}
@@ -1235,7 +1246,13 @@ export default function PagePostDetailScreen() {
                       }}
                       activeOpacity={0.9}
                     >
-                      <Image source={{ uri }} style={styles.replySummaryImage} />
+                      <Image 
+                        source={{ uri }} 
+                        style={styles.replySummaryImage} 
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={200}
+                      />
                     </TouchableOpacity>
                   ))}
                   {replyMedia.length > preview.length && (
@@ -1347,6 +1364,9 @@ export default function PagePostDetailScreen() {
                           <Image
                             source={{ uri: item.uri }}
                             style={styles.replyMediaThumbnail}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                            transition={200}
                             resizeMode="cover"
                           />
                           <TouchableOpacity
@@ -1891,7 +1911,13 @@ export default function PagePostDetailScreen() {
                     }
                   }}
                 >
-                  <Image source={postAvatarSource} style={styles.avatar} />
+                  <Image 
+                    source={postAvatarSource} 
+                    style={styles.avatar} 
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={200}
+                  />
                   <View style={styles.postHeaderText}>
                     <Text style={styles.authorName}>{displayName}</Text>
                     <Text style={styles.postTime}>
@@ -1944,6 +1970,9 @@ export default function PagePostDetailScreen() {
                       <Image
                         source={{ uri: url }}
                         style={styles.postMediaImage}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={200}
                         resizeMode="cover"
                       />
                     </TouchableOpacity>

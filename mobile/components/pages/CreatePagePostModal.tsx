@@ -8,14 +8,16 @@ import {
   TextInput,
   ScrollView,
   ActivityIndicator,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getApiBase } from '../../constants/API';
+import { storage } from '../../utils/storage';
 
 interface CreatePagePostModalProps {
   visible: boolean;
@@ -35,8 +37,8 @@ export default function CreatePagePostModal({
   const { colors, isDark } = useTheme();
   const { showSuccess, showError } = useToast();
   const [content, setContent] = useState('');
-  const [selectedImages, setSelectedImages] = useState<Array<{ uri: string; formData: FormData }>>([]);
-  const [visibility, setVisibility] = useState<'public' | 'friends' | 'followers'>('followers');
+  const [selectedImages, setSelectedImages] = useState<Array<{ uri: string }>>([]);
+  const [visibility, setVisibility] = useState<'public' | 'friends' | 'only_me'>('public');
   const [submitting, setSubmitting] = useState(false);
 
   const handlePickImages = async () => {
@@ -54,17 +56,9 @@ export default function CreatePagePostModal({
       });
 
       if (!result.canceled && result.assets) {
-        const newImages = result.assets.slice(0, MAX_IMAGES - selectedImages.length).map(asset => {
-          const formData = new FormData();
-          const filename = asset.uri.split('/').pop() || 'image.jpg';
-          formData.append('file', {
-            uri: asset.uri,
-            type: 'image/jpeg',
-            name: filename,
-          } as any);
-          
-          return { uri: asset.uri, formData };
-        });
+        const newImages = result.assets.slice(0, MAX_IMAGES - selectedImages.length).map(asset => ({
+          uri: asset.uri,
+        }));
 
         setSelectedImages(prev => [...prev, ...newImages]);
       }
@@ -92,7 +86,33 @@ export default function CreatePagePostModal({
       if (selectedImages.length > 0) {
         for (const image of selectedImages) {
           try {
-            const uploadResponse = await apiClient.postFormData('/uploads/images/', image.formData);
+            // Use fetch directly like profile image upload (axios has issues with React Native FormData)
+            const base = getApiBase();
+            const url = `${base.replace(/\/+$/, '')}/uploads/images/`;
+            const accessToken = await storage.getAccessToken();
+            
+            // Create FormData fresh for each upload
+            const formData = new FormData();
+            const filename = image.uri.split('/').pop() || 'image.jpg';
+            formData.append('file', {
+              uri: image.uri,
+              type: 'image/jpeg',
+              name: filename,
+            } as any);
+
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: accessToken ? {
+                Authorization: `Bearer ${accessToken}`,
+              } : {},
+              body: formData,
+            });
+
+            if (!response.ok) {
+              throw new Error('Upload failed');
+            }
+
+            const uploadResponse = await response.json();
             if (uploadResponse.url) {
               uploadedUrls.push(uploadResponse.url);
             } else if (uploadResponse.urls && Array.isArray(uploadResponse.urls) && uploadResponse.urls.length > 0) {
@@ -100,6 +120,9 @@ export default function CreatePagePostModal({
             }
           } catch (uploadError) {
             console.error('Upload error:', uploadError);
+            showError('Failed to upload some images. Please try again.');
+            setSubmitting(false);
+            return;
           }
         }
       }
@@ -127,7 +150,7 @@ export default function CreatePagePostModal({
       // Reset form
       setContent('');
       setSelectedImages([]);
-      setVisibility('followers');
+      setVisibility('public');
 
       showSuccess('Page post created successfully!');
       onPostCreated?.();
@@ -151,7 +174,7 @@ export default function CreatePagePostModal({
     if (!submitting) {
       setContent('');
       setSelectedImages([]);
-      setVisibility('followers');
+      setVisibility('public');
       onClose();
     }
   };
@@ -214,12 +237,12 @@ export default function CreatePagePostModal({
                 <TouchableOpacity
                   style={[
                     styles.visibilityButton,
-                    visibility === 'followers' && styles.visibilityButtonActive,
+                    visibility === 'only_me' && styles.visibilityButtonActive,
                     { borderColor: colors.border },
                   ]}
-                  onPress={() => setVisibility('followers')}
+                  onPress={() => setVisibility('only_me')}
                 >
-                  <Text style={[styles.visibilityButtonText, { color: colors.text }]}>Followers</Text>
+                  <Text style={[styles.visibilityButtonText, { color: colors.text }]}>Only Me</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
@@ -241,7 +264,13 @@ export default function CreatePagePostModal({
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {selectedImages.map((image, index) => (
                     <View key={index} style={styles.imageWrapper}>
-                      <Image source={{ uri: image.uri }} style={styles.imagePreview} />
+                      <Image 
+                        source={{ uri: image.uri }} 
+                        style={styles.imagePreview} 
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={200}
+                      />
                       <TouchableOpacity
                         style={styles.removeImageButton}
                         onPress={() => handleRemoveImage(index)}

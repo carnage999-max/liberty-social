@@ -7,8 +7,8 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useToast } from '../../../contexts/ToastContext';
 import { apiClient } from '../../../utils/api';
@@ -412,7 +412,13 @@ export default function EditAnimalListingScreen() {
               <View style={styles.imagesGrid}>
                 {images.map((uri, index) => (
                   <View key={index} style={styles.imageContainer}>
-                    <Image source={{ uri }} style={styles.image} />
+                    <Image 
+                      source={{ uri }} 
+                      style={styles.image} 
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={200}
+                    />
                     <TouchableOpacity
                       style={styles.removeButton}
                       onPress={() => removeImage(index)}

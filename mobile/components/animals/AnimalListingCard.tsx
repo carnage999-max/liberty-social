@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { useTheme } from '../../contexts/ThemeContext';
 import { resolveRemoteUrl } from '../../utils/url';
 import { Ionicons } from '@expo/vector-icons';
@@ -107,7 +108,9 @@ export default function AnimalListingCard({
           <Image
             source={{ uri: resolveRemoteUrl(imageUrl) }}
             style={styles.image}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={200}
           />
           {/* Risk Badge */}
           {isHighRisk && (

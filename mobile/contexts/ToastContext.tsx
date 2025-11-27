@@ -2,9 +2,12 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import ToastComponent, { Toast, ToastType } from '../components/common/Toast';
 
+// Re-export Toast type for convenience
+export type { Toast };
+
 interface ToastContextType {
-  showToast: (message: string, type?: ToastType, duration?: number) => void;
-  showSuccess: (message: string, duration?: number) => void;
+  showToast: (message: string, type?: ToastType, duration?: number, action?: { label: string; onPress: () => void }) => void;
+  showSuccess: (message: string, duration?: number, action?: { label: string; onPress: () => void }) => void;
   showError: (message: string, duration?: number) => void;
   showInfo: (message: string, duration?: number) => void;
   showWarning: (message: string, duration?: number) => void;
@@ -18,13 +21,14 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const showToast = useCallback(
-    (message: string, type: ToastType = 'info', duration?: number) => {
+    (message: string, type: ToastType = 'info', duration?: number, action?: { label: string; onPress: () => void }) => {
       const id = `${Date.now()}-${Math.random()}`;
       const newToast: Toast = {
         id,
         message,
         type,
         duration,
+        action,
       };
       setToasts((prev) => [...prev, newToast]);
     },
@@ -32,8 +36,8 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const showSuccess = useCallback(
-    (message: string, duration?: number) => {
-      showToast(message, 'success', duration);
+    (message: string, duration?: number, action?: { label: string; onPress: () => void }) => {
+      showToast(message, 'success', duration, action);
     },
     [showToast]
   );

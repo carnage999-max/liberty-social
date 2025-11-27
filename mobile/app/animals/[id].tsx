@@ -5,12 +5,12 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Dimensions,
   ActivityIndicator,
   Modal,
   TextInput,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -603,7 +603,9 @@ export default function AnimalListingDetailScreen() {
                     <Image
                       source={{ uri: url }}
                       style={styles.image}
-                      resizeMode="cover"
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      transition={200}
                     />
                   </TouchableOpacity>
                 </View>
@@ -738,7 +740,13 @@ export default function AnimalListingDetailScreen() {
               style={styles.seller}
               onPress={() => router.push(`/sellers/${listing.seller.id}`)}
             >
-              <Image source={sellerSource} style={styles.sellerAvatar} />
+              <Image 
+                source={sellerSource} 
+                style={styles.sellerAvatar} 
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={200}
+              />
               <View style={styles.sellerInfo}>
                 <Text style={[styles.sellerName, { color: colors.text }]}>
                   {listing.seller.display_name || listing.seller.username}

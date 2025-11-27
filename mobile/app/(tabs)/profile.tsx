@@ -5,11 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   FlatList,
   RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAlert } from '../../contexts/AlertContext';
@@ -24,6 +24,7 @@ import { resolveRemoteUrl, DEFAULT_AVATAR, resolveMediaUrls } from '../../utils/
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
 import { SkeletonProfile, SkeletonFriend, Skeleton } from '../../components/common/Skeleton';
 import ImageGallery from '../../components/common/ImageGallery';
+import FriendshipHistoryModal from '../../components/profile/FriendshipHistoryModal';
 
 type ProfileTab = 'posts' | 'photos' | 'friends';
 
@@ -50,6 +51,7 @@ export default function ProfileScreen() {
   const [galleryVisible, setGalleryVisible] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  const [friendshipHistoryVisible, setFriendshipHistoryVisible] = useState(false);
 
   // If userId is provided in params, view that user's profile; otherwise view own profile
   const userId = params.userId ? Number(params.userId) : currentUser?.id;
@@ -367,6 +369,23 @@ export default function ProfileScreen() {
       justifyContent: 'center',
       alignItems: 'center',
     },
+    friendshipHistoryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      marginHorizontal: 16,
+      marginTop: 16,
+      marginBottom: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      gap: 12,
+    },
+    friendshipHistoryButtonText: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '600',
+    },
     friendsList: {
       padding: 16,
     },
@@ -485,7 +504,9 @@ export default function ProfileScreen() {
               <Image
                 source={{ uri: post.media[0] }}
                 style={styles.postImage}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={200}
               />
               </TouchableOpacity>
             ) : (
@@ -544,7 +565,9 @@ export default function ProfileScreen() {
             <Image
               source={{ uri: photo }}
               style={styles.postImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
             />
           </TouchableOpacity>
         ))}
@@ -582,8 +605,26 @@ export default function ProfileScreen() {
     }
 
     return (
-      <View style={styles.friendsList}>
-        {friends.map((friend) => {
+      <View>
+        <TouchableOpacity
+          style={[
+            styles.friendshipHistoryButton,
+            {
+              backgroundColor: isDark ? colors.backgroundSecondary : '#F3F4F6',
+              borderColor: colors.border,
+            },
+          ]}
+          onPress={() => setFriendshipHistoryVisible(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="time-outline" size={20} color={colors.primary} />
+          <Text style={[styles.friendshipHistoryButtonText, { color: colors.text }]}>
+            Friendship History
+          </Text>
+          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+        <View style={styles.friendsList}>
+          {friends.map((friend) => {
           const friendUser = friend.friend;
           const friendDisplayName = friendUser.username ||
             `${friendUser.first_name || ''} ${friendUser.last_name || ''}`.trim() ||
@@ -603,7 +644,13 @@ export default function ProfileScreen() {
                 setProfileBottomSheetVisible(true);
               }}
             >
-              <Image source={friendAvatarSource} style={styles.friendAvatar} />
+              <Image 
+                source={friendAvatarSource} 
+                style={styles.friendAvatar} 
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={200}
+              />
               <View style={styles.friendInfo}>
                 <Text style={styles.friendName}>{friendDisplayName}</Text>
                 {friendUser.username && (
@@ -614,6 +661,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           );
         })}
+        </View>
       </View>
     );
   };
@@ -653,7 +701,13 @@ export default function ProfileScreen() {
                   }
                 }}
               >
-              <Image source={avatarSource} style={styles.avatar} />
+              <Image 
+                source={avatarSource} 
+                style={styles.avatar} 
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={200}
+              />
               </TouchableOpacity>
               {isOwnProfile && (
                 <TouchableOpacity
@@ -776,6 +830,13 @@ export default function ProfileScreen() {
         images={galleryImages}
         initialIndex={galleryIndex}
       />
+
+      {isOwnProfile && (
+        <FriendshipHistoryModal
+          visible={friendshipHistoryVisible}
+          onClose={() => setFriendshipHistoryVisible(false)}
+        />
+      )}
     </View>
   );
 }
