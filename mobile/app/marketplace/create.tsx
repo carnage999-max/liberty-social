@@ -409,14 +409,14 @@ export default function CreateListingScreen() {
           Price <Text style={styles.required}>*</Text>
         </Text>
         <View style={styles.priceInputContainer}>
-          <TextInput
+        <TextInput
             style={styles.priceInput}
-            placeholder="0.00"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="numeric"
-            value={form.price}
-            onChangeText={(text) => setForm({ ...form, price: text })}
-          />
+          placeholder="0.00"
+          placeholderTextColor={colors.textSecondary}
+          keyboardType="numeric"
+          value={form.price}
+          onChangeText={(text) => setForm({ ...form, price: text })}
+        />
           <Text style={styles.usdLabel}>USD</Text>
         </View>
       </View>

@@ -12,6 +12,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../../utils/api';
 import { Notification, PaginatedResponse, FriendRequest } from '../../types';
 import { useRouter, usePathname } from 'expo-router';
+import HomeIcon from '../../components/icons/HomeIcon';
 
 export default function TabsLayout() {
   const { colors, isDark } = useTheme();
@@ -500,11 +501,18 @@ export default function TabsLayout() {
                         isFocused ? styles.tabIconWrapperActive : styles.tabIconWrapperInactive,
                       ]}
                     >
-                      <Ionicons
-                        name={iconName}
-                        size={18}
-                        color={isFocused ? '#1a2335' : '#FFFFFF'}
-                      />
+                      {route.name === 'feed' ? (
+                        <HomeIcon
+                          size={18}
+                          color={isFocused ? '#1a2335' : '#FFFFFF'}
+                        />
+                      ) : (
+                        <Ionicons
+                          name={iconName}
+                          size={18}
+                          color={isFocused ? '#1a2335' : '#FFFFFF'}
+                        />
+                      )}
                     </View>
                       {route.name === 'notifications' && unreadCount > 0 && (
                         <View style={styles.badge}>

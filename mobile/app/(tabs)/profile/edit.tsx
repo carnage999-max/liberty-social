@@ -61,21 +61,21 @@ export default function EditProfileScreen() {
       // Upload new profile image if selected
       if (selectedImage) {
         try {
-          const formData = new FormData();
-          const filename = selectedImage.split('/').pop() || 'profile.jpg';
-          const match = /\.(\w+)$/.exec(filename);
-          const type = match ? `image/${match[1]}` : 'image/jpeg';
+        const formData = new FormData();
+        const filename = selectedImage.split('/').pop() || 'profile.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-          formData.append('file', {
-            uri: selectedImage,
-            name: filename,
-            type,
-          } as any);
+        formData.append('file', {
+          uri: selectedImage,
+          name: filename,
+          type,
+        } as any);
 
           const uploadResponse = await apiClient.postFormData<{ url: string }>('/uploads/images/', formData);
           
           if (uploadResponse.url) {
-            uploadedImageUrl = uploadResponse.url;
+        uploadedImageUrl = uploadResponse.url;
           } else if ((uploadResponse as any).urls && Array.isArray((uploadResponse as any).urls) && (uploadResponse as any).urls.length > 0) {
             uploadedImageUrl = (uploadResponse as any).urls[0];
           } else {

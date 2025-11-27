@@ -104,12 +104,12 @@ export function useChatWebSocket({
         
         // Only log non-normal closures for debugging
         if (event.code !== 1000) {
-          console.log('[WebSocket] Disconnected', {
-            code: closeCode,
-            reason: closeReason,
-            conversationId,
-            wasClean: event.wasClean,
-          });
+        console.log('[WebSocket] Disconnected', {
+          code: closeCode,
+          reason: closeReason,
+          conversationId,
+          wasClean: event.wasClean,
+        });
         }
         
         // Log specific error codes only for debugging (not as errors)

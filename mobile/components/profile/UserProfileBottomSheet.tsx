@@ -1071,10 +1071,10 @@ export default function UserProfileBottomSheet({
                                     activeOpacity={0.9}
                                   >
                                     <Image
-                                      source={{ uri: photoUri }}
-                                      style={styles.photoImage}
+                                    source={{ uri: photoUri }}
+                                    style={styles.photoImage}
                                       resizeMode="cover"
-                                    />
+                                  />
                                   </TouchableOpacity>
                                 ) : null;
                               })}

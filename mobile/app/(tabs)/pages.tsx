@@ -495,12 +495,12 @@ export default function PagesScreen() {
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity
+      <TouchableOpacity
           style={styles.createButtonIcon}
-          onPress={() => router.push('/pages/create')}
-        >
+        onPress={() => router.push('/pages/create')}
+      >
           <Ionicons name="add-circle" size={32} color="#C8A25F" />
-        </TouchableOpacity>
+      </TouchableOpacity>
       </View>
 
       {/* Pages List */}

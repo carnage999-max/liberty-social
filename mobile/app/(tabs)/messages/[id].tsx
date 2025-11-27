@@ -572,11 +572,11 @@ export default function ConversationDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <KeyboardAvoidingView
+    <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       <AppNavbar
         title={getConversationTitle()}
         showLogo={false}
@@ -586,22 +586,22 @@ export default function ConversationDetailScreen() {
         onBackPress={() => router.back()}
       />
       <View style={{ flex: 1 }}>
-        {loading ? (
-          <View style={styles.emptyContainer}>
+      {loading ? (
+        <View style={styles.emptyContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Loading...</Text>
-          </View>
-        ) : messages.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="chatbubbles-outline" size={64} color={colors.textSecondary} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No messages yet
-            </Text>
-            <Text style={[styles.emptyText, { color: colors.textSecondary, fontSize: 14 }]}>
-              Start the conversation
-            </Text>
-          </View>
-        ) : (
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Loading...</Text>
+        </View>
+      ) : messages.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="chatbubbles-outline" size={64} color={colors.textSecondary} />
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            No messages yet
+          </Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary, fontSize: 14 }]}>
+            Start the conversation
+          </Text>
+        </View>
+      ) : (
           <FlatList
             ref={flatListRef}
             data={messages}
@@ -660,16 +660,16 @@ export default function ConversationDetailScreen() {
                 />
               </TouchableOpacity>
               <View style={styles.inputWrapper}>
-                <TextInput
+            <TextInput
                   style={styles.textInput}
-                  placeholder="Type a message..."
-                  placeholderTextColor={colors.textSecondary}
-                  value={messageText}
-                  onChangeText={setMessageText}
-                  multiline
-                  maxLength={1000}
+              placeholder="Type a message..."
+              placeholderTextColor={colors.textSecondary}
+              value={messageText}
+              onChangeText={setMessageText}
+              multiline
+              maxLength={1000}
                   editable={!sending}
-                />
+            />
                 <TouchableOpacity
                   style={styles.emojiButton}
                   onPress={() => setEmojiPickerVisible(true)}
@@ -678,26 +678,26 @@ export default function ConversationDetailScreen() {
                   <Text style={{ fontSize: 20 }}>😀</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                style={[
-                  styles.sendButton,
-                  {
+            <TouchableOpacity
+              style={[
+                styles.sendButton,
+                {
                     backgroundColor: canSend ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={sendMessage}
+                },
+              ]}
+              onPress={sendMessage}
                 disabled={!canSend || sending}
-              >
+            >
                 {sending ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Ionicons
-                    name="send"
-                    size={20}
+              <Ionicons
+                name="send"
+                size={20}
                     color={canSend ? '#FFFFFF' : colors.textSecondary}
-                  />
+              />
                 )}
-              </TouchableOpacity>
+            </TouchableOpacity>
             </View>
           </View>
         )}
@@ -708,7 +708,7 @@ export default function ConversationDetailScreen() {
           onClose={() => setEmojiPickerVisible(false)}
           onSelect={handleEmojiSelect}
         />
-      </KeyboardAvoidingView>
+    </KeyboardAvoidingView>
     </View>
   );
 }

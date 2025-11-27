@@ -809,8 +809,8 @@ export default function FeedScreen() {
               if (isPagePost && (item as any).page) {
                 router.push(`/pages/${(item as any).page.id}`);
               } else {
-                setSelectedUserId(item.author.id);
-                setProfileBottomSheetVisible(true);
+              setSelectedUserId(item.author.id);
+              setProfileBottomSheetVisible(true);
               }
             }}
           >

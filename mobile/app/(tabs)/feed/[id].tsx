@@ -1875,8 +1875,8 @@ export default function PostDetailScreen() {
                     if (isPagePost && (post as any).page) {
                       router.push(`/pages/${(post as any).page.id}`);
                     } else {
-                      setSelectedUserId(post.author.id);
-                      setProfileBottomSheetVisible(true);
+                    setSelectedUserId(post.author.id);
+                    setProfileBottomSheetVisible(true);
                     }
                   }}
                 >

@@ -103,14 +103,14 @@ export default function SettingsScreen() {
         return;
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: false,
-        quality: 0.8,
+      quality: 0.8,
         allowsMultipleSelection: false,
-      });
+    });
 
-      if (!result.canceled && result.assets[0]) {
+    if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
         const filename = asset.uri.split('/').pop() || 'screenshot.jpg';
         const ext = filename.split('.').pop()?.toLowerCase();

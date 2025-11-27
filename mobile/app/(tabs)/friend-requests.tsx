@@ -512,19 +512,19 @@ export default function FriendRequestsScreen() {
           const isOutgoing = tab === 'outgoing';
           const isActive = activeTab === tab;
           return (
-            <TouchableOpacity
-              key={tab}
+          <TouchableOpacity
+            key={tab}
               style={[
                 styles.tab, 
                 isActive && styles.tabActive,
                 isActive && isOutgoing && styles.tabActiveSent
               ]}
-              onPress={() => setActiveTab(tab)}
-            >
+            onPress={() => setActiveTab(tab)}
+          >
               <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
-                {tab === 'incoming' ? 'Incoming' : tab === 'outgoing' ? 'Sent' : 'All'}
-              </Text>
-            </TouchableOpacity>
+              {tab === 'incoming' ? 'Incoming' : tab === 'outgoing' ? 'Sent' : 'All'}
+            </Text>
+          </TouchableOpacity>
           );
         })}
       </View>

@@ -142,14 +142,14 @@ export default function Dropdown({
               style={{ marginRight: 8 }}
             />
           )}
-          <Text
-            style={[
-              styles.dropdownText,
-              !selectedOption && styles.dropdownTextPlaceholder,
-            ]}
-          >
-            {selectedOption ? selectedOption.label : placeholder}
-          </Text>
+        <Text
+          style={[
+            styles.dropdownText,
+            !selectedOption && styles.dropdownTextPlaceholder,
+          ]}
+        >
+          {selectedOption ? selectedOption.label : placeholder}
+        </Text>
         </View>
         <Ionicons
           name={visible ? 'chevron-up' : 'chevron-down'}
@@ -199,14 +199,14 @@ export default function Dropdown({
                                 style={{ marginRight: 12 }}
                               />
                             )}
-                            <Text
-                              style={[
-                                styles.optionText,
-                                isSelected && styles.optionTextSelected,
-                              ]}
-                            >
-                              {item.label}
-                            </Text>
+                          <Text
+                            style={[
+                              styles.optionText,
+                              isSelected && styles.optionTextSelected,
+                            ]}
+                          >
+                            {item.label}
+                          </Text>
                           </View>
                           {isSelected && (
                             <Ionicons name="checkmark" size={20} color="#C8A25F" />

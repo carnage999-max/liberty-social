@@ -230,12 +230,12 @@ export default function MarketplaceScreen() {
         {/* Content */}
         <View style={styles.listingContent}>
           <View style={styles.listingTitleRow}>
-            <Text
-              style={[styles.listingTitle, { color: colors.text }]}
-              numberOfLines={2}
-            >
-              {item.title}
-            </Text>
+          <Text
+            style={[styles.listingTitle, { color: colors.text }]}
+            numberOfLines={2}
+          >
+            {item.title}
+          </Text>
             {item.has_offer && (
               <View style={styles.offerBadge}>
                 <Ionicons name="hand-left-outline" size={14} color="#C8A25F" />

@@ -52,7 +52,7 @@ export default function SellerDetailScreen() {
 
   useEffect(() => {
     if (sellerId) {
-      loadSellerData();
+    loadSellerData();
     }
   }, [sellerId]);
 

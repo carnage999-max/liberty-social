@@ -262,9 +262,9 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
                   return;
               }
             }
-          }
-          
-          router.push(mobileRoute as any);
+      }
+      
+      router.push(mobileRoute as any);
       }
       
       onClose();
