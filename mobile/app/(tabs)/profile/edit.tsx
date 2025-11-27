@@ -60,19 +60,37 @@ export default function EditProfileScreen() {
 
       // Upload new profile image if selected
       if (selectedImage) {
-        const formData = new FormData();
-        const filename = selectedImage.split('/').pop() || 'profile.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        try {
+          const formData = new FormData();
+          const filename = selectedImage.split('/').pop() || 'profile.jpg';
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : 'image/jpeg';
 
-        formData.append('file', {
-          uri: selectedImage,
-          name: filename,
-          type,
-        } as any);
+          formData.append('file', {
+            uri: selectedImage,
+            name: filename,
+            type,
+          } as any);
 
-        const uploadResponse = await apiClient.postFormData('/uploads/images/', formData);
-        uploadedImageUrl = uploadResponse.url;
+          const uploadResponse = await apiClient.postFormData<{ url: string }>('/uploads/images/', formData);
+          
+          if (uploadResponse.url) {
+            uploadedImageUrl = uploadResponse.url;
+          } else if ((uploadResponse as any).urls && Array.isArray((uploadResponse as any).urls) && (uploadResponse as any).urls.length > 0) {
+            uploadedImageUrl = (uploadResponse as any).urls[0];
+          } else {
+            throw new Error('No image URL returned from upload');
+          }
+        } catch (uploadError: any) {
+          console.error('Profile image upload error:', uploadError);
+          const errorMessage = uploadError?.response?.data?.detail || 
+                              uploadError?.response?.data?.message || 
+                              uploadError?.message || 
+                              'Failed to upload image. Please check your internet connection and try again.';
+          showError(`Failed to upload profile photo: ${errorMessage}`);
+          setSaving(false);
+          return;
+        }
       }
 
       // Update user profile

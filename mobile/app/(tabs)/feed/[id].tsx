@@ -338,9 +338,10 @@ export default function PostDetailScreen() {
 
   const handleSharePost = useCallback(() => {
     if (!post) return;
+    const shareUrl = `https://mylibertysocial.com/app/feed/${post.id}`;
     const shareMessage = [
       post.content,
-      `${API_BASE.replace(/\/api\/?$/, '')}/feed/${post.id}`,
+      shareUrl,
     ]
       .filter(Boolean)
       .join('\n\n');
@@ -1972,6 +1973,12 @@ export default function PostDetailScreen() {
                 <TouchableOpacity style={styles.actionButton} onPress={handleSharePost}>
                   <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
+
+                {post.bookmarked && (
+                  <View style={styles.actionButton}>
+                    <Ionicons name="bookmark" size={20} color="#C8A25F" />
+                  </View>
+                )}
               </View>
             </View>
           </View>

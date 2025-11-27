@@ -272,7 +272,7 @@ export default function SellerDetailScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <AppNavbar showProfileImage={false} showBackButton={true} onBackPress={() => router.back()} />
+        <AppNavbar title="Seller Profile" showProfileImage={false} showBackButton={true} onBackPress={() => router.back()} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -283,7 +283,7 @@ export default function SellerDetailScreen() {
   if (!seller) {
     return (
       <View style={styles.container}>
-        <AppNavbar showProfileImage={false} showBackButton={true} onBackPress={() => router.back()} />
+        <AppNavbar title="Seller Profile" showProfileImage={false} showBackButton={true} onBackPress={() => router.back()} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
             Seller not found
@@ -300,7 +300,7 @@ export default function SellerDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <AppNavbar showProfileImage={false} showBackButton={true} onBackPress={() => router.back()} />
+      <AppNavbar title="Seller Profile" showProfileImage={false} showBackButton={true} onBackPress={() => router.back()} />
       
       <ScrollView style={styles.scrollView}>
         {/* Header */}

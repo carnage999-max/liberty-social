@@ -245,14 +245,24 @@ export default function UserProfileBottomSheet({
   };
 
   const scrollY = useSharedValue(0);
+  const scrollViewRef = useRef<ScrollView>(null);
   
   const gesture = Gesture.Pan()
     .activeOffsetY(10) // Only activate when dragging down
+    .failOffsetY(-5) // Fail immediately if dragging up (allow ScrollView to handle it)
     .onStart(() => {
+      // Only start gesture if scroll is at the top
+      if (scrollY.value > 0) {
+        return; // Don't start if not at top
+      }
       context.value = { y: translateY.value };
     })
     .onUpdate((event) => {
       // Only allow dragging down if scroll is at the top
+      // If scrolling up (negative translationY), don't interfere
+      if (event.translationY < 0 || scrollY.value > 0) {
+        return; // Let ScrollView handle upward scrolling or when not at top
+      }
       if (scrollY.value <= 0 && event.translationY > 0) {
         translateY.value = event.translationY + context.value.y;
         translateY.value = Math.max(translateY.value, MAX_TRANSLATE_Y);
@@ -402,17 +412,15 @@ export default function UserProfileBottomSheet({
       async () => {
         try {
           setActionLoading(true);
-          // Backend expects blocked_user as string UUID (matches frontend and README)
+          // Backend expects blocked_user_id (write_only field in serializer)
           const userIdString = String(userId);
-          await apiClient.post('/auth/blocks/', { blocked_user: userIdString });
+          await apiClient.post('/auth/blocks/', { blocked_user_id: userIdString });
           showSuccess('User blocked');
           handleClose();
         } catch (error: any) {
           console.error('Block user error:', error);
-          console.error('Error response:', error.response?.data);
-          console.error('User ID:', userId, 'Type:', typeof userId);
           const errorMessage = error.response?.data?.message || 
-                              error.response?.data?.blocked_user?.[0] ||
+                              error.response?.data?.detail ||
                               error.response?.data?.blocked_user_id?.[0] ||
                               'Failed to block user';
           showError(errorMessage);
@@ -480,6 +488,7 @@ export default function UserProfileBottomSheet({
     },
     scrollContent: {
       paddingBottom: 100, // Increased padding to ensure all content is scrollable
+      flexGrow: 1, // Ensure content can grow and be scrollable
     },
     profileHeader: {
       padding: 20,
@@ -835,6 +844,7 @@ export default function UserProfileBottomSheet({
             </View>
 
             <ScrollView 
+              ref={scrollViewRef}
               style={styles.content} 
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={true}
@@ -847,6 +857,14 @@ export default function UserProfileBottomSheet({
                 scrollY.value = event.nativeEvent.contentOffset.y;
               }}
               scrollEventThrottle={16}
+              onScrollBeginDrag={() => {
+                'worklet';
+                // Ensure scroll is always enabled
+              }}
+              onMomentumScrollEnd={(event) => {
+                'worklet';
+                scrollY.value = event.nativeEvent.contentOffset.y;
+              }}
             >
                 {loading ? (
                   <View style={styles.loadingContainer}>
@@ -1053,9 +1071,10 @@ export default function UserProfileBottomSheet({
                                     activeOpacity={0.9}
                                   >
                                     <Image
-                                    source={{ uri: photoUri }}
-                                    style={styles.photoImage}
-                                  />
+                                      source={{ uri: photoUri }}
+                                      style={styles.photoImage}
+                                      resizeMode="cover"
+                                    />
                                   </TouchableOpacity>
                                 ) : null;
                               })}

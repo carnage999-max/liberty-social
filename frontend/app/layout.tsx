@@ -122,6 +122,12 @@ export default function RootLayout({
                     About
                   </a>
                   <a
+                    href="/faq"
+                    className="text-sm text-gray-600 gradient-underline"
+                  >
+                    FAQ
+                  </a>
+                  <a
                     href="/privacy"
                     className="text-sm text-gray-600 gradient-underline"
                   >

@@ -617,6 +617,11 @@ export default function ConversationDetailScreen() {
                 flatListRef.current?.scrollToEnd({ animated: true });
               }, 100);
             }}
+            removeClippedSubviews={true}
+            windowSize={10}
+            initialNumToRender={15}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
             onLayout={() => {
               // Scroll to bottom on initial layout
               setTimeout(() => {

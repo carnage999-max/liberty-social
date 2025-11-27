@@ -256,22 +256,22 @@ export default function FriendRequestsScreen() {
         </TouchableOpacity>
         <View style={styles.suggestionActions}>
           <TouchableOpacity
-            style={[styles.sendRequestButton, { backgroundColor: colors.primary }]}
+            style={styles.sendRequestIconButton}
             onPress={() => handleSendRequest(item.id)}
             disabled={isSending}
           >
             {isSending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color="#1a2335" />
             ) : (
-              <Text style={styles.sendRequestButtonText}>Send Request</Text>
+              <Ionicons name="add" size={20} color="#1a2335" />
             )}
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.dismissButton}
+            style={styles.dismissIconButton}
             onPress={() => handleDismissSuggestion(item.id)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
+            <Ionicons name="close" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -301,8 +301,12 @@ export default function FriendRequestsScreen() {
       borderColor: colors.border,
     },
     tabActive: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      backgroundColor: '#C8A25F', // Gold color for incoming tab
+      borderColor: '#C8A25F',
+    },
+    tabActiveSent: {
+      backgroundColor: '#1F2ABF', // Different blue for sent tab
+      borderColor: '#1F2ABF',
     },
     tabText: {
       fontSize: 14,
@@ -450,26 +454,30 @@ export default function FriendRequestsScreen() {
     suggestionUsername: {
       fontSize: 13,
     },
-    sendRequestButton: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 8,
-      minWidth: 100,
+    sendRequestIconButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: '#C8A25F', // Gold background
+      borderWidth: 2,
+      borderColor: '#C8A25F',
       alignItems: 'center',
       justifyContent: 'center',
     },
-    sendRequestButtonText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: '#FFFFFF',
+    dismissIconButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: '#FF4D4F', // Red background
+      borderWidth: 2,
+      borderColor: '#C8A25F', // Gold border
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     suggestionActions: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-    },
-    dismissButton: {
-      padding: 4,
     },
   }), [colors, isDark]);
 
@@ -499,17 +507,26 @@ export default function FriendRequestsScreen() {
       />
 
       <View style={styles.tabsContainer}>
-        {(['incoming', 'outgoing', 'all'] as Tab[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.tabActive]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab === 'incoming' ? 'Incoming' : tab === 'outgoing' ? 'Sent' : 'All'}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {(['incoming', 'outgoing', 'all'] as Tab[]).map((tab) => {
+          const isIncoming = tab === 'incoming';
+          const isOutgoing = tab === 'outgoing';
+          const isActive = activeTab === tab;
+          return (
+            <TouchableOpacity
+              key={tab}
+              style={[
+                styles.tab, 
+                isActive && styles.tabActive,
+                isActive && isOutgoing && styles.tabActiveSent
+              ]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                {tab === 'incoming' ? 'Incoming' : tab === 'outgoing' ? 'Sent' : 'All'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {requests.length > 0 && (
@@ -563,6 +580,11 @@ export default function FriendRequestsScreen() {
           flexGrow: 1,
         }}
         showsVerticalScrollIndicator={true}
+        removeClippedSubviews={true}
+        windowSize={10}
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        updateCellsBatchingPeriod={50}
         keyboardShouldPersistTaps="handled"
       />
 

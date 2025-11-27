@@ -206,3 +206,10 @@ export interface Conversation {
   participants: ConversationParticipant[];
   last_message?: Message | null;
 }
+
+export interface Bookmark {
+  id: number;
+  user: string;
+  post: number;
+  created_at: string;
+}

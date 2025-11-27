@@ -435,6 +435,11 @@ export default function MessagesScreen() {
               />
             </View>
           }
+          removeClippedSubviews={true}
+          windowSize={10}
+          initialNumToRender={10}
+          maxToRenderPerBatch={5}
+          updateCellsBatchingPeriod={50}
         />
       )}
 

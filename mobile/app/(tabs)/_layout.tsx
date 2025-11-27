@@ -333,7 +333,8 @@ export default function TabsLayout() {
     { id: 'animals', label: 'Animal Marketplace', icon: 'paw-outline', route: '/(tabs)/animals' },
     { id: 'pages', label: 'Pages', icon: 'business-outline', route: '/(tabs)/pages' },
     { id: 'page-invites', label: 'Page Invites', icon: 'mail-outline', route: '/(tabs)/page-invites' },
-    { id: 'friend-requests', label: 'Friend Requests', icon: 'people-outline', route: '/(tabs)/friend-requests' },
+    { id: 'friends', label: 'Friends', icon: 'people-outline', route: '/(tabs)/friends' },
+    { id: 'friend-requests', label: 'Friend Requests', icon: 'person-add-outline', route: '/(tabs)/friend-requests' },
     { id: 'messages', label: 'Messages', icon: 'chatbubble-outline', route: '/(tabs)/messages' },
   ];
 

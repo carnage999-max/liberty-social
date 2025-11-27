@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -37,28 +37,51 @@ export default function ImageGallery({
   timestamp,
 }: ImageGalleryProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const scrollX = React.useRef(new Animated.Value(0)).current;
+  const scrollX = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    if (visible) {
-      setCurrentIndex(initialIndex);
+    if (visible && images.length > 0) {
+      const index = Math.max(0, Math.min(initialIndex, images.length - 1));
+      setCurrentIndex(index);
+      // Scroll to the initial index when modal opens
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          x: index * SCREEN_WIDTH,
+          animated: false,
+        });
+      }, 50);
     }
-  }, [visible, initialIndex]);
+  }, [visible, initialIndex, images.length]);
 
   const handlePrevious = () => {
     if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+      const newIndex = currentIndex - 1;
+      setCurrentIndex(newIndex);
+      scrollViewRef.current?.scrollTo({
+        x: newIndex * SCREEN_WIDTH,
+        animated: true,
+      });
     }
   };
 
   const handleNext = () => {
     if (currentIndex < images.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      const newIndex = currentIndex + 1;
+      setCurrentIndex(newIndex);
+      scrollViewRef.current?.scrollTo({
+        x: newIndex * SCREEN_WIDTH,
+        animated: true,
+      });
     }
   };
 
   const handleSelect = (index: number) => {
     setCurrentIndex(index);
+    scrollViewRef.current?.scrollTo({
+      x: index * SCREEN_WIDTH,
+      animated: true,
+    });
   };
 
   if (!visible || images.length === 0) return null;
@@ -99,6 +122,7 @@ export default function ImageGallery({
 
           {/* Image ScrollView */}
           <ScrollView
+            ref={scrollViewRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}

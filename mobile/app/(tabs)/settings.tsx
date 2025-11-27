@@ -10,6 +10,7 @@ import {
   TextInput,
   ActivityIndicator,
   Linking,
+  Image,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
 import { apiClient } from '../../utils/api';
+import { getApiBase } from '../../constants/API';
+import { storage } from '../../utils/storage';
 import * as ImagePicker from 'expo-image-picker';
 
 type SwitchSetting = {
@@ -48,7 +51,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const [bugReportVisible, setBugReportVisible] = useState(false);
   const [bugMessage, setBugMessage] = useState('');
-  const [bugScreenshot, setBugScreenshot] = useState<string | null>(null);
+  const [bugScreenshot, setBugScreenshot] = useState<{ uri: string; filename: string; mimeType: string } | null>(null);
   const [sendingBugReport, setSendingBugReport] = useState(false);
 
   const handleLogout = () => {
@@ -93,14 +96,39 @@ export default function SettingsScreen() {
   };
 
   const handlePickScreenshot = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showError('Permission to access photos is required');
+        return;
+      }
 
-    if (!result.canceled && result.assets[0]) {
-      setBugScreenshot(result.assets[0].uri);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.8,
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        const filename = asset.uri.split('/').pop() || 'screenshot.jpg';
+        const ext = filename.split('.').pop()?.toLowerCase();
+        let mimeType = 'image/jpeg';
+        if (ext === 'png') mimeType = 'image/png';
+        else if (ext === 'gif') mimeType = 'image/gif';
+        else if (ext === 'webp') mimeType = 'image/webp';
+        else mimeType = 'image/jpeg';
+        
+        setBugScreenshot({
+          uri: asset.uri,
+          filename,
+          mimeType,
+        });
+      }
+    } catch (error) {
+      console.error('Error picking screenshot:', error);
+      showError('Failed to pick image. Please try again.');
     }
   };
 
@@ -112,40 +140,69 @@ export default function SettingsScreen() {
 
     try {
       setSendingBugReport(true);
+      
+      // Use fetch directly like the frontend - no custom headers, let FormData set Content-Type automatically
       const formData = new FormData();
       formData.append('message', bugMessage);
 
-      if (bugScreenshot) {
-        const filename = bugScreenshot.split('/').pop() || 'screenshot.jpg';
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-
+      // Only append screenshot if it exists and is valid
+      if (bugScreenshot && bugScreenshot.uri) {
+        // Use the exact same structure as working uploads (messages, profile, etc.)
         formData.append('screenshot', {
-          uri: bugScreenshot,
-          name: filename,
-          type,
+          uri: bugScreenshot.uri,
+          type: bugScreenshot.mimeType,
+          name: bugScreenshot.filename,
         } as any);
+        console.log('[Bug Report] Appending screenshot:', {
+          filename: bugScreenshot.filename,
+          mimeType: bugScreenshot.mimeType,
+          uri: bugScreenshot.uri.substring(0, 50) + '...',
+        });
       }
 
-      await apiClient.post('/feedback/', formData);
+      const base = getApiBase();
+      const url = `${base.replace(/\/+$/, '')}/feedback/`;
+      const accessToken = await storage.getAccessToken();
+      
+      console.log('[Bug Report] Submitting to:', url, 'message length:', bugMessage.length, 'has screenshot:', !!bugScreenshot);
+      
+      // Use fetch directly like frontend - no Content-Type header, let FormData handle it
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: accessToken ? {
+          Authorization: `Bearer ${accessToken}`,
+        } : {},
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.detail || errorData.message || 'Failed to submit bug report');
+      }
       
       showSuccess('Bug report submitted successfully. Thank you!');
       setBugMessage('');
       setBugScreenshot(null);
       setBugReportVisible(false);
-    } catch (error) {
-      showError('Failed to submit bug report. Please try again.');
+    } catch (error: any) {
+      console.error('Bug report error:', error);
+      const errorMessage = error?.response?.data?.error || 
+                          error?.response?.data?.detail || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          'Failed to submit bug report. Please check your connection and try again.';
+      showError(errorMessage);
     } finally {
       setSendingBugReport(false);
     }
   };
 
   const handleOpenFAQ = () => {
-    Linking.openURL('https://libertysocial.com/faq');
+    Linking.openURL('https://mylibertysocial.com/faq');
   };
 
   const handleOpenPrivacyStatement = () => {
-    Linking.openURL('https://libertysocial.com/privacy');
+    Linking.openURL('https://mylibertysocial.com/privacy');
   };
 
   const settings: SettingSection[] = [
@@ -163,6 +220,12 @@ export default function SettingsScreen() {
     {
       title: 'Account',
       items: [
+        {
+          type: 'link',
+          label: 'Saved Posts',
+          icon: 'bookmark-outline',
+          onPress: () => router.push('/(tabs)/settings/saved-posts'),
+        },
         {
           type: 'link',
           label: 'Privacy Settings',
@@ -466,14 +529,19 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
 
-              {bugScreenshot && (
+              {bugScreenshot && bugScreenshot.uri && (
                 <View style={styles.screenshotPreview}>
-                  <Image source={{ uri: bugScreenshot }} style={styles.screenshotImage} />
+                  <Image 
+                    source={{ uri: bugScreenshot.uri }} 
+                    style={styles.screenshotImage}
+                    resizeMode="cover"
+                  />
                   <TouchableOpacity
                     style={styles.removeScreenshotButton}
                     onPress={() => setBugScreenshot(null)}
+                    disabled={sendingBugReport}
                   >
-                    <Ionicons name="close" size={20} color="#FFFFFF" />
+                    <Ionicons name="close" size={16} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
               )}

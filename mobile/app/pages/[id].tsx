@@ -782,7 +782,8 @@ export default function PageDetailScreen() {
 
   const handleSharePost = async (post: Post) => {
     try {
-      const shareMessage = [post.content, `${API_BASE.replace(/\/api\/?$/, '')}/feed/${post.id}`]
+      const shareUrl = `https://mylibertysocial.com/app/feed/${post.id}`;
+      const shareMessage = [post.content, shareUrl]
         .filter(Boolean)
         .join('\n\n');
 
@@ -982,6 +983,12 @@ export default function PageDetailScreen() {
           >
             <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
+
+          {item.bookmarked && (
+            <View style={styles.actionButton}>
+              <Ionicons name="bookmark" size={20} color="#C8A25F" />
+            </View>
+          )}
         </View>
       </View>
     );

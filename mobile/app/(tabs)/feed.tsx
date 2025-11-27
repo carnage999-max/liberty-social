@@ -703,7 +703,8 @@ export default function FeedScreen() {
 
   const handleSharePost = async (post: FeedPost) => {
     try {
-      const shareMessage = [post.content, `${API_BASE.replace(/\/api\/?$/, '')}/feed/${post.id}`]
+      const shareUrl = `https://mylibertysocial.com/app/feed/${post.id}`;
+      const shareMessage = [post.content, shareUrl]
         .filter(Boolean)
         .join('\n\n');
 
@@ -914,6 +915,12 @@ export default function FeedScreen() {
           >
             <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
+
+          {item.bookmarked && (
+            <View style={styles.actionButton}>
+              <Ionicons name="bookmark" size={20} color="#C8A25F" />
+            </View>
+          )}
         </View>
       </View>
     );
@@ -1502,7 +1509,12 @@ export default function FeedScreen() {
             <Text style={styles.emptyText}>No posts yet. Start following people to see their posts!</Text>
           </View>
         }
-        contentContainerStyle={{ paddingBottom: 64, paddingTop: 0 }}
+        contentContainerStyle={{ paddingBottom: 120, paddingTop: 0 }}
+        removeClippedSubviews={true}
+        windowSize={10}
+        initialNumToRender={8}
+        maxToRenderPerBatch={5}
+        updateCellsBatchingPeriod={50}
       />
 
       <UserProfileBottomSheet

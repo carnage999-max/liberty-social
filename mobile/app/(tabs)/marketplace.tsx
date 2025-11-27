@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,14 @@ interface MarketplaceListing {
   created_at: string;
   views_count: number;
   saved_count: number;
+  is_saved?: boolean;
+  has_offer?: boolean;
+}
+
+interface SavedListing {
+  id: number;
+  listing: MarketplaceListing;
+  created_at: string;
 }
 
 interface MarketplaceCategory {
@@ -48,6 +56,9 @@ export default function MarketplaceScreen() {
   const { showError } = useToast();
   const router = useRouter();
   const [listings, setListings] = useState<MarketplaceListing[]>([]);
+  const [savedListings, setSavedListings] = useState<SavedListing[]>([]);
+  const [userOffers, setUserOffers] = useState<Record<number, boolean>>({});
+  const [savedListingsExpanded, setSavedListingsExpanded] = useState(false);
   const [categories, setCategories] = useState<MarketplaceCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -69,10 +80,18 @@ export default function MarketplaceScreen() {
         `/marketplace/listings/?${params.toString()}`
       );
       
+      const newListings = response.results || [];
+      
+      // Mark listings with offers
+      const listingsWithOffers = newListings.map((listing: MarketplaceListing) => ({
+        ...listing,
+        has_offer: userOffers[listing.id] || false,
+      }));
+      
       if (append) {
-        setListings((prev) => [...prev, ...response.results]);
+        setListings((prev) => [...prev, ...listingsWithOffers]);
       } else {
-        setListings(response.results || []);
+        setListings(listingsWithOffers);
       }
       setNext(response.next);
     } catch (error) {
@@ -82,7 +101,7 @@ export default function MarketplaceScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, userOffers]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -93,10 +112,55 @@ export default function MarketplaceScreen() {
     }
   }, []);
 
+  const loadSavedListings = useCallback(async () => {
+    if (!user) return;
+    try {
+      const response = await apiClient.get<any>('/marketplace/saves/');
+      const saved = response.results || response || [];
+      setSavedListings(saved);
+    } catch (error) {
+      console.error('Failed to load saved listings:', error);
+    }
+  }, [user]);
+
+  const loadUserOffers = useCallback(async () => {
+    if (!user) return;
+    try {
+      const response = await apiClient.get<any>('/marketplace/offers/');
+      const offers = response.results || response || [];
+      const offerMap: Record<number, boolean> = {};
+      offers.forEach((offer: any) => {
+        if (offer.listing && offer.listing.id) {
+          offerMap[offer.listing.id] = true;
+        }
+      });
+      setUserOffers(offerMap);
+      
+      // Update listings to show offer indicator
+      setListings((prev) =>
+        prev.map((listing) => ({
+          ...listing,
+          has_offer: offerMap[listing.id] || false,
+        }))
+      );
+    } catch (error) {
+      console.error('Failed to load user offers:', error);
+    }
+  }, [user]);
+
   useEffect(() => {
     loadListings();
     loadCategories();
+    loadSavedListings();
+    loadUserOffers();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      loadSavedListings();
+      loadUserOffers();
+    }
+  }, [user, loadSavedListings, loadUserOffers]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -108,7 +172,9 @@ export default function MarketplaceScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadListings();
-  }, [loadListings]);
+    loadSavedListings();
+    loadUserOffers();
+  }, [loadListings, loadSavedListings, loadUserOffers]);
 
   const loadMore = () => {
     if (next && !loading) {
@@ -116,15 +182,15 @@ export default function MarketplaceScreen() {
     }
   };
 
-  const conditionLabels: Record<string, string> = {
+  const conditionLabels = useMemo<Record<string, string>>(() => ({
     new: 'New',
     like_new: 'Like New',
     used: 'Used',
     fair: 'Fair',
     poor: 'Poor',
-  };
+  }), []);
 
-  const renderListing = ({ item }: { item: MarketplaceListing }) => {
+  const renderListing = useCallback(({ item }: { item: MarketplaceListing }) => {
     const mainImage = item.media && item.media.length > 0 
       ? resolveRemoteUrl(item.media[0].url) 
       : null;
@@ -143,7 +209,12 @@ export default function MarketplaceScreen() {
       >
         {/* Image */}
         {mainImage ? (
-          <Image source={{ uri: mainImage }} style={styles.listingImage} />
+          <Image 
+            source={{ uri: mainImage }} 
+            style={styles.listingImage}
+            resizeMode="cover"
+            defaultSource={require('../../assets/default_avatar.png')}
+          />
         ) : (
           <View
             style={[
@@ -158,12 +229,20 @@ export default function MarketplaceScreen() {
 
         {/* Content */}
         <View style={styles.listingContent}>
-          <Text
-            style={[styles.listingTitle, { color: colors.text }]}
-            numberOfLines={2}
-          >
-            {item.title}
-          </Text>
+          <View style={styles.listingTitleRow}>
+            <Text
+              style={[styles.listingTitle, { color: colors.text }]}
+              numberOfLines={2}
+            >
+              {item.title}
+            </Text>
+            {item.has_offer && (
+              <View style={styles.offerBadge}>
+                <Ionicons name="hand-left-outline" size={14} color="#C8A25F" />
+                <Text style={styles.offerBadgeText}>Offer</Text>
+              </View>
+            )}
+          </View>
           
           <View style={styles.listingMeta}>
             <Text style={[styles.listingPrice, { color: colors.primary }]}>
@@ -190,7 +269,7 @@ export default function MarketplaceScreen() {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [colors, isDark, router, conditionLabels]);
 
   const styles = StyleSheet.create({
     container: {
@@ -278,10 +357,65 @@ export default function MarketplaceScreen() {
       padding: 12,
       justifyContent: 'space-between',
     },
+    listingTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: 6,
+      gap: 8,
+    },
     listingTitle: {
       fontSize: 15,
       fontWeight: '600',
-      marginBottom: 6,
+      flex: 1,
+    },
+    offerBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      backgroundColor: 'rgba(200, 162, 95, 0.1)',
+      borderWidth: 1,
+      borderColor: '#C8A25F',
+    },
+    offerBadgeText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#C8A25F',
+    },
+    accordionContainer: {
+      marginHorizontal: 16,
+      marginBottom: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+      overflow: 'hidden',
+    },
+    accordionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 16,
+    },
+    accordionHeaderLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    accordionTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    accordionContent: {
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    savedListingsContainer: {
+      padding: 12,
+      gap: 12,
     },
     listingMeta: {
       flexDirection: 'row',
@@ -347,6 +481,50 @@ export default function MarketplaceScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Saved Listings Accordion */}
+      {user && savedListings.length > 0 && (
+        <View style={styles.accordionContainer}>
+          <TouchableOpacity
+            style={styles.accordionHeader}
+            onPress={() => setSavedListingsExpanded(!savedListingsExpanded)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.accordionHeaderLeft}>
+              <Ionicons name="bookmark" size={20} color="#C8A25F" />
+              <Text style={[styles.accordionTitle, { color: colors.text }]}>
+                Saved Listings ({savedListings.length})
+              </Text>
+            </View>
+            <Ionicons
+              name={savedListingsExpanded ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
+          
+          {savedListingsExpanded && (
+            <View style={styles.accordionContent}>
+              <FlatList
+                horizontal
+                data={savedListings}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => {
+                  const listing = item.listing;
+                  // Ensure listing has offer info
+                  const listingWithOffer = {
+                    ...listing,
+                    has_offer: userOffers[listing.id] || false,
+                  };
+                  return renderListing({ item: listingWithOffer });
+                }}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.savedListingsContainer}
+              />
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Categories */}
       {categories.length > 0 && (
         <View style={styles.categoriesWrapper}>
@@ -409,7 +587,13 @@ export default function MarketplaceScreen() {
             </View>
           ) : null
         }
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}
+        scrollEnabled={true}
+        removeClippedSubviews={true}
+        windowSize={10}
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        updateCellsBatchingPeriod={50}
       />
     </View>
   );
