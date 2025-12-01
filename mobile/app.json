@@ -21,7 +21,8 @@
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload images and videos.",
         "NSPhotoLibraryAddUsageDescription": "This app needs permission to save images to your photo library.",
         "NSCameraUsageDescription": "This app needs access to your camera to take photos and videos.",
-        "NSMicrophoneUsageDescription": "This app needs access to your microphone to record videos with audio."
+        "NSMicrophoneUsageDescription": "This app needs access to your microphone to record videos with audio.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -31,14 +32,15 @@
       },
       "package": "com.libertysocial.app",
       "permissions": [
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "READ_MEDIA_IMAGES",
-        "READ_MEDIA_VIDEO",
-        "CAMERA",
-        "RECORD_AUDIO",
-        "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
