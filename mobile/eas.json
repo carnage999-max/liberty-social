@@ -29,6 +29,14 @@
       "android": {
         "buildType": "apk"
       }
+    },
+    "production-aab": {
+      "ios": {
+        "simulator": false
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": {

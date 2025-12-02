@@ -73,7 +73,8 @@ export default function SettingsScreen() {
       'Are you sure you want to logout?',
       async () => {
         await logout();
-        router.replace('/(auth)');
+        // Navigate to root which will redirect to auth screen
+        router.replace('/');
       },
       undefined,
       'Logout',
