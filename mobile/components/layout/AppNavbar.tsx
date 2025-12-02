@@ -24,6 +24,7 @@ interface AppNavbarProps {
   showSearchIcon?: boolean;
   onBackPress?: () => void;
   customRightButton?: ReactNode;
+  logoRoute?: string; // Custom route for logo navigation
 }
 
 export default function AppNavbar({ 
@@ -36,6 +37,7 @@ export default function AppNavbar({
   showSearchIcon = true,
   onBackPress,
   customRightButton,
+  logoRoute,
 }: AppNavbarProps = {}) {
   const { user } = useAuth();
   const router = useRouter();
@@ -175,7 +177,7 @@ export default function AppNavbar({
           {showLogo ? (
             <TouchableOpacity
               style={styles.logoButton}
-              onPress={() => handleNavigate('/(tabs)/feed')}
+              onPress={() => handleNavigate(logoRoute || '/(tabs)/feed')}
             >
               <View style={styles.logoIcon}>
                 <Image

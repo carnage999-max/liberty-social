@@ -150,7 +150,7 @@ export default function PageDetailScreen() {
       // Set canPost based on user_role or can_manage - this is the primary check
       const canPostValue = pageData.user_role === 'owner' || pageData.user_role === 'admin' || pageData.user_role === 'moderator' || pageData.can_manage;
       console.log('Page data:', { user_role: pageData.user_role, can_manage: pageData.can_manage, canPost: canPostValue, followers_count: pageData.followers_count });
-      setCanPost(canPostValue);
+      setCanPost(canPostValue ?? false);
       if (activeTab === 'overview') {
         loadPosts();
       }
@@ -176,7 +176,7 @@ export default function PageDetailScreen() {
       };
       setPage(pageData);
       const canPostValue = pageData.user_role === 'owner' || pageData.user_role === 'admin' || pageData.user_role === 'moderator' || pageData.can_manage;
-      setCanPost(canPostValue);
+      setCanPost(canPostValue ?? false);
       if (activeTab === 'overview' || activeTab === 'photos') {
         // Reload posts
         setLoadingPosts(true);
@@ -499,7 +499,7 @@ export default function PageDetailScreen() {
         const optimisticReaction: Reaction = {
           ...existingReaction,
           id: optimisticReactionId,
-          reaction_type: emoji,
+          reaction_type: emoji as ReactionType,
         };
         setPosts((prev) =>
           prev.map((item) =>
@@ -521,7 +521,7 @@ export default function PageDetailScreen() {
     } else {
       const optimisticReaction: Reaction = {
         id: optimisticReactionId,
-        reaction_type: emoji,
+        reaction_type: emoji as ReactionType,
         created_at: new Date().toISOString(),
         user,
       };
@@ -599,7 +599,7 @@ export default function PageDetailScreen() {
       }
     } catch (error) {
       console.error('Error updating reaction:', error);
-      showError('Please try again in a moment.', 'Unable to update reaction');
+      showError('Unable to update reaction. Please try again in a moment.');
       setPosts(previousPosts);
     } finally {
       setReactionBusy((prev) => ({ ...prev, [postId]: false }));
@@ -638,7 +638,7 @@ export default function PageDetailScreen() {
         const optimisticReaction: Reaction = {
           ...existingReaction,
           id: optimisticReactionId,
-          reaction_type: emoji,
+          reaction_type: emoji as ReactionType,
         };
         setPosts((prev) =>
           prev.map((item) =>
@@ -660,7 +660,7 @@ export default function PageDetailScreen() {
     } else {
       const optimisticReaction: Reaction = {
         id: optimisticReactionId,
-        reaction_type: emoji,
+        reaction_type: emoji as ReactionType,
         created_at: new Date().toISOString(),
         user,
       };
@@ -731,7 +731,7 @@ export default function PageDetailScreen() {
       }
     } catch (error) {
       console.error('Error updating reaction:', error);
-      showError('Please try again in a moment.', 'Unable to update reaction');
+      showError('Unable to update reaction. Please try again in a moment.');
       setPosts(previousPosts);
     } finally {
       setReactionBusy((prev) => ({ ...prev, [postId]: false }));
@@ -849,7 +849,7 @@ export default function PageDetailScreen() {
       });
     } catch (error) {
       console.error('Error sharing post:', error);
-      showError('Please try again later.', 'Unable to share');
+      showError('Unable to share. Please try again later.');
     }
   };
 

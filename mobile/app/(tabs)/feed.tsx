@@ -415,7 +415,7 @@ export default function FeedScreen() {
         const optimisticReaction: Reaction = {
           ...existingReaction,
           id: optimisticReactionId,
-          reaction_type: emoji,
+          reaction_type: emoji as ReactionType,
         };
         setPosts((prev) =>
           prev.map((item) =>
@@ -438,7 +438,7 @@ export default function FeedScreen() {
       // Add new reaction
       const optimisticReaction: Reaction = {
         id: optimisticReactionId,
-        reaction_type: emoji,
+        reaction_type: emoji as ReactionType,
         created_at: new Date().toISOString(),
         user,
       };
@@ -566,7 +566,7 @@ export default function FeedScreen() {
         const optimisticReaction: Reaction = {
           ...existingReaction,
           id: optimisticReactionId,
-          reaction_type: emoji,
+          reaction_type: emoji as ReactionType,
         };
         setPosts((prev) =>
           prev.map((item) =>
@@ -589,7 +589,7 @@ export default function FeedScreen() {
       // Add new reaction
       const optimisticReaction: Reaction = {
         id: optimisticReactionId,
-        reaction_type: emoji,
+        reaction_type: emoji as ReactionType,
         created_at: new Date().toISOString(),
         user,
       };
@@ -850,9 +850,10 @@ export default function FeedScreen() {
       : buildDisplayName(item.author);
     
     // For page posts, use page profile image; for user posts, use author avatar
-    const avatarSource = isPagePost && (item as any).page?.profile_image_url
-      ? { uri: resolveRemoteUrl((item as any).page.profile_image_url) }
-      : item.authorAvatar;
+    const avatarUrl = isPagePost && (item as any).page?.profile_image_url
+      ? resolveRemoteUrl((item as any).page.profile_image_url)
+      : null;
+    const avatarSource = avatarUrl ? { uri: avatarUrl } : item.authorAvatar;
 
     const galleryUrls: string[] =
       item.mediaUrls && item.mediaUrls.length

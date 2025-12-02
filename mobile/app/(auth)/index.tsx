@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,8 +11,9 @@ import {
   Animated,
   Dimensions,
   Modal,
+  Linking,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -35,7 +36,9 @@ export default function AuthScreen() {
   const { login } = useAuth();
   const { showError, showSuccess } = useToast();
   const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>('login');
+  const params = useLocalSearchParams();
+  const initialMode = (params.mode === 'register' ? 'register' : 'login') as AuthMode;
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -241,49 +244,49 @@ export default function AuthScreen() {
     title: {
       fontSize: 24,
       fontWeight: '700',
-      color: COLOR_DEEP_NAVY,
+      color: isDark ? '#FFFFFF' : COLOR_DEEP_NAVY,
       marginBottom: 8,
     },
     subtitle: {
       fontSize: 14,
-      color: isDark ? colors.textSecondary : '#6B7280',
+      color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#6B7280',
       marginBottom: 24,
     },
-    // Input styling - matching frontend
+    // Input styling - less glaring with softer background
     input: {
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.6)',
       borderRadius: 10,
       padding: 12,
       fontSize: 15,
-      color: '#111827',
+      color: isDark ? '#FFFFFF' : '#1F2937',
       borderWidth: 1,
-      borderColor: 'rgba(200, 162, 95, 0.3)',
+      borderColor: isDark ? 'rgba(200, 162, 95, 0.25)' : 'rgba(200, 162, 95, 0.35)',
       marginBottom: 16,
     },
     inputFocused: {
       borderColor: COLOR_GOLD,
       borderWidth: 2,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.75)',
     },
     passwordContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.6)',
       borderRadius: 10,
       borderWidth: 1,
-      borderColor: 'rgba(200, 162, 95, 0.3)',
+      borderColor: isDark ? 'rgba(200, 162, 95, 0.25)' : 'rgba(200, 162, 95, 0.35)',
       marginBottom: 16,
     },
     passwordContainerFocused: {
       borderColor: COLOR_GOLD,
       borderWidth: 2,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.75)',
     },
     passwordInput: {
       flex: 1,
       padding: 12,
       fontSize: 15,
-      color: '#111827',
+      color: isDark ? '#FFFFFF' : '#1F2937',
     },
     passwordToggle: {
       padding: 12,
@@ -319,7 +322,7 @@ export default function AuthScreen() {
     label: {
       fontSize: 14,
       fontWeight: '600',
-      color: COLOR_DEEP_NAVY,
+      color: isDark ? 'rgba(255, 255, 255, 0.85)' : COLOR_DEEP_NAVY,
       marginBottom: 8,
     },
     forgotPasswordLink: {
@@ -329,7 +332,7 @@ export default function AuthScreen() {
     },
     forgotPasswordText: {
       fontSize: 14,
-      color: COLOR_DEEP_NAVY,
+      color: isDark ? COLOR_GOLD : COLOR_DEEP_NAVY,
       fontWeight: '600',
     },
     // Social buttons section
@@ -339,7 +342,7 @@ export default function AuthScreen() {
     socialDivider: {
       fontSize: 12,
       letterSpacing: 1,
-      color: isDark ? colors.textSecondary : '#6B7280',
+      color: isDark ? 'rgba(255, 255, 255, 0.5)' : '#6B7280',
       marginBottom: 12,
       textAlign: 'center',
     },
@@ -371,6 +374,19 @@ export default function AuthScreen() {
       fontWeight: '500',
       color: COLOR_DEEP_NAVY,
     },
+    termsText: {
+      fontSize: 12,
+      color: isDark ? 'rgba(255, 255, 255, 0.6)' : '#6B7280',
+      textAlign: 'center',
+      lineHeight: 18,
+      marginBottom: 16,
+      paddingHorizontal: 8,
+    },
+    termsLink: {
+      color: COLOR_GOLD,
+      fontWeight: '600',
+      textDecorationLine: 'underline',
+    },
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -378,7 +394,7 @@ export default function AuthScreen() {
       alignItems: 'center',
     },
     modalContent: {
-      backgroundColor: colors.background,
+      backgroundColor: isDark ? colors.background : '#F6F7FB',
       borderRadius: 16,
       padding: 24,
       width: SCREEN_WIDTH - 48,
@@ -389,12 +405,12 @@ export default function AuthScreen() {
     modalTitle: {
       fontSize: 20,
       fontWeight: '700',
-      color: COLOR_DEEP_NAVY,
+      color: isDark ? '#FFFFFF' : COLOR_DEEP_NAVY,
       marginBottom: 8,
     },
     modalSubtitle: {
       fontSize: 14,
-      color: colors.textSecondary,
+      color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#6B7280',
       marginBottom: 24,
     },
     modalButtonContainer: {
@@ -642,6 +658,24 @@ export default function AuthScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Terms and Privacy Notice */}
+        <Text style={styles.termsText}>
+          By clicking "Create account" you agree to our{' '}
+          <Text 
+            style={styles.termsLink}
+            onPress={() => Linking.openURL('https://mylibertysocial.com/terms')}
+          >
+            Terms of Service
+          </Text>
+          {' '}and{' '}
+          <Text 
+            style={styles.termsLink}
+            onPress={() => Linking.openURL('https://mylibertysocial.com/privacy')}
+          >
+            Privacy Policy
+          </Text>
+        </Text>
+
         <TouchableOpacity
           style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleRegister}
@@ -680,6 +714,9 @@ export default function AuthScreen() {
         showProfileImage={false}
         showSearchIcon={false}
         showMessageIcon={false}
+        logoRoute="/welcome"
+        showBackButton={true}
+        onBackPress={() => router.push('/welcome')}
       />
       <KeyboardAvoidingView
         style={{ flex: 1 }}

@@ -24,9 +24,13 @@ import { SkeletonFriend } from '../../components/common/Skeleton';
 
 type Tab = 'incoming' | 'outgoing' | 'all';
 
-interface FriendRequestWithUser extends FriendRequest {
-  from_user?: User;
-  to_user?: User;
+interface FriendRequestWithUser {
+  id: number;
+  from_user: User;
+  to_user: User;
+  status: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 export default function FriendRequestsScreen() {
