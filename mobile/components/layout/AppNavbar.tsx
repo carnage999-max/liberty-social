@@ -114,6 +114,25 @@ export default function AppNavbar({
       color: '#FFFFFF',
       letterSpacing: -0.3,
     },
+    iconButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 4,
+    },
+    iconGradient: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 0.2)',
+    },
     profileButton: {
       width: 36,
       height: 36,
@@ -180,19 +199,33 @@ export default function AppNavbar({
           <View style={styles.rightSection}>
             {showSearchIcon && (
               <TouchableOpacity
-                style={styles.profileButton}
+                style={styles.iconButton}
                 onPress={() => setSearchModalVisible(true)}
               >
-                <Ionicons name="search" size={20} color="#1a2335" />
+                <LinearGradient
+                  colors={['#a8862a', '#d7b756', '#a8862a']}
+                  style={styles.iconGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Ionicons name="search" size={18} color="#192A4A" />
+                </LinearGradient>
               </TouchableOpacity>
             )}
 
             {showMessageIcon && (
               <TouchableOpacity
-                style={styles.profileButton}
+                style={styles.iconButton}
                 onPress={() => handleNavigate('/(tabs)/messages')}
               >
-                <Ionicons name="chatbubbles-outline" size={22} color="#1a2335" />
+                <LinearGradient
+                  colors={['#a8862a', '#d7b756', '#a8862a']}
+                  style={styles.iconGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Ionicons name="chatbubbles-outline" size={18} color="#192A4A" />
+                </LinearGradient>
               </TouchableOpacity>
             )}
 

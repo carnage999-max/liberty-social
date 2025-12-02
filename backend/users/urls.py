@@ -19,6 +19,7 @@ from .views import (
     UserOverviewView,
     UserMetricsView,
     OnlineUsersView,
+    AccountDeletionRequestView,
 )
 
 router = DefaultRouter()
@@ -65,4 +66,9 @@ urlpatterns = [
     ),
     path("metrics/summary/", UserMetricsView.as_view(), name="user-metrics"),
     path("online/", OnlineUsersView.as_view(), name="online-users"),
+    path(
+        "request-deletion/",
+        AccountDeletionRequestView.as_view(),
+        name="request-account-deletion",
+    ),
 ]

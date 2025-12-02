@@ -514,8 +514,6 @@ export default function ConversationDetailScreen() {
     },
     inputWrapper: {
       flex: 1,
-      flexDirection: 'row',
-      alignItems: 'flex-end',
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: 24,
@@ -533,11 +531,12 @@ export default function ConversationDetailScreen() {
       maxHeight: 84,
     },
     emojiButton: {
-      width: 32,
-      height: 32,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 4,
+      marginRight: 8,
     },
     attachButton: {
       width: 40,
@@ -659,24 +658,28 @@ export default function ConversationDetailScreen() {
                   color={colors.textSecondary}
                 />
               </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.emojiButton}
+                onPress={() => setEmojiPickerVisible(true)}
+                disabled={sending}
+              >
+                <Ionicons
+                  name="happy-outline"
+                  size={22}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
               <View style={styles.inputWrapper}>
-            <TextInput
+                <TextInput
                   style={styles.textInput}
-              placeholder="Type a message..."
-              placeholderTextColor={colors.textSecondary}
-              value={messageText}
-              onChangeText={setMessageText}
-              multiline
-              maxLength={1000}
+                  placeholder="Type a message..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={messageText}
+                  onChangeText={setMessageText}
+                  multiline
+                  maxLength={1000}
                   editable={!sending}
-            />
-                <TouchableOpacity
-                  style={styles.emojiButton}
-                  onPress={() => setEmojiPickerVisible(true)}
-                  disabled={sending}
-                >
-                  <Text style={{ fontSize: 20 }}>😀</Text>
-                </TouchableOpacity>
+                />
               </View>
             <TouchableOpacity
               style={[

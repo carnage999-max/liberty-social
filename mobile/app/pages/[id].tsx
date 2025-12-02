@@ -37,6 +37,7 @@ import { Post, PaginatedResponse, Reaction, ReactionType } from '../../types';
 import PostActionsMenu from '../../components/feed/PostActionsMenu';
 import AdvancedEmojiPicker from '../../components/feed/AdvancedEmojiPicker';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
+import * as WebBrowser from 'expo-web-browser';
 import { API_BASE } from '../../constants/API';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -104,6 +105,22 @@ export default function PageDetailScreen() {
   const [advancedEmojiPickerPostId, setAdvancedEmojiPickerPostId] = useState<number | null>(null);
   const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
+
+  const handleOpenLink = async (url: string) => {
+    if (!url) return;
+    // Ensure URL has a scheme
+    const fullUrl = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
+    try {
+      await WebBrowser.openBrowserAsync(fullUrl, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+        toolbarColor: colors.background,
+        controlsColor: colors.primary,
+      });
+    } catch (error) {
+      showError('Could not open link');
+      console.error('Error opening link:', error);
+    }
+  };
 
   useEffect(() => {
     loadPage();
@@ -1056,10 +1073,10 @@ export default function PageDetailScreen() {
                 {(page?.website_url || page?.phone || page?.email) && (
                   <View style={styles.infoCardContact}>
                     {page?.website_url && (
-                      <View style={styles.infoCardRow}>
+                      <TouchableOpacity onPress={() => handleOpenLink(page.website_url!)} style={styles.infoCardRow}>
                         <Ionicons name="globe-outline" size={16} color={colors.primary} />
                         <Text style={[styles.infoCardLink, { color: colors.primary }]}>{page.website_url}</Text>
-                      </View>
+                      </TouchableOpacity>
                     )}
                     {page?.phone && (
                       <View style={styles.infoCardRow}>
@@ -1128,7 +1145,7 @@ export default function PageDetailScreen() {
             {page?.website_url || page?.phone || page?.email ? (
               <View style={styles.contactList}>
                 {page?.website_url && (
-                  <TouchableOpacity style={[styles.contactItem, { borderColor: colors.border }]}>
+                  <TouchableOpacity onPress={() => handleOpenLink(page.website_url!)} style={[styles.contactItem, { borderColor: colors.border }]}>
                     <Ionicons name="globe-outline" size={24} color={colors.primary} />
                     <Text style={[styles.contactText, { color: colors.text }]}>{page.website_url}</Text>
                   </TouchableOpacity>

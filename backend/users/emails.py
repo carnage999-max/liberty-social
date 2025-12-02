@@ -107,3 +107,17 @@ def send_page_admin_invite_email(invitee, inviter, page):
         f"You've been invited to manage {page.name}",
         invitee.email,
     )
+
+
+def send_account_deletion_confirmation_email(user):
+    """Send a confirmation email when a user requests account deletion."""
+    context = {
+        "user": user,
+        "support_email": settings.DEFAULT_FROM_EMAIL,
+    }
+    return send_templated_email(
+        "account_deletion_confirmation",
+        context,
+        "Account Deletion Request Received",
+        user.email,
+    )

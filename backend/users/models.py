@@ -76,6 +76,18 @@ class User(AbstractUser):
         return self.email
 
 
+class AccountDeletionRequest(models.Model):
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="deletion_request"
+    )
+    requested_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    is_processed = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Deletion request for {self.user.email}"
+
+
 class UserSettings(models.Model):
     PRIVACY_CHOICES = (
         ("public", "public"),

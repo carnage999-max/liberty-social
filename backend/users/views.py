@@ -19,6 +19,7 @@ from .models import (
     User,
     UserSettings,
     FriendshipHistory,
+    AccountDeletionRequest,
 )
 from .serializers import (
     BlockedUsersSerializer,
@@ -76,6 +77,39 @@ def LogoutView(request):
         )
     except Exception as e:
         return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AccountDeletionRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+
+        # Prevent duplicate requests
+        if AccountDeletionRequest.objects.filter(user=user).exists():
+            return Response(
+                {"detail": "An account deletion request has already been submitted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create the deletion request
+        AccountDeletionRequest.objects.create(user=user)
+
+        # Send email confirmation
+        try:
+            from .emails import send_account_deletion_confirmation_email
+
+            send_account_deletion_confirmation_email(user)
+        except Exception as e:
+            # Log but don't fail the request if email fails
+            print(f"Failed to send deletion confirmation email: {e}")
+
+        return Response(
+            {
+                "detail": "Your account deletion request has been received and will be processed."
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class RegisterUserViewSet(ModelViewSet):
@@ -225,9 +259,7 @@ class UserOverviewView(APIView):
 
         # Only count personal posts (author_type="user"), exclude page posts
         allowed_posts_qs = Post.objects.filter(
-            author=target, 
-            deleted_at__isnull=True,
-            author_type="user"
+            author=target, deleted_at__isnull=True, author_type="user"
         )
         if not is_self:
             visibility_levels = ["public"]

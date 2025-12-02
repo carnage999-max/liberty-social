@@ -65,7 +65,8 @@
           "color": "#0B3D91",
           "sounds": []
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "notification": {
       "icon": "./assets/icon.png",

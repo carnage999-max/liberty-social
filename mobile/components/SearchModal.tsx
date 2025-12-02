@@ -353,13 +353,13 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
       borderColor: colors.border,
     },
     tabButtonActive: {
-      borderBottomColor: '#4F8EF7',
+      borderBottomColor: '#C8A25F',
     },
     tabText: {
       color: colors.textSecondary,
     },
     tabTextActive: {
-      color: '#4F8EF7',
+      color: '#C8A25F',
     },
     resultItem: {
       backgroundColor: colors.background,
@@ -460,7 +460,7 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
           <View style={styles.resultsContainer}>
             {searching ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#4F8EF7" />
+                <ActivityIndicator size="large" color="#C8A25F" />
               </View>
             ) : currentResults.length > 0 ? (
               <FlatList

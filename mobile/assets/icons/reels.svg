@@ -1,0 +1,17 @@
+<svg width="128" height="150" viewBox="0 0 128 150" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="navyGradient" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#192A4A;"/><stop offset="100%" style="stop-color:#0E1A30;"/></linearGradient>
+    <linearGradient id="goldFrameGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#FDEEBE;"/><stop offset="25%" style="stop-color:#CAA063;"/><stop offset="50%" style="stop-color:#A97F45;"/><stop offset="75%" style="stop-color:#CAA063;"/><stop offset="100%" style="stop-color:#FDEEBE;"/></linearGradient>
+    <linearGradient id="goldEmbossGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#FAD994;" /><stop offset="50%" style="stop-color:#CAA063;" /><stop offset="100%" style="stop-color:#A97F45;" /></linearGradient>
+    <filter id="bevelShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="4" dy="4" stdDeviation="3.5" flood-color="#000" flood-opacity="0.4"/><feComponentTransfer in="SourceAlpha" result="sourceAlpha"><feFuncA type="table" tableValues="1 0" /></feComponentTransfer><feGaussianBlur stdDeviation="2" in="sourceAlpha" result="innerBlur"/><feOffset dx="2" dy="2" in="innerBlur" result="innerOffset"/><feComposite in="SourceGraphic" in2="innerOffset" operator="out" result="innerShadow"/></filter>
+    <filter id="metallicShine"><feGaussianBlur in="SourceAlpha" stdDeviation="2" result="alphaBlur"/><feSpecularLighting in="alphaBlur" surfaceScale="5" specularConstant=".75" specularExponent="20" lighting-color="#FFD" result="specOut"><fePointLight x="-5000" y="-10000" z="20000"/></feSpecularLighting><feComposite in="specOut" in2="SourceAlpha" operator="in" result="specOut"/><feComposite in="SourceGraphic" in2="specOut" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litPaint"/></filter>
+  </defs>
+  <g filter="url(#bevelShadow)">
+    <rect x="4" y="4" width="120" height="120" rx="22" ry="22" fill="url(#navyGradient)" />
+    <rect x="4" y="4" width="120" height="120" rx="22" ry="22" fill="none" stroke="url(#goldFrameGradient)" stroke-width="8"/>
+    <g transform="translate(34, 34) scale(0.6)" filter="url(#metallicShine)">
+      <path d="M15 10H65V20H15z M15 60H65V70H15z M15 10V70 M30 10V70 M50 10V70 M65 10V70" fill="none" stroke="url(#goldEmbossGradient)" stroke-width="5" stroke-linejoin="round"/>
+    </g>
+  </g>
+  <text x="64" y="142" font-family="Georgia, serif" font-size="18" fill="#CAA063" text-anchor="middle" font-weight="bold"><tspan dx="-1" dy="-1" fill="#FDEEBE" opacity="0.7">Reels</tspan>Reels</text>
+</svg>

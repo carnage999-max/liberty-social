@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -256,15 +257,21 @@ export default function FriendRequestsScreen() {
         </TouchableOpacity>
         <View style={styles.suggestionActions}>
           <TouchableOpacity
-            style={styles.sendRequestIconButton}
             onPress={() => handleSendRequest(item.id)}
             disabled={isSending}
           >
-            {isSending ? (
-              <ActivityIndicator size="small" color="#1a2335" />
-            ) : (
-              <Ionicons name="add" size={20} color="#1a2335" />
-            )}
+            <LinearGradient
+              colors={['#a8862a', '#d7b756', '#a8862a']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.sendRequestIconButton}
+            >
+              {isSending ? (
+                <ActivityIndicator size="small" color="#192A4A" />
+              ) : (
+                <Ionicons name="add" size={20} color="#192A4A" />
+              )}
+            </LinearGradient>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.dismissIconButton}
@@ -301,12 +308,12 @@ export default function FriendRequestsScreen() {
       borderColor: colors.border,
     },
     tabActive: {
-      backgroundColor: '#C8A25F', // Gold color for incoming tab
+      backgroundColor: '#C8A25F', // Metallic gold color for active tab
       borderColor: '#C8A25F',
     },
     tabActiveSent: {
-      backgroundColor: '#1F2ABF', // Different blue for sent tab
-      borderColor: '#1F2ABF',
+      backgroundColor: '#C8A25F', // Use same gold for sent tab
+      borderColor: '#C8A25F',
     },
     tabText: {
       fontSize: 14,
@@ -458,9 +465,6 @@ export default function FriendRequestsScreen() {
       width: 36,
       height: 36,
       borderRadius: 18,
-      backgroundColor: '#C8A25F', // Gold background
-      borderWidth: 2,
-      borderColor: '#C8A25F',
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -470,7 +474,7 @@ export default function FriendRequestsScreen() {
       borderRadius: 18,
       backgroundColor: '#FF4D4F', // Red background
       borderWidth: 2,
-      borderColor: '#C8A25F', // Gold border
+      borderColor: '#C8A25F', // Metallic gold border
       alignItems: 'center',
       justifyContent: 'center',
     },

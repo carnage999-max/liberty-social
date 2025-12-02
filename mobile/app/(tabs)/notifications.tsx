@@ -88,7 +88,10 @@ export default function NotificationsScreen() {
     }
 
     // Navigate to the relevant page
-    if (notification.object_id) {
+    if (notification.verb === 'sent_friend_request') {
+      // Navigate to friend requests page to accept/decline
+      router.push('/(tabs)/friend-requests');
+    } else if (notification.object_id) {
       if (notification.verb === 'commented' || notification.verb === 'reacted') {
         router.push(`/(tabs)/feed/${notification.object_id}`);
       } else if (notification.verb === 'followed') {

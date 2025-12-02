@@ -13,6 +13,7 @@ import { apiClient } from '../../utils/api';
 import { Notification, PaginatedResponse, FriendRequest } from '../../types';
 import { useRouter, usePathname } from 'expo-router';
 import HomeIcon from '../../components/icons/HomeIcon';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function TabsLayout() {
   const { colors, isDark } = useTheme();
@@ -201,7 +202,7 @@ export default function TabsLayout() {
       borderRadius: 8,
     },
     tabButtonActive: {
-      backgroundColor: '#C8A25F', // Gold background when active
+      backgroundColor: 'transparent', // Transparent when active
     },
     tabIconWrapper: {
       width: 36,
@@ -217,22 +218,21 @@ export default function TabsLayout() {
       elevation: 2,
     },
     tabIconWrapperActive: {
-      backgroundColor: '#C8A25F', // Gold
       borderColor: '#C8A25F',
     },
     tabIconWrapperInactive: {
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-      borderColor: 'rgba(255, 255, 255, 0.2)',
+      backgroundColor: '#A0A0A0', // Silver
+      borderColor: '#A0A0A0',
     },
     tabLabel: {
       fontSize: 10,
       fontWeight: '600',
     },
     tabLabelActive: {
-      color: '#1a2335', // Deep navy
+      color: '#C8A25F', // Gold to match active gradient
     },
     tabLabelInactive: {
-      color: '#FFFFFF',
+      color: '#A0A0A0', // Silver to match inactive icon
     },
     badge: {
       position: 'absolute',
@@ -412,28 +412,59 @@ export default function TabsLayout() {
                     activeOpacity={0.7}
                   >
                     <View style={{ position: 'relative' }}>
-                      <View
-                        style={[
-                          styles.tabIconWrapper,
-                          isFocused ? styles.tabIconWrapperActive : styles.tabIconWrapperInactive,
-                          { overflow: 'hidden' },
-                        ]}
-                      >
-                        {avatarSrc ? (
-                          <Image 
-                            source={profileSource} 
-                            style={{ width: '100%', height: '100%', borderRadius: 18 }}
-                          />
-                        ) : (
-                          <Text style={{
-                            fontSize: 16,
-                            fontWeight: '700',
-                            color: isFocused ? '#1a2335' : '#FFFFFF',
-                          }}>
-                            {firstLetter}
-                          </Text>
-                        )}
-                      </View>
+                      {isFocused ? (
+                        <LinearGradient
+                          colors={['#a8862a', '#d7b756', '#a8862a']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={[
+                            styles.tabIconWrapper,
+                            styles.tabIconWrapperActive,
+                            { overflow: 'hidden' },
+                          ]}
+                        >
+                          {avatarSrc ? (
+                            <Image 
+                              source={profileSource} 
+                              style={{ width: '100%', height: '100%', borderRadius: 18 }}
+                            />
+                          ) : (
+                            <Text style={{
+                              fontSize: 16,
+                              fontWeight: '700',
+                              color: '#1a2335',
+                            }}>
+                              {firstLetter}
+                            </Text>
+                          )}
+                        </LinearGradient>
+                      ) : (
+                        <LinearGradient
+                          colors={['#909090', '#A0A0A0', '#909090']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={[
+                            styles.tabIconWrapper,
+                            styles.tabIconWrapperInactive,
+                            { overflow: 'hidden' },
+                          ]}
+                        >
+                          {avatarSrc ? (
+                            <Image 
+                              source={profileSource} 
+                              style={{ width: '100%', height: '100%', borderRadius: 18 }}
+                            />
+                          ) : (
+                            <Text style={{
+                              fontSize: 16,
+                              fontWeight: '700',
+                              color: '#192A4A',
+                            }}>
+                              {firstLetter}
+                            </Text>
+                          )}
+                        </LinearGradient>
+                      )}
                     </View>
                     <Text
                       style={[
@@ -460,18 +491,39 @@ export default function TabsLayout() {
                     onPress={() => setShowMoreMenu(!showMoreMenu)}
                     activeOpacity={0.7}
                   >
-                    <View
-                      style={[
-                        styles.tabIconWrapper,
-                        showMoreMenu ? styles.tabIconWrapperActive : styles.tabIconWrapperInactive,
-                      ]}
-                    >
-                      <Ionicons
-                        name={iconName}
-                        size={18}
-                        color={showMoreMenu ? '#1a2335' : '#FFFFFF'}
-                      />
-                    </View>
+                    {showMoreMenu ? (
+                      <LinearGradient
+                        colors={['#a8862a', '#d7b756', '#a8862a']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          styles.tabIconWrapper,
+                          styles.tabIconWrapperActive,
+                        ]}
+                      >
+                        <Ionicons
+                          name={iconName}
+                          size={18}
+                          color='#1a2335'
+                        />
+                      </LinearGradient>
+                    ) : (
+                      <LinearGradient
+                        colors={['#909090', '#A0A0A0', '#909090']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          styles.tabIconWrapper,
+                          styles.tabIconWrapperInactive,
+                        ]}
+                      >
+                        <Ionicons
+                          name={iconName}
+                          size={18}
+                          color='#192A4A'
+                        />
+                      </LinearGradient>
+                    )}
                     <Text
                       style={[
                         styles.tabLabel,
@@ -495,25 +547,53 @@ export default function TabsLayout() {
                   activeOpacity={0.7}
                 >
                   <View style={{ position: 'relative' }}>
-                  <View
-                    style={[
-                      styles.tabIconWrapper,
-                        isFocused ? styles.tabIconWrapperActive : styles.tabIconWrapperInactive,
+                  {isFocused ? (
+                    <LinearGradient
+                      colors={['#a8862a', '#d7b756', '#a8862a']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={[
+                        styles.tabIconWrapper,
+                        styles.tabIconWrapperActive,
                       ]}
                     >
                       {route.name === 'feed' ? (
                         <HomeIcon
                           size={18}
-                          color={isFocused ? '#1a2335' : '#FFFFFF'}
+                          color='#1a2335'
                         />
                       ) : (
                         <Ionicons
                           name={iconName}
                           size={18}
-                          color={isFocused ? '#1a2335' : '#FFFFFF'}
+                          color='#1a2335'
                         />
                       )}
-                    </View>
+                    </LinearGradient>
+                  ) : (
+                    <LinearGradient
+                      colors={['#909090', '#A0A0A0', '#909090']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={[
+                        styles.tabIconWrapper,
+                        styles.tabIconWrapperInactive,
+                      ]}
+                    >
+                      {route.name === 'feed' ? (
+                        <HomeIcon
+                          size={18}
+                          color='#192A4A'
+                        />
+                      ) : (
+                        <Ionicons
+                          name={iconName}
+                          size={18}
+                          color='#192A4A'
+                        />
+                      )}
+                    </LinearGradient>
+                  )}
                       {route.name === 'notifications' && unreadCount > 0 && (
                         <View style={styles.badge}>
                           <Text style={styles.badgeText}>
@@ -672,9 +752,14 @@ export default function TabsLayout() {
                 }}
                 activeOpacity={0.7}
               >
-                <View style={styles.moreMenuItemIcon}>
+                <LinearGradient
+                  colors={['#a8862a', '#d7b756', '#a8862a']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.moreMenuItemIcon}
+                >
                   <Ionicons name={item.icon as any} size={20} color="#1a2335" />
-                </View>
+                </LinearGradient>
                 <Text style={[styles.moreMenuItemLabel, { color: colors.text }]}>
                   {item.label}
                 </Text>
@@ -689,6 +774,8 @@ export default function TabsLayout() {
       {/* Floating More Button - Hidden on messages pages */}
       {pathname && !pathname.includes('/messages') && (
         <TouchableOpacity
+          onPress={() => setShowMoreMenu(true)}
+          activeOpacity={0.8}
           style={{
             position: 'absolute',
             right: 16,
@@ -696,21 +783,27 @@ export default function TabsLayout() {
             width: 56,
             height: 56,
             borderRadius: 28,
-            backgroundColor: '#121A33', // Deep navy
-            borderWidth: 2,
-            borderColor: '#C8A25F', // Gold
-            alignItems: 'center',
-            justifyContent: 'center',
             shadowColor: '#C8A25F',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.4,
             shadowRadius: 12,
             elevation: 12,
           }}
-          onPress={() => setShowMoreMenu(true)}
-          activeOpacity={0.8}
         >
-          <Ionicons name="grid" size={24} color="#C8A25F" />
+          <LinearGradient
+            colors={['#a8862a', '#d7b756', '#a8862a']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              width: '100%',
+              height: '100%',
+              borderRadius: 28,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="grid" size={24} color="#1a2335" />
+          </LinearGradient>
         </TouchableOpacity>
       )}
     </>

@@ -1,4 +1,5 @@
 import { Slot } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { AlertProvider } from '../contexts/AlertContext';
@@ -60,15 +61,17 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AlertProvider>
-          <ToastProvider>
-            <RootLayoutNav />
-          </ToastProvider>
-        </AlertProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <AuthProvider>
+          <AlertProvider>
+            <ToastProvider>
+              <RootLayoutNav />
+            </ToastProvider>
+          </AlertProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 

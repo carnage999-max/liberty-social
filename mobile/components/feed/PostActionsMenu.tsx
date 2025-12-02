@@ -231,7 +231,7 @@ const PostActionsMenu = <TPost extends Post>({
                 color="#9FA8FF"
               />
               <Text style={styles.sheetActionText}>
-                {post.bookmarked ? 'Remove bookmark' : 'Bookmark post'}
+                {post.bookmarked ? 'Unsave post' : 'Save post'}
               </Text>
             </TouchableOpacity>
 

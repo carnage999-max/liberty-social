@@ -12,11 +12,29 @@ import {
   Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAlert } from '../../contexts/AlertContext';
 import { apiClient } from '../../utils/api';
 import { Post, PaginatedResponse, User, Reaction, ReactionType } from '../../types';
+import {
+  AmericanBackground,
+  ChristmasBackground,
+  CloudsBackground,
+  SpaceBackground,
+  HalloweenBackground,
+  OceanBackground,
+  NatureBackground,
+  ForestBackground,
+  StarsBackground,
+  ButterfliesBackground,
+  DragonsBackground,
+  ChristmasTreesBackground,
+  MusicNotesBackground,
+  PixelHeartsBackground,
+  SunsetBackground,
+} from '../../components/feed/AnimatedBackgrounds';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
@@ -28,6 +46,9 @@ import AdvancedEmojiPicker from '../../components/feed/AdvancedEmojiPicker';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
 import { SkeletonPost, Skeleton } from '../../components/common/Skeleton';
 import ImageGallery from '../../components/common/ImageGallery';
+import FeedBackgroundModal from '../../components/feed/FeedBackgroundModal';
+import FeedFilterModal from '../../components/feed/FeedFilterModal';
+import { useFeedBackground } from '../../hooks/useFeedBackground';
 import {
   resolveMediaUrls,
   resolveRemoteUrl,
@@ -125,6 +146,50 @@ export default function FeedScreen() {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [showStickyButtons, setShowStickyButtons] = useState(false);
+  const [stickyButtonsHidden, setStickyButtonsHidden] = useState(false);
+  const flatListRef = useRef<FlatList>(null);
+  
+  // Background and Filter states
+  const { theme: feedBackgroundTheme, changeTheme, mounted } = useFeedBackground();
+  const [backgroundModalVisible, setBackgroundModalVisible] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [showFriendPosts, setShowFriendPosts] = useState(true);
+  const [showPagePosts, setShowPagePosts] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+
+  // Background image mapping
+  const BACKGROUND_IMAGES: Record<string, any> = useMemo(() => ({
+    '/backgrounds/american-flag.gif': require('../../assets/backgrounds/american-flag.gif'),
+    '/backgrounds/nyan-cat.gif': require('../../assets/backgrounds/nyan-cat.gif'),
+    '/backgrounds/christmas-tree.gif': require('../../assets/backgrounds/christmas-tree.gif'),
+    '/backgrounds/sunset.gif': require('../../assets/backgrounds/sunset.gif'),
+    '/backgrounds/shooting-star.gif': require('../../assets/backgrounds/shooting-star.gif'),
+    '/backgrounds/minions-dance.gif': require('../../assets/backgrounds/minions-dance.gif'),
+    '/backgrounds/frog-chilling-under-sunset.gif': require('../../assets/backgrounds/frog-chilling-under-sunset.gif'),
+    '/backgrounds/cat-lanterns.gif': require('../../assets/backgrounds/cat-lanterns.gif'),
+    '/backgrounds/ghost.gif': require('../../assets/backgrounds/ghost.gif'),
+    '/backgrounds/dark-stars.png': require('../../assets/backgrounds/dark-stars.png'),
+    '/backgrounds/cat-eyes.png': require('../../assets/backgrounds/cat-eyes.png'),
+    '/backgrounds/spider-webs.png': require('../../assets/backgrounds/spider-webs.png'),
+    '/backgrounds/spider.png': require('../../assets/backgrounds/spider.png'),
+    '/backgrounds/gothic-skulls.jpeg': require('../../assets/backgrounds/gothic-skulls.jpeg'),
+    '/backgrounds/dragon-chinese-myth.jpeg': require('../../assets/backgrounds/dragon-chinese-myth.jpeg'),
+    '/backgrounds/demon-slayer-flame-hashira.jpeg': require('../../assets/backgrounds/demon-slayer-flame-hashira.jpeg'),
+    '/backgrounds/nyan-cat-purple.jpeg': require('../../assets/backgrounds/nyan-cat-purple.jpeg'),
+    '/backgrounds/green-lightning.jpeg': require('../../assets/backgrounds/green-lightning.jpeg'),
+    '/backgrounds/bat-sign.png': require('../../assets/backgrounds/bat-sign.png'),
+    '/backgrounds/emojis.png': require('../../assets/backgrounds/emojis.png'),
+    '/backgrounds/green-corridor.png': require('../../assets/backgrounds/green-corridor.png'),
+    '/backgrounds/illusion.png': require('../../assets/backgrounds/illusion.png'),
+    '/backgrounds/kaleidoscope.png': require('../../assets/backgrounds/kaleidoscope.png'),
+  }), []);
+
+  // Check if background is an image - recalculate when theme changes
+  const isImageBackground = useMemo(() => 
+    feedBackgroundTheme.startsWith('/backgrounds/') && BACKGROUND_IMAGES[feedBackgroundTheme],
+    [feedBackgroundTheme, BACKGROUND_IMAGES]
+  );
 
   type SuggestionItem =
     | { type: 'create' }
@@ -151,7 +216,23 @@ export default function FeedScreen() {
 
       // If url is a full URL (absolute), extract just the path and query string
       let endpoint = url || '/feed/';
-      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      
+      // If no URL provided, build with filters
+      if (!url) {
+        const params = new URLSearchParams();
+        
+        // Add filter params if not at default (showFriend=true, showPage=true, no category)
+        if (showFriendPosts !== true || showPagePosts !== true || selectedCategory) {
+          params.append('show_friend_posts', showFriendPosts.toString());
+          params.append('show_page_posts', showPagePosts.toString());
+          if (selectedCategory) {
+            params.append('preferred_categories', selectedCategory);
+          }
+        }
+        
+        endpoint = `/feed/${params.toString() ? '?' + params.toString() : ''}`;
+        console.log('[MOBILE FEED] Loading with filters:', { showFriendPosts, showPagePosts, selectedCategory, endpoint });
+      } else if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
         try {
           const urlObj = new URL(url);
           endpoint = urlObj.pathname + urlObj.search;
@@ -196,7 +277,7 @@ export default function FeedScreen() {
       setLoadingMore(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [showFriendPosts, showPagePosts, selectedCategory]);
 
   const loadSuggestions = useCallback(async () => {
     try {
@@ -734,10 +815,32 @@ export default function FeedScreen() {
 
   useEffect(() => {
     const listener = (navigation as any)?.addListener?.('tabPress', () => {
+      // Scroll to top
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+      // Refresh feed
       triggerRefresh();
     });
     return typeof listener === 'function' ? listener : undefined;
   }, [navigation, triggerRefresh]);
+
+  // Debug log for background theme changes
+  useEffect(() => {
+    const isImage = feedBackgroundTheme.startsWith('/backgrounds/');
+    const hasMapping = isImage && BACKGROUND_IMAGES[feedBackgroundTheme];
+    console.log('Feed background theme:', feedBackgroundTheme, 'mounted:', mounted, 'isImage:', isImage, 'hasMapping:', hasMapping);
+  }, [feedBackgroundTheme, mounted]);
+
+  // Swipe gesture to open messages - Pan gesture from left edge
+  const swipeGesture = Gesture.Pan()
+    .activeOffsetX(20) // Activate when moving right at least 20px
+    .onEnd((event) => {
+      // Swipe right from left edge to open messages
+      // Must swipe at least 80px to the right with positive velocity
+      if (event.translationX > 80 && event.velocityX > 100) {
+        console.log('Swipe right detected - navigating to messages');
+        router.push('/(tabs)/messages');
+      }
+    });
 
   const renderPost = ({ item }: { item: FeedPost }) => {
     // For page posts, show page name instead of author name
@@ -1016,6 +1119,12 @@ export default function FeedScreen() {
       flex: 1,
       backgroundColor: colors.background,
     },
+    imageBackgroundContainer: {
+      backgroundColor: 'transparent',
+    },
+    gradientBackgroundContainer: {
+      backgroundColor: 'transparent',
+    },
     headerTitleWrapper: {
       height: 44,
       justifyContent: 'center',
@@ -1079,6 +1188,9 @@ export default function FeedScreen() {
       fontSize: 12,
       fontWeight: '600',
       textAlign: 'center',
+      textShadowColor: 'rgba(0, 0, 0, 0.8)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
     },
     dismissButton: {
       position: 'absolute',
@@ -1203,6 +1315,9 @@ export default function FeedScreen() {
     suggestionsTitle: {
       fontSize: 18,
       fontWeight: '700',
+      textShadowColor: 'rgba(0, 0, 0, 0.8)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
     },
     suggestionsList: {
       paddingBottom: 16,
@@ -1350,6 +1465,98 @@ export default function FeedScreen() {
     highlightDividerLight: {
       backgroundColor: 'rgba(63,75,191,0.2)',
     },
+    // Filter buttons row in header
+    filterButtonsRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 12,
+    },
+    // Sticky buttons container
+    stickyButtonsContainer: {
+      position: 'absolute',
+      top: 102, // Navbar height: ~44 (status bar) + 8 (padding) + 40 (content) + 12 (bottom padding) - 2 (border)
+      right: 12,
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 8,
+      zIndex: 999,
+      paddingTop: 6,
+      paddingBottom: 4,
+    },
+    metallicButton: {
+      width: 110,
+      height: 34,
+      borderRadius: 10,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 5,
+    },
+    metallicButtonGradient: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      paddingHorizontal: 8,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 0.25)',
+    },
+    metallicButtonText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#192A4A',
+      letterSpacing: 0.2,
+      textShadowColor: 'rgba(255, 255, 255, 0.6)',
+      textShadowOffset: { width: 0, height: 0.5 },
+      textShadowRadius: 1,
+    },
+    hideButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: 'rgba(25, 42, 74, 0.9)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: '#C8A25F',
+      marginLeft: 4,
+    },
+    // Background styles
+    backgroundImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      height: '100%',
+      zIndex: -1,
+    },
+    backgroundGradient: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      height: '100%',
+      zIndex: -1,
+    },
+    backgroundOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 300,
+      zIndex: -1,
+    },
   });
 
   if (loading && posts.length === 0) {
@@ -1464,12 +1671,275 @@ export default function FeedScreen() {
           </View>
         </View>
       </LinearGradient>
+      
+      {/* Background and Filter Buttons - Hide when scrolled */}
+      <Animated.View 
+        style={[
+          styles.filterButtonsRow,
+          {
+            opacity: scrollY.interpolate({
+              inputRange: [0, 300, 350],
+              outputRange: [1, 1, 0],
+              extrapolate: 'clamp',
+            }),
+          },
+        ]}
+        pointerEvents={!showStickyButtons ? 'auto' : 'none'}
+      >
+        <TouchableOpacity
+          style={styles.metallicButton}
+          onPress={() => setBackgroundModalVisible(true)}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#a8862a', '#d7b756', '#a8862a']}
+            style={styles.metallicButtonGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Ionicons name="color-palette" size={16} color="#192A4A" />
+            <Text style={styles.metallicButtonText}>Background</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.metallicButton}
+          onPress={() => setFilterModalVisible(true)}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#a8862a', '#d7b756', '#a8862a']}
+            style={styles.metallicButtonGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Ionicons name="funnel" size={16} color="#192A4A" />
+            <Text style={styles.metallicButtonText}>Filters</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 
+  // Get background colors for themed backgrounds
+  const getBackgroundColors = (): [string, string, string] => {
+    switch (feedBackgroundTheme) {
+      case 'clouds':
+        return ['#E3F2FD', '#BBDEFB', '#90CAF9'] as const;
+      case 'nature':
+        return ['#F1F8E9', '#DCEDC8', '#C5E1A5'] as const;
+      case 'space':
+        return ['#1A237E', '#283593', '#3949AB'] as const;
+      case 'ocean':
+        return ['#E1F5FE', '#B3E5FC', '#81D4FA'] as const;
+      case 'forest':
+        return ['#E8F5E9', '#C8E6C9', '#A5D6A7'] as const;
+      case 'sunset':
+        return ['#FFF3E0', '#FFCCBC', '#FFAB91'] as const;
+      case 'stars':
+        return ['#0D1B2A', '#1B263B', '#415A77'] as const;
+      case 'american':
+        return ['#B22234', '#FFFFFF', '#3C3B6E'] as const;
+      case 'christmas':
+        return ['#165B33', '#BB2528', '#F8F8F8'] as const;
+      case 'halloween':
+        return ['#FF6600', '#1A1A1A', '#FFA500'] as const;
+      case 'butterflies':
+        return ['#FFF0F5', '#FFE4E1', '#FFB6C1'] as const;
+      case 'dragons':
+        return ['#2C1810', '#8B4513', '#CD853F'] as const;
+      case 'christmas-trees':
+        return ['#0B6623', '#228B22', '#32CD32'] as const;
+      case 'music-notes':
+        return ['#663399', '#9370DB', '#BA55D3'] as const;
+      case 'pixel-hearts':
+        return ['#FF1744', '#F50057', '#C51162'] as const;
+      default:
+        return [colors.background, colors.background, colors.background] as const;
+    }
+  };
+
+  // Apply background based on theme
+  const containerStyle = [
+    styles.container,
+    mounted && isImageBackground && styles.imageBackgroundContainer,
+    mounted && !isImageBackground && feedBackgroundTheme !== 'default' && styles.gradientBackgroundContainer,
+  ];
+
+  // Check if theme has animated background (all themes now have animations!)
+  const hasAnimatedBackground = [
+    'american',
+    'christmas',
+    'halloween',
+    'clouds',
+    'nature',
+    'space',
+    'ocean',
+    'forest',
+    'sunset',
+    'stars',
+    'butterflies',
+    'dragons',
+    'christmas-trees',
+    'music-notes',
+    'pixel-hearts',
+  ].includes(feedBackgroundTheme);
+
+  // Render animated background component
+  const renderAnimatedBackground = () => {
+    if (!mounted || feedBackgroundTheme === 'default') return null;
+
+    switch (feedBackgroundTheme) {
+      case 'american':
+        return <AmericanBackground />;
+      case 'christmas':
+        return <ChristmasBackground />;
+      case 'clouds':
+        return <CloudsBackground />;
+      case 'space':
+        return <SpaceBackground />;
+      case 'halloween':
+        return <HalloweenBackground />;
+      case 'ocean':
+        return <OceanBackground />;
+      case 'nature':
+        return <NatureBackground />;
+      case 'forest':
+        return <ForestBackground />;
+      case 'stars':
+        return <StarsBackground />;
+      case 'butterflies':
+        return <ButterfliesBackground />;
+      case 'dragons':
+        return <DragonsBackground />;
+      case 'christmas-trees':
+        return <ChristmasTreesBackground />;
+      case 'music-notes':
+        return <MusicNotesBackground />;
+      case 'pixel-hearts':
+        return <PixelHeartsBackground />;
+      case 'sunset':
+        return <SunsetBackground />;
+      default:
+        return null;
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <AppNavbar />
+      <View style={containerStyle}>
+        {/* Image Background Layer */}
+        {mounted && isImageBackground && (
+          <Image
+            source={BACKGROUND_IMAGES[feedBackgroundTheme]}
+            style={styles.backgroundImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        )}
+        
+        {/* Animated Background Layer (for specific themes) */}
+        {mounted && !isImageBackground && hasAnimatedBackground && renderAnimatedBackground()}
+        
+        {/* Gradient Background Layer (for themes without animations) */}
+        {mounted && !isImageBackground && !hasAnimatedBackground && feedBackgroundTheme !== 'default' && (
+          <>
+            <LinearGradient
+              colors={getBackgroundColors()}
+              style={styles.backgroundGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            />
+            {/* Dark overlay at top for text visibility */}
+            <LinearGradient
+              colors={['rgba(0, 0, 0, 0.4)', 'rgba(0, 0, 0, 0.2)', 'transparent']}
+              style={styles.backgroundOverlay}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              locations={[0, 0.3, 0.6]}
+            />
+          </>
+        )}
+
+        {/* Left Edge Swipe Detector for Messages */}
+        <GestureDetector gesture={swipeGesture}>
+          <View style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 40,
+            zIndex: 1000,
+          }} />
+        </GestureDetector>
+        
+        <AppNavbar />
+      
+      {/* Sticky Buttons - Show when scrolled past the header buttons */}
+      {!stickyButtonsHidden && (
+        <Animated.View
+          style={[
+            styles.stickyButtonsContainer,
+            {
+              opacity: scrollY.interpolate({
+                inputRange: [0, 350, 400],
+                outputRange: [0, 0, 1],
+                extrapolate: 'clamp',
+              }),
+              transform: [
+                {
+                  translateY: scrollY.interpolate({
+                    inputRange: [0, 350, 400],
+                    outputRange: [-40, -40, 0],
+                    extrapolate: 'clamp',
+                  }),
+                },
+              ],
+            },
+          ]}
+          pointerEvents={showStickyButtons ? 'auto' : 'none'}
+        >
+          <TouchableOpacity
+            style={styles.metallicButton}
+            onPress={() => setBackgroundModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#a8862a', '#d7b756', '#a8862a']}
+              style={styles.metallicButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Ionicons name="color-palette" size={16} color="#192A4A" />
+              <Text style={styles.metallicButtonText}>Background</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.metallicButton}
+            onPress={() => setFilterModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#a8862a', '#d7b756', '#a8862a']}
+              style={styles.metallicButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Ionicons name="funnel" size={16} color="#192A4A" />
+              <Text style={styles.metallicButtonText}>Filters</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.hideButton}
+            onPress={() => setStickyButtonsHidden(true)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="close-circle" size={20} color="#C8A25F" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+      
       <AdvancedEmojiPicker
         visible={advancedEmojiPickerVisible}
         onClose={() => {
@@ -1490,6 +1960,7 @@ export default function FeedScreen() {
         }
       />
       <FlatList<FeedPost>
+        ref={flatListRef}
         data={posts}
         renderItem={renderPost}
         keyExtractor={(item) => item.id.toString()}
@@ -1503,6 +1974,8 @@ export default function FeedScreen() {
         onScroll={(event) => {
           const currentScrollY = event.nativeEvent.contentOffset.y;
           scrollY.setValue(currentScrollY);
+          // Show sticky buttons when scrolled past the engagement card and filter buttons
+          setShowStickyButtons(currentScrollY > 350);
         }}
         scrollEventThrottle={16}
         onEndReached={loadMore}
@@ -1547,6 +2020,34 @@ export default function FeedScreen() {
         images={galleryImages}
         initialIndex={galleryIndex}
       />
-    </View>
+
+      {/* Background Modal */}
+      <FeedBackgroundModal
+        visible={backgroundModalVisible}
+        onClose={() => setBackgroundModalVisible(false)}
+        currentTheme={feedBackgroundTheme}
+        onThemeChange={(theme: string) => {
+          changeTheme(theme);
+          setBackgroundModalVisible(false);
+        }}
+      />
+
+      {/* Filter Modal */}
+      <FeedFilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        currentShowFriendPosts={showFriendPosts}
+        currentShowPagePosts={showPagePosts}
+        currentSelectedCategory={selectedCategory}
+        onFiltersChange={(filters: { showFriendPosts: boolean; showPagePosts: boolean; selectedCategory?: string }) => {
+          setShowFriendPosts(filters.showFriendPosts);
+          setShowPagePosts(filters.showPagePosts);
+          setSelectedCategory(filters.selectedCategory);
+          setFilterModalVisible(false);
+          // Refresh feed with new filters
+          loadFeed();
+        }}
+      />
+      </View>
   );
 }

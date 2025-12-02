@@ -23,6 +23,7 @@ import { apiClient } from '../../utils/api';
 import { getApiBase } from '../../constants/API';
 import { storage } from '../../utils/storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as WebBrowser from 'expo-web-browser';
 
 type SwitchSetting = {
   type: 'switch';
@@ -53,6 +54,19 @@ export default function SettingsScreen() {
   const [bugMessage, setBugMessage] = useState('');
   const [bugScreenshot, setBugScreenshot] = useState<{ uri: string; filename: string; mimeType: string } | null>(null);
   const [sendingBugReport, setSendingBugReport] = useState(false);
+
+  const handleOpenLink = async (url: string) => {
+    try {
+      await WebBrowser.openBrowserAsync(url, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+        toolbarColor: colors.background,
+        controlsColor: colors.primary,
+      });
+    } catch (error) {
+      showToastError('Could not open link');
+      console.error('Error opening link:', error);
+    }
+  };
 
   const handleLogout = () => {
     showConfirm(
@@ -198,11 +212,15 @@ export default function SettingsScreen() {
   };
 
   const handleOpenFAQ = () => {
-    Linking.openURL('https://mylibertysocial.com/faq');
+    handleOpenLink('https://mylibertysocial.com/faq');
   };
 
   const handleOpenPrivacyStatement = () => {
-    Linking.openURL('https://mylibertysocial.com/privacy');
+    handleOpenLink('https://mylibertysocial.com/privacy');
+  };
+
+  const handleRequestAccountDeletion = () => {
+    handleOpenLink('https://mylibertysocial.com/account-deletion');
   };
 
   const settings: SettingSection[] = [
@@ -249,6 +267,12 @@ export default function SettingsScreen() {
           label: 'Blocked Users',
           icon: 'ban-outline',
           onPress: () => router.push('/(tabs)/settings/blocked'),
+        },
+        {
+          type: 'link',
+          label: 'Request Account Deletion',
+          icon: 'trash-outline',
+          onPress: handleRequestAccountDeletion,
         },
       ],
     },
