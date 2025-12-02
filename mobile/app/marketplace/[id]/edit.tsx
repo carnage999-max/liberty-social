@@ -120,7 +120,7 @@ export default function EditListingScreen() {
               type,
             } as any);
 
-            const response = await apiClient.post('/uploads/images/', formData, {
+            const response: any = await apiClient.post('/uploads/images/', formData, {
               headers: {
                 'Content-Type': 'multipart/form-data',
               },
@@ -174,9 +174,35 @@ export default function EditListingScreen() {
 
       await apiClient.patch(`/marketplace/listings/${id}/`, listingData);
 
-      // Update media if changed
+      // Update media - delete old media and create new ones
       if (images.length > 0) {
-        // Note: Media update would need to be handled separately
+        try {
+          // Get existing media
+          const existingMedia: any = await apiClient.get(`/marketplace/media/?listing_id=${id}`);
+          const mediaToDelete = existingMedia.results || existingMedia;
+          
+          // Delete all existing media
+          if (Array.isArray(mediaToDelete)) {
+            await Promise.all(
+              mediaToDelete.map((media: any) =>
+                apiClient.delete(`/marketplace/media/${media.id}/`)
+              )
+            );
+          }
+
+          // Create new media entries with current images
+          const mediaPromises = images.map((url, index) =>
+            apiClient.post('/marketplace/media/', {
+              listing_id: parseInt(id as string),
+              url: url,
+              order: index,
+            })
+          );
+          await Promise.all(mediaPromises);
+        } catch (mediaError) {
+          console.error('Failed to update media:', mediaError);
+          // Don't fail the whole update if media fails
+        }
       }
       
       showSuccess('Listing updated successfully!');
