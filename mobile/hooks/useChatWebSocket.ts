@@ -26,6 +26,7 @@ export function useChatWebSocket({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const enabledRef = useRef(enabled);
+  const reconnectAttemptsRef = useRef(0);
 
   // Update enabled ref when it changes
   useEffect(() => {
@@ -64,6 +65,7 @@ export function useChatWebSocket({
       ws.onopen = () => {
         console.log('[WebSocket] Connected to conversation', conversationId);
         setIsConnected(true);
+        reconnectAttemptsRef.current = 0;
         setReconnectAttempts(0);
         onConnect?.();
 
@@ -133,12 +135,13 @@ export function useChatWebSocket({
         }
 
         // Attempt to reconnect if enabled and not a normal closure
-        if (enabledRef.current && event.code !== 1000 && reconnectAttempts < 5) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-          console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1})`);
+        if (enabledRef.current && event.code !== 1000 && reconnectAttemptsRef.current < 5) {
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+          console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1})`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
-            setReconnectAttempts((prev) => prev + 1);
+            reconnectAttemptsRef.current += 1;
+            setReconnectAttempts(reconnectAttemptsRef.current);
             connect();
           }, delay);
         }
@@ -149,7 +152,7 @@ export function useChatWebSocket({
       console.error('[WebSocket] Failed to connect:', error);
       onError?.(error as Error);
     }
-  }, [conversationId, onMessage, onError, onConnect, onDisconnect, reconnectAttempts]);
+  }, [conversationId, onMessage, onError, onConnect, onDisconnect]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -165,6 +168,8 @@ export function useChatWebSocket({
       wsRef.current = null;
     }
     setIsConnected(false);
+    reconnectAttemptsRef.current = 0;
+    setReconnectAttempts(0);
   }, []);
 
   useEffect(() => {
