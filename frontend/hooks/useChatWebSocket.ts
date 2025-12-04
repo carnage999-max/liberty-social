@@ -30,6 +30,7 @@ export function useChatWebSocket({
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const enabledRef = useRef(enabled);
   const isConnectedRef = useRef(false);
+  const reconnectAttemptsRef = useRef(0);
 
   // Update enabled ref when it changes
   useEffect(() => {
@@ -41,20 +42,27 @@ export function useChatWebSocket({
 
     try {
       // Construct WebSocket URL
+      console.log("[WebSocket] API_BASE:", API_BASE);
       const wsBase = API_BASE.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://");
-      const wsUrl = `${wsBase.replace(/\/api$/, "")}/ws/chat/${conversationId}/?token=${accessToken}`;
+      console.log("[WebSocket] wsBase after protocol replace:", wsBase);
+      const wsUrl = `${wsBase.replace(/\/api$/, "")}/ws/chat/${conversationId}/?token=${accessToken.substring(0, 20)}...`;
+      console.log("[WebSocket] Final wsUrl:", wsUrl);
+      const actualWsUrl = `${wsBase.replace(/\/api$/, "")}/ws/chat/${conversationId}/?token=${accessToken}`;
 
       // Close existing connection if any
       if (wsRef.current) {
+        console.log("[WebSocket] Closing existing connection");
         wsRef.current.close();
       }
 
-      const ws = new WebSocket(wsUrl);
+      console.log("[WebSocket] Creating new WebSocket connection");
+      const ws = new WebSocket(actualWsUrl);
 
       ws.onopen = () => {
         console.log("[WebSocket] Connected to conversation", conversationId);
         setIsConnected(true);
         isConnectedRef.current = true;
+        reconnectAttemptsRef.current = 0;
         setReconnectAttempts(0);
         onConnect?.();
 
@@ -132,15 +140,16 @@ export function useChatWebSocket({
         if (
           enabledRef.current &&
           event.code !== 1000 &&
-          reconnectAttempts < 5
+          reconnectAttemptsRef.current < 5
         ) {
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
           console.log(
-            `[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1})`
+            `[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1})`
           );
 
           reconnectTimeoutRef.current = setTimeout(() => {
-            setReconnectAttempts((prev) => prev + 1);
+            reconnectAttemptsRef.current += 1;
+            setReconnectAttempts(reconnectAttemptsRef.current);
             connect();
           }, delay);
         }
@@ -151,7 +160,7 @@ export function useChatWebSocket({
       console.error("[WebSocket] Failed to connect:", error);
       onError?.(error as Error);
     }
-  }, [conversationId, accessToken, onMessage, onError, onConnect, onDisconnect, reconnectAttempts]);
+  }, [conversationId, accessToken, onMessage, onError, onConnect, onDisconnect]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -168,6 +177,8 @@ export function useChatWebSocket({
     }
     setIsConnected(false);
     isConnectedRef.current = false;
+    reconnectAttemptsRef.current = 0;
+    setReconnectAttempts(0);
   }, []);
 
   useEffect(() => {
