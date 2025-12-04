@@ -44,8 +44,10 @@ export function useUserStatus(onStatusChange?: StatusChangeCallback) {
     }
 
     try {
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${wsProtocol}//${window.location.host}/ws/user-status/?token=${accessToken}`;
+      // Use NEXT_PUBLIC_WS_BASE_URL if set, otherwise derive from current location
+      const wsBase = process.env.NEXT_PUBLIC_WS_BASE_URL || 
+        `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+      const wsUrl = `${wsBase}/ws/user-status/?token=${accessToken}`;
 
       const ws = new WebSocket(wsUrl);
 
