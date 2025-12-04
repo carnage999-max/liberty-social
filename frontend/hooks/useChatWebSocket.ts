@@ -40,7 +40,7 @@ export function useChatWebSocket({
   const connect = useCallback(() => {
     if (!enabledRef.current || !conversationId || !accessToken) return;
 
-    try:
+    try {
       // Construct WebSocket URL
       const wsBase = API_BASE.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://");
       const wsUrl = `${wsBase.replace(/\/api$/, "")}/ws/chat/${conversationId}/?token=${accessToken}`;
