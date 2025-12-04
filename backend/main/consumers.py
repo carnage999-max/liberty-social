@@ -19,16 +19,19 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         logger = logging.getLogger(__name__)
 
         user = self.scope.get("user")
+        print(f"[CHATWS] ChatConsumer.connect - user: {user}, is_anonymous: {isinstance(user, AnonymousUser) if user else 'no user'}", flush=True)
         logger.info(
             f"ChatConsumer.connect - user: {user}, is_anonymous: {isinstance(user, AnonymousUser) if user else 'no user'}"
         )
 
         if not user or isinstance(user, AnonymousUser) or user.is_anonymous:
+            print(f"[CHATWS] Unauthorized - closing connection", flush=True)
             logger.warning("ChatConsumer.connect - Unauthorized (401)")
             await self.close(code=4401)
             return
 
         conversation_id = self.scope["url_route"]["kwargs"].get("conversation_id")
+        print(f"[CHATWS] conversation_id: {conversation_id}", flush=True)
         logger.info(f"ChatConsumer.connect - conversation_id: {conversation_id}")
 
         if not conversation_id:
@@ -39,11 +42,13 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             return
 
         has_access = await self._user_in_conversation(user.id, conversation_id)
+        print(f"[CHATWS] user {user.id} has access to conversation {conversation_id}: {has_access}", flush=True)
         logger.info(
             f"ChatConsumer.connect - user {user.id} has access to conversation {conversation_id}: {has_access}"
         )
 
         if not has_access:
+            print(f"[CHATWS] Forbidden - user not a participant", flush=True)
             logger.warning(
                 f"ChatConsumer.connect - Forbidden (403) - user {user.id} not a participant in conversation {conversation_id}"
             )
@@ -53,15 +58,21 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         self.conversation_id = str(conversation_id)
         self.group_name = conversation_group_name(self.conversation_id)
 
+        print(f"[CHATWS] Adding to group: {self.group_name}", flush=True)
         await self.channel_layer.group_add(self.group_name, self.channel_name)
+        print(f"[CHATWS] Accepting connection", flush=True)
         await self.accept()
+        print(f"[CHATWS] Sending connection ack", flush=True)
         await self.send_json(
             {"type": "connection.ack", "conversation": self.conversation_id}
         )
+        print(f"[CHATWS] Connection fully established!", flush=True)
 
     async def disconnect(self, code):
+        print(f"[CHATWS] Disconnect called with code: {code}", flush=True)
         if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
+            print(f"[CHATWS] Removed from group: {self.group_name}", flush=True)
 
     async def receive_json(self, content, **kwargs):
         message_type = content.get("type")
