@@ -41,8 +41,14 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=4400)
             return
 
-        has_access = await self._user_in_conversation(user.id, conversation_id)
-        print(f"[CHATWS] user {user.id} has access to conversation {conversation_id}: {has_access}", flush=True)
+        try:
+            has_access = await self._user_in_conversation(user.id, conversation_id)
+            print(f"[CHATWS] user {user.id} has access to conversation {conversation_id}: {has_access}", flush=True)
+        except Exception as e:
+            print(f"[CHATWS] ERROR checking access: {e}", flush=True)
+            logger.error(f"Error checking conversation access: {e}")
+            await self.close(code=4500)
+            return
         logger.info(
             f"ChatConsumer.connect - user {user.id} has access to conversation {conversation_id}: {has_access}"
         )
@@ -58,15 +64,21 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         self.conversation_id = str(conversation_id)
         self.group_name = conversation_group_name(self.conversation_id)
 
-        print(f"[CHATWS] Adding to group: {self.group_name}", flush=True)
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-        print(f"[CHATWS] Accepting connection", flush=True)
-        await self.accept()
-        print(f"[CHATWS] Sending connection ack", flush=True)
-        await self.send_json(
-            {"type": "connection.ack", "conversation": self.conversation_id}
-        )
-        print(f"[CHATWS] Connection fully established!", flush=True)
+        try:
+            print(f"[CHATWS] Adding to group: {self.group_name}", flush=True)
+            await self.channel_layer.group_add(self.group_name, self.channel_name)
+            print(f"[CHATWS] Accepting connection", flush=True)
+            await self.accept()
+            print(f"[CHATWS] Sending connection ack", flush=True)
+            await self.send_json(
+                {"type": "connection.ack", "conversation": self.conversation_id}
+            )
+            print(f"[CHATWS] Connection fully established!", flush=True)
+        except Exception as e:
+            print(f"[CHATWS] ERROR during connection setup: {e}", flush=True)
+            logger.error(f"Error setting up chat WebSocket: {e}")
+            await self.close(code=4500)
+            return
 
     async def disconnect(self, code):
         print(f"[CHATWS] Disconnect called with code: {code}", flush=True)
