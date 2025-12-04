@@ -6,7 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from .models import Reaction, Comment, Notification, Post, UserFeedPreference
+from .models import Reaction, Comment, Notification, Post, UserFeedPreference, Message
 from users.models import FriendRequest
 
 User = get_user_model()
@@ -193,3 +193,46 @@ def create_user_feed_preference(sender, instance, created, **kwargs):
             logger.exception(
                 "Failed to create user feed preference for user %s", instance.pk
             )
+
+
+@receiver(post_save, sender=Message)
+def message_notification(sender, instance, created, **kwargs):
+    """Create notifications and send push notifications when a message is received."""
+    if not created:
+        return
+    
+    try:
+        conversation = instance.conversation
+        sender_user = instance.sender
+        
+        # Get all participants in the conversation except the sender
+        participants = conversation.participants.exclude(id=sender_user.id)
+        
+        # Create notifications for each participant
+        from django.contrib.contenttypes.models import ContentType
+        message_content_type = ContentType.objects.get_for_model(Message)
+        
+        for recipient in participants:
+            # Create notification
+            notification = Notification.objects.create(
+                recipient=recipient,
+                actor=sender_user,
+                verb="sent_message",
+                content_type=message_content_type,
+                object_id=instance.id,
+            )
+            
+            # Queue push notification
+            if getattr(settings, "PUSH_NOTIFICATIONS_ENABLED", False):
+                try:
+                    from .tasks import deliver_push_notification
+                    deliver_push_notification.delay(notification.pk)
+                except Exception:
+                    logger.exception(
+                        "Failed to enqueue push notification for message %s to user %s",
+                        instance.pk,
+                        recipient.pk,
+                    )
+    except Exception:
+        logger.exception("Failed to create message notification for message %s", instance.pk)
+

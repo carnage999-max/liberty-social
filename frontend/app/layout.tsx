@@ -5,6 +5,7 @@ import Navbar from "../components/navbar";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/Toast";
 import { UserStatusProvider } from "@/lib/user-status-provider";
+import { PushNotificationInitializer } from "@/components/PushNotificationInitializer";
 
 
 export const metadata: Metadata = {
@@ -90,6 +91,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-background text-textLight transition-colors duration-300 antialiased">
         <AuthProvider>
           <UserStatusProvider>
+            <PushNotificationInitializer />
           <ToastProvider>
             <Navbar />
             <main className="pb-20">
