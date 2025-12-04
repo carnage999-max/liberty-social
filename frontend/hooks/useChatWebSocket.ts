@@ -42,7 +42,7 @@ export function useChatWebSocket({
     try {
       // Construct WebSocket URL
       const wsBase = API_BASE.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://");
-      const wsUrl = `${wsBase.replace("/api", "")}/ws/chat/${conversationId}/?token=${accessToken}`;
+      const wsUrl = `${wsBase.replace(/\/api$/, "")}/ws/chat/${conversationId}/?token=${accessToken}`;
 
       // Close existing connection if any
       if (wsRef.current) {

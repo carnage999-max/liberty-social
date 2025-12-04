@@ -52,9 +52,13 @@ def get_redis_url_with_ssl():
 SECRET_KEY = "django-insecure-qr7)ec(b!*j8d(w_51s=+e)#1hmgv+bx-8(xph5*!xiox5j2vh"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config("DEBUG", default=False, cast=bool)
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="api.mylibertysocial.com,liberty-backend-alb-343841641.us-east-1.elb.amazonaws.com",
+    cast=Csv(),
+)
 
 
 # Application definition
@@ -115,14 +119,11 @@ ASGI_APPLICATION = "liberty_social.asgi.application"
 
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "BACKEND": "channels_redis.pubsub.RedisPubSubChannelLayer",
         "CONFIG": {
             "hosts": [REDIS_URL],
-            # Upstash requires TLS/SSL - channels_redis automatically handles this
-            # when REDIS_URL starts with 'rediss://'
-            # Additional SSL settings can be added here if needed:
-            # "ssl": True,
-            # "ssl_cert_reqs": "required",
+            # Use PubSub backend instead of core backend
+            # This avoids Lua scripts which ElastiCache Serverless doesn't support
         },
     }
 }
@@ -234,11 +235,16 @@ SPECTACULAR_SETTINGS = {
 
 # CORS - allow frontend origins during development
 # Add your frontend origins here (protocol + host + port)
-# CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='*', cast=Csv())
-CORS_ALLOW_ALL_ORIGINS = True
+# When CORS_ALLOW_CREDENTIALS is True, we cannot use CORS_ALLOW_ALL_ORIGINS
+# We must specify exact origins
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:3000,http://localhost:3001,https://mylibertysocial.com,https://www.mylibertysocial.com",
+    cast=Csv(),
+)
 
 # If your frontend needs to send cookies/auth credentials set this to True
-CORS_ALLOW_CREDENTIALS = config("CORS_ALLOW_CREDENTIALS", default=False, cast=bool)
+CORS_ALLOW_CREDENTIALS = config("CORS_ALLOW_CREDENTIALS", default=True, cast=bool)
 
 # Resend email provider integration
 # If you set RESEND_API_KEY in your environment, the project will use a small

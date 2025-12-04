@@ -154,6 +154,20 @@ For the best screenshots, you can add profile images manually through the Django
 
 ---
 
+### 9️⃣ Welcome Screen (Unauthenticated)
+**Login as:** Logged out
+**Navigate to:** App entry point
+**Show:**
+- Liberty Social logo
+- Metallic gradient buttons (Get Started, I already have an account)
+- Clean, inviting first impression
+- Gradient background
+
+**Headline:** "Welcome to Liberty Social."
+**Subtext:** Your social network, your way.
+
+---
+
 ## 🎨 Screenshot Tips
 
 ### Device Settings

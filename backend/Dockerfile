@@ -34,9 +34,9 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /app/wheels /wheels
 COPY --from=builder /app/requirements.txt .
 
-# Install Python dependencies from wheels
+# Install Python dependencies from wheels (allow network for missing packages)
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt && \
+    pip install --no-cache-dir --find-links=/wheels -r requirements.txt && \
     rm -rf /wheels
 
 # Copy application code
