@@ -182,7 +182,7 @@ export function useChatWebSocket({
     return () => {
       disconnect();
     };
-  }, [enabled, conversationId, connect, disconnect]);
+  }, [enabled, conversationId]);
 
   return {
     isConnected,
