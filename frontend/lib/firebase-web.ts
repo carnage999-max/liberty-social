@@ -119,6 +119,17 @@ export async function ensureFirebaseMessaging(
   if (typeof window === "undefined") return null;
   if (!("Notification" in window)) return null;
 
+  // Validate config before proceeding
+  if (!config.apiKey || !config.projectId || !config.messagingSenderId || !config.appId) {
+    console.error("[push] Invalid Firebase config - missing required fields:", {
+      hasApiKey: !!config.apiKey,
+      hasProjectId: !!config.projectId,
+      hasMessagingSenderId: !!config.messagingSenderId,
+      hasAppId: !!config.appId,
+    });
+    return null;
+  }
+
   if (messagingPromise) {
     return messagingPromise;
   }
@@ -134,6 +145,7 @@ export async function ensureFirebaseMessaging(
         return null;
       }
       if (!firebase.apps || firebase.apps.length === 0) {
+        console.log("[push] Initializing Firebase with config:", { projectId: config.projectId });
         firebase.initializeApp(config);
       }
       if (!firebase.messaging) {
@@ -199,20 +211,34 @@ export async function resolveFirebaseClientConfig(): Promise<{
 } | null> {
   const envConfig = getEnvFirebaseWebConfig();
   const envVapid = getFirebaseVapidKey();
+  
+  // Debug: Log what we have from environment
+  console.log('[push] Environment config available:', !!envConfig);
+  console.log('[push] Environment VAPID available:', !!envVapid);
+  
   if (envConfig && envVapid) {
+    console.log('[push] Using environment Firebase config');
     return { config: envConfig, vapidKey: envVapid };
   }
 
+  console.log('[push] Fetching Firebase config from backend...');
   const remote = await fetchFirebaseConfigFromBackend();
   if (!remote) {
+    console.warn('[push] Backend config unavailable');
     if (envConfig) {
+      console.log('[push] Falling back to environment config (no VAPID)');
       return { config: envConfig, vapidKey: envVapid };
     }
+    console.error('[push] No Firebase configuration available');
     return null;
   }
 
+  const finalConfig = envConfig ?? remote.config;
+  const finalVapid = envVapid ?? remote.vapidKey ?? null;
+  
+  console.log('[push] Using merged config - env:', !!envConfig, 'remote:', !!remote.config);
   return {
-    config: envConfig ?? remote.config,
-    vapidKey: envVapid ?? remote.vapidKey ?? null,
+    config: finalConfig,
+    vapidKey: finalVapid,
   };
 }
