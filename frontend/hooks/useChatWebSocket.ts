@@ -40,23 +40,17 @@ export function useChatWebSocket({
   const connect = useCallback(() => {
     if (!enabledRef.current || !conversationId || !accessToken) return;
 
-    try {
+    try:
       // Construct WebSocket URL
-      console.log("[WebSocket] API_BASE:", API_BASE);
       const wsBase = API_BASE.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://");
-      console.log("[WebSocket] wsBase after protocol replace:", wsBase);
-      const wsUrl = `${wsBase.replace(/\/api$/, "")}/ws/chat/${conversationId}/?token=${accessToken.substring(0, 20)}...`;
-      console.log("[WebSocket] Final wsUrl:", wsUrl);
-      const actualWsUrl = `${wsBase.replace(/\/api$/, "")}/ws/chat/${conversationId}/?token=${accessToken}`;
+      const wsUrl = `${wsBase.replace(/\/api$/, "")}/ws/chat/${conversationId}/?token=${accessToken}`;
 
       // Close existing connection if any
       if (wsRef.current) {
-        console.log("[WebSocket] Closing existing connection");
         wsRef.current.close();
       }
 
-      console.log("[WebSocket] Creating new WebSocket connection");
-      const ws = new WebSocket(actualWsUrl);
+      const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         console.log("[WebSocket] Connected to conversation", conversationId);
