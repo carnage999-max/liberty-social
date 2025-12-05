@@ -185,6 +185,12 @@ export interface Message {
   is_deleted: boolean;
   created_at: string;
   updated_at: string;
+  reactions?: Array<{
+    id: number;
+    reaction_type: string;
+    user: User;
+    created_at: string;
+  }>;
 }
 
 export interface ConversationParticipant {

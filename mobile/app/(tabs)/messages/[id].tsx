@@ -12,6 +12,7 @@ import {
   AppState,
   ActivityIndicator,
   Modal,
+  Alert,
 } from 'react-native';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useToast } from '../../../contexts/ToastContext';
@@ -60,7 +61,7 @@ export default function ConversationDetailScreen() {
   const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [messageMenuVisible, setMessageMenuVisible] = useState(false);
-  const [reactionPickerVisible, setReactionPickerVisible] = useState(false);
+  const [reactionPickerVisible, setReactionPickerVisible] = useState<number | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
   const flatListRef = useRef<FlatList>(null);
@@ -275,8 +276,8 @@ export default function ConversationDetailScreen() {
       setSending(true);
       let mediaUrl: string | null = null;
 
-      // Upload media if present
-      if (mediaAttachment) {
+      // Upload media if present (only for new messages, not edits)
+      if (mediaAttachment && editingMessageId === null) {
         try {
           const formData = new FormData();
           const filename = mediaAttachment.filename || (mediaAttachment.type === 'video' ? 'video.mp4' : 'image.jpg');
@@ -327,30 +328,53 @@ export default function ConversationDetailScreen() {
         }
       }
 
-      const response = await apiClient.post<Message>(
-        `/conversations/${id}/messages/`,
-        {
-          content: messageText.trim() || null,
-          media_url: mediaUrl,
-        }
-      );
+      // If editing, make a PATCH request
+      if (editingMessageId !== null) {
+        const response = await apiClient.patch<Message>(
+          `/messages/${editingMessageId}/`,
+          {
+            content: messageText.trim() || null,
+          }
+        );
+        
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === editingMessageId ? response : m
+          )
+        );
+        
+        setMessageText('');
+        setEditingMessageId(null);
+        setEditText('');
+        showSuccess('Message updated');
+      } else {
+        // New message
+        const response = await apiClient.post<Message>(
+          `/conversations/${id}/messages/`,
+          {
+            content: messageText.trim() || null,
+            media_url: mediaUrl,
+          }
+        );
+        
+        // Message will be added via WebSocket, but add it immediately for better UX
+        setMessages((prev) => {
+          // Check if message already exists (avoid duplicates from WebSocket)
+          if (prev.some((m) => m.id === response.id)) {
+            return prev;
+          }
+          return [...prev, response];
+        });
+        setMessageText('');
+        removeMediaAttachment();
+        lastMessageIdRef.current = response.id;
+        markAsRead();
+      }
       
-      // Message will be added via WebSocket, but add it immediately for better UX
-      setMessages((prev) => {
-        // Check if message already exists (avoid duplicates from WebSocket)
-        if (prev.some((m) => m.id === response.id)) {
-          return prev;
-        }
-        return [...prev, response];
-      });
-      setMessageText('');
-      removeMediaAttachment();
-      lastMessageIdRef.current = response.id;
       // Scroll to bottom
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
-      markAsRead();
     } catch (error) {
       showError('Failed to send message');
     } finally {
@@ -404,7 +428,11 @@ export default function ConversationDetailScreen() {
     const mediaUrl = item.media_url ? resolveMediaUrls(item.media_url)[0] : null;
 
     return (
-      <View
+      <TouchableOpacity
+        onLongPress={() => {
+          setSelectedMessageId(item.id);
+          setMessageMenuVisible(true);
+        }}
         style={[
           styles.messageContainer,
           isOwn ? styles.messageContainerOwn : styles.messageContainerOther,
@@ -451,8 +479,33 @@ export default function ConversationDetailScreen() {
           >
             {formatTime(item.created_at)}
           </Text>
+          
+          {/* Reactions Display */}
+          {item.reactions && item.reactions.length > 0 && (
+            <View style={styles.reactionsContainer}>
+              {item.reactions.map((reaction, idx) => (
+                <View key={idx} style={[styles.reactionBadge, { backgroundColor: isOwn ? 'rgba(255,255,255,0.2)' : isDark ? colors.background : '#F0F0F0' }]}>
+                  <Text style={styles.reactionEmoji}>{reaction.reaction_type}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          
+          {/* Reaction Button */}
+          <TouchableOpacity
+            onPress={() => {
+              if (reactionPickerVisible === item.id) {
+                setReactionPickerVisible(null);
+              } else {
+                setReactionPickerVisible(item.id);
+              }
+            }}
+            style={styles.reactionButton}
+          >
+            <Ionicons name="heart-outline" size={16} color={isOwn ? '#FFFFFF' : colors.primary} />
+          </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -628,9 +681,37 @@ export default function ConversationDetailScreen() {
       fontSize: 16,
       fontWeight: '500',
     },
+    reactionsContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: 8,
+      gap: 4,
+    },
+    reactionBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    reactionEmoji: {
+      fontSize: 14,
+    },
+    reactionButton: {
+      marginTop: 4,
+      padding: 4,
+    },
+    editIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderTopWidth: 2,
+      gap: 8,
+    },
   });
 
-  const canSend = messageText.trim() || mediaAttachment;
+  const canSend = editingMessageId !== null 
+    ? editText.trim() 
+    : messageText.trim() || mediaAttachment;
 
   const headerContextMenu = (
     <TouchableOpacity
@@ -704,6 +785,26 @@ export default function ConversationDetailScreen() {
         )}
         {!loading && (
           <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 0 : 8) }]}>
+            {/* Edit Mode Indicator */}
+            {editingMessageId !== null && (
+              <View style={[styles.editIndicator, { backgroundColor: colors.backgroundSecondary, borderTopColor: colors.primary }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Editing message</Text>
+                  <Text style={{ color: colors.text, fontSize: 14, marginTop: 4 }} numberOfLines={1}>
+                    {editText}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    setEditingMessageId(null);
+                    setEditText('');
+                  }}
+                  style={{ padding: 8 }}
+                >
+                  <Ionicons name="close" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            )}
             {/* Typing Indicator */}
             {typingUsers.length > 0 && (
               <TypingIndicator typingUsers={typingUsers} style={styles.typingIndicator} />
@@ -749,13 +850,17 @@ export default function ConversationDetailScreen() {
               <View style={styles.inputWrapper}>
                 <TextInput
                   style={styles.textInput}
-                  placeholder="Type a message..."
+                  placeholder={editingMessageId !== null ? 'Edit message...' : 'Type a message...'}
                   placeholderTextColor={colors.textSecondary}
-                  value={messageText}
+                  value={editingMessageId !== null ? editText : messageText}
                   onChangeText={(text) => {
-                    setMessageText(text);
-                    // Call startTyping when user types
-                    if (startTyping) startTyping();
+                    if (editingMessageId !== null) {
+                      setEditText(text);
+                    } else {
+                      setMessageText(text);
+                      // Call startTyping when user types
+                      if (startTyping) startTyping();
+                    }
                   }}
                   multiline
                   maxLength={1000}
@@ -838,10 +943,21 @@ export default function ConversationDetailScreen() {
                 style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }]}
                 onPress={() => {
                   setHeaderMenuVisible(false);
-                  if (window.confirm('Clear all messages in this chat?')) {
-                    // Clear messages
-                    setMessages([]);
-                  }
+                  Alert.alert(
+                    'Clear Chat',
+                    'Are you sure you want to clear all messages in this chat?',
+                    [
+                      { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+                      {
+                        text: 'Clear',
+                        onPress: () => {
+                          setMessages([]);
+                          showSuccess('Chat cleared');
+                        },
+                        style: 'destructive',
+                      },
+                    ]
+                  );
                 }}
               >
                 <Ionicons name="trash" size={20} color="#FF6B6B" />
@@ -884,10 +1000,30 @@ export default function ConversationDetailScreen() {
                   style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }]}
                   onPress={() => {
                     setMessageMenuVisible(false);
-                    if (window.confirm('Delete this message?')) {
-                      apiClient.delete(`/messages/${selectedMessageId}/`);
-                      setMessages((prev) => prev.filter((m) => m.id !== selectedMessageId));
-                    }
+                    Alert.alert(
+                      'Delete Message',
+                      'Are you sure you want to delete this message?',
+                      [
+                        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          onPress: async () => {
+                            try {
+                              await apiClient.delete(`/messages/${selectedMessageId}/`);
+                              setMessages((prev) =>
+                                prev.map((m) =>
+                                  m.id === selectedMessageId ? { ...m, is_deleted: true } : m
+                                )
+                              );
+                              showSuccess('Message deleted');
+                            } catch (error) {
+                              showError('Failed to delete message');
+                            }
+                          },
+                          style: 'destructive',
+                        },
+                      ]
+                    );
                   }}
                 >
                   <Ionicons name="trash" size={20} color="#FF6B6B" />
@@ -897,6 +1033,43 @@ export default function ConversationDetailScreen() {
             </TouchableOpacity>
           </Modal>
         )}
+
+        {/* Reaction Picker Modal */}
+        <Modal
+          visible={reactionPickerVisible !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setReactionPickerVisible(null)}
+        >
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+            onPress={() => setReactionPickerVisible(null)}
+            activeOpacity={1}
+          >
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <AdvancedEmojiPicker
+                visible={reactionPickerVisible !== null}
+                onClose={() => setReactionPickerVisible(null)}
+                onSelect={async (emoji) => {
+                  if (reactionPickerVisible !== null) {
+                    try {
+                      await apiClient.post(
+                        `/messages/${reactionPickerVisible}/reactions/`,
+                        { reaction_type: emoji }
+                      );
+                      // Refresh messages to show new reaction
+                      loadMessages(true);
+                      setReactionPickerVisible(null);
+                      showSuccess('Reaction added!');
+                    } catch (error) {
+                      showError('Failed to add reaction');
+                    }
+                  }
+                }}
+              />
+            </View>
+          </TouchableOpacity>
+        </Modal>
     </KeyboardAvoidingView>
     </View>
   );
