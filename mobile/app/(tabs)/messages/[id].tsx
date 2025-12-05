@@ -28,6 +28,8 @@ import * as ImagePicker from 'expo-image-picker';
 import AdvancedEmojiPicker from '../../../components/feed/AdvancedEmojiPicker';
 import { resolveMediaUrls } from '../../../utils/url';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { storage } from '../../../utils/storage';
+import { getApiBase } from '../../../constants/API';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -55,6 +57,12 @@ export default function ConversationDetailScreen() {
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const [mediaAttachment, setMediaAttachment] = useState<MediaAttachment | null>(null);
   const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; username: string; timestamp: number }>>([]);
+  const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
+  const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
+  const [messageMenuVisible, setMessageMenuVisible] = useState(false);
+  const [reactionPickerVisible, setReactionPickerVisible] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
+  const [editText, setEditText] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageIdRef = useRef<number | null>(null);
@@ -282,23 +290,37 @@ export default function ConversationDetailScreen() {
 
           console.log('[Message] Uploading media:', { filename, mimeType, uri: mediaAttachment.uri.substring(0, 50) + '...' });
           
-          const uploadResponse = await apiClient.postFormData<{ url: string }>(
-            '/uploads/images/',
-            formData
-          );
+          // Use fetch instead of axios for better React Native FormData support
+          const apiBase = getApiBase();
+          const uploadUrl = `${apiBase.replace(/\/+$/, '')}/uploads/images/`;
+          const token = await storage.getAccessToken();
           
-          console.log('[Message] Upload response:', uploadResponse);
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+          });
           
-          if (uploadResponse.url) {
-            mediaUrl = uploadResponse.url;
-          } else if ((uploadResponse as any).urls && Array.isArray((uploadResponse as any).urls) && (uploadResponse as any).urls.length > 0) {
-            mediaUrl = (uploadResponse as any).urls[0];
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json().catch(() => ({}));
+            throw new Error(errorData.detail || errorData.message || 'Upload failed');
+          }
+          
+          const uploadData = await uploadResponse.json();
+          console.log('[Message] Upload response:', uploadData);
+          
+          if (uploadData.url) {
+            mediaUrl = uploadData.url;
+          } else if (uploadData.urls && Array.isArray(uploadData.urls) && uploadData.urls.length > 0) {
+            mediaUrl = uploadData.urls[0];
           } else {
             throw new Error('No URL in upload response');
           }
         } catch (error: any) {
           console.error('[Message] Upload error:', error);
-          const errorMessage = error?.response?.data?.detail || error?.response?.data?.message || 'Failed to upload media';
+          const errorMessage = error?.message || 'Failed to upload media';
           showError(errorMessage);
           setSending(false);
           return;
@@ -581,9 +603,43 @@ export default function ConversationDetailScreen() {
       textAlign: 'center',
       marginTop: 16,
     },
+    contextMenu: {
+      position: 'absolute',
+      top: 60,
+      right: 10,
+      borderRadius: 12,
+      paddingVertical: 8,
+      minWidth: 180,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 4,
+      elevation: 5,
+      zIndex: 1000,
+    },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      gap: 12,
+    },
+    menuItemText: {
+      fontSize: 16,
+      fontWeight: '500',
+    },
   });
 
   const canSend = messageText.trim() || mediaAttachment;
+
+  const headerContextMenu = (
+    <TouchableOpacity
+      onPress={() => setHeaderMenuVisible(true)}
+      style={{ padding: 8 }}
+    >
+      <Ionicons name="ellipsis-vertical" size={24} color={colors.text} />
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.container}>
@@ -599,6 +655,7 @@ export default function ConversationDetailScreen() {
         showMessageIcon={false}
         showBackButton={true}
         onBackPress={() => router.back()}
+        customRightButton={headerContextMenu}
       />
       <View style={{ flex: 1 }}>
       {loading ? (
@@ -735,6 +792,111 @@ export default function ConversationDetailScreen() {
           onClose={() => setEmojiPickerVisible(false)}
           onSelect={handleEmojiSelect}
         />
+
+        {/* Header Options Modal */}
+        <Modal
+          visible={headerMenuVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setHeaderMenuVisible(false)}
+        >
+          <TouchableOpacity
+            style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+            onPress={() => setHeaderMenuVisible(false)}
+            activeOpacity={1}
+          >
+            <View style={[styles.contextMenu, { backgroundColor: colors.backgroundSecondary }]}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setHeaderMenuVisible(false);
+                  // Navigate to user profile
+                  const otherParticipant = conversation?.participants.find(
+                    (p) => p.user.id !== user?.id
+                  );
+                  if (otherParticipant) {
+                    router.push(`/profile/${otherParticipant.user.id}`);
+                  }
+                }}
+              >
+                <Ionicons name="person" size={20} color={colors.text} />
+                <Text style={[styles.menuItemText, { color: colors.text }]}>View Profile</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setHeaderMenuVisible(false);
+                  showError('Block functionality coming soon');
+                }}
+              >
+                <Ionicons name="ban" size={20} color={colors.text} />
+                <Text style={[styles.menuItemText, { color: colors.text }]}>Block User</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }]}
+                onPress={() => {
+                  setHeaderMenuVisible(false);
+                  if (window.confirm('Clear all messages in this chat?')) {
+                    // Clear messages
+                    setMessages([]);
+                  }
+                }}
+              >
+                <Ionicons name="trash" size={20} color="#FF6B6B" />
+                <Text style={[styles.menuItemText, { color: '#FF6B6B' }]}>Clear Chat</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Message Options Modal */}
+        {selectedMessageId && (
+          <Modal
+            visible={messageMenuVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setMessageMenuVisible(false)}
+          >
+            <TouchableOpacity
+              style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+              onPress={() => setMessageMenuVisible(false)}
+              activeOpacity={1}
+            >
+              <View style={[styles.contextMenu, { backgroundColor: colors.backgroundSecondary }]}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={() => {
+                    const message = messages.find((m) => m.id === selectedMessageId);
+                    if (message) {
+                      setEditText(message.content || '');
+                      setEditingMessageId(selectedMessageId);
+                    }
+                    setMessageMenuVisible(false);
+                  }}
+                >
+                  <Ionicons name="pencil" size={20} color={colors.text} />
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>Edit</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }]}
+                  onPress={() => {
+                    setMessageMenuVisible(false);
+                    if (window.confirm('Delete this message?')) {
+                      apiClient.delete(`/messages/${selectedMessageId}/`);
+                      setMessages((prev) => prev.filter((m) => m.id !== selectedMessageId));
+                    }
+                  }}
+                >
+                  <Ionicons name="trash" size={20} color="#FF6B6B" />
+                  <Text style={[styles.menuItemText, { color: '#FF6B6B' }]}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
     </KeyboardAvoidingView>
     </View>
   );
