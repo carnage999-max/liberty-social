@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, apiPatch, apiDelete, API_BASE, resolveRemoteUrl } from "@/lib/api";
 import { useChatWebSocket } from "@/hooks/useChatWebSocket";
 import { useToast } from "@/components/Toast";
+import { TypingIndicator } from "@/components/TypingIndicator";
 import type { Conversation, Message } from "@/lib/types";
 import type { PaginatedResponse } from "@/lib/api";
 import Image from "next/image";
@@ -69,6 +70,8 @@ export default function ConversationDetailPage() {
   const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
   const [reactionsModalData, setReactionsModalData] = useState<any[]>([]);
   const [isMobile, setIsMobile] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; username: string; timestamp: number }>>([]);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -153,7 +156,7 @@ export default function ConversationDetailPage() {
   };
 
   // WebSocket connection
-  const { isConnected } = useChatWebSocket({
+  const { isConnected, startTyping, stopTyping } = useChatWebSocket({
     conversationId: conversationId || "",
     enabled: !!conversationId && !!accessToken,
     onMessage: (message: Message) => {
@@ -183,6 +186,16 @@ export default function ConversationDetailPage() {
     },
     onDisconnect: () => {
       setPollingEnabled(true);
+    },
+    onTypingStart: (userId: string, username: string) => {
+      setTypingUsers((prev) => {
+        // Remove if already exists
+        const filtered = prev.filter((u) => u.userId !== userId);
+        return [...filtered, { userId, username, timestamp: Date.now() }];
+      });
+    },
+    onTypingStop: (userId: string) => {
+      setTypingUsers((prev) => prev.filter((u) => u.userId !== userId));
     },
   });
 
@@ -897,6 +910,10 @@ export default function ConversationDetailPage() {
 
         {/* Input area */}
         <div className="border-t border-gray-700 bg-gray-800 p-3 sm:p-4">
+          {/* Typing Indicator */}
+          {typingUsers.length > 0 && (
+            <TypingIndicator typingUsers={typingUsers} className="mb-3" />
+          )}
           {mediaAttachment && (
             <div className="mb-2 relative inline-block">
               <button
@@ -957,7 +974,11 @@ export default function ConversationDetailPage() {
               <div className="relative">
                 <textarea
                   value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
+                  onChange={(e) => {
+                    setMessageText(e.target.value);
+                    // Call startTyping when user types
+                    if (startTyping) startTyping();
+                  }}
                   placeholder="Type a message..."
                   className="w-full px-4 py-3 pr-16 border-2 border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-white text-base bg-gray-700 placeholder-gray-500"
                   rows={1}

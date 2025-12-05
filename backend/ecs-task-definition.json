@@ -9,7 +9,7 @@
   "containerDefinitions": [
     {
       "name": "liberty-social-backend",
-      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/liberty-social-backend:latest",
+      "image": "704788056506.dkr.ecr.us-east-1.amazonaws.com/liberty-social-backend:v9",
       "essential": true,
       "portMappings": [
         {

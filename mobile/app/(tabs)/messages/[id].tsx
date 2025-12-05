@@ -20,6 +20,7 @@ import { Message, Conversation, PaginatedResponse } from '../../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import AppNavbar from '../../../components/layout/AppNavbar';
+import { TypingIndicator } from '../../../components/TypingIndicator';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../../utils/url';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useChatWebSocket } from '../../../hooks/useChatWebSocket';
@@ -53,6 +54,7 @@ export default function ConversationDetailScreen() {
   const [pollingEnabled, setPollingEnabled] = useState(false);
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const [mediaAttachment, setMediaAttachment] = useState<MediaAttachment | null>(null);
+  const [typingUsers, setTypingUsers] = useState<Array<{ userId: string; username: string; timestamp: number }>>([]);
   const flatListRef = useRef<FlatList>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageIdRef = useRef<number | null>(null);
@@ -99,7 +101,7 @@ export default function ConversationDetailScreen() {
 
   // WebSocket connection with better error handling
   const conversationId = id ? (typeof id === 'string' ? parseInt(id, 10) : Number(id)) : null;
-  const { isConnected } = useChatWebSocket({
+  const { isConnected, startTyping, stopTyping } = useChatWebSocket({
     conversationId: conversationId || 0,
     enabled: !!conversationId && !isNaN(conversationId),
     onMessage: (message: Message) => {
@@ -131,6 +133,16 @@ export default function ConversationDetailScreen() {
       // Silently enable polling as fallback when WebSocket disconnects
       console.log('[WebSocket] Disconnected, using polling fallback');
       setPollingEnabled(true);
+    },
+    onTypingStart: (userId: string, username: string) => {
+      setTypingUsers((prev) => {
+        // Remove if already exists
+        const filtered = prev.filter((u) => u.userId !== userId);
+        return [...filtered, { userId, username, timestamp: Date.now() }];
+      });
+    },
+    onTypingStop: (userId: string) => {
+      setTypingUsers((prev) => prev.filter((u) => u.userId !== userId));
     },
   });
 
@@ -484,6 +496,10 @@ export default function ConversationDetailScreen() {
       borderTopColor: colors.border,
       backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
     },
+    typingIndicator: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
     inputRow: {
       flexDirection: 'row',
       alignItems: 'flex-end',
@@ -631,6 +647,10 @@ export default function ConversationDetailScreen() {
         )}
         {!loading && (
           <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 0 : 8) }]}>
+            {/* Typing Indicator */}
+            {typingUsers.length > 0 && (
+              <TypingIndicator typingUsers={typingUsers} style={styles.typingIndicator} />
+            )}
             {mediaAttachment && (
               <View style={styles.mediaPreview}>
                 <Image
@@ -675,7 +695,11 @@ export default function ConversationDetailScreen() {
                   placeholder="Type a message..."
                   placeholderTextColor={colors.textSecondary}
                   value={messageText}
-                  onChangeText={setMessageText}
+                  onChangeText={(text) => {
+                    setMessageText(text);
+                    // Call startTyping when user types
+                    if (startTyping) startTyping();
+                  }}
                   multiline
                   maxLength={1000}
                   editable={!sending}
