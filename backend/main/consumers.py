@@ -90,6 +90,40 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         message_type = content.get("type")
         if message_type == "ping":
             await self.send_json({"type": "pong"})
+        elif message_type == "typing.start":
+            await self._handle_typing_start()
+        elif message_type == "typing.stop":
+            await self._handle_typing_stop()
+
+    async def _handle_typing_start(self):
+        """Handle user starting to type - broadcast to other participants."""
+        user = self.scope.get("user")
+        if not user:
+            return
+
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "typing.started",
+                "user_id": str(user.id),
+                "username": user.username,
+            },
+        )
+
+    async def _handle_typing_stop(self):
+        """Handle user stopping to type - broadcast to other participants."""
+        user = self.scope.get("user")
+        if not user:
+            return
+
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "typing.stopped",
+                "user_id": str(user.id),
+                "username": user.username,
+            },
+        )
 
     async def chat_message(self, event):
         await self.send_json(
@@ -112,6 +146,26 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             {
                 "type": "message.deleted",
                 "payload": event.get("data"),
+            }
+        )
+
+    async def typing_started(self, event):
+        """Broadcast typing started event to all participants except sender."""
+        await self.send_json(
+            {
+                "type": "typing.started",
+                "user_id": event.get("user_id"),
+                "username": event.get("username"),
+            }
+        )
+
+    async def typing_stopped(self, event):
+        """Broadcast typing stopped event to all participants except sender."""
+        await self.send_json(
+            {
+                "type": "typing.stopped",
+                "user_id": event.get("user_id"),
+                "username": event.get("username"),
             }
         )
 

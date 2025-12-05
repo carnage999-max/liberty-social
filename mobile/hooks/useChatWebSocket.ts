@@ -10,6 +10,8 @@ interface UseChatWebSocketOptions {
   onError?: (error: Error) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
+  onTypingStart?: (userId: string, username: string) => void;
+  onTypingStop?: (userId: string, username: string) => void;
 }
 
 export function useChatWebSocket({
@@ -19,6 +21,8 @@ export function useChatWebSocket({
   onError,
   onConnect,
   onDisconnect,
+  onTypingStart,
+  onTypingStop,
 }: UseChatWebSocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
   const [reconnectAttempts, setReconnectAttempts] = useState(0);
@@ -27,6 +31,7 @@ export function useChatWebSocket({
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const enabledRef = useRef(enabled);
   const reconnectAttemptsRef = useRef(0);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Update enabled ref when it changes
   useEffect(() => {
@@ -86,6 +91,10 @@ export function useChatWebSocket({
           } else if (data.type === 'message.created') {
             const message = data.payload as Message;
             onMessage?.(message);
+          } else if (data.type === 'typing.started') {
+            onTypingStart?.(data.user_id, data.username);
+          } else if (data.type === 'typing.stopped') {
+            onTypingStop?.(data.user_id, data.username);
           } else if (data.type === 'pong') {
             // Heartbeat response
           }
@@ -154,6 +163,34 @@ export function useChatWebSocket({
     }
   }, [conversationId, onMessage, onError, onConnect, onDisconnect]);
 
+  const startTyping = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'typing.start' }));
+      
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // Set timeout to auto-stop typing after 3 seconds of inactivity
+      typingTimeoutRef.current = setTimeout(() => {
+        stopTyping();
+      }, 3000);
+    }
+  }, []);
+
+  const stopTyping = useCallback(() => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'typing.stop' }));
+    }
+    
+    // Clear the timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+  }, []);
+
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -162,6 +199,10 @@ export function useChatWebSocket({
     if (pingIntervalRef.current) {
       clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = null;
+    }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
     }
     if (wsRef.current) {
       wsRef.current.close(1000, 'Manual disconnect');
@@ -188,6 +229,8 @@ export function useChatWebSocket({
     isConnected,
     connect,
     disconnect,
+    startTyping,
+    stopTyping,
   };
 }
 
