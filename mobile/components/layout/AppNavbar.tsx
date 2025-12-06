@@ -13,6 +13,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import { Ionicons } from '@expo/vector-icons';
 import SearchModal from '../SearchModal';
+import { useMessageBadge } from '../../contexts/MessageBadgeContext';
 
 interface AppNavbarProps {
   title?: string;
@@ -43,6 +44,7 @@ export default function AppNavbar({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [searchModalVisible, setSearchModalVisible] = useState(false);
+  const { unreadCount } = useMessageBadge();
 
   const displayName = useMemo(() => {
     if (!user) return '';
@@ -134,6 +136,25 @@ export default function AppNavbar({
       borderRadius: 10,
       borderWidth: 1,
       borderColor: 'rgba(0, 0, 0, 0.2)',
+    },
+    messageBadge: {
+      position: 'absolute',
+      top: -6,
+      right: -6,
+      minWidth: 20,
+      paddingHorizontal: 4,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: '#D7263D',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: '#FFFFFF',
+    },
+    messageBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 11,
+      fontWeight: '700',
     },
     profileButton: {
       width: 36,
@@ -227,6 +248,13 @@ export default function AppNavbar({
                   end={{ x: 1, y: 0 }}
                 >
                   <Ionicons name="chatbubbles-outline" size={18} color="#192A4A" />
+                  {unreadCount > 0 && (
+                    <View style={styles.messageBadge}>
+                      <Text style={styles.messageBadgeText}>
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Text>
+                    </View>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             )}

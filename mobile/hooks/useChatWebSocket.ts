@@ -7,6 +7,8 @@ interface UseChatWebSocketOptions {
   conversationId: string | number;
   enabled?: boolean;
   onMessage?: (message: Message) => void;
+  onMessageUpdated?: (message: Message) => void;
+  onMessageDeleted?: (message: Message) => void;
   onError?: (error: Error) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
@@ -18,6 +20,8 @@ export function useChatWebSocket({
   conversationId,
   enabled = true,
   onMessage,
+  onMessageUpdated,
+  onMessageDeleted,
   onError,
   onConnect,
   onDisconnect,
@@ -91,6 +95,12 @@ export function useChatWebSocket({
           } else if (data.type === 'message.created') {
             const message = data.payload as Message;
             onMessage?.(message);
+          } else if (data.type === 'message.updated') {
+            const message = data.payload as Message;
+            onMessageUpdated?.(message);
+          } else if (data.type === 'message.deleted') {
+            const message = data.payload as Message;
+            onMessageDeleted?.(message);
           } else if (data.type === 'typing.started') {
             onTypingStart?.(data.user_id, data.username);
           } else if (data.type === 'typing.stopped') {

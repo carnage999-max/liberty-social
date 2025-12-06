@@ -5,6 +5,14 @@ All reported mobile chat issues have been fixed with significant improvements to
 
 ---
 
+## Latest Follow-up (Dec 2024)
+
+- **Backend dependency reminder:** The refreshed notification badge + inbox list now rely on each participant's `last_read_at` and the conversation's `last_message_at` values. Make sure your backend deploy includes the updated `/conversations/{id}/mark-read/` view that persists `last_read_at` (and exposes the fresh values via `/conversations/`). Without that change the badge will stay static even though the mobile UI shipped.
+- **Reaction chips stay attached:** `mobile/app/(tabs)/messages/[id].tsx` now wraps every bubble in `messageBubbleWrapper*` and anchors the reaction pills with `reactionsBar*` styles so they no longer look like standalone messages.
+- **Composer safe-area polish:** The same screen also wraps the composer inside a `SafeAreaView` (`inputSafeArea` style) and shares the parent background so the white gutter underneath the input disappears on modern iPhones.
+
+---
+
 ## Issues Fixed
 
 ### ✅ 1. Back Button Navigation

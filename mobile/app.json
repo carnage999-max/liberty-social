@@ -30,6 +30,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B3D91"
       },
+      "softwareKeyboardLayoutMode": "resize",
       "package": "com.libertysocial.app",
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",

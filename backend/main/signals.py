@@ -200,18 +200,19 @@ def message_notification(sender, instance, created, **kwargs):
     """Create notifications and send push notifications when a message is received."""
     if not created:
         return
-    
+
     try:
         conversation = instance.conversation
         sender_user = instance.sender
-        
+
         # Get all participants in the conversation except the sender
         participants = conversation.participants.exclude(id=sender_user.id)
-        
+
         # Create notifications for each participant
         from django.contrib.contenttypes.models import ContentType
+
         message_content_type = ContentType.objects.get_for_model(Message)
-        
+
         for recipient in participants:
             # Create notification
             notification = Notification.objects.create(
@@ -221,11 +222,12 @@ def message_notification(sender, instance, created, **kwargs):
                 content_type=message_content_type,
                 object_id=instance.id,
             )
-            
+
             # Queue push notification
             if getattr(settings, "PUSH_NOTIFICATIONS_ENABLED", False):
                 try:
                     from .tasks import deliver_push_notification
+
                     deliver_push_notification.delay(notification.pk)
                 except Exception:
                     logger.exception(
@@ -234,5 +236,6 @@ def message_notification(sender, instance, created, **kwargs):
                         recipient.pk,
                     )
     except Exception:
-        logger.exception("Failed to create message notification for message %s", instance.pk)
-
+        logger.exception(
+            "Failed to create message notification for message %s", instance.pk
+        )

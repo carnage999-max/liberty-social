@@ -19,7 +19,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         logger = logging.getLogger(__name__)
 
         user = self.scope.get("user")
-        print(f"[CHATWS] ChatConsumer.connect - user: {user}, is_anonymous: {isinstance(user, AnonymousUser) if user else 'no user'}", flush=True)
+        print(
+            f"[CHATWS] ChatConsumer.connect - user: {user}, is_anonymous: {isinstance(user, AnonymousUser) if user else 'no user'}",
+            flush=True,
+        )
         logger.info(
             f"ChatConsumer.connect - user: {user}, is_anonymous: {isinstance(user, AnonymousUser) if user else 'no user'}"
         )
@@ -43,7 +46,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
         try:
             has_access = await self._user_in_conversation(user.id, conversation_id)
-            print(f"[CHATWS] user {user.id} has access to conversation {conversation_id}: {has_access}", flush=True)
+            print(
+                f"[CHATWS] user {user.id} has access to conversation {conversation_id}: {has_access}",
+                flush=True,
+            )
         except Exception as e:
             print(f"[CHATWS] ERROR checking access: {e}", flush=True)
             logger.error(f"Error checking conversation access: {e}")

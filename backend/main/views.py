@@ -198,7 +198,37 @@ class ReactionViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         instance = serializer.save(user=self.request.user)
-        # Notification is now handled by the signal in signals.py
+        self._broadcast_message_update(instance.content_object)
+
+    def perform_destroy(self, instance):
+        target = instance.content_object
+        super().perform_destroy(instance)
+        self._broadcast_message_update(target)
+
+    def _broadcast_message_update(self, content_object):
+        if not isinstance(content_object, Message):
+            return
+
+        try:
+            message = (
+                Message.objects.select_related("sender", "conversation")
+                .prefetch_related("reactions__user")
+                .get(id=content_object.id)
+            )
+        except Message.DoesNotExist:
+            return
+
+        serializer = MessageSerializer(message, context=self.get_serializer_context())
+        layer = get_channel_layer()
+        if not layer:
+            return
+        try:
+            async_to_sync(layer.group_send)(
+                conversation_group_name(str(message.conversation_id)),
+                {"type": "message_updated", "data": serializer.data},
+            )
+        except Exception:
+            pass
 
 
 class NotificationViewSet(ModelViewSet):
@@ -860,24 +890,6 @@ class ConversationViewSet(ModelViewSet):
         Conversation.objects.filter(id=conversation.id).update(
             last_message_at=message.created_at
         )
-
-        recipients = conversation.participants.exclude(
-            user=request.user
-        ).select_related("user")
-        if recipients:
-            conversation_ct = ContentType.objects.get_for_model(Conversation)
-            Notification.objects.bulk_create(
-                [
-                    Notification(
-                        recipient=participant.user,
-                        actor=request.user,
-                        verb="messaged",
-                        content_type=conversation_ct,
-                        object_id=conversation.id,
-                    )
-                    for participant in recipients
-                ]
-            )
 
         serializer = MessageSerializer(message, context=self.get_serializer_context())
 

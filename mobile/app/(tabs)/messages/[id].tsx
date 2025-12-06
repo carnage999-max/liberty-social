@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -33,6 +34,8 @@ import { storage } from '../../../utils/storage';
 import { getApiBase } from '../../../constants/API';
 import { useAlert } from '../../../contexts/AlertContext';
 import UserProfileBottomSheet from '../../../components/profile/UserProfileBottomSheet';
+import ImageGallery from '../../../components/common/ImageGallery';
+import { VideoView, useVideoPlayer } from 'expo-video';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -42,6 +45,9 @@ type MediaAttachment = {
   mimeType?: string;
   filename?: string;
 };
+
+const isVideoUrl = (url?: string | null) =>
+  !!url && /\.(mp4|mov|m4v|webm|mkv|avi|3gp)(\?.*)?$/i.test(url);
 
 export default function ConversationDetailScreen() {
   const { colors, isDark } = useTheme();
@@ -70,9 +76,20 @@ export default function ConversationDetailScreen() {
   const [editText, setEditText] = useState('');
   const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageIdRef = useRef<number | null>(null);
+
+  // Create video player instance at component level to avoid hook order issues
+  const videoPlayer = useVideoPlayer(videoPreviewUrl || '', (player) => {
+    if (videoPreviewUrl) {
+      player.loop = false;
+      player.play();
+    }
+  });
 
   const loadConversation = async () => {
     try {
@@ -415,6 +432,17 @@ export default function ConversationDetailScreen() {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const galleryMedia = useMemo(() => {
+    return messages
+      .map((message) => {
+        if (!message.media_url) return null;
+        const url = resolveMediaUrls(message.media_url)[0];
+        if (!url || isVideoUrl(url)) return null;
+        return { messageId: message.id, url };
+      })
+      .filter((entry): entry is { messageId: number; url: string } => !!entry);
+  }, [messages]);
+
   const renderMessage = ({ item }: { item: Message }) => {
     if (item.is_deleted) {
       return (
@@ -432,6 +460,7 @@ export default function ConversationDetailScreen() {
       : null;
     const avatarSource = avatarUrl ? { uri: avatarUrl } : DEFAULT_AVATAR;
     const mediaUrl = item.media_url ? resolveMediaUrls(item.media_url)[0] : null;
+    const isVideo = isVideoUrl(mediaUrl);
 
     return (
       <View
@@ -443,7 +472,7 @@ export default function ConversationDetailScreen() {
         {!isOwn && (
           <Image source={avatarSource} style={styles.messageAvatar} />
         )}
-        <View style={{ flex: 1 }}>
+        <View style={styles.messageContent}>
           <TouchableOpacity
             onLongPress={() => {
               setSelectedMessageId(item.id);
@@ -456,7 +485,7 @@ export default function ConversationDetailScreen() {
               style={[
                 styles.messageBubble,
                 isOwn
-                  ? { backgroundColor: colors.primary }
+                  ? { backgroundColor: '#1b2749' }
                   : { backgroundColor: isDark ? colors.backgroundSecondary : '#E5E5E5' },
               ]}
             >
@@ -465,12 +494,36 @@ export default function ConversationDetailScreen() {
                   {item.sender.first_name || item.sender.username || 'User'}
                 </Text>
               )}
-              {mediaUrl && (
-                <Image
-                  source={{ uri: mediaUrl }}
-                  style={styles.messageMedia}
-                  resizeMode="cover"
-                />
+              {mediaUrl && !isVideo && (
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    const index = galleryMedia.findIndex((m) => m.messageId === item.id);
+                    if (index >= 0) {
+                      setGalleryIndex(index);
+                      setGalleryVisible(true);
+                    }
+                  }}
+                >
+                  <Image
+                    source={{ uri: mediaUrl }}
+                    style={styles.messageMedia}
+                    resizeMode="cover"
+                  />
+                </TouchableOpacity>
+              )}
+              {mediaUrl && isVideo && (
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => setVideoPreviewUrl(mediaUrl)}
+                >
+                  <View style={[styles.messageMedia, styles.videoPreview, { backgroundColor: '#000' }]}>
+                    <View style={styles.videoOverlay}>
+                      <Ionicons name="play-circle" size={64} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', marginTop: 8, fontSize: 12 }}>Tap to play video</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
               )}
               {item.content && (
                 <Text
@@ -490,299 +543,36 @@ export default function ConversationDetailScreen() {
               >
                 {formatTime(item.created_at)}
               </Text>
+              
+              {/* Reactions Display - Inside bubble like frontend */}
+              {item.reactions && item.reactions.length > 0 && (
+                <View style={[styles.reactionsContainer, isOwn && styles.reactionsContainerOwn]}>
+                  {item.reactions.map((reaction, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[
+                        styles.reactionBadge,
+                        { 
+                          backgroundColor: isDark ? 'rgba(200, 162, 95, 0.2)' : 'rgba(200, 162, 95, 0.1)',
+                          borderWidth: 1,
+                          borderColor: 'rgba(200, 162, 95, 0.3)',
+                        }
+                      ]}
+                      onPress={() => {
+                        showSuccess(`${reaction.user.first_name || reaction.user.username} reacted`);
+                      }}
+                    >
+                      <Text style={styles.reactionEmoji}>{reaction.reaction_type}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
           </TouchableOpacity>
-          
-          {/* Reactions Display */}
-          {item.reactions && item.reactions.length > 0 && (
-            <View style={[styles.reactionsContainer, isOwn && styles.reactionsContainerOwn]}>
-              {item.reactions.map((reaction, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[
-                    styles.reactionBadge,
-                    { 
-                      backgroundColor: isDark ? 'rgba(200, 162, 95, 0.2)' : 'rgba(200, 162, 95, 0.1)',
-                      borderWidth: 1,
-                      borderColor: 'rgba(200, 162, 95, 0.3)',
-                    }
-                  ]}
-                  onPress={() => {
-                    // Show who reacted
-                    showSuccess(`${reaction.user.first_name || reaction.user.username} reacted`);
-                  }}
-                >
-                  <Text style={styles.reactionEmoji}>{reaction.reaction_type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
         </View>
       </View>
     );
   };
-
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    messagesList: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      flexGrow: 1,
-    },
-    messageContainer: {
-      flexDirection: 'row',
-      marginVertical: 4,
-      alignItems: 'flex-end',
-      gap: 8,
-    },
-    messageContainerOwn: {
-      justifyContent: 'flex-end',
-    },
-    messageContainerOther: {
-      justifyContent: 'flex-start',
-    },
-    messageAvatar: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-    },
-    messageBubble: {
-      maxWidth: '75%',
-      padding: 12,
-      borderRadius: 16,
-      gap: 4,
-    },
-    messageSender: {
-      fontSize: 12,
-      fontWeight: '600',
-    },
-    messageText: {
-      fontSize: 15,
-      lineHeight: 20,
-    },
-    messageTime: {
-      fontSize: 11,
-      alignSelf: 'flex-end',
-    },
-    messageMedia: {
-      width: 200,
-      height: 200,
-      borderRadius: 12,
-      marginBottom: 4,
-    },
-    deletedMessage: {
-      fontSize: 13,
-      fontStyle: 'italic',
-      textAlign: 'center',
-      padding: 8,
-    },
-    inputContainer: {
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: colors.border,
-      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
-    },
-    typingIndicator: {
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-    },
-    inputRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      gap: 8,
-    },
-    mediaPreview: {
-      marginHorizontal: 16,
-      marginBottom: 8,
-      position: 'relative',
-    },
-    mediaPreviewImage: {
-      width: 100,
-      height: 100,
-      borderRadius: 12,
-    },
-    removeMediaButton: {
-      position: 'absolute',
-      top: -8,
-      right: -8,
-      backgroundColor: colors.primary,
-      borderRadius: 12,
-      width: 24,
-      height: 24,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    inputWrapper: {
-      flex: 1,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 24,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      backgroundColor: isDark ? colors.background : '#FFFFFF',
-      minHeight: 44,
-      maxHeight: 100,
-    },
-    textInput: {
-      flex: 1,
-      fontSize: 15,
-      color: colors.text,
-      paddingVertical: 4,
-      maxHeight: 84,
-    },
-    emojiButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 8,
-    },
-    attachButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 8,
-    },
-    sendButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginLeft: 8,
-    },
-    emptyContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 32,
-    },
-    emptyText: {
-      fontSize: 16,
-      textAlign: 'center',
-      marginTop: 16,
-    },
-    contextMenu: {
-      position: 'absolute',
-      top: 60,
-      right: 10,
-      borderRadius: 12,
-      paddingVertical: 8,
-      minWidth: 180,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
-      elevation: 5,
-      zIndex: 1000,
-    },
-    menuItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      gap: 12,
-    },
-    menuItemText: {
-      fontSize: 16,
-      fontWeight: '500',
-    },
-    reactionsContainer: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      marginTop: 6,
-      marginLeft: 4,
-      gap: 6,
-    },
-    reactionsContainerOwn: {
-      marginLeft: 0,
-      marginRight: 4,
-      justifyContent: 'flex-end',
-    },
-    reactionBadge: {
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 14,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
-    },
-    reactionEmoji: {
-      fontSize: 16,
-    },
-    editIndicator: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderTopWidth: 2,
-      gap: 8,
-    },
-    messageOptionsMenu: {
-      position: 'absolute',
-      bottom: 100,
-      left: 20,
-      right: 20,
-      borderRadius: 16,
-      paddingVertical: 16,
-      paddingHorizontal: 12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 12,
-      elevation: 8,
-    },
-    messageOptionsTitle: {
-      fontSize: 16,
-      fontWeight: '700',
-      marginBottom: 12,
-      paddingHorizontal: 8,
-    },
-    quickReactions: {
-      flexDirection: 'row',
-      justifyContent: 'space-around',
-      paddingVertical: 8,
-      paddingHorizontal: 4,
-    },
-    quickReactionButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'rgba(200, 162, 95, 0.1)',
-      borderWidth: 1.5,
-      borderColor: 'rgba(200, 162, 95, 0.3)',
-    },
-    quickReactionEmoji: {
-      fontSize: 24,
-    },
-    divider: {
-      height: 1,
-      marginVertical: 12,
-    },
-    messageOption: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 14,
-      paddingHorizontal: 12,
-      borderRadius: 10,
-      gap: 14,
-    },
-    messageOptionText: {
-      fontSize: 16,
-      fontWeight: '500',
-    },
-  });
 
   const canSend = editingMessageId !== null 
     ? editText.trim() 
@@ -798,13 +588,13 @@ export default function ConversationDetailScreen() {
   );
 
   return (
-    <View style={styles.container}>
-    <KeyboardAvoidingView
+    <View style={[styles.container, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
+      <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <AppNavbar
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <AppNavbar
         title={getConversationTitle()}
         showLogo={false}
         showProfileImage={false}
@@ -835,8 +625,8 @@ export default function ConversationDetailScreen() {
             data={messages}
             renderItem={renderMessage}
             keyExtractor={(item) => item.id.toString()}
-            style={{ flex: 1 }}
-            contentContainerStyle={styles.messagesList}
+            style={[{ flex: 1 }, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}
+            contentContainerStyle={[styles.messagesList, { backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}
             inverted={false}
             showsVerticalScrollIndicator={true}
             onContentSizeChange={() => {
@@ -858,8 +648,50 @@ export default function ConversationDetailScreen() {
             }}
           />
         )}
+        
+        {/* Typing Indicator - Show in messages area */}
+        {typingUsers.length > 0 && (
+          <View style={[{ paddingHorizontal: 16, paddingVertical: 8, backgroundColor: isDark ? '#0f172a' : '#f8fafc' }]}>
+            <TypingIndicator typingUsers={typingUsers} />
+          </View>
+        )}
+
+        {/* Media Attachment Preview - Show above input */}
+        {mediaAttachment && (
+          <View style={[{ paddingHorizontal: 16, paddingVertical: 12, backgroundColor: isDark ? '#1e293b' : '#ffffff', borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              {mediaAttachment.type === 'video' ? (
+                <View style={[styles.mediaPreviewImage, styles.videoPreview, { backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Ionicons name="play-circle" size={48} color="#FFFFFF" />
+                  <Text style={{ color: '#FFFFFF', marginTop: 4, fontSize: 11 }}>Video</Text>
+                </View>
+              ) : (
+                <Image
+                  source={{ uri: mediaAttachment.uri }}
+                  style={styles.mediaPreviewImage}
+                  resizeMode="cover"
+                />
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>
+                  {mediaAttachment.type === 'video' ? 'Video attachment' : 'Image attachment'}
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
+                  Ready to send
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={removeMediaAttachment}
+                style={{ padding: 8, backgroundColor: 'rgba(255, 107, 107, 0.1)', borderRadius: 20 }}
+              >
+                <Ionicons name="close" size={20} color="#FF6B6B" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {!loading && (
-          <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 0 : 8) }]}>
+          <View style={styles.inputContainer}>
             {/* Edit Mode Indicator */}
             {editingMessageId !== null && (
               <View style={[styles.editIndicator, { backgroundColor: colors.backgroundSecondary, borderTopColor: colors.primary }]}>
@@ -880,26 +712,7 @@ export default function ConversationDetailScreen() {
                 </TouchableOpacity>
               </View>
             )}
-            {/* Typing Indicator */}
-            {typingUsers.length > 0 && (
-              <TypingIndicator typingUsers={typingUsers} style={styles.typingIndicator} />
-            )}
-            {mediaAttachment && (
-              <View style={styles.mediaPreview}>
-                <Image
-                  source={{ uri: mediaAttachment.uri }}
-                  style={styles.mediaPreviewImage}
-                  resizeMode="cover"
-                />
-                <TouchableOpacity
-                  style={styles.removeMediaButton}
-                  onPress={removeMediaAttachment}
-                >
-                  <Ionicons name="close" size={16} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-            )}
-            <View style={styles.inputRow}>
+            <View style={[styles.inputRow, { backgroundColor: isDark ? '#1e293b' : '#ffffff', borderTopColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0' }]}>
               <TouchableOpacity
                 style={styles.attachButton}
                 onPress={handlePickMedia}
@@ -1008,11 +821,33 @@ export default function ConversationDetailScreen() {
                 style={styles.menuItem}
                 onPress={() => {
                   setHeaderMenuVisible(false);
-                  showError('Block functionality coming soon');
+                  const otherParticipant = conversation?.participants.find(
+                    (p) => p.user.id !== user?.id
+                  );
+                  if (otherParticipant) {
+                    const userName = otherParticipant.user.first_name || otherParticipant.user.username || 'this user';
+                    showConfirm(
+                      `Are you sure you want to block ${userName}? You won't be able to see their posts or interact with them.`,
+                      async () => {
+                        try {
+                          await apiClient.post('/auth/blocks/', { 
+                            blocked_user: otherParticipant.user.id 
+                          });
+                          showSuccess(`${userName} has been blocked`);
+                          router.push('/messages');
+                        } catch (error: any) {
+                          showError(error.response?.data?.detail || 'Failed to block user');
+                        }
+                      },
+                      undefined,
+                      'Block User',
+                      true
+                    );
+                  }
                 }}
               >
-                <Ionicons name="ban" size={20} color={colors.text} />
-                <Text style={[styles.menuItemText, { color: colors.text }]}>Block User</Text>
+                <Ionicons name="ban" size={20} color="#FF6B6B" />
+                <Text style={[styles.menuItemText, { color: '#FF6B6B' }]}>Block User</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -1063,12 +898,14 @@ export default function ConversationDetailScreen() {
                       onPress={async () => {
                         setMessageMenuVisible(false);
                         try {
-                          await apiClient.post(`/messages/${selectedMessageId}/reactions/`, {
+                          await apiClient.post('/reactions/', {
+                            message: selectedMessageId,
                             reaction_type: emoji,
                           });
                           loadMessages(true);
                           showSuccess('Reaction added!');
                         } catch (error) {
+                          console.error('Reaction error:', error);
                           showError('Failed to add reaction');
                         }
                       }}
@@ -1163,15 +1000,15 @@ export default function ConversationDetailScreen() {
                 onSelect={async (emoji) => {
                   if (reactionPickerVisible !== null) {
                     try {
-                      await apiClient.post(
-                        `/messages/${reactionPickerVisible}/reactions/`,
-                        { reaction_type: emoji }
-                      );
-                      // Refresh messages to show new reaction
+                      await apiClient.post('/reactions/', {
+                        message: reactionPickerVisible,
+                        reaction_type: emoji,
+                      });
                       loadMessages(true);
                       setReactionPickerVisible(null);
                       showSuccess('Reaction added!');
                     } catch (error) {
+                      console.error('Reaction error:', error);
                       showError('Failed to add reaction');
                     }
                   }
@@ -1190,7 +1027,411 @@ export default function ConversationDetailScreen() {
             setSelectedUserId(null);
           }}
         />
-    </KeyboardAvoidingView>
+
+        {/* Image Gallery */}
+        <ImageGallery
+          visible={galleryVisible}
+          images={galleryMedia.map((m) => m.url)}
+          initialIndex={galleryIndex}
+          onClose={() => setGalleryVisible(false)}
+        />
+
+        {/* Video Player Modal */}
+        {videoPreviewUrl && (
+          <Modal
+            visible={!!videoPreviewUrl}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setVideoPreviewUrl(null)}
+          >
+            <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.95)' }}>
+              <TouchableOpacity
+                style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }}
+                onPress={() => setVideoPreviewUrl(null)}
+              >
+                <Ionicons name="close" size={32} color="#FFFFFF" />
+              </TouchableOpacity>
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <VideoView
+                  style={{ width: '100%', height: 300 }}
+                  player={videoPlayer}
+                  allowsPictureInPicture
+                />
+              </View>
+            </View>
+          </Modal>
+        )}
+      </KeyboardAvoidingView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  messagesList: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    flexGrow: 1,
+  },
+  messageContainer: {
+    flexDirection: 'row',
+    marginVertical: 6,
+    alignItems: 'flex-end',
+    gap: 8,
+    paddingHorizontal: 8,
+  },
+  messageContainerOwn: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'flex-start',
+    alignSelf: 'flex-end',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginBottom: 4,
+  },
+  messageContent: {
+    maxWidth: '75%',
+    minWidth: 80,
+  },
+  messageBubble: {
+    padding: 12,
+    borderRadius: 18,
+    marginBottom: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+    
+  },
+  messageBubbleOwn: {
+    borderTopRightRadius: 6,
+  },
+  messageBubbleOther: {
+    borderTopLeftRadius: 6,
+  },
+  messageText: {
+    fontSize: 15,
+    lineHeight: 20,
+    flexShrink: 1,
+  },
+  messageMedia: {
+    width: 240,
+    height: 180,
+    marginTop: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  messageImage: {
+    width: 240,
+    height: 180,
+    borderRadius: 12,
+  },
+  videoPreview: {
+    position: 'relative',
+    width: 240,
+    height: 180,
+  },
+  videoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  messageTimestamp: {
+    fontSize: 11,
+    marginTop: 4,
+    opacity: 0.6,
+  },
+  reactionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 6,
+  },
+  reactionsContainerOwn: {
+    justifyContent: 'flex-end',
+  },
+  reactionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  reactionEmoji: {
+    fontSize: 14,
+  },
+  reactionCount: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#1e293b',
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  typingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  typingText: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    opacity: 0.7,
+  },
+  headerMenu: {
+    position: 'absolute',
+    top: 60,
+    right: 16,
+    borderRadius: 12,
+    padding: 8,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  menuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 12,
+    borderRadius: 8,
+  },
+  menuOptionText: {
+    fontSize: 15,
+  },
+  messageMenu: {
+    position: 'absolute',
+    borderRadius: 12,
+    padding: 8,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  messageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    gap: 10,
+    borderRadius: 8,
+  },
+  messageOptionText: {
+    fontSize: 14,
+  },
+  quickReactionsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  quickReactionButton: {
+    padding: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  quickReactionEmoji: {
+    fontSize: 20,
+  },
+  mediaPreviewContainer: {
+    padding: 12,
+    borderTopWidth: 1,
+  },
+  mediaPreview: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  mediaPreviewImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  mediaPreviewInfo: {
+    flex: 1,
+  },
+  mediaPreviewName: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  mediaPreviewSize: {
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  removeMediaButton: {
+    padding: 8,
+  },
+  typingIndicator: {
+    marginBottom: 8,
+  },
+  deletedMessage: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 8,
+    opacity: 0.6,
+  },
+  messageContainerOther: {
+    justifyContent: 'flex-start',
+    
+  },
+  messageAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  messageSender: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  messageTime: {
+    fontSize: 11,
+    alignSelf: 'flex-end',
+    opacity: 0.6,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  editIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 2,
+    gap: 8,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 12,
+    gap: 8,
+    borderTopWidth: 1,
+  },
+  attachButton: {
+    padding: 8,
+  },
+  emojiButton: {
+    padding: 8,
+  },
+  inputWrapper: {
+    flex: 1,
+    backgroundColor: '#334155',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#475569',
+  },
+  textInput: {
+    minHeight: 40,
+    maxHeight: 120,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#ffffff',
+  },
+  contextMenu: {
+    position: 'absolute',
+    top: 60,
+    right: 10,
+    borderRadius: 12,
+    paddingVertical: 8,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  messageOptionsMenu: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  messageOptionsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+    paddingHorizontal: 8,
+  },
+  quickReactions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  divider: {
+    height: 1,
+    marginVertical: 12,
+  },
+});

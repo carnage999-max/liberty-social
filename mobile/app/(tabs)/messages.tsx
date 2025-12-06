@@ -20,6 +20,7 @@ import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import { SkeletonFriend } from '../../components/common/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
+import { useMessageBadge } from '../../contexts/MessageBadgeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ActiveFriends from '../../components/friends/ActiveFriends';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
@@ -28,6 +29,7 @@ export default function MessagesScreen() {
   const { colors, isDark } = useTheme();
   const { showError, showSuccess } = useToast();
   const { user } = useAuth();
+  const { syncFromConversations } = useMessageBadge();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -59,6 +61,7 @@ export default function MessagesScreen() {
       });
       
       setConversations(sorted);
+      syncFromConversations(sorted);
       setNext(response.next);
     } catch (error) {
       if (!silent) showError('Failed to load conversations');
@@ -70,7 +73,7 @@ export default function MessagesScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadConversations();
+  loadConversations();
   }, []);
 
   useEffect(() => {
@@ -233,7 +236,22 @@ export default function MessagesScreen() {
     const avatarUrl = getConversationAvatar(item);
     const avatarSource = avatarUrl ? { uri: avatarUrl } : DEFAULT_AVATAR;
     const lastMessage = item.last_message;
-    const hasUnread = (item.unread_count ?? 0) > 0;
+    const userParticipant = item.participants.find(
+      (p) => String(p.user.id) === String(user?.id)
+    );
+    const lastReadTs = userParticipant?.last_read_at
+      ? new Date(userParticipant.last_read_at).getTime()
+      : null;
+    const lastMessageTs = lastMessage?.created_at
+      ? new Date(lastMessage.created_at).getTime()
+      : null;
+    const lastMessageAtTs = item.last_message_at
+      ? new Date(item.last_message_at).getTime()
+      : null;
+    const latestActivityTs = lastMessageTs ?? lastMessageAtTs;
+    const hasUnread = Boolean(
+      latestActivityTs && (!lastReadTs || lastReadTs < latestActivityTs)
+    );
     
     // Format last message preview
     let lastMessageText = 'No messages yet';
@@ -336,11 +354,7 @@ export default function MessagesScreen() {
               {lastMessageText}
             </Text>
             {hasUnread && (
-              <View style={[styles.unreadBadge, { backgroundColor: '#C8A25F' }]}>
-                <Text style={styles.unreadCount}>
-                  {item.unread_count! > 99 ? '99+' : item.unread_count}
-                </Text>
-              </View>
+              <View style={[styles.unreadDot, { backgroundColor: '#C8A25F' }]} />
             )}
           </View>
         </View>
@@ -421,18 +435,10 @@ export default function MessagesScreen() {
     conversationPreviewUnread: {
       fontWeight: '500',
     },
-    unreadBadge: {
-      minWidth: 22,
-      height: 22,
-      borderRadius: 11,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 6,
-    },
-    unreadCount: {
-      color: '#FFFFFF',
-      fontSize: 12,
-      fontWeight: '700',
+    unreadDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
     },
     emptyContainer: {
       flex: 1,
