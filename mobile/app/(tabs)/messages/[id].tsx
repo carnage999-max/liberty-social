@@ -31,6 +31,8 @@ import { resolveMediaUrls } from '../../../utils/url';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { storage } from '../../../utils/storage';
 import { getApiBase } from '../../../constants/API';
+import { useAlert } from '../../../contexts/AlertContext';
+import UserProfileBottomSheet from '../../../components/profile/UserProfileBottomSheet';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -44,6 +46,7 @@ type MediaAttachment = {
 export default function ConversationDetailScreen() {
   const { colors, isDark } = useTheme();
   const { showError, showSuccess } = useToast();
+  const { showConfirm } = useAlert();
   const { user } = useAuth();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -61,9 +64,12 @@ export default function ConversationDetailScreen() {
   const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
   const [messageMenuVisible, setMessageMenuVisible] = useState(false);
+  const [messageMenuPosition, setMessageMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [reactionPickerVisible, setReactionPickerVisible] = useState<number | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editText, setEditText] = useState('');
+  const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageIdRef = useRef<number | null>(null);
@@ -428,11 +434,7 @@ export default function ConversationDetailScreen() {
     const mediaUrl = item.media_url ? resolveMediaUrls(item.media_url)[0] : null;
 
     return (
-      <TouchableOpacity
-        onLongPress={() => {
-          setSelectedMessageId(item.id);
-          setMessageMenuVisible(true);
-        }}
+      <View
         style={[
           styles.messageContainer,
           isOwn ? styles.messageContainerOwn : styles.messageContainerOther,
@@ -441,71 +443,82 @@ export default function ConversationDetailScreen() {
         {!isOwn && (
           <Image source={avatarSource} style={styles.messageAvatar} />
         )}
-        <View
-          style={[
-            styles.messageBubble,
-            isOwn
-              ? { backgroundColor: colors.primary }
-              : { backgroundColor: isDark ? colors.backgroundSecondary : '#E5E5E5' },
-          ]}
-        >
-          {!isOwn && (
-            <Text style={[styles.messageSender, { color: colors.textSecondary }]}>
-              {item.sender.first_name || item.sender.username || 'User'}
-            </Text>
-          )}
-          {mediaUrl && (
-            <Image
-              source={{ uri: mediaUrl }}
-              style={styles.messageMedia}
-              resizeMode="cover"
-            />
-          )}
-          {item.content && (
-            <Text
+        <View style={{ flex: 1 }}>
+          <TouchableOpacity
+            onLongPress={() => {
+              setSelectedMessageId(item.id);
+              setMessageMenuVisible(true);
+            }}
+            activeOpacity={0.9}
+            delayLongPress={300}
+          >
+            <View
               style={[
-                styles.messageText,
-                { color: isOwn ? '#FFFFFF' : colors.text },
+                styles.messageBubble,
+                isOwn
+                  ? { backgroundColor: colors.primary }
+                  : { backgroundColor: isDark ? colors.backgroundSecondary : '#E5E5E5' },
               ]}
             >
-              {item.content}
-            </Text>
-          )}
-          <Text
-            style={[
-              styles.messageTime,
-              { color: isOwn ? 'rgba(255,255,255,0.7)' : colors.textSecondary },
-            ]}
-          >
-            {formatTime(item.created_at)}
-          </Text>
+              {!isOwn && (
+                <Text style={[styles.messageSender, { color: colors.textSecondary }]}>
+                  {item.sender.first_name || item.sender.username || 'User'}
+                </Text>
+              )}
+              {mediaUrl && (
+                <Image
+                  source={{ uri: mediaUrl }}
+                  style={styles.messageMedia}
+                  resizeMode="cover"
+                />
+              )}
+              {item.content && (
+                <Text
+                  style={[
+                    styles.messageText,
+                    { color: isOwn ? '#FFFFFF' : colors.text },
+                  ]}
+                >
+                  {item.content}
+                </Text>
+              )}
+              <Text
+                style={[
+                  styles.messageTime,
+                  { color: isOwn ? 'rgba(255,255,255,0.7)' : colors.textSecondary },
+                ]}
+              >
+                {formatTime(item.created_at)}
+              </Text>
+            </View>
+          </TouchableOpacity>
           
           {/* Reactions Display */}
           {item.reactions && item.reactions.length > 0 && (
-            <View style={styles.reactionsContainer}>
+            <View style={[styles.reactionsContainer, isOwn && styles.reactionsContainerOwn]}>
               {item.reactions.map((reaction, idx) => (
-                <View key={idx} style={[styles.reactionBadge, { backgroundColor: isOwn ? 'rgba(255,255,255,0.2)' : isDark ? colors.background : '#F0F0F0' }]}>
+                <TouchableOpacity
+                  key={idx}
+                  style={[
+                    styles.reactionBadge,
+                    { 
+                      backgroundColor: isDark ? 'rgba(200, 162, 95, 0.2)' : 'rgba(200, 162, 95, 0.1)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(200, 162, 95, 0.3)',
+                    }
+                  ]}
+                  onPress={() => {
+                    // Show who reacted
+                    showSuccess(`${reaction.user.first_name || reaction.user.username} reacted`);
+                  }}
+                >
                   <Text style={styles.reactionEmoji}>{reaction.reaction_type}</Text>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
           )}
-          
-          {/* Reaction Button */}
-          <TouchableOpacity
-            onPress={() => {
-              if (reactionPickerVisible === item.id) {
-                setReactionPickerVisible(null);
-              } else {
-                setReactionPickerVisible(item.id);
-              }
-            }}
-            style={styles.reactionButton}
-          >
-            <Ionicons name="heart-outline" size={16} color={isOwn ? '#FFFFFF' : colors.primary} />
-          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -684,20 +697,27 @@ export default function ConversationDetailScreen() {
     reactionsContainer: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      marginTop: 8,
-      gap: 4,
+      marginTop: 6,
+      marginLeft: 4,
+      gap: 6,
+    },
+    reactionsContainerOwn: {
+      marginLeft: 0,
+      marginRight: 4,
+      justifyContent: 'flex-end',
     },
     reactionBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 14,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 2,
     },
     reactionEmoji: {
-      fontSize: 14,
-    },
-    reactionButton: {
-      marginTop: 4,
-      padding: 4,
+      fontSize: 16,
     },
     editIndicator: {
       flexDirection: 'row',
@@ -706,6 +726,61 @@ export default function ConversationDetailScreen() {
       paddingVertical: 8,
       borderTopWidth: 2,
       gap: 8,
+    },
+    messageOptionsMenu: {
+      position: 'absolute',
+      bottom: 100,
+      left: 20,
+      right: 20,
+      borderRadius: 16,
+      paddingVertical: 16,
+      paddingHorizontal: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    messageOptionsTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      marginBottom: 12,
+      paddingHorizontal: 8,
+    },
+    quickReactions: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingVertical: 8,
+      paddingHorizontal: 4,
+    },
+    quickReactionButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(200, 162, 95, 0.1)',
+      borderWidth: 1.5,
+      borderColor: 'rgba(200, 162, 95, 0.3)',
+    },
+    quickReactionEmoji: {
+      fontSize: 24,
+    },
+    divider: {
+      height: 1,
+      marginVertical: 12,
+    },
+    messageOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      gap: 14,
+    },
+    messageOptionText: {
+      fontSize: 16,
+      fontWeight: '500',
     },
   });
 
@@ -735,7 +810,7 @@ export default function ConversationDetailScreen() {
         showProfileImage={false}
         showMessageIcon={false}
         showBackButton={true}
-        onBackPress={() => router.back()}
+        onBackPress={() => router.push('/messages')}
         customRightButton={headerContextMenu}
       />
       <View style={{ flex: 1 }}>
@@ -915,12 +990,13 @@ export default function ConversationDetailScreen() {
                 style={styles.menuItem}
                 onPress={() => {
                   setHeaderMenuVisible(false);
-                  // Navigate to user profile
+                  // Open user profile in bottom sheet
                   const otherParticipant = conversation?.participants.find(
                     (p) => p.user.id !== user?.id
                   );
                   if (otherParticipant) {
-                    router.push(`/profile/${otherParticipant.user.id}`);
+                    setSelectedUserId(otherParticipant.user.id);
+                    setProfileBottomSheetVisible(true);
                   }
                 }}
               >
@@ -943,20 +1019,15 @@ export default function ConversationDetailScreen() {
                 style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }]}
                 onPress={() => {
                   setHeaderMenuVisible(false);
-                  Alert.alert(
+                  showConfirm(
+                    'Are you sure you want to clear all messages in this chat? This action cannot be undone.',
+                    () => {
+                      setMessages([]);
+                      showSuccess('Chat cleared');
+                    },
+                    undefined,
                     'Clear Chat',
-                    'Are you sure you want to clear all messages in this chat?',
-                    [
-                      { text: 'Cancel', onPress: () => {}, style: 'cancel' },
-                      {
-                        text: 'Clear',
-                        onPress: () => {
-                          setMessages([]);
-                          showSuccess('Chat cleared');
-                        },
-                        style: 'destructive',
-                      },
-                    ]
+                    true
                   );
                 }}
               >
@@ -976,38 +1047,75 @@ export default function ConversationDetailScreen() {
             onRequestClose={() => setMessageMenuVisible(false)}
           >
             <TouchableOpacity
-              style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+              style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
               onPress={() => setMessageMenuVisible(false)}
               activeOpacity={1}
             >
-              <View style={[styles.contextMenu, { backgroundColor: colors.backgroundSecondary }]}>
+              <View style={[styles.messageOptionsMenu, { backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF' }]}>
+                <Text style={[styles.messageOptionsTitle, { color: colors.text }]}>Message Options</Text>
+                
+                {/* Quick Reactions */}
+                <View style={styles.quickReactions}>
+                  {['❤️', '👍', '😂', '😮', '😢', '🔥'].map((emoji) => (
+                    <TouchableOpacity
+                      key={emoji}
+                      style={styles.quickReactionButton}
+                      onPress={async () => {
+                        setMessageMenuVisible(false);
+                        try {
+                          await apiClient.post(`/messages/${selectedMessageId}/reactions/`, {
+                            reaction_type: emoji,
+                          });
+                          loadMessages(true);
+                          showSuccess('Reaction added!');
+                        } catch (error) {
+                          showError('Failed to add reaction');
+                        }
+                      }}
+                    >
+                      <Text style={styles.quickReactionEmoji}>{emoji}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                {/* Message Actions */}
                 <TouchableOpacity
-                  style={styles.menuItem}
+                  style={styles.messageOption}
                   onPress={() => {
-                    const message = messages.find((m) => m.id === selectedMessageId);
-                    if (message) {
-                      setEditText(message.content || '');
-                      setEditingMessageId(selectedMessageId);
-                    }
+                    setReactionPickerVisible(selectedMessageId);
                     setMessageMenuVisible(false);
                   }}
                 >
-                  <Ionicons name="pencil" size={20} color={colors.text} />
-                  <Text style={[styles.menuItemText, { color: colors.text }]}>Edit</Text>
+                  <Ionicons name="happy-outline" size={22} color={colors.text} />
+                  <Text style={[styles.messageOptionText, { color: colors.text }]}>More Reactions</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }]}
-                  onPress={() => {
-                    setMessageMenuVisible(false);
-                    Alert.alert(
-                      'Delete Message',
-                      'Are you sure you want to delete this message?',
-                      [
-                        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
-                        {
-                          text: 'Delete',
-                          onPress: async () => {
+
+                {messages.find((m) => m.id === selectedMessageId)?.sender.id === user?.id && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.messageOption}
+                      onPress={() => {
+                        const message = messages.find((m) => m.id === selectedMessageId);
+                        if (message) {
+                          setEditText(message.content || '');
+                          setEditingMessageId(selectedMessageId);
+                        }
+                        setMessageMenuVisible(false);
+                      }}
+                    >
+                      <Ionicons name="pencil-outline" size={22} color={colors.text} />
+                      <Text style={[styles.messageOptionText, { color: colors.text }]}>Edit Message</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={styles.messageOption}
+                      onPress={() => {
+                        setMessageMenuVisible(false);
+                        showConfirm(
+                          'Are you sure you want to delete this message? This action cannot be undone.',
+                          async () => {
                             try {
                               await apiClient.delete(`/messages/${selectedMessageId}/`);
                               setMessages((prev) =>
@@ -1020,15 +1128,17 @@ export default function ConversationDetailScreen() {
                               showError('Failed to delete message');
                             }
                           },
-                          style: 'destructive',
-                        },
-                      ]
-                    );
-                  }}
-                >
-                  <Ionicons name="trash" size={20} color="#FF6B6B" />
-                  <Text style={[styles.menuItemText, { color: '#FF6B6B' }]}>Delete</Text>
-                </TouchableOpacity>
+                          undefined,
+                          'Delete Message',
+                          true
+                        );
+                      }}
+                    >
+                      <Ionicons name="trash-outline" size={22} color={colors.secondary} />
+                      <Text style={[styles.messageOptionText, { color: colors.secondary }]}>Delete Message</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             </TouchableOpacity>
           </Modal>
@@ -1070,6 +1180,16 @@ export default function ConversationDetailScreen() {
             </View>
           </TouchableOpacity>
         </Modal>
+
+        {/* User Profile Bottom Sheet */}
+        <UserProfileBottomSheet
+          visible={profileBottomSheetVisible}
+          userId={selectedUserId}
+          onClose={() => {
+            setProfileBottomSheetVisible(false);
+            setSelectedUserId(null);
+          }}
+        />
     </KeyboardAvoidingView>
     </View>
   );
