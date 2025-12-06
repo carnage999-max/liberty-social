@@ -211,6 +211,7 @@ export interface Conversation {
   last_message_at?: string | null;
   participants: ConversationParticipant[];
   last_message?: Message | null;
+  unread_count?: number;
 }
 
 export interface Bookmark {
