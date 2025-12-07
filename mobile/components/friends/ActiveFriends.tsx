@@ -8,6 +8,8 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../utils/api';
@@ -178,10 +180,24 @@ export default function ActiveFriends({
     <View style={[styles.container, { backgroundColor: isDark ? colors.backgroundSecondary : '#F8F9FF' }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: '#fbbf24' }]}>Who's Online?</Text>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusBadge}>
-            {showingType === 'online' ? '🟢 Online' : '📍 Recently Active'}
-          </Text>
+        <View style={styles.statusBadgeContainer}>
+          <LinearGradient
+            colors={['#a8862a', '#d7b756', '#a8862a']}
+            style={styles.statusBadgeGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <View style={styles.statusBadgeContent}>
+              {showingType === 'online' ? (
+                <Ionicons name="ellipse" size={8} color="#0B3D91" style={{ marginRight: 4 }} />
+              ) : (
+                <Ionicons name="location" size={8} color="#0B3D91" style={{ marginRight: 4 }} />
+              )}
+              <Text style={styles.statusBadgeText}>
+                {showingType === 'online' ? 'Online' : 'Recently Active'}
+              </Text>
+            </View>
+          </LinearGradient>
         </View>
       </View>
 
@@ -253,52 +269,66 @@ export default function ActiveFriends({
 
 const styles = StyleSheet.create({
     container: {
-      paddingVertical: 16,
-      paddingHorizontal: 16,
-      borderRadius: 16,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 12,
       marginHorizontal: 16,
-      marginVertical: 8,
+      marginVertical: 6,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 12,
+      marginBottom: 8,
     },
     title: {
-      fontSize: 18,
+      fontSize: 14,
       fontWeight: 'bold',
     },
-    statusBadge: {
-      fontSize: 12,
-      fontWeight: '600',
+    statusBadgeContainer: {
+      borderRadius: 10,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 4,
+    },
+    statusBadgeGradient: {
       paddingHorizontal: 8,
       paddingVertical: 4,
-      borderRadius: 12,
-      backgroundColor: 'rgba(251, 191, 36, 0.1)',
+      borderRadius: 10,
       borderWidth: 1,
-      borderColor: 'rgba(251, 191, 36, 0.3)',
-      color: '#fbbf24',
+      borderColor: 'rgba(0, 0, 0, 0.2)',
+    },
+    statusBadgeContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    statusBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#0B3D91',
     },
     scrollView: {
-      paddingVertical: 8,
+      paddingVertical: 4,
     },
     friendsContainer: {
       flexDirection: 'row',
-      gap: 12,
+      gap: 10,
     },
     friendItem: {
       alignItems: 'center',
-      width: 80,
+      width: 64,
     },
     flagContainer: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
+      width: 64,
+      height: 64,
+      borderRadius: 32,
       alignItems: 'center',
       justifyContent: 'center',
       overflow: 'hidden',
-      marginBottom: 8,
+      marginBottom: 6,
     },
     flagBackground: {
       position: 'absolute',
@@ -306,9 +336,9 @@ const styles = StyleSheet.create({
       height: '100%',
     },
     avatarContainer: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
+      width: 50,
+      height: 50,
+      borderRadius: 25,
       overflow: 'hidden',
       borderWidth: 2,
       borderColor: '#fbbf24',
@@ -324,11 +354,11 @@ const styles = StyleSheet.create({
     },
     onlineIndicator: {
       position: 'absolute',
-      bottom: 2,
-      right: 2,
-      width: 12,
-      height: 12,
-      borderRadius: 6,
+      bottom: 1,
+      right: 1,
+      width: 10,
+      height: 10,
+      borderRadius: 5,
       borderWidth: 2,
       borderColor: '#FFFFFF',
       zIndex: 20,
@@ -340,16 +370,16 @@ const styles = StyleSheet.create({
       backgroundColor: '#6B7280',
     },
     friendName: {
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: '600',
       color: '#fbbf24',
       textAlign: 'center',
-      marginTop: 4,
+      marginTop: 2,
     },
     friendStatus: {
-      fontSize: 11,
+      fontSize: 10,
       textAlign: 'center',
-      marginTop: 2,
+      marginTop: 1,
     },
     errorContainer: {
       paddingVertical: 16,
@@ -365,15 +395,15 @@ const styles = StyleSheet.create({
       marginRight: 12,
     },
     avatarSkeleton: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      marginBottom: 8,
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      marginBottom: 6,
     },
     nameSkeleton: {
-      width: 60,
-      height: 12,
-      borderRadius: 6,
+      width: 50,
+      height: 10,
+      borderRadius: 5,
     },
   });
 

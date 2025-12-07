@@ -1049,7 +1049,7 @@ export default function ConversationDetailScreen() {
               style={[
                 styles.messageBubble,
                 isOwn
-                  ? { backgroundColor: '#1b2749' }
+                  ? { backgroundColor: '#0B3D91' }
                   : { backgroundColor: isDark ? colors.backgroundSecondary : '#E5E5E5' },
               ]}
             >
@@ -1616,7 +1616,7 @@ export default function ConversationDetailScreen() {
             )}
             <View style={styles.inputRow}>
               {!isRecording && !audioUri ? (
-                <View style={[styles.inputWrapper, { backgroundColor: '#E5E7EB', borderColor: '#D1D5DB' }]}>
+                <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.backgroundSecondary : '#E5E5E5', borderColor: isDark ? colors.border : '#D1D5DB' }]}>
                   <TouchableOpacity
                     style={styles.attachButtonInside}
                     onPress={handlePickMedia}
@@ -1629,9 +1629,9 @@ export default function ConversationDetailScreen() {
                     />
                   </TouchableOpacity>
                   <TextInput
-                    style={[styles.textInput, { color: '#1F2937' }]}
+                    style={[styles.textInput, { color: colors.text }]}
                     placeholder={editingMessageId !== null ? 'Edit message...' : 'Message'}
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor={colors.textSecondary}
                     value={editingMessageId !== null ? editText : messageText}
                     onChangeText={(text) => {
                       if (editingMessageId !== null) {
@@ -1667,7 +1667,7 @@ export default function ConversationDetailScreen() {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <View style={[styles.inputWrapper, { backgroundColor: '#E5E7EB', borderColor: '#D1D5DB', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 }]}>
+                <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.backgroundSecondary : '#E5E5E5', borderColor: isDark ? colors.border : '#D1D5DB', flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16 }]}>
                   {isRecording ? (
                     <>
                       {/* Pulsing red dot */}
@@ -1683,27 +1683,71 @@ export default function ConversationDetailScreen() {
                         elevation: 4,
                       }} />
                       {/* Duration */}
-                      <Text style={{ color: '#1F2937', fontSize: 16, flex: 1, fontWeight: '500' }}>
+                      <Text style={{ color: colors.text, fontSize: 16, flex: 1, fontWeight: '500' }}>
                         {formatDuration(recordingDuration)}
                       </Text>
                       {/* Stop button (saves recording) */}
                       <TouchableOpacity
                         onPress={stopRecording}
                         style={{ 
-                          padding: 10,
-                          backgroundColor: colors.primary,
+                          width: 40,
+                          height: 40,
                           borderRadius: 20,
                           marginRight: 8,
+                          overflow: 'hidden',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 3,
+                          elevation: 4,
                         }}
                       >
-                        <Ionicons name="stop" size={20} color="#FFFFFF" />
+                        <LinearGradient
+                          colors={['#a8862a', '#d7b756', '#a8862a']}
+                          style={{
+                            flex: 1,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderRadius: 20,
+                            borderWidth: 1,
+                            borderColor: 'rgba(0, 0, 0, 0.2)',
+                          }}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                        >
+                          <Ionicons name="stop" size={18} color="#192A4A" />
+                        </LinearGradient>
                       </TouchableOpacity>
                       {/* Cancel button (discards recording) */}
                       <TouchableOpacity
                         onPress={cancelRecording}
-                        style={{ padding: 8 }}
+                        style={{ 
+                          width: 40,
+                          height: 40,
+                          borderRadius: 20,
+                          overflow: 'hidden',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 3,
+                          elevation: 4,
+                        }}
                       >
-                        <Ionicons name="close-circle" size={24} color="#FF6B6B" />
+                        <LinearGradient
+                          colors={['#a8862a', '#d7b756', '#a8862a']}
+                          style={{
+                            flex: 1,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderRadius: 20,
+                            borderWidth: 1,
+                            borderColor: 'rgba(0, 0, 0, 0.2)',
+                          }}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                        >
+                          <Ionicons name="close" size={18} color="#192A4A" />
+                        </LinearGradient>
                       </TouchableOpacity>
                     </>
                   ) : audioUri ? (
@@ -1719,17 +1763,34 @@ export default function ConversationDetailScreen() {
                         style={{ 
                           width: 40, 
                           height: 40, 
-                          borderRadius: 20, 
-                          backgroundColor: colors.primary, 
-                          justifyContent: 'center', 
-                          alignItems: 'center' 
+                          borderRadius: 20,
+                          overflow: 'hidden',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 3,
+                          elevation: 4,
                         }}
                       >
-                        <Ionicons
-                          name={previewAudioSound ? "pause" : "play"}
-                          size={20}
-                          color="#FFFFFF"
-                        />
+                        <LinearGradient
+                          colors={['#a8862a', '#d7b756', '#a8862a']}
+                          style={{
+                            flex: 1,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderRadius: 20,
+                            borderWidth: 1,
+                            borderColor: 'rgba(0, 0, 0, 0.2)',
+                          }}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                        >
+                          <Ionicons
+                            name={previewAudioSound ? "pause" : "play"}
+                            size={18}
+                            color="#192A4A"
+                          />
+                        </LinearGradient>
                       </TouchableOpacity>
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, height: 20, marginBottom: 4 }}>
@@ -1740,37 +1801,69 @@ export default function ConversationDetailScreen() {
                                 {
                                   width: 3,
                                   height: height,
-                                  backgroundColor: colors.primary,
+                                  backgroundColor: '#C8A25F',
                                   borderRadius: 2,
                                 }
                               ]}
                             />
                           ))}
                         </View>
-                        <Text style={{ color: '#1F2937', fontSize: 14, fontWeight: '500' }}>
+                        <Text style={{ color: colors.text, fontSize: 14, fontWeight: '500' }}>
                           Voice note
                         </Text>
-                        <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 2 }}>
+                        <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 2 }}>
                           {formatDuration(recordingDuration)}
                         </Text>
                       </View>
                       <TouchableOpacity
                         onPress={cancelRecording}
-                        style={{ padding: 8, marginRight: 8 }}
+                        style={{ 
+                          width: 40,
+                          height: 40,
+                          borderRadius: 20,
+                          marginRight: 8,
+                          overflow: 'hidden',
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 3,
+                          elevation: 4,
+                        }}
                       >
-                        <Ionicons name="close-circle" size={24} color="#FF6B6B" />
+                        <LinearGradient
+                          colors={['#a8862a', '#d7b756', '#a8862a']}
+                          style={{
+                            flex: 1,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            borderRadius: 20,
+                            borderWidth: 1,
+                            borderColor: 'rgba(0, 0, 0, 0.2)',
+                          }}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                        >
+                          <Ionicons name="close" size={18} color="#192A4A" />
+                        </LinearGradient>
                       </TouchableOpacity>
                       {/* Send button for voice note */}
                       <TouchableOpacity
-                        style={[styles.sendButton, { backgroundColor: colors.primary }]}
+                        style={styles.sendButton}
                         onPress={sendMessage}
                         disabled={sending}
                       >
-                        {sending ? (
-                          <ActivityIndicator size="small" color="#FFFFFF" />
-                        ) : (
-                          <Ionicons name="send" size={20} color="#FFFFFF" />
-                        )}
+                        <LinearGradient
+                          colors={['#a8862a', '#d7b756', '#a8862a']}
+                          style={styles.sendButtonGradient}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                        >
+                          {sending ? (
+                            <ActivityIndicator size="small" color="#192A4A" />
+                          ) : (
+                            <Ionicons name="send" size={18} color="#192A4A" />
+                          )}
+                        </LinearGradient>
                       </TouchableOpacity>
                     </>
                   ) : null}
@@ -1780,37 +1873,45 @@ export default function ConversationDetailScreen() {
                 <>
                   {canSend ? (
                     <TouchableOpacity
-                      style={[styles.sendButton, { backgroundColor: colors.primary }]}
+                      style={styles.sendButton}
                       onPress={sendMessage}
                       disabled={sending}
                     >
-                      {sending ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                      ) : (
-                        <Ionicons
-                          name="send"
-                          size={20}
-                          color="#FFFFFF"
-                        />
-                      )}
+                      <LinearGradient
+                        colors={['#a8862a', '#d7b756', '#a8862a']}
+                        style={styles.sendButtonGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                      >
+                        {sending ? (
+                          <ActivityIndicator size="small" color="#192A4A" />
+                        ) : (
+                          <Ionicons
+                            name="send"
+                            size={18}
+                            color="#192A4A"
+                          />
+                        )}
+                      </LinearGradient>
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity
-                      style={[
-                        styles.micButton,
-                        {
-                          backgroundColor: isDark ? '#1e293b' : '#ffffff',
-                          borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : '#e2e8f0',
-                        }
-                      ]}
+                      style={styles.micButton}
                       onPress={startRecording}
                       disabled={sending}
                     >
-                      <Ionicons
-                        name="mic"
-                        size={22}
-                        color={colors.primary}
-                      />
+                      <LinearGradient
+                        colors={['#a8862a', '#d7b756', '#a8862a']}
+                        style={styles.micButtonGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                      >
+                        <Ionicons
+                          name="mic"
+                          size={18}
+                          color="#192A4A"
+                        />
+                      </LinearGradient>
                     </TouchableOpacity>
                   )}
                 </>
@@ -2294,8 +2395,20 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  sendButtonGradient: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
   },
   typingIndicatorContainer: {
     paddingHorizontal: 16,
@@ -2488,9 +2601,20 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  micButtonGradient: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 22,
     borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
   },
   contextMenu: {
     position: 'absolute',

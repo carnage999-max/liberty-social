@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ActiveFriends from '../../components/friends/ActiveFriends';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
 import { useTypingStatus } from '../../contexts/TypingStatusContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function MessagesScreen() {
   const { colors, isDark } = useTheme();
@@ -650,13 +651,18 @@ export default function MessagesScreen() {
               style={[
                 styles.avatar,
                 styles.avatarPlaceholder,
-                { backgroundColor: colors.primary },
+                {
+                  backgroundColor: '#192A4A',
+                  borderWidth: 2,
+                  borderColor: '#C8A25F',
+                  borderRadius: 28,
+                },
               ]}
             >
               <Ionicons
                 name={item.is_group ? 'people' : 'person'}
                 size={24}
-                color="#FFFFFF"
+                color="#C8A25F"
               />
             </View>
           )}
@@ -740,6 +746,7 @@ export default function MessagesScreen() {
     avatarPlaceholder: {
       alignItems: 'center',
       justifyContent: 'center',
+      borderRadius: 28,
     },
     onlineIndicator: {
       position: 'absolute',
@@ -876,10 +883,44 @@ export default function MessagesScreen() {
     actionButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: 8,
       paddingHorizontal: 12,
       paddingVertical: 8,
       minWidth: 100,
+    },
+    actionIconButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 4,
+    },
+    actionIconGradient: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 0.2)',
+    },
+    dangerIconButton: {
+      backgroundColor: '#FF6B6B',
+    },
+    dangerIconBackground: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      backgroundColor: '#FF6B6B',
+      shadowColor: '#FF6B6B',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.4,
+      shadowRadius: 3,
+      elevation: 4,
     },
     actionButtonText: {
       fontSize: 14,
@@ -908,6 +949,25 @@ export default function MessagesScreen() {
       borderBottomWidth: StyleSheet.hairlineWidth,
       gap: 12,
     },
+    iconButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 4,
+    },
+    iconGradient: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 0.2)',
+    },
     archivedRowText: {
       flex: 1,
       fontSize: 16,
@@ -917,14 +977,26 @@ export default function MessagesScreen() {
       minWidth: 24,
       height: 24,
       borderRadius: 12,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 4,
+    },
+    archivedCountGradient: {
+      flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 0.2)',
     },
     archivedCountText: {
-      color: '#FFFFFF',
+      color: '#192A4A',
       fontSize: 12,
-      fontWeight: '600',
+      fontWeight: '700',
     },
   });
 
@@ -1018,7 +1090,16 @@ export default function MessagesScreen() {
               style={styles.actionButton}
               onPress={handleMarkRead}
             >
-              <Ionicons name="checkmark-done" size={20} color={colors.text} />
+              <View style={styles.actionIconButton}>
+                <LinearGradient
+                  colors={['#a8862a', '#d7b756', '#a8862a']}
+                  style={styles.actionIconGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Ionicons name="checkmark-done" size={18} color="#192A4A" />
+                </LinearGradient>
+              </View>
               <Text style={[styles.actionButtonText, { color: colors.text }]}>Mark Read</Text>
             </TouchableOpacity>
           )}
@@ -1028,7 +1109,16 @@ export default function MessagesScreen() {
               style={styles.actionButton}
               onPress={handleMarkUnread}
             >
-              <Ionicons name="mail-unread" size={20} color={colors.text} />
+              <View style={styles.actionIconButton}>
+                <LinearGradient
+                  colors={['#a8862a', '#d7b756', '#a8862a']}
+                  style={styles.actionIconGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Ionicons name="mail-unread" size={18} color="#192A4A" />
+                </LinearGradient>
+              </View>
               <Text style={[styles.actionButtonText, { color: colors.text }]}>Mark Unread</Text>
             </TouchableOpacity>
           )}
@@ -1036,14 +1126,27 @@ export default function MessagesScreen() {
             style={styles.actionButton}
             onPress={handleArchiveChats}
           >
-            <Ionicons name="archive" size={20} color={colors.text} />
+            <View style={styles.actionIconButton}>
+              <LinearGradient
+                colors={['#a8862a', '#d7b756', '#a8862a']}
+                style={styles.actionIconGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Ionicons name="archive" size={18} color="#192A4A" />
+              </LinearGradient>
+            </View>
             <Text style={[styles.actionButtonText, { color: colors.text }]}>Archive</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={handleClearChats}
           >
-            <Ionicons name="trash" size={20} color="#FF6B6B" />
+            <View style={[styles.actionIconButton, styles.dangerIconButton]}>
+              <View style={styles.dangerIconBackground}>
+                <Ionicons name="trash" size={18} color="#FFFFFF" />
+              </View>
+            </View>
             <Text style={[styles.actionButtonText, { color: '#FF6B6B' }]}>Clear</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1071,12 +1174,28 @@ export default function MessagesScreen() {
               ]}
               onPress={() => setShowArchivedModal(true)}
             >
-              <Ionicons name="archive" size={20} color={colors.text} />
+              <View style={styles.iconButton}>
+                <LinearGradient
+                  colors={['#a8862a', '#d7b756', '#a8862a']}
+                  style={styles.iconGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Ionicons name="archive" size={18} color="#192A4A" />
+                </LinearGradient>
+              </View>
               <Text style={[styles.archivedRowText, { color: colors.text }]}>
                 Archived Chats
               </Text>
-              <View style={[styles.archivedCount, { backgroundColor: colors.primary }]}>
-                <Text style={styles.archivedCountText}>{archivedConversations.length}</Text>
+              <View style={styles.archivedCount}>
+                <LinearGradient
+                  colors={['#a8862a', '#d7b756', '#a8862a']}
+                  style={styles.archivedCountGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.archivedCountText}>{archivedConversations.length}</Text>
+                </LinearGradient>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -1106,7 +1225,10 @@ export default function MessagesScreen() {
           renderItem={renderConversation}
           keyExtractor={(item) => item.id.toString()}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
+          contentContainerStyle={{ 
+            flexGrow: 1, 
+            paddingBottom: tabBarHeight + (insets.bottom > 0 ? insets.bottom : 0) + 20 
+          }}
           removeClippedSubviews={true}
           windowSize={10}
           initialNumToRender={10}
@@ -1222,7 +1344,16 @@ export default function MessagesScreen() {
                     style={styles.actionButton}
                     onPress={handleUnarchiveChats}
                   >
-                    <Ionicons name="archive-outline" size={20} color={colors.text} />
+                    <View style={styles.iconButton}>
+                      <LinearGradient
+                        colors={['#a8862a', '#d7b756', '#a8862a']}
+                        style={styles.iconGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                      >
+                        <Ionicons name="archive-outline" size={18} color="#192A4A" />
+                      </LinearGradient>
+                    </View>
                     <Text style={[styles.actionButtonText, { color: colors.text }]}>Unarchive</Text>
                   </TouchableOpacity>
                 </ScrollView>
@@ -1231,7 +1362,10 @@ export default function MessagesScreen() {
                 data={archivedConversations}
                 renderItem={({ item }) => renderConversation({ item }, true)}
                 keyExtractor={(item) => item.id.toString()}
-                contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+                contentContainerStyle={{ 
+                  flexGrow: 1, 
+                  paddingBottom: tabBarHeight + (insets.bottom > 0 ? insets.bottom : 0) + 20 
+                }}
               />
             </>
           )}
