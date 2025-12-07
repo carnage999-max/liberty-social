@@ -85,7 +85,12 @@ def _is_expo_token(token: str) -> bool:
 )
 def deliver_push_notification(self, notification_id: int):
     """Send push notifications via Expo (mobile) and FCM (web) for a newly created Notification."""
-    if not getattr(settings, "PUSH_NOTIFICATIONS_ENABLED", False):
+    push_enabled = getattr(settings, "PUSH_NOTIFICATIONS_ENABLED", False)
+    if not push_enabled:
+        logger.debug(
+            "Push notifications disabled (PUSH_NOTIFICATIONS_ENABLED=False). Skipping notification %s",
+            notification_id,
+        )
         return
 
     try:
@@ -193,6 +198,15 @@ def _send_expo_notifications(
         recipient.id,
         len(expo_tokens),
     )
+    
+    # Log token formats for debugging
+    for token, platform in expo_tokens[:3]:  # Log first 3 tokens
+        logger.debug(
+            "Expo token format for platform %s: %s (length: %d)",
+            platform,
+            token[:30] + "..." if len(token) > 30 else token,
+            len(token),
+        )
 
     push_client = _get_push_client()
     if not push_client:
@@ -203,18 +217,19 @@ def _send_expo_notifications(
     token_to_platform = {}
 
     for token, platform in expo_tokens:
-        # Extract clean token (remove brackets if present)
-        clean_token = token
-        if token.startswith("ExponentPushToken["):
-            clean_token = token[len("ExponentPushToken[") : -1]
-        elif token.startswith("ExpoPushToken["):
-            clean_token = token[len("ExpoPushToken[") : -1]
+        # Ensure token is in the correct format (with brackets)
+        # The Expo Push Service expects tokens in format: ExponentPushToken[...] or ExpoPushToken[...]
+        formatted_token = token
+        if not (token.startswith("ExponentPushToken[") or token.startswith("ExpoPushToken[")):
+            # If token doesn't have brackets, add them (shouldn't happen, but handle it)
+            formatted_token = f"ExponentPushToken[{token}]"
+        
+        token_to_platform[formatted_token] = platform
+        token_to_platform[token] = platform  # Also map original token for error handling
 
-        token_to_platform[clean_token] = platform
-
-        # Create push message
+        # Create push message - send token with full format
         message = PushMessage(
-            to=clean_token,
+            to=formatted_token,
             title=message_title,
             body=message_body,
             data=notification_data,
@@ -234,42 +249,43 @@ def _send_expo_notifications(
         for ticket in chunk:
             if isinstance(ticket, PushTicketError):
                 error = ticket
-                token = ticket.push_token
+                ticket_token = ticket.push_token
 
                 # Check if token is invalid and should be removed
                 if error.code in ("DeviceNotRegistered", "InvalidCredentials"):
                     logger.warning(
                         "Invalid Expo token detected for notification %s (platform: %s): %s - %s",
                         notification_id,
-                        token_to_platform.get(token, "unknown"),
+                        token_to_platform.get(ticket_token, "unknown"),
                         error.code,
                         error.message,
                     )
                     # Find and mark token for deletion
+                    # The ticket.push_token might be in different format, so check both
                     for device_token, platform in expo_tokens:
-                        clean_token = device_token
-                        if device_token.startswith("ExponentPushToken["):
-                            clean_token = device_token[len("ExponentPushToken[") : -1]
-                        elif device_token.startswith("ExpoPushToken["):
-                            clean_token = device_token[len("ExpoPushToken[") : -1]
-                        if clean_token == token:
+                        # Check if this is the token that failed (handle both formats)
+                        if (device_token == ticket_token or 
+                            ticket_token in device_token or 
+                            device_token in ticket_token):
                             invalid_tokens.append(device_token)
                             break
                 else:
                     logger.error(
                         "Failed to deliver Expo push notification %s to token %s (platform: %s): %s - %s",
                         notification_id,
-                        token[:20] + "..." if token else "unknown",
-                        token_to_platform.get(token, "unknown"),
+                        ticket_token[:20] + "..." if ticket_token else "unknown",
+                        token_to_platform.get(ticket_token, "unknown"),
                         error.code if hasattr(error, 'code') else "Unknown",
                         error.message if hasattr(error, 'message') else str(error),
                     )
             else:
+                # Success - log the delivery
+                ticket_token = ticket.push_token if hasattr(ticket, 'push_token') else "unknown"
                 logger.info(
                     "Successfully delivered Expo push notification %s to token %s (platform: %s)",
                     notification_id,
-                    ticket.push_token[:20] + "..." if ticket.push_token else "unknown",
-                    token_to_platform.get(ticket.push_token, "unknown"),
+                    ticket_token[:20] + "..." if ticket_token and ticket_token != "unknown" else "unknown",
+                    token_to_platform.get(ticket_token, "unknown"),
                 )
 
 
