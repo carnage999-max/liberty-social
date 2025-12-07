@@ -9,6 +9,8 @@ interface UseChatWebSocketOptions {
   onMessage?: (message: Message) => void;
   onMessageUpdated?: (message: Message) => void;
   onMessageDeleted?: (message: Message) => void;
+  onReactionCreated?: (messageId: number, reaction: any) => void;
+  onReactionDeleted?: (messageId: number, reactionId: number) => void;
   onError?: (error: Error) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
@@ -22,6 +24,8 @@ export function useChatWebSocket({
   onMessage,
   onMessageUpdated,
   onMessageDeleted,
+  onReactionCreated,
+  onReactionDeleted,
   onError,
   onConnect,
   onDisconnect,
@@ -101,6 +105,12 @@ export function useChatWebSocket({
           } else if (data.type === 'message.deleted') {
             const message = data.payload as Message;
             onMessageDeleted?.(message);
+          } else if (data.type === 'reaction.created') {
+            // Payload: { message_id, reaction }
+            onReactionCreated?.(data.payload.message_id, data.payload.reaction);
+          } else if (data.type === 'reaction.deleted') {
+            // Payload: { message_id, reaction_id }
+            onReactionDeleted?.(data.payload.message_id, data.payload.reaction_id);
           } else if (data.type === 'typing.started') {
             onTypingStart?.(data.user_id, data.username);
           } else if (data.type === 'typing.stopped') {
@@ -171,7 +181,7 @@ export function useChatWebSocket({
       console.error('[WebSocket] Failed to connect:', error);
       onError?.(error as Error);
     }
-  }, [conversationId, onMessage, onError, onConnect, onDisconnect]);
+  }, [conversationId, onMessage, onMessageUpdated, onMessageDeleted, onReactionCreated, onReactionDeleted, onError, onConnect, onDisconnect, onTypingStart, onTypingStop]);
 
   const startTyping = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {

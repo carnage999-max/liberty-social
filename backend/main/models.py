@@ -238,6 +238,7 @@ class ConversationParticipant(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="member")
     joined_at = models.DateTimeField(auto_now_add=True)
     last_read_at = models.DateTimeField(blank=True, null=True)
+    is_archived = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ("conversation", "user")

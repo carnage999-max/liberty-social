@@ -1,143 +1,30 @@
-import base64
 import json
 import logging
-from pathlib import Path
-from threading import Lock
-from typing import Optional
+from typing import Optional, List
 
 from celery import shared_task
 from django.conf import settings
-from google.auth.transport.requests import AuthorizedSession
-from google.oauth2 import service_account
+from exponent_server_sdk import PushClient, PushMessage, PushTicketError
 
 from .models import Notification
 
 logger = logging.getLogger(__name__)
 
-_SESSION_LOCK = Lock()
-_AUTHORIZED_SESSION: Optional[AuthorizedSession] = None
-_SESSION_PROJECT_ID: Optional[str] = None
+# Initialize Expo Push Client
+_push_client: Optional[PushClient] = None
 
 
-def _load_service_account_info() -> Optional[dict]:
-    raw_value = (getattr(settings, "FIREBASE_CREDENTIALS_JSON", "") or "").strip()
-    if not raw_value:
-        return None
-
-    candidate = None
-    if raw_value.startswith("{"):
-        candidate = raw_value
-    else:
-        # Try base64 decode first (useful when storing JSON blobs in env vars).
-        try:
-            decoded = base64.b64decode(raw_value).decode("utf-8")
-            if decoded.strip().startswith("{"):
-                candidate = decoded
-        except Exception:
-            candidate = None
-        if candidate is None:
-            path = Path(raw_value)
-            if path.exists():
-                candidate = path.read_text()
-    if not candidate:
-        logger.error(
-            "FIREBASE_CREDENTIALS_JSON is not valid JSON, base64, or a readable file"
-        )
-        return None
-    try:
-        return json.loads(candidate)
-    except json.JSONDecodeError:
-        logger.exception("Failed to parse FIREBASE_CREDENTIALS_JSON")
-        return None
+def _get_push_client() -> Optional[PushClient]:
+    """Get or create Expo Push Client instance."""
+    global _push_client
+    if _push_client is None:
+        _push_client = PushClient()
+    return _push_client
 
 
-def _get_authorized_session() -> tuple[Optional[AuthorizedSession], Optional[str]]:
-    project_id = (getattr(settings, "FIREBASE_PROJECT_ID", "") or "").strip()
-    if not project_id:
-        return None, None
-
-    global _AUTHORIZED_SESSION, _SESSION_PROJECT_ID
-    with _SESSION_LOCK:
-        if _AUTHORIZED_SESSION and _SESSION_PROJECT_ID == project_id:
-            return _AUTHORIZED_SESSION, project_id
-
-        info = _load_service_account_info()
-        if not info:
-            return None, None
-
-        try:
-            credentials = service_account.Credentials.from_service_account_info(
-                info,
-                scopes=["https://www.googleapis.com/auth/firebase.messaging"],
-            )
-        except Exception:
-            logger.exception("Failed to build Firebase service account credentials")
-            return None, None
-
-        session = AuthorizedSession(credentials)
-        _AUTHORIZED_SESSION = session
-        _SESSION_PROJECT_ID = project_id
-        return session, project_id
-
-
-def _is_token_invalid(error_payload: Optional[dict]) -> bool:
-    if not error_payload:
-        return False
-    error = error_payload.get("error", {})
-    details = error.get("details") or []
-    for detail in details:
-        if (
-            detail.get("@type")
-            == "type.googleapis.com/google.firebase.fcm.v1.FcmError"
-            and detail.get("errorCode") in {"UNREGISTERED", "INVALID_ARGUMENT"}
-        ):
-            return True
-    message = (error.get("message") or "").lower()
-    if "requested entity was not found" in message:
-        return True
-    if "registration token is not a valid fcm registration token" in message:
-        return True
-    return False
-
-
-def _build_message_payload(
-    token: str, notification_payload: dict, title: str, body: str, platform: str = "web"
-) -> dict:
-    serialized = json.dumps(notification_payload)
-    base_payload = {
-        "token": token,
-        "data": {"notification": serialized},
-    }
-
-    # For web platform, use webpush configuration
-    if platform == "web":
-        target_url = notification_payload.get("target_url", "/app/notifications")
-        # Ensure absolute URL for web push
-        frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
-        if frontend_url and not target_url.startswith("http"):
-            target_url = f"{frontend_url}{target_url}"
-        
-        # Web push requires both notification and webpush fields
-        base_payload["notification"] = {
-            "title": title,
-            "body": body,
-        }
-        base_payload["webpush"] = {
-            "notification": {
-                "title": title,
-                "body": body,
-                "icon": "/icon.png",
-                "badge": "/icon.png",
-            },
-            "fcm_options": {
-                "link": target_url
-            },
-        }
-    else:
-        # For mobile platforms (iOS/Android), use notification field
-        base_payload["notification"] = {"title": title, "body": body}
-
-    return base_payload
+def _is_expo_token(token: str) -> bool:
+    """Check if token is an Expo push token (starts with ExponentPushToken or ExpoPushToken)."""
+    return token.startswith("ExponentPushToken[") or token.startswith("ExpoPushToken[")
 
 
 @shared_task(
@@ -148,15 +35,8 @@ def _build_message_payload(
     max_retries=5,
 )
 def deliver_push_notification(self, notification_id: int):
-    """Send a push notification via FCM for a newly created Notification."""
+    """Send a push notification via Expo Push Notification Service for a newly created Notification."""
     if not getattr(settings, "PUSH_NOTIFICATIONS_ENABLED", False):
-        return
-
-    session, project_id = _get_authorized_session()
-    if not session or not project_id:
-        logger.warning(
-            "Push notifications enabled but Firebase credentials/project ID missing"
-        )
         return
 
     try:
@@ -168,7 +48,7 @@ def deliver_push_notification(self, notification_id: int):
         return
 
     recipient = notification.recipient
-    # Get tokens with platform info for proper payload formatting
+    # Get tokens with platform info
     device_tokens = list(
         recipient.device_tokens.values_list("token", "platform", flat=False)
     )
@@ -179,12 +59,29 @@ def deliver_push_notification(self, notification_id: int):
             notification_id,
         )
         return
-    
+
+    # Filter to only Expo tokens (for mobile apps)
+    # Web tokens (FCM) can be handled separately if needed
+    expo_tokens = [
+        (token, platform)
+        for token, platform in device_tokens
+        if _is_expo_token(token) and platform in ("ios", "android")
+    ]
+
+    if not expo_tokens:
+        logger.info(
+            "No Expo push tokens found for user %s (notification %s). "
+            "Web tokens are not supported via Expo Push Service.",
+            recipient.id,
+            notification_id,
+        )
+        return
+
     logger.info(
-        "Sending push notification %s to user %s with %d device token(s)",
+        "Sending push notification %s to user %s with %d Expo token(s)",
         notification_id,
         recipient.id,
-        len(device_tokens),
+        len(expo_tokens),
     )
 
     actor = notification.actor
@@ -197,54 +94,107 @@ def deliver_push_notification(self, notification_id: int):
 
     message_title = "Liberty Social"
     message_body = f"{actor_label} {verb}"
-    endpoint = f"https://fcm.googleapis.com/v1/projects/{project_id}/messages:send"
-    invalid_tokens = []
 
-    for token, platform in device_tokens:
-        message = _build_message_payload(
-            token, payload, message_title, message_body, platform
+    # Build notification data
+    notification_data = {
+        "notification": payload,
+        "target_url": payload.get("target_url", "/app/notifications"),
+    }
+
+    # Create push messages for all Expo tokens
+    push_client = _get_push_client()
+    if not push_client:
+        logger.error("Failed to initialize Expo Push Client")
+        return
+
+    messages: List[PushMessage] = []
+    token_to_platform = {}
+
+    for token, platform in expo_tokens:
+        # Extract clean token (remove brackets if present)
+        clean_token = token
+        if token.startswith("ExponentPushToken["):
+            clean_token = token[len("ExponentPushToken[") : -1]
+        elif token.startswith("ExpoPushToken["):
+            clean_token = token[len("ExpoPushToken[") : -1]
+
+        token_to_platform[clean_token] = platform
+
+        # Create push message
+        message = PushMessage(
+            to=clean_token,
+            title=message_title,
+            body=message_body,
+            data=notification_data,
+            sound="default",
+            priority="high",
+            channel_id="default" if platform == "android" else None,
         )
-        try:
-            response = session.post(
-                endpoint, json={"message": message}, timeout=10  # seconds
-            )
-        except Exception as exc:
-            raise self.retry(exc=exc)
+        messages.append(message)
 
-        if response.ok:
+    if not messages:
+        return
+
+    # Send notifications
+    try:
+        chunks = push_client.send_push_notifications(messages)
+        invalid_tokens = []
+
+        for chunk in chunks:
+            for ticket in chunk:
+                if isinstance(ticket, PushTicketError):
+                    error = ticket
+                    token = ticket.push_token
+
+                    # Check if token is invalid and should be removed
+                    # Expo SDK uses error codes: DeviceNotRegistered, InvalidCredentials, MessageTooBig, MessageRateExceeded
+                    if error.code in ("DeviceNotRegistered", "InvalidCredentials"):
+                        logger.warning(
+                            "Invalid Expo token detected for notification %s (platform: %s): %s - %s",
+                            notification_id,
+                            token_to_platform.get(token, "unknown"),
+                            error.code,
+                            error.message,
+                        )
+                        # Find and mark token for deletion
+                        for device_token, platform in expo_tokens:
+                            clean_token = device_token
+                            if device_token.startswith("ExponentPushToken["):
+                                clean_token = device_token[len("ExponentPushToken[") : -1]
+                            elif device_token.startswith("ExpoPushToken["):
+                                clean_token = device_token[len("ExpoPushToken[") : -1]
+                            if clean_token == token:
+                                invalid_tokens.append(device_token)
+                                break
+                    else:
+                        logger.error(
+                            "Failed to deliver push notification %s to token %s (platform: %s): %s - %s",
+                            notification_id,
+                            token[:20] + "..." if token else "unknown",
+                            token_to_platform.get(token, "unknown"),
+                            error.code if hasattr(error, 'code') else "Unknown",
+                            error.message if hasattr(error, 'message') else str(error),
+                        )
+                else:
+                    logger.info(
+                        "Successfully delivered push notification %s to token %s (platform: %s)",
+                        notification_id,
+                        ticket.push_token[:20] + "..." if ticket.push_token else "unknown",
+                        token_to_platform.get(ticket.push_token, "unknown"),
+                    )
+
+        # Remove invalid tokens
+        if invalid_tokens:
+            recipient.device_tokens.filter(token__in=invalid_tokens).delete()
             logger.info(
-                "Successfully delivered push notification %s to token %s (platform: %s)",
-                notification_id,
-                token[:20] + "...",
-                platform,
+                "Removed %d invalid device token(s) for user %s",
+                len(invalid_tokens),
+                recipient.id,
             )
-            continue
 
-        try:
-            error_body = response.json()
-        except ValueError:
-            error_body = None
-
-        if _is_token_invalid(error_body):
-            logger.warning(
-                "Invalid token detected for notification %s (platform: %s): %s",
-                notification_id,
-                platform,
-                error_body or response.text,
-            )
-            invalid_tokens.append(token)
-            continue
-
-        logger.error(
-            "Failed to deliver push notification %s to token %s (platform: %s): Status %s, Response: %s",
+    except Exception as exc:
+        logger.exception(
+            "Error sending push notifications via Expo Push Service for notification %s",
             notification_id,
-            token[:20] + "...",
-            platform,
-            response.status_code,
-            error_body or response.text,
         )
-        if response.status_code >= 500:
-            raise self.retry(exc=Exception(response.text))
-
-    if invalid_tokens:
-        recipient.device_tokens.filter(token__in=invalid_tokens).delete()
+        raise self.retry(exc=exc)

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Modal,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -24,6 +25,7 @@ import { useMessageBadge } from '../../contexts/MessageBadgeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ActiveFriends from '../../components/friends/ActiveFriends';
 import UserProfileBottomSheet from '../../components/profile/UserProfileBottomSheet';
+import { useTypingStatus } from '../../contexts/TypingStatusContext';
 
 export default function MessagesScreen() {
   const { colors, isDark } = useTheme();
@@ -33,15 +35,32 @@ export default function MessagesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [next, setNext] = useState<string | null>(null);
   const [showNewConversation, setShowNewConversation] = useState(false);
+  const [showArchivedModal, setShowArchivedModal] = useState(false);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loadingFriends, setLoadingFriends] = useState(false);
   const [creatingConversation, setCreatingConversation] = useState(false);
   const [profileBottomSheetVisible, setProfileBottomSheetVisible] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | number | null>(null);
+  const { typingStatus } = useTypingStatus();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedConversations, setSelectedConversations] = useState<Set<number>>(new Set());
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedArchivedConversations, setSelectedArchivedConversations] = useState<Set<number>>(new Set());
+  const [isArchivedSelectionMode, setIsArchivedSelectionMode] = useState(false);
+  const [, forceUpdate] = useState(0);
+  
+  // Force re-render when typing status changes for faster updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      forceUpdate(prev => prev + 1);
+    }, 500); // Update every 500ms for fast typing indicator
+    return () => clearInterval(interval);
+  }, []);
   
   // Calculate FAB bottom position (account for tab bar + safe area)
   // Tab bar height: ~60px (icon + padding) + safe area bottom
@@ -51,17 +70,42 @@ export default function MessagesScreen() {
   const loadConversations = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
+      // Load active conversations (excludes archived by default)
       const response = await apiClient.get<PaginatedResponse<Conversation>>('/conversations/');
       
+      // Load archived conversations separately
+      const archivedResponse = await apiClient.get<PaginatedResponse<Conversation>>('/conversations/?include_archived=true');
+      
+      // Separate archived and non-archived conversations
+      const archived: Conversation[] = [];
+      const active: Conversation[] = [];
+      
+      // Process all conversations from archived response
+      archivedResponse.results.forEach((conv) => {
+        const participant = conv.participants.find((p) => p.user.id === user?.id);
+        if (participant?.is_archived) {
+          archived.push(conv);
+        } else {
+          active.push(conv);
+        }
+      });
+      
       // Sort by last_message_at (most recent first)
-      const sorted = response.results.sort((a, b) => {
+      const sortedActive = active.sort((a, b) => {
         const aTime = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
         const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
         return bTime - aTime;
       });
       
-      setConversations(sorted);
-      syncFromConversations(sorted);
+      const sortedArchived = archived.sort((a, b) => {
+        const aTime = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+        const bTime = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+        return bTime - aTime;
+      });
+      
+      setConversations(sortedActive);
+      setArchivedConversations(sortedArchived);
+      syncFromConversations(sortedActive);
       setNext(response.next);
     } catch (error) {
       if (!silent) showError('Failed to load conversations');
@@ -69,6 +113,259 @@ export default function MessagesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  // Helper function to get conversation title
+  const getConversationTitle = useCallback((conversation: Conversation) => {
+    if (conversation.title) {
+      return conversation.title;
+    }
+    if (conversation.is_group) {
+      return 'Group Chat';
+    }
+    // For direct messages, find the other participant
+    const otherParticipant = conversation.participants.find(
+      (p) => String(p.user.id) !== String(user?.id)
+    );
+    if (otherParticipant?.user) {
+      const u = otherParticipant.user;
+      if (u.first_name && u.last_name) {
+        return `${u.first_name} ${u.last_name}`;
+      }
+      return u.username || u.email?.split('@')[0] || 'Unknown User';
+    }
+    return 'Unknown Conversation';
+  }, [user]);
+
+  // Filter conversations based on search query
+  const filteredConversations = useMemo(() => {
+    if (!searchQuery.trim()) return conversations;
+    
+    const query = searchQuery.toLowerCase();
+    return conversations.filter((conv) => {
+      const title = getConversationTitle(conv).toLowerCase();
+      const lastMessage = conv.last_message?.content?.toLowerCase() || '';
+      return title.includes(query) || lastMessage.includes(query);
+    });
+  }, [conversations, searchQuery, getConversationTitle]);
+
+  // Handle conversation selection
+  const handleConversationLongPress = (conversationId: number) => {
+    if (!isSelectionMode) {
+      setIsSelectionMode(true);
+      setSelectedConversations(new Set([conversationId]));
+    }
+  };
+
+  const handleConversationPress = (conversationId: number) => {
+    if (isSelectionMode) {
+      setSelectedConversations((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(conversationId)) {
+          newSet.delete(conversationId);
+        } else {
+          newSet.add(conversationId);
+        }
+        if (newSet.size === 0) {
+          setIsSelectionMode(false);
+        }
+        return newSet;
+      });
+    } else {
+      router.push(`/(tabs)/messages/${conversationId}`);
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedConversations(new Set());
+    setIsSelectionMode(false);
+  };
+
+  // Determine read/unread status of selected conversations
+  const selectedConversationsStatus = useMemo(() => {
+    if (selectedConversations.size === 0) {
+      return { allRead: false, allUnread: false, mixed: false };
+    }
+
+    let readCount = 0;
+    let unreadCount = 0;
+
+    selectedConversations.forEach((convId) => {
+      const conversation = conversations.find((c) => c.id === convId);
+      if (!conversation) return;
+
+      const userParticipant = conversation.participants.find(
+        (p) => String(p.user.id) === String(user?.id)
+      );
+      const lastReadTs = userParticipant?.last_read_at
+        ? new Date(userParticipant.last_read_at).getTime()
+        : null;
+      const lastMessage = conversation.last_message;
+      const lastMessageTs = lastMessage?.created_at
+        ? new Date(lastMessage.created_at).getTime()
+        : null;
+      const lastMessageAtTs = conversation.last_message_at
+        ? new Date(conversation.last_message_at).getTime()
+        : null;
+      const latestActivityTs = lastMessageTs ?? lastMessageAtTs;
+      const hasUnread = Boolean(
+        latestActivityTs && (!lastReadTs || lastReadTs < latestActivityTs)
+      );
+
+      if (hasUnread) {
+        unreadCount++;
+      } else {
+        readCount++;
+      }
+    });
+
+    const total = readCount + unreadCount;
+    if (total === 0) {
+      return { allRead: false, allUnread: false, mixed: false };
+    }
+
+    return {
+      allRead: readCount > 0 && unreadCount === 0,
+      allUnread: unreadCount > 0 && readCount === 0,
+      mixed: readCount > 0 && unreadCount > 0,
+    };
+  }, [selectedConversations, conversations, user]);
+
+  // Handle bulk actions
+  const handleMarkRead = async () => {
+    try {
+      const promises = Array.from(selectedConversations).map((convId) =>
+        apiClient.post(`/conversations/${convId}/mark-read/`)
+      );
+      await Promise.all(promises);
+      showSuccess(`${selectedConversations.size} conversation(s) marked as read`);
+      handleClearSelection();
+      loadConversations(true);
+    } catch (error) {
+      showError('Failed to mark conversations as read');
+    }
+  };
+
+  const handleMarkUnread = async () => {
+    try {
+      const promises = Array.from(selectedConversations).map((convId) =>
+        apiClient.post(`/conversations/${convId}/mark-unread/`)
+      );
+      await Promise.all(promises);
+      showSuccess(`${selectedConversations.size} conversation(s) marked as unread`);
+      handleClearSelection();
+      loadConversations(true);
+    } catch (error: any) {
+      console.error('Mark unread error:', error);
+      showError('Failed to mark conversations as unread');
+    }
+  };
+
+  const handleClearChats = async () => {
+    try {
+      // Clear messages in selected conversations by deleting all messages
+      // Handle pagination by fetching all pages
+      const promises = Array.from(selectedConversations).map(async (convId) => {
+        let allMessages: any[] = [];
+        let nextUrl: string | null = `/conversations/${convId}/messages/`;
+        
+        // Fetch all messages (handle pagination)
+        while (nextUrl) {
+          const response = await apiClient.get(nextUrl);
+          if (response.results) {
+            allMessages = [...allMessages, ...response.results];
+          }
+          nextUrl = response.next || null;
+        }
+        
+        // Delete all messages
+        if (allMessages.length > 0) {
+          const deletePromises = allMessages.map((msg: any) =>
+            apiClient.delete(`/conversations/${convId}/messages/${msg.id}/`)
+          );
+          await Promise.all(deletePromises);
+        }
+      });
+      await Promise.all(promises);
+      showSuccess(`${selectedConversations.size} chat(s) cleared`);
+      handleClearSelection();
+      loadConversations(true);
+    } catch (error: any) {
+      console.error('Clear chat error:', error);
+      showError('Failed to clear chats');
+    }
+  };
+
+  const handleArchiveChats = async () => {
+    try {
+      const promises = Array.from(selectedConversations).map((convId) =>
+        apiClient.post(`/conversations/${convId}/archive/`)
+      );
+      await Promise.all(promises);
+      showSuccess(`${selectedConversations.size} conversation(s) archived`);
+      handleClearSelection();
+      loadConversations(true);
+    } catch (error: any) {
+      console.error('Archive error:', error);
+      showError('Failed to archive conversations');
+    }
+  };
+
+  const handleUnarchiveChats = async () => {
+    try {
+      const conversationIds = Array.from(selectedArchivedConversations);
+      console.log('Unarchiving conversations:', conversationIds);
+      
+      const promises = conversationIds.map((convId) => {
+        const conversationId = Number(convId); // Ensure it's a number
+        console.log(`Unarchiving conversation ID: ${conversationId} (type: ${typeof conversationId})`);
+        return apiClient.post(`/conversations/${conversationId}/unarchive/`);
+      });
+      
+      await Promise.all(promises);
+      showSuccess(`${selectedArchivedConversations.size} conversation(s) unarchived`);
+      setSelectedArchivedConversations(new Set());
+      setIsArchivedSelectionMode(false);
+      loadConversations(true);
+    } catch (error: any) {
+      console.error('Unarchive error:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Selected conversations:', Array.from(selectedArchivedConversations));
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || 'Failed to unarchive conversations';
+      showError(errorMessage);
+    }
+  };
+
+  const handleArchivedConversationLongPress = (conversationId: number) => {
+    console.log('Archived conversation long press:', conversationId, typeof conversationId);
+    setIsArchivedSelectionMode(true);
+    setSelectedArchivedConversations(new Set([conversationId]));
+  };
+
+  const handleArchivedConversationPress = (conversationId: number) => {
+    console.log('Archived conversation press:', conversationId, typeof conversationId, 'isSelectionMode:', isArchivedSelectionMode);
+    if (isArchivedSelectionMode) {
+      setSelectedArchivedConversations((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(conversationId)) {
+          newSet.delete(conversationId);
+        } else {
+          newSet.add(conversationId);
+        }
+        if (newSet.size === 0) {
+          setIsArchivedSelectionMode(false);
+        }
+        console.log('Updated selected archived conversations:', Array.from(newSet));
+        return newSet;
+      });
+    } else {
+      router.push(`/(tabs)/messages/${conversationId}`);
+    }
+  };
+
+  const handleClearArchivedSelection = () => {
+    setSelectedArchivedConversations(new Set());
+    setIsArchivedSelectionMode(false);
   };
 
   const onRefresh = useCallback(() => {
@@ -157,29 +454,6 @@ export default function MessagesScreen() {
     }
   };
 
-  const getConversationTitle = (conversation: Conversation) => {
-    if (conversation.title) {
-      return conversation.title;
-    }
-    if (conversation.is_group) {
-      return 'Group Chat';
-    }
-    // For direct messages, show the OTHER participant's name (not created_by, but the person you're chatting with)
-    const otherParticipant = conversation.participants.find(
-      (p) => p.user.id !== user?.id
-    );
-    if (otherParticipant) {
-      const participantUser = otherParticipant.user;
-      if (participantUser.first_name && participantUser.last_name) {
-        return `${participantUser.first_name} ${participantUser.last_name}`;
-      }
-      if (participantUser.username) {
-        return participantUser.username;
-      }
-      return participantUser.email.split('@')[0];
-    }
-    return 'Unknown User';
-  };
 
   const getConversationAvatar = (conversation: Conversation) => {
     if (conversation.is_group) {
@@ -231,7 +505,7 @@ export default function MessagesScreen() {
     });
   };
 
-  const renderConversation = ({ item }: { item: Conversation }) => {
+  const renderConversation = ({ item }: { item: Conversation }, isArchivedModal = false) => {
     const title = getConversationTitle(item);
     const avatarUrl = getConversationAvatar(item);
     const avatarSource = avatarUrl ? { uri: avatarUrl } : DEFAULT_AVATAR;
@@ -253,15 +527,62 @@ export default function MessagesScreen() {
       latestActivityTs && (!lastReadTs || lastReadTs < latestActivityTs)
     );
     
+    // Check if someone is typing in this conversation - use fresh data from context
+    const conversationTyping = typingStatus[item.id] || [];
+    // Filter out current user and check timestamps (only show if typing within last 5 seconds)
+    const now = Date.now();
+    const typingUsers = conversationTyping.filter(u => 
+      String(u.userId) !== String(user?.id) && (now - u.timestamp) < 5000
+    );
+    const isTyping = typingUsers.length > 0;
+    
     // Format last message preview
     let lastMessageText = 'No messages yet';
-    if (lastMessage) {
+    if (isTyping) {
+      // Show typing indicator
+      if (typingUsers.length === 1) {
+        const typingUser = typingUsers[0];
+        const displayName = item.is_group 
+          ? (typingUser.username || 'Someone')
+          : '';
+        lastMessageText = item.is_group 
+          ? `${displayName} is typing...`
+          : 'typing...';
+      } else if (typingUsers.length === 2) {
+        lastMessageText = `${typingUsers[0].username} and ${typingUsers[1].username} are typing...`;
+      } else {
+        lastMessageText = `${typingUsers[0].username} and ${typingUsers.length - 1} others are typing...`;
+      }
+    } else if (lastMessage) {
       if (lastMessage.is_deleted) {
         lastMessageText = '🚫 This message was deleted';
       } else if (lastMessage.media_url) {
-        lastMessageText = lastMessage.content 
-          ? `📷 ${lastMessage.content}` 
-          : '📷 Photo';
+        // Detect media type
+        const mediaUrl = lastMessage.media_url;
+        const isVideo = /\.(mp4|mov|m4v|webm|mkv|avi|3gp)(\?.*)?$/i.test(mediaUrl);
+        const isAudio = /\.(m4a|mp3|wav|aac|ogg|flac|wma)(\?.*)?$/i.test(mediaUrl);
+        
+        if (isAudio) {
+          // Extract duration from content if available (format: "[duration:MM:SS]")
+          let durationText = '';
+          if (lastMessage.content && lastMessage.content.includes('[duration:')) {
+            const durationMatch = lastMessage.content.match(/\[duration:(\d+:\d+)\]/);
+            if (durationMatch) {
+              durationText = ` (${durationMatch[1]})`;
+            }
+          }
+          lastMessageText = lastMessage.content && !lastMessage.content.includes('[duration:')
+            ? `🎤 ${lastMessage.content.replace(/\[duration:\d+:\d+\]/g, '').trim()}${durationText}` 
+            : `🎤 Voice message${durationText}`;
+        } else if (isVideo) {
+          lastMessageText = lastMessage.content 
+            ? `🎥 ${lastMessage.content}` 
+            : '🎥 Video';
+        } else {
+          lastMessageText = lastMessage.content 
+            ? `📷 ${lastMessage.content}` 
+            : '📷 Photo';
+        }
       } else {
         lastMessageText = lastMessage.content || 'No messages yet';
       }
@@ -280,22 +601,47 @@ export default function MessagesScreen() {
     
     const lastMessageTime = formatTime(item.last_message_at);
 
+    // Use archived selection state if in archived modal
+    const currentSelectionMode = isArchivedModal ? isArchivedSelectionMode : isSelectionMode;
+    const currentSelectedSet = isArchivedModal ? selectedArchivedConversations : selectedConversations;
+    const handleLongPress = isArchivedModal ? handleArchivedConversationLongPress : handleConversationLongPress;
+    const handlePress = isArchivedModal ? handleArchivedConversationPress : handleConversationPress;
+    
+    const isSelected = currentSelectedSet.has(item.id);
+    
     return (
       <TouchableOpacity
         style={[
           styles.conversationItem,
           {
-            backgroundColor: hasUnread 
+            backgroundColor: isSelected
+              ? (isDark ? 'rgba(200, 162, 95, 0.2)' : 'rgba(200, 162, 95, 0.15)')
+              : hasUnread 
               ? (isDark ? 'rgba(200, 162, 95, 0.1)' : 'rgba(200, 162, 95, 0.05)')
               : (isDark ? colors.backgroundSecondary : '#FFFFFF'),
             borderBottomColor: colors.border,
           },
         ]}
-        onPress={() => {
-          router.push(`/(tabs)/messages/${item.id}`);
-        }}
+        onPress={() => handlePress(item.id)}
+        onLongPress={() => handleLongPress(item.id)}
         activeOpacity={0.7}
       >
+        {/* Selection Checkbox */}
+        {currentSelectionMode && (
+          <View style={styles.checkboxContainer}>
+            <View style={[
+              styles.checkbox,
+              {
+                backgroundColor: isSelected ? '#C8A25F' : 'transparent',
+                borderColor: isSelected ? '#C8A25F' : colors.border,
+              }
+            ]}>
+              {isSelected && (
+                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              )}
+            </View>
+          </View>
+        )}
         <View style={styles.avatarContainer}>
           {avatarUrl ? (
             <Image source={avatarSource} style={styles.avatar} />
@@ -346,14 +692,19 @@ export default function MessagesScreen() {
             <Text
               style={[
                 styles.conversationPreview, 
-                { color: hasUnread ? colors.text : colors.textSecondary },
-                hasUnread && styles.conversationPreviewUnread
+                { 
+                  color: isTyping 
+                    ? '#C8A25F' 
+                    : (hasUnread ? colors.text : colors.textSecondary),
+                  fontStyle: isTyping ? 'italic' : 'normal',
+                },
+                hasUnread && !isTyping && styles.conversationPreviewUnread
               ]}
               numberOfLines={1}
             >
               {lastMessageText}
             </Text>
-            {hasUnread && (
+            {!currentSelectionMode && hasUnread && !isTyping && (
               <View style={[styles.unreadDot, { backgroundColor: '#C8A25F' }]} />
             )}
           </View>
@@ -380,6 +731,7 @@ export default function MessagesScreen() {
       borderRadius: 28,
       overflow: 'hidden',
       position: 'relative',
+      backgroundColor: colors.backgroundSecondary,
     },
     avatar: {
       width: '100%',
@@ -488,6 +840,92 @@ export default function MessagesScreen() {
       fontSize: 16,
       fontWeight: '600',
     },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      marginHorizontal: 16,
+      marginTop: 8,
+      marginBottom: 8,
+      borderRadius: 20,
+      gap: 8,
+    },
+    searchIcon: {
+      marginRight: 4,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 16,
+      paddingVertical: 4,
+    },
+    clearSearchButton: {
+      padding: 4,
+    },
+    actionBar: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      maxHeight: 60,
+    },
+    actionBarContent: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      gap: 16,
+      alignItems: 'center',
+    },
+    actionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      minWidth: 100,
+    },
+    actionButtonText: {
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    checkboxContainer: {
+      width: 24,
+      height: 24,
+      marginRight: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      borderWidth: 2,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    archivedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 16,
+      paddingHorizontal: 16,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      gap: 12,
+    },
+    archivedRowText: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '500',
+    },
+    archivedCount: {
+      minWidth: 24,
+      height: 24,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+    },
+    archivedCountText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '600',
+    },
   });
 
   const renderFriend = (friend: Friend) => {
@@ -525,12 +963,91 @@ export default function MessagesScreen() {
   return (
     <View style={styles.container}>
       <AppNavbar
-        title="Messages"
+        title={isSelectionMode ? `${selectedConversations.size} selected` : "Messages"}
         showLogo={false}
         showProfileImage={false}
-        showBackButton={true}
-        onBackPress={() => router.back()}
+        showBackButton={!isSelectionMode}
+        showMessageIcon={false}
+        showSearchIcon={false}
+        onBackPress={() => {
+          if (isSelectionMode) {
+            handleClearSelection();
+          } else {
+            router.back();
+          }
+        }}
+        customRightButton={
+          isSelectionMode ? (
+            <TouchableOpacity onPress={handleClearSelection} style={{ padding: 8 }}>
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+          ) : null
+        }
       />
+      
+      {/* Search Bar */}
+      {!isSelectionMode && (
+        <View style={[styles.searchContainer, { backgroundColor: isDark ? colors.backgroundSecondary : '#F5F5F5' }]}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} style={styles.searchIcon} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Search conversations..."
+            placeholderTextColor={colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchButton}>
+              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Action Bar */}
+      {isSelectionMode && selectedConversations.size > 0 && (
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={[styles.actionBar, { backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF', borderBottomColor: colors.border }]}
+          contentContainerStyle={styles.actionBarContent}
+        >
+          {/* Show Mark Read only if all are unread OR mixed */}
+          {(selectedConversationsStatus.allUnread || selectedConversationsStatus.mixed) && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleMarkRead}
+            >
+              <Ionicons name="checkmark-done" size={20} color={colors.text} />
+              <Text style={[styles.actionButtonText, { color: colors.text }]}>Mark Read</Text>
+            </TouchableOpacity>
+          )}
+          {/* Show Mark Unread only if all are read OR mixed */}
+          {(selectedConversationsStatus.allRead || selectedConversationsStatus.mixed) && (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleMarkUnread}
+            >
+              <Ionicons name="mail-unread" size={20} color={colors.text} />
+              <Text style={[styles.actionButtonText, { color: colors.text }]}>Mark Unread</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleArchiveChats}
+          >
+            <Ionicons name="archive" size={20} color={colors.text} />
+            <Text style={[styles.actionButtonText, { color: colors.text }]}>Archive</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleClearChats}
+          >
+            <Ionicons name="trash" size={20} color="#FF6B6B" />
+            <Text style={[styles.actionButtonText, { color: '#FF6B6B' }]}>Clear</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
       {loading ? (
         <View style={{ flex: 1, padding: 16 }}>
           {[1, 2, 3].map((i) => (
@@ -549,21 +1066,47 @@ export default function MessagesScreen() {
         </View>
       ) : (
         <FlatList
-          data={conversations}
+          data={filteredConversations}
           renderItem={renderConversation}
           keyExtractor={(item) => item.id.toString()}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
           ListHeaderComponent={
-            <View style={{ marginBottom: 16 }}>
-              <ActiveFriends 
-                maxUsers={8} 
-                onUserClick={(user) => {
-                  setSelectedUserId(user.id);
-                  setProfileBottomSheetVisible(true);
-                }}
-              />
-            </View>
+            searchQuery.length === 0 ? (
+              <View style={{ marginBottom: 16 }}>
+                <ActiveFriends 
+                  maxUsers={8} 
+                  onUserClick={(user) => {
+                    if (!isSelectionMode) {
+                      setSelectedUserId(user.id);
+                      setProfileBottomSheetVisible(true);
+                    }
+                  }}
+                />
+                {/* Archived Chats Row */}
+                {archivedConversations.length > 0 && !isSelectionMode && (
+                  <TouchableOpacity
+                    style={[
+                      styles.archivedRow,
+                      {
+                        backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+                        borderBottomColor: colors.border,
+                      }
+                    ]}
+                    onPress={() => setShowArchivedModal(true)}
+                  >
+                    <Ionicons name="archive" size={20} color={colors.text} />
+                    <Text style={[styles.archivedRowText, { color: colors.text }]}>
+                      Archived Chats
+                    </Text>
+                    <View style={[styles.archivedCount, { backgroundColor: colors.primary }]}>
+                      <Text style={styles.archivedCountText}>{archivedConversations.length}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : null
           }
           removeClippedSubviews={true}
           windowSize={10}
@@ -629,6 +1172,72 @@ export default function MessagesScreen() {
           setSelectedUserId(null);
         }}
       />
+
+      {/* Archived Chats Modal */}
+      <Modal
+        visible={showArchivedModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowArchivedModal(false)}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
+          <AppNavbar
+            title={isArchivedSelectionMode ? `${selectedArchivedConversations.size} selected` : "Archived Chats"}
+            showLogo={false}
+            showProfileImage={false}
+            showMessageIcon={false}
+            showBackButton={!isArchivedSelectionMode}
+            onBackPress={() => {
+              if (isArchivedSelectionMode) {
+                handleClearArchivedSelection();
+              } else {
+                setShowArchivedModal(false);
+              }
+            }}
+            customRightButton={
+              isArchivedSelectionMode ? (
+                <TouchableOpacity onPress={handleClearArchivedSelection} style={{ padding: 8 }}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              ) : null
+            }
+          />
+          {archivedConversations.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="archive-outline" size={64} color={colors.textSecondary} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                No archived conversations
+              </Text>
+            </View>
+          ) : (
+            <>
+              {/* Action Bar for Archived Modal */}
+              {isArchivedSelectionMode && selectedArchivedConversations.size > 0 && (
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={[styles.actionBar, { backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF', borderBottomColor: colors.border }]}
+                  contentContainerStyle={styles.actionBarContent}
+                >
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={handleUnarchiveChats}
+                  >
+                    <Ionicons name="archive-outline" size={20} color={colors.text} />
+                    <Text style={[styles.actionButtonText, { color: colors.text }]}>Unarchive</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              )}
+              <FlatList
+                data={archivedConversations}
+                renderItem={({ item }) => renderConversation({ item }, true)}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+              />
+            </>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }

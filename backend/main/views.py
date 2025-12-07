@@ -813,12 +813,27 @@ class ConversationViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        return (
+        # Filter out archived conversations by default
+        # If 'include_archived' query param is True, include them
+        include_archived = self.request.query_params.get("include_archived", "false").lower() == "true"
+        
+        queryset = (
             Conversation.objects.filter(participants__user=user)
             .select_related("created_by")
             .prefetch_related("participants__user")
             .distinct()
         )
+        
+        if not include_archived:
+            # Exclude conversations where the user has archived them
+            # Get participant IDs that are archived
+            archived_participant_ids = ConversationParticipant.objects.filter(
+                user=user,
+                is_archived=True
+            ).values_list('conversation_id', flat=True)
+            queryset = queryset.exclude(id__in=archived_participant_ids)
+        
+        return queryset
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -911,6 +926,46 @@ class ConversationViewSet(ModelViewSet):
         updated_count = ConversationParticipant.objects.filter(
             conversation=conversation, user=request.user
         ).update(last_read_at=timezone.now())
+        return Response({"updated": updated_count})
+
+    @action(detail=True, methods=["post"], url_path="mark-unread")
+    def mark_unread(self, request, pk=None):
+        conversation = self._ensure_participant(self.get_object())
+        # Set last_read_at to None to mark as unread
+        updated_count = ConversationParticipant.objects.filter(
+            conversation=conversation, user=request.user
+        ).update(last_read_at=None)
+        return Response({"updated": updated_count})
+
+    @action(detail=True, methods=["post"], url_path="archive")
+    def archive(self, request, pk=None):
+        conversation = self._ensure_participant(self.get_object())
+        updated_count = ConversationParticipant.objects.filter(
+            conversation=conversation, user=request.user
+        ).update(is_archived=True)
+        return Response({"updated": updated_count})
+
+    @action(detail=True, methods=["post"], url_path="unarchive")
+    def unarchive(self, request, pk=None):
+        # Get conversation directly, including archived ones
+        try:
+            conversation = Conversation.objects.get(
+                id=pk,
+                participants__user=request.user
+            )
+        except Conversation.DoesNotExist:
+            return Response(
+                {"detail": "Conversation not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        # Ensure user is a participant
+        if not conversation.participants.filter(user=request.user).exists():
+            raise PermissionDenied("You are not a participant of this conversation.")
+        
+        updated_count = ConversationParticipant.objects.filter(
+            conversation=conversation, user=request.user
+        ).update(is_archived=False)
         return Response({"updated": updated_count})
 
     @action(

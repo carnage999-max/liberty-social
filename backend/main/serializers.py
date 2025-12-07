@@ -653,8 +653,8 @@ class ConversationParticipantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ConversationParticipant
-        fields = ["id", "user", "role", "joined_at", "last_read_at"]
-        read_only_fields = fields
+        fields = ["id", "user", "role", "joined_at", "last_read_at", "is_archived"]
+        read_only_fields = ["id", "user", "role", "joined_at"]
 
 
 class MessageSerializer(serializers.ModelSerializer):

@@ -55,7 +55,7 @@ export default function CreatePostScreen() {
 
       if (!result.canceled && result.assets) {
         const newImages = result.assets.slice(0, 6 - selectedImages.length).map(asset => ({
-          uri: asset.uri,
+            uri: asset.uri,
         }));
 
         setSelectedImages(prev => [...prev, ...newImages]);

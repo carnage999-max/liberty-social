@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { AlertProvider } from '../contexts/AlertContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import { MessageBadgeProvider } from '../contexts/MessageBadgeContext';
+import { TypingStatusProvider } from '../contexts/TypingStatusContext';
 import { StatusBar } from 'expo-status-bar';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import * as SplashScreen from 'expo-splash-screen';
@@ -68,7 +69,9 @@ export default function RootLayout() {
           <AlertProvider>
             <ToastProvider>
               <MessageBadgeProvider>
-                <RootLayoutNav />
+                <TypingStatusProvider>
+                  <RootLayoutNav />
+                </TypingStatusProvider>
               </MessageBadgeProvider>
             </ToastProvider>
           </AlertProvider>
