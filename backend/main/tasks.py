@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 from celery import shared_task
 from django.conf import settings
@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize Expo Push Client
 _push_client: Optional[PushClient] = None
+_firebase_app: Optional[object] = None
 
 
 def _get_push_client() -> Optional[PushClient]:
@@ -20,6 +21,54 @@ def _get_push_client() -> Optional[PushClient]:
     if _push_client is None:
         _push_client = PushClient()
     return _push_client
+
+
+def _get_firebase_app():
+    """Get or create Firebase Admin app instance."""
+    global _firebase_app
+    if _firebase_app is not None:
+        return _firebase_app
+    
+    # Check if Firebase is configured
+    firebase_project_id = getattr(settings, "FIREBASE_PROJECT_ID", "")
+    firebase_credentials_json = getattr(settings, "FIREBASE_CREDENTIALS_JSON", "")
+    
+    if not firebase_project_id or not firebase_credentials_json:
+        logger.warning("Firebase credentials not configured. Web push notifications will not work.")
+        return None
+    
+    try:
+        import firebase_admin
+        from firebase_admin import credentials
+        
+        # Try to get existing app
+        try:
+            _firebase_app = firebase_admin.get_app()
+            return _firebase_app
+        except ValueError:
+            # App doesn't exist, create it
+            pass
+        
+        # Parse credentials JSON
+        import base64
+        try:
+            # Try to decode if it's base64 encoded
+            credentials_json = base64.b64decode(firebase_credentials_json).decode('utf-8')
+        except Exception:
+            # Assume it's already a JSON string
+            credentials_json = firebase_credentials_json
+        
+        cred = credentials.Certificate(json.loads(credentials_json))
+        _firebase_app = firebase_admin.initialize_app(cred, {
+            'projectId': firebase_project_id,
+        })
+        return _firebase_app
+    except ImportError:
+        logger.warning("firebase-admin not installed. Web push notifications will not work.")
+        return None
+    except Exception as e:
+        logger.exception("Failed to initialize Firebase Admin: %s", e)
+        return None
 
 
 def _is_expo_token(token: str) -> bool:
@@ -35,7 +84,7 @@ def _is_expo_token(token: str) -> bool:
     max_retries=5,
 )
 def deliver_push_notification(self, notification_id: int):
-    """Send a push notification via Expo Push Notification Service for a newly created Notification."""
+    """Send push notifications via Expo (mobile) and FCM (web) for a newly created Notification."""
     if not getattr(settings, "PUSH_NOTIFICATIONS_ENABLED", False):
         return
 
@@ -60,29 +109,18 @@ def deliver_push_notification(self, notification_id: int):
         )
         return
 
-    # Filter to only Expo tokens (for mobile apps)
-    # Web tokens (FCM) can be handled separately if needed
-    expo_tokens = [
+    # Separate tokens by platform
+    expo_tokens: List[Tuple[str, str]] = [
         (token, platform)
         for token, platform in device_tokens
         if _is_expo_token(token) and platform in ("ios", "android")
     ]
-
-    if not expo_tokens:
-        logger.info(
-            "No Expo push tokens found for user %s (notification %s). "
-            "Web tokens are not supported via Expo Push Service.",
-            recipient.id,
-            notification_id,
-        )
-        return
-
-    logger.info(
-        "Sending push notification %s to user %s with %d Expo token(s)",
-        notification_id,
-        recipient.id,
-        len(expo_tokens),
-    )
+    
+    fcm_tokens: List[Tuple[str, str]] = [
+        (token, platform)
+        for token, platform in device_tokens
+        if platform == "web" and not _is_expo_token(token)
+    ]
 
     actor = notification.actor
     actor_label = actor.get_full_name() or actor.username or actor.email or "Someone"
@@ -101,7 +139,61 @@ def deliver_push_notification(self, notification_id: int):
         "target_url": payload.get("target_url", "/app/notifications"),
     }
 
-    # Create push messages for all Expo tokens
+    invalid_tokens = []
+
+    # Send Expo notifications (mobile)
+    if expo_tokens:
+        try:
+            _send_expo_notifications(
+                expo_tokens, message_title, message_body, notification_data,
+                notification_id, recipient, invalid_tokens
+            )
+        except Exception as exc:
+            logger.exception(
+                "Error sending Expo push notifications for notification %s",
+                notification_id,
+            )
+
+    # Send FCM notifications (web)
+    if fcm_tokens:
+        try:
+            _send_fcm_notifications(
+                fcm_tokens, message_title, message_body, notification_data,
+                notification_id, recipient, invalid_tokens
+            )
+        except Exception as exc:
+            logger.exception(
+                "Error sending FCM push notifications for notification %s",
+                notification_id,
+            )
+
+    # Remove invalid tokens
+    if invalid_tokens:
+        recipient.device_tokens.filter(token__in=invalid_tokens).delete()
+        logger.info(
+            "Removed %d invalid device token(s) for user %s",
+            len(invalid_tokens),
+            recipient.id,
+        )
+
+
+def _send_expo_notifications(
+    expo_tokens: List[Tuple[str, str]],
+    message_title: str,
+    message_body: str,
+    notification_data: dict,
+    notification_id: int,
+    recipient,
+    invalid_tokens: List[str],
+):
+    """Send push notifications via Expo Push Notification Service."""
+    logger.info(
+        "Sending push notification %s to user %s with %d Expo token(s)",
+        notification_id,
+        recipient.id,
+        len(expo_tokens),
+    )
+
     push_client = _get_push_client()
     if not push_client:
         logger.error("Failed to initialize Expo Push Client")
@@ -136,65 +228,130 @@ def deliver_push_notification(self, notification_id: int):
         return
 
     # Send notifications
-    try:
-        chunks = push_client.send_push_notifications(messages)
-        invalid_tokens = []
+    chunks = push_client.send_push_notifications(messages)
 
-        for chunk in chunks:
-            for ticket in chunk:
-                if isinstance(ticket, PushTicketError):
-                    error = ticket
-                    token = ticket.push_token
+    for chunk in chunks:
+        for ticket in chunk:
+            if isinstance(ticket, PushTicketError):
+                error = ticket
+                token = ticket.push_token
 
-                    # Check if token is invalid and should be removed
-                    # Expo SDK uses error codes: DeviceNotRegistered, InvalidCredentials, MessageTooBig, MessageRateExceeded
-                    if error.code in ("DeviceNotRegistered", "InvalidCredentials"):
-                        logger.warning(
-                            "Invalid Expo token detected for notification %s (platform: %s): %s - %s",
-                            notification_id,
-                            token_to_platform.get(token, "unknown"),
-                            error.code,
-                            error.message,
-                        )
-                        # Find and mark token for deletion
-                        for device_token, platform in expo_tokens:
-                            clean_token = device_token
-                            if device_token.startswith("ExponentPushToken["):
-                                clean_token = device_token[len("ExponentPushToken[") : -1]
-                            elif device_token.startswith("ExpoPushToken["):
-                                clean_token = device_token[len("ExpoPushToken[") : -1]
-                            if clean_token == token:
-                                invalid_tokens.append(device_token)
-                                break
-                    else:
-                        logger.error(
-                            "Failed to deliver push notification %s to token %s (platform: %s): %s - %s",
-                            notification_id,
-                            token[:20] + "..." if token else "unknown",
-                            token_to_platform.get(token, "unknown"),
-                            error.code if hasattr(error, 'code') else "Unknown",
-                            error.message if hasattr(error, 'message') else str(error),
-                        )
-                else:
-                    logger.info(
-                        "Successfully delivered push notification %s to token %s (platform: %s)",
+                # Check if token is invalid and should be removed
+                if error.code in ("DeviceNotRegistered", "InvalidCredentials"):
+                    logger.warning(
+                        "Invalid Expo token detected for notification %s (platform: %s): %s - %s",
                         notification_id,
-                        ticket.push_token[:20] + "..." if ticket.push_token else "unknown",
-                        token_to_platform.get(ticket.push_token, "unknown"),
+                        token_to_platform.get(token, "unknown"),
+                        error.code,
+                        error.message,
                     )
+                    # Find and mark token for deletion
+                    for device_token, platform in expo_tokens:
+                        clean_token = device_token
+                        if device_token.startswith("ExponentPushToken["):
+                            clean_token = device_token[len("ExponentPushToken[") : -1]
+                        elif device_token.startswith("ExpoPushToken["):
+                            clean_token = device_token[len("ExpoPushToken[") : -1]
+                        if clean_token == token:
+                            invalid_tokens.append(device_token)
+                            break
+                else:
+                    logger.error(
+                        "Failed to deliver Expo push notification %s to token %s (platform: %s): %s - %s",
+                        notification_id,
+                        token[:20] + "..." if token else "unknown",
+                        token_to_platform.get(token, "unknown"),
+                        error.code if hasattr(error, 'code') else "Unknown",
+                        error.message if hasattr(error, 'message') else str(error),
+                    )
+            else:
+                logger.info(
+                    "Successfully delivered Expo push notification %s to token %s (platform: %s)",
+                    notification_id,
+                    ticket.push_token[:20] + "..." if ticket.push_token else "unknown",
+                    token_to_platform.get(ticket.push_token, "unknown"),
+                )
 
-        # Remove invalid tokens
-        if invalid_tokens:
-            recipient.device_tokens.filter(token__in=invalid_tokens).delete()
-            logger.info(
-                "Removed %d invalid device token(s) for user %s",
-                len(invalid_tokens),
-                recipient.id,
-            )
 
-    except Exception as exc:
-        logger.exception(
-            "Error sending push notifications via Expo Push Service for notification %s",
-            notification_id,
-        )
-        raise self.retry(exc=exc)
+def _send_fcm_notifications(
+    fcm_tokens: List[Tuple[str, str]],
+    message_title: str,
+    message_body: str,
+    notification_data: dict,
+    notification_id: int,
+    recipient,
+    invalid_tokens: List[str],
+):
+    """Send push notifications via Firebase Cloud Messaging (FCM) for web."""
+    logger.info(
+        "Sending push notification %s to user %s with %d FCM token(s)",
+        notification_id,
+        recipient.id,
+        len(fcm_tokens),
+    )
+
+    firebase_app = _get_firebase_app()
+    if not firebase_app:
+        logger.warning("Firebase not configured. Skipping FCM notifications.")
+        return
+
+    try:
+        from firebase_admin import messaging
+
+        # Create message for each FCM token
+        for token, platform in fcm_tokens:
+            try:
+                message = messaging.Message(
+                    token=token,
+                    notification=messaging.Notification(
+                        title=message_title,
+                        body=message_body,
+                    ),
+                    data={
+                        k: str(v) for k, v in notification_data.items()
+                    },
+                    webpush=messaging.WebpushConfig(
+                        notification=messaging.WebpushNotification(
+                            title=message_title,
+                            body=message_body,
+                            icon="/icon.png",
+                        ),
+                        fcm_options=messaging.WebpushFCMOptions(
+                            link=notification_data.get("target_url", "/app/notifications"),
+                        ),
+                    ),
+                )
+
+                response = messaging.send(message)
+                logger.info(
+                    "Successfully delivered FCM push notification %s to token %s: %s",
+                    notification_id,
+                    token[:20] + "...",
+                    response,
+                )
+            except messaging.UnregisteredError:
+                logger.warning(
+                    "Invalid FCM token detected for notification %s: %s",
+                    notification_id,
+                    token[:20] + "...",
+                )
+                invalid_tokens.append(token)
+            except messaging.InvalidArgumentError as e:
+                logger.error(
+                    "Invalid FCM token argument for notification %s: %s",
+                    notification_id,
+                    e,
+                )
+                invalid_tokens.append(token)
+            except Exception as e:
+                logger.error(
+                    "Failed to deliver FCM push notification %s to token %s: %s",
+                    notification_id,
+                    token[:20] + "...",
+                    e,
+                )
+    except ImportError:
+        logger.warning("firebase-admin not installed. Skipping FCM notifications.")
+    except Exception as e:
+        logger.exception("Error sending FCM notifications: %s", e)
+        raise

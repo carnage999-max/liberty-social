@@ -1048,6 +1048,42 @@ export default function MessagesScreen() {
           </TouchableOpacity>
         </ScrollView>
       )}
+      
+      {/* Active Friends and Archived Chats - Show even when no conversations */}
+      {!loading && searchQuery.length === 0 && !isSelectionMode && (
+        <View style={{ marginBottom: 16 }}>
+          <ActiveFriends 
+            maxUsers={8} 
+            onUserClick={(user) => {
+              setSelectedUserId(user.id);
+              setProfileBottomSheetVisible(true);
+            }}
+          />
+          {/* Archived Chats Row */}
+          {archivedConversations.length > 0 && (
+            <TouchableOpacity
+              style={[
+                styles.archivedRow,
+                {
+                  backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+                  borderBottomColor: colors.border,
+                }
+              ]}
+              onPress={() => setShowArchivedModal(true)}
+            >
+              <Ionicons name="archive" size={20} color={colors.text} />
+              <Text style={[styles.archivedRowText, { color: colors.text }]}>
+                Archived Chats
+              </Text>
+              <View style={[styles.archivedCount, { backgroundColor: colors.primary }]}>
+                <Text style={styles.archivedCountText}>{archivedConversations.length}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       {loading ? (
         <View style={{ flex: 1, padding: 16 }}>
           {[1, 2, 3].map((i) => (
@@ -1071,43 +1107,6 @@ export default function MessagesScreen() {
           keyExtractor={(item) => item.id.toString()}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
-          ListHeaderComponent={
-            searchQuery.length === 0 ? (
-              <View style={{ marginBottom: 16 }}>
-                <ActiveFriends 
-                  maxUsers={8} 
-                  onUserClick={(user) => {
-                    if (!isSelectionMode) {
-                      setSelectedUserId(user.id);
-                      setProfileBottomSheetVisible(true);
-                    }
-                  }}
-                />
-                {/* Archived Chats Row */}
-                {archivedConversations.length > 0 && !isSelectionMode && (
-                  <TouchableOpacity
-                    style={[
-                      styles.archivedRow,
-                      {
-                        backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
-                        borderBottomColor: colors.border,
-                      }
-                    ]}
-                    onPress={() => setShowArchivedModal(true)}
-                  >
-                    <Ionicons name="archive" size={20} color={colors.text} />
-                    <Text style={[styles.archivedRowText, { color: colors.text }]}>
-                      Archived Chats
-                    </Text>
-                    <View style={[styles.archivedCount, { backgroundColor: colors.primary }]}>
-                      <Text style={styles.archivedCountText}>{archivedConversations.length}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            ) : null
-          }
           removeClippedSubviews={true}
           windowSize={10}
           initialNumToRender={10}
