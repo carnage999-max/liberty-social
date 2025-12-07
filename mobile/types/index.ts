@@ -98,6 +98,10 @@ export interface Notification {
   object_id?: number | null;
   unread: boolean;
   created_at: string;
+  target_url?: string;
+  target_post_id?: number | null;
+  target_post_preview?: string | null;
+  target_comment_preview?: string | null;
   target_post_id?: number | null;
   target_post_preview?: string | null;
   target_comment_preview?: string | null;

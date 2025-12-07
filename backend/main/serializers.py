@@ -602,12 +602,63 @@ class NotificationSerializer(serializers.ModelSerializer):
                         return f"/app/feed/{comment.post.id}"
                 # If target is a FriendRequest, link to friend requests
                 elif obj.content_type.model == "friendrequest":
-                    return "/app/friend-requests"
+                    if obj.verb == "friend_request":
+                        return "/app/friend-requests"
+                    elif obj.verb == "friend_request_accepted":
+                        return f"/app/users/{obj.actor.id}"
                 # If target is a Conversation, link to the conversation
                 elif obj.content_type.model == "conversation":
                     return f"/app/messages/{obj.object_id}"
+                # If target is a Message, link to the conversation
+                elif obj.content_type.model == "message":
+                    try:
+                        message = obj.target
+                        if message and hasattr(message, "conversation"):
+                            return f"/app/messages/{message.conversation.id}"
+                    except:
+                        pass
+                # If target is a MarketplaceOffer, link to the listing
+                elif obj.content_type.model == "marketplaceoffer":
+                    try:
+                        from .marketplace_models import MarketplaceOffer
+                        offer = MarketplaceOffer.objects.select_related('listing').get(id=obj.object_id)
+                        if offer and offer.listing:
+                            return f"/app/marketplace/{offer.listing.id}"
+                    except:
+                        pass
+                # If target is a PageInvite, link to page invites or the page
+                elif obj.content_type.model == "pageinvite":
+                    if obj.verb == "page_invite":
+                        return "/app/invites"
+                    else:
+                        try:
+                            # Try to get page from object_id (might be page ID)
+                            return f"/app/pages/{obj.object_id}"
+                        except:
+                            return "/app/invites"
         except Exception:
             pass
+        
+        # Handle verb-based routing for cases where content_type might not be set
+        if obj.verb:
+            verb = obj.verb.lower()
+            if verb == "sent_message" and obj.object_id:
+                # For messages, try to get conversation from message
+                try:
+                    from .models import Message
+                    message = Message.objects.get(id=obj.object_id)
+                    if message.conversation:
+                        return f"/app/messages/{message.conversation.id}"
+                except:
+                    pass
+            elif verb in ["marketplace_offer_received", "marketplace_offer_accepted", "marketplace_offer_declined"]:
+                try:
+                    from .marketplace_models import MarketplaceOffer
+                    offer = MarketplaceOffer.objects.get(id=obj.object_id)
+                    return f"/app/marketplace/{offer.listing.id}"
+                except:
+                    pass
+        
         # Default to notifications page
         return "/app/notifications"
 

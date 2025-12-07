@@ -58,9 +58,23 @@ export default function NotificationsScreen() {
       case 'reacted':
         return 'heart';
       case 'commented':
+      case 'comment_replied':
         return 'chatbubble';
       case 'followed':
+      case 'friend_request':
+      case 'friend_request_accepted':
         return 'person-add';
+      case 'sent_message':
+        return 'mail';
+      case 'marketplace_offer_received':
+      case 'marketplace_offer_accepted':
+      case 'marketplace_offer_declined':
+        return 'storefront';
+      case 'page_invite':
+        return 'people';
+      case 'kyc_approved':
+      case 'kyc_rejected':
+        return 'checkmark-circle';
       default:
         return 'notifications';
     }
@@ -78,25 +92,74 @@ export default function NotificationsScreen() {
             n.id === notification.id ? { ...n, unread: false } : n
           )
         );
-        showSuccess('Notification marked as read');
       } catch (error) {
         console.error('Error marking notification as read:', error);
-        showError('Failed to mark notification as read');
+        // Don't show error, just continue with navigation
       } finally {
         setMarkingRead(null);
       }
     }
 
-    // Navigate to the relevant page
-    if (notification.verb === 'sent_friend_request') {
-      // Navigate to friend requests page to accept/decline
-      router.push('/(tabs)/friend-requests');
-    } else if (notification.object_id) {
-      if (notification.verb === 'commented' || notification.verb === 'reacted') {
-        router.push(`/(tabs)/feed/${notification.object_id}`);
-      } else if (notification.verb === 'followed') {
-        router.push(`/(tabs)/users/${notification.actor.id}`);
+    // Use target_url from backend if available (preferred method)
+    if (notification.target_url) {
+      // Remove /app prefix if present (backend returns /app/... but mobile uses /...)
+      let route = notification.target_url.replace(/^\/app/, '');
+      
+      // Handle different route formats
+      if (route.startsWith('/marketplace/')) {
+        // Marketplace listing detail
+        router.push(route as any);
+      } else if (route.startsWith('/feed/')) {
+        // Post detail
+        router.push(route.replace('/feed/', '/(tabs)/feed/') as any);
+      } else if (route.startsWith('/messages/')) {
+        // Conversation detail
+        router.push(route.replace('/messages/', '/(tabs)/messages/') as any);
+      } else if (route.startsWith('/users/')) {
+        // User profile
+        router.push(route.replace('/users/', '/(tabs)/users/') as any);
+      } else if (route.startsWith('/pages/')) {
+        // Page detail
+        router.push(route as any);
+      } else if (route === '/friend-requests') {
+        router.push('/(tabs)/friend-requests');
+      } else if (route === '/invites' || route === '/app/invites') {
+        router.push('/(tabs)/invites');
+      } else if (route === '/notifications') {
+        // Stay on notifications page
+        return;
+      } else {
+        // Try to push as-is
+        router.push(route as any);
       }
+      return;
+    }
+
+    // Fallback navigation based on verb (for backwards compatibility)
+    const verb = notification.verb.toLowerCase();
+    
+    if (verb === 'friend_request' || verb === 'sent_friend_request') {
+      router.push('/(tabs)/friend-requests');
+    } else if (verb === 'friend_request_accepted') {
+      router.push(`/(tabs)/users/${notification.actor.id}`);
+    } else if (verb === 'commented' || verb === 'reacted' || verb === 'comment_replied') {
+      if (notification.target_post_id) {
+        router.push(`/(tabs)/feed/${notification.target_post_id}`);
+      } else if (notification.object_id) {
+        router.push(`/(tabs)/feed/${notification.object_id}`);
+      }
+    } else if (verb === 'sent_message') {
+      // For messages, try to navigate to messages list
+      // The backend should provide target_url with conversation ID
+      router.push('/(tabs)/messages');
+    } else if (verb.startsWith('marketplace_offer_')) {
+      // Navigate to marketplace - backend should provide target_url with listing ID
+      router.push('/(tabs)/marketplace');
+    } else if (verb === 'page_invite') {
+      router.push('/(tabs)/invites');
+    } else if (notification.object_id) {
+      // Generic fallback - try to navigate based on object_id
+      router.push(`/(tabs)/feed/${notification.object_id}`);
     }
   };
 
@@ -123,7 +186,7 @@ export default function NotificationsScreen() {
 
   const getNotificationMessage = (notification: Notification) => {
     const displayName = notification.actor.username || 
-      `${notification.actor.first_name} ${notification.actor.last_name}` || 
+      `${notification.actor.first_name || ''} ${notification.actor.last_name || ''}`.trim() || 
       notification.actor.email || 
       'Someone';
 
@@ -141,8 +204,24 @@ export default function NotificationsScreen() {
         return `${displayName} reacted to your post: "${preview}"`;
       }
       return `${displayName} reacted to your post`;
-    } else if (verb === 'followed') {
-      return `${displayName} started following you`;
+    } else if (verb === 'followed' || verb === 'friend_request_accepted') {
+      return `${displayName} ${verb === 'friend_request_accepted' ? 'accepted your friend request' : 'started following you'}`;
+    } else if (verb === 'friend_request' || verb === 'sent_friend_request') {
+      return `${displayName} sent you a friend request`;
+    } else if (verb === 'sent_message') {
+      return `${displayName} sent you a message`;
+    } else if (verb === 'marketplace_offer_received') {
+      return `${displayName} made an offer on your listing`;
+    } else if (verb === 'marketplace_offer_accepted') {
+      return `${displayName} accepted your offer`;
+    } else if (verb === 'marketplace_offer_declined') {
+      return `${displayName} declined your offer`;
+    } else if (verb === 'page_invite') {
+      return `${displayName} invited you to join a page`;
+    } else if (verb === 'kyc_approved') {
+      return `Your KYC verification has been approved`;
+    } else if (verb === 'kyc_rejected') {
+      return `Your KYC verification was rejected`;
     }
     
     return `${displayName} ${notification.verb}`;

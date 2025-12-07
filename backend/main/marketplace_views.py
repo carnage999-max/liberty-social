@@ -32,6 +32,9 @@ from .emails import (
     send_offer_accepted_email,
     send_offer_declined_email,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MarketplaceCategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -267,6 +270,22 @@ class MarketplaceOfferViewSet(viewsets.ModelViewSet):
 
             offer = serializer.save(buyer=self.request.user)
 
+            # Create notification for seller
+            try:
+                from .models import Notification
+                from django.contrib.contenttypes.models import ContentType
+                
+                offer_content_type = ContentType.objects.get_for_model(MarketplaceOffer)
+                Notification.objects.create(
+                    recipient=listing.seller,
+                    actor=self.request.user,
+                    verb="marketplace_offer_received",
+                    content_type=offer_content_type,
+                    object_id=offer.id,
+                )
+            except Exception as e:
+                logger.error(f"Failed to create offer notification: {e}")
+
             # Send email to seller about the new offer
             try:
                 send_offer_received_email(offer)
@@ -297,6 +316,22 @@ class MarketplaceOfferViewSet(viewsets.ModelViewSet):
         listing.sold_at = timezone.now()
         listing.save()
 
+        # Create notification for buyer
+        try:
+            from .models import Notification
+            from django.contrib.contenttypes.models import ContentType
+            
+            offer_content_type = ContentType.objects.get_for_model(MarketplaceOffer)
+            Notification.objects.create(
+                recipient=offer.buyer,
+                actor=request.user,
+                verb="marketplace_offer_accepted",
+                content_type=offer_content_type,
+                object_id=offer.id,
+            )
+        except Exception as e:
+            logger.error(f"Failed to create offer accepted notification: {e}")
+
         # Send email to buyer about the acceptance
         try:
             send_offer_accepted_email(offer)
@@ -320,6 +355,22 @@ class MarketplaceOfferViewSet(viewsets.ModelViewSet):
         offer.responded_at = timezone.now()
         offer.response_message = request.data.get("message", "")
         offer.save()
+
+        # Create notification for buyer
+        try:
+            from .models import Notification
+            from django.contrib.contenttypes.models import ContentType
+            
+            offer_content_type = ContentType.objects.get_for_model(MarketplaceOffer)
+            Notification.objects.create(
+                recipient=offer.buyer,
+                actor=request.user,
+                verb="marketplace_offer_declined",
+                content_type=offer_content_type,
+                object_id=offer.id,
+            )
+        except Exception as e:
+            logger.error(f"Failed to create offer declined notification: {e}")
 
         # Send email to buyer about the decline
         try:
