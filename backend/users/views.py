@@ -774,8 +774,10 @@ class UserMetricsView(APIView):
         new_last_7_days = User.objects.filter(date_joined__gte=last_7_days).count()
         new_last_30_days = User.objects.filter(date_joined__gte=last_30_days).count()
 
-        active_last_7_days = User.objects.filter(last_login__gte=last_7_days).count()
-        active_last_30_days = User.objects.filter(last_login__gte=last_30_days).count()
+        # Use last_seen instead of last_login to track active users (matches how active friends are tracked)
+        # Exclude users with null last_seen (never been active)
+        active_last_7_days = User.objects.filter(last_seen__gte=last_7_days, last_seen__isnull=False).count()
+        active_last_30_days = User.objects.filter(last_seen__gte=last_30_days, last_seen__isnull=False).count()
 
         signups_per_day_qs = (
             User.objects.filter(date_joined__gte=now - timedelta(days=14))

@@ -39,7 +39,17 @@ export default function KycAdminPage() {
         setLoading(true);
         try {
             const data = await fetchKycSubmissions(token!);
-            setSubmissions((data as KycSubmission[]) || []);
+            // Handle paginated response (DRF returns { results: [...] }) or direct array
+            let results: KycSubmission[] = [];
+            if (Array.isArray(data)) {
+                results = data;
+            } else if (data && typeof data === 'object' && 'results' in data) {
+                const paginatedData = data as { results: unknown };
+                if (Array.isArray(paginatedData.results)) {
+                    results = paginatedData.results as KycSubmission[];
+                }
+            }
+            setSubmissions(results);
             setError(null);
         } catch (err) {
             if (err instanceof ApiError || (err && (err as any).message)) {
@@ -123,11 +133,11 @@ export default function KycAdminPage() {
                             <div className="text-gray-600">No submissions found.</div>
                         ) : (
                             <div className="space-y-3">
-                                {submissions.map((s: { id: number; full_name: any; user: { username: any; }; city: any; state_code: any; created_at: string | number | Date; status: any; id_document_url: any; breeder_license_url: any; }) => (
+                                {submissions.map((s: KycSubmission) => (
                                     <div key={s.id} className="p-4 border rounded-lg flex items-center justify-between">
                                         <div>
                                             <div className="text-sm font-semibold">{s.full_name} — @{s.user?.username || 'user'}</div>
-                                            <div className="text-xs text-gray-600">{s.city}, {s.state_code} • {new Date(s.created_at).toLocaleString()}</div>
+                                            <div className="text-xs text-gray-600">{s.city}, {s.state_code} • {s.created_at ? new Date(s.created_at).toLocaleString() : 'N/A'}</div>
                                             <div className="text-xs mt-2">Status: <strong>{s.status}</strong></div>
                                         </div>
                                         <div className="flex items-center gap-2">

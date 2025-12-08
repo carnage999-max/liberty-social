@@ -252,7 +252,7 @@ export default function AdminDashboardPage() {
             <MetricCard
               title="Active (30 days)"
               value={metrics?.active_users?.last_30_days ?? "—"}
-              subtitle="Users who logged in at least once."
+              subtitle="Users who logged in within the last 30 days."
               tone="warning"
             />
           </section>

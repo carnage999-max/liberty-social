@@ -32,30 +32,46 @@ export function usePushNotifications() {
   const responseListener = useRef<any>();
 
   useEffect(() => {
-    if (!user || !accessToken) return;
+    if (!user || !accessToken) {
+      console.log('Push notifications: Waiting for user/auth...');
+      return;
+    }
     
     // Skip push notifications in Expo Go
     if (isExpoGo || !Notifications) {
       console.log('Push notifications not available in Expo Go. Use a development build for push notifications.');
+      console.log('Execution environment:', Constants.executionEnvironment);
+      console.log('Notifications available:', !!Notifications);
       return;
     }
+    
+    console.log('Initializing push notifications for user:', user.id);
 
     // Request permissions
     registerForPushNotificationsAsync().then(async (token) => {
       if (token) {
+        console.log('Expo push token obtained:', token.substring(0, 30) + '...');
         // Register token with backend
         try {
-          await apiClient.post(
+          const platform = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
+          console.log('Registering device token with platform:', platform);
+          const response = await apiClient.post(
             '/device-tokens/',
             {
               token,
-              platform: Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web',
+              platform,
             }
           );
-        } catch (error) {
+          console.log('Device token registered successfully:', response.data);
+        } catch (error: any) {
           console.error('Failed to register device token:', error);
+          console.error('Error details:', error?.response?.data || error?.message);
         }
+      } else {
+        console.warn('No Expo push token obtained - push notifications will not work');
       }
+    }).catch((error) => {
+      console.error('Error in registerForPushNotificationsAsync:', error);
     });
 
     // Listen for notifications received while app is foregrounded

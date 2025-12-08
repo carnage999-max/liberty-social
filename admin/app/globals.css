@@ -329,8 +329,13 @@ button {
 .trend-bars {
   display: flex;
   align-items: flex-end;
+  justify-content: space-around;
   gap: 0.85rem;
-  min-height: 12rem;
+  min-height: 7rem;
+  height: 7rem;
+  padding-bottom: 1.5rem;
+  margin-top: 1.5rem;
+  position: relative;
 }
 
 .trend-bars__item {
@@ -339,14 +344,17 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 0.55rem;
+  position: relative;
 }
 
 .trend-bars__bar {
   width: 65%;
   border-radius: 16px 16px 8px 8px;
   background: linear-gradient(180deg, rgba(79, 70, 229, 0.8), rgba(14, 165, 233, 0.7));
-  transition: height 0.35s ease, transform 0.2s ease;
+  transition: height 0.35s ease, transform 0.2s ease, opacity 0.2s ease;
   box-shadow: 0 10px 24px -18px rgba(79, 70, 229, 0.45);
+  display: block;
+  flex-shrink: 0;
 }
 
 .trend-bars__bar:hover {
@@ -387,6 +395,49 @@ button {
   color: var(--slate-900);
 }
 
+/* --------- Tooltip --------- */
+.trend-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 0.5rem;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.trend-tooltip__content {
+  background: var(--slate-900);
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  box-shadow: 0 8px 16px -4px rgba(15, 23, 42, 0.4);
+  position: relative;
+}
+
+.trend-tooltip__content::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--slate-900);
+}
+
+.trend-tooltip__label {
+  font-weight: 500;
+  margin-bottom: 0.2rem;
+  opacity: 0.9;
+}
+
+.trend-tooltip__value {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
 .dashboard-footer {
   padding-top: 1.5rem;
   border-top: 1px solid rgba(226, 232, 240, 0.65);
@@ -395,14 +446,136 @@ button {
   text-align: center;
 }
 
+/* --------- Navigation --------- */
+.admin-nav {
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.65);
+  backdrop-filter: blur(16px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 12px -8px rgba(15, 23, 42, 0.1);
+}
+
+.admin-nav__container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem clamp(1.5rem, 4vw, 3rem);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.admin-nav__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.admin-nav__eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.32rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--indigo);
+}
+
+.admin-nav__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--slate-900);
+}
+
+.admin-nav__links {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.admin-nav__link {
+  padding: 0.6rem 1.2rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--slate-500);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.admin-nav__link:hover {
+  color: var(--indigo);
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.admin-nav__link--active {
+  color: var(--indigo);
+  background: rgba(79, 70, 229, 0.12);
+  border-color: rgba(79, 70, 229, 0.2);
+  font-weight: 600;
+}
+
 @media (max-width: 640px) {
   .dashboard-actions {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .dashboard-actions .btn {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .trend-card__header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .admin-nav__container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+  }
+
+  .admin-nav__brand {
+    padding: 1rem clamp(1.5rem, 4vw, 3rem);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.65);
+  }
+
+  .admin-nav__links {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    gap: 0;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.65);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-nav__link {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.75rem 0.5rem;
+    border-radius: 0;
+    border-bottom: 3px solid transparent;
+    text-align: center;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    background: transparent;
+  }
+
+  .admin-nav__link:hover {
+    background: rgba(79, 70, 229, 0.05);
+    border-bottom-color: rgba(79, 70, 229, 0.3);
+  }
+
+  .admin-nav__link--active {
+    background: rgba(79, 70, 229, 0.08);
+    border-bottom-color: var(--indigo);
+    color: var(--indigo);
   }
 }
