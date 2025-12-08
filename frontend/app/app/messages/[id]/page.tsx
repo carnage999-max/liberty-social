@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, apiPatch, apiDelete, API_BASE, resolveRemoteUrl } from "@/lib/api";
@@ -16,6 +16,8 @@ import { EmojiPickerPopper } from "@/components/EmojiPickerPopper";
 import { ReactionPicker } from "@/components/feed/ReactionPicker";
 import { ReactionsModal } from "@/components/feed/ReactionsModal";
 import ImageGallery from "@/components/ImageGallery";
+import { useFeedBackground } from "@/hooks/useFeedBackground";
+import FeedBackgroundModal from "@/components/modals/FeedBackgroundModal";
 
 // Map old text reaction types to emojis for backward compatibility
 const REACTION_TYPE_TO_EMOJI: Record<string, string> = {
@@ -41,6 +43,17 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 
+// Helper functions
+const isVideoUrl = (url?: string | null): boolean => {
+  if (!url) return false;
+  return /\.(mp4|webm|quicktime|mov)(\?.*)?$/i.test(url);
+};
+
+const isAudioUrl = (url?: string | null): boolean => {
+  if (!url) return false;
+  return /\.(m4a|mp3|wav|aac|ogg|flac|wma|webm)(\?.*)?$/i.test(url);
+};
+
 type MediaAttachment = {
   file: File;
   preview: string;
@@ -53,6 +66,7 @@ export default function ConversationDetailPage() {
   const { accessToken, user } = useAuth();
   const toast = useToast();
   const conversationId = params.id as string;
+  const { theme: chatBackgroundTheme, changeTheme, mounted: backgroundMounted } = useFeedBackground();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +80,20 @@ export default function ConversationDetailPage() {
   const [openMessageMenuId, setOpenMessageMenuId] = useState<number | null>(null);
   const [openReactionPickerId, setOpenReactionPickerId] = useState<number | null>(null);
   const [reactionPendingId, setReactionPendingId] = useState<number | null>(null);
-  const [galleryImage, setGalleryImage] = useState<string | null>(null);
+  const [galleryVisible, setGalleryVisible] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  
+  // Collect all images from messages for gallery
+  const galleryMedia = useMemo(() => {
+    return messages
+      .map((message) => {
+        if (!message.media_url) return null;
+        const mediaUrl = resolveRemoteUrl(message.media_url);
+        if (!mediaUrl || isVideoUrl(mediaUrl) || isAudioUrl(mediaUrl)) return null;
+        return { messageId: message.id, url: mediaUrl };
+      })
+      .filter((entry): entry is { messageId: number; url: string } => !!entry);
+  }, [messages]);
   const [reactionsModalOpen, setReactionsModalOpen] = useState(false);
   const [reactionsModalData, setReactionsModalData] = useState<any[]>([]);
   const [isMobile, setIsMobile] = useState(false);
@@ -82,6 +109,32 @@ export default function ConversationDetailPage() {
   const longPressMessageIdRef = useRef<number | null>(null);
   const shouldAutoScrollRef = useRef(true);
   const scrollPositionRef = useRef<number | null>(null);
+  
+  // Voice notes state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingDurationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Video thumbnails state
+  const [videoThumbnails, setVideoThumbnails] = useState<Record<number, string>>({});
+  
+  // Audio player state
+  const [playingAudioId, setPlayingAudioId] = useState<number | null>(null);
+  const [audioPosition, setAudioPosition] = useState(0);
+  const [audioPlayerDuration, setAudioPlayerDuration] = useState(0);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const waveformIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [waveformHeights, setWaveformHeights] = useState<number[]>(Array(12).fill(8));
+  
+  // Chat background state
+  const [backgroundModalOpen, setBackgroundModalOpen] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
 
   const loadConversation = async () => {
     if (!accessToken || !conversationId) return;
@@ -352,11 +405,34 @@ export default function ConversationDetailPage() {
   };
 
   const sendMessage = async () => {
-    if ((!messageText.trim() && !mediaAttachment) || sending || !accessToken || !conversationId) return;
+    if ((!messageText.trim() && !mediaAttachment && !audioBlob) || sending || !accessToken || !conversationId) return;
 
     try {
       setSending(true);
       let mediaUrl: string | null = null;
+
+      // Upload audio if present
+      if (audioBlob && editingMessageId === null) {
+        const formData = new FormData();
+        const filename = `voice-note-${Date.now()}.${audioBlob.type.includes("webm") ? "webm" : "m4a"}`;
+        formData.append("file", audioBlob, filename);
+        try {
+          const uploadRes = await fetch(`${API_BASE}/uploads/images/`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${accessToken}` },
+            body: formData,
+          });
+          if (!uploadRes.ok) {
+            throw new Error("Failed to upload audio");
+          }
+          const uploadData = await uploadRes.json();
+          mediaUrl = uploadData.url;
+        } catch (error) {
+          toast.show("Failed to upload audio", "error");
+          setSending(false);
+          return;
+        }
+      }
 
       // Upload media if present
       if (mediaAttachment) {
@@ -380,10 +456,17 @@ export default function ConversationDetailPage() {
         }
       }
 
+      // Include duration in content for audio messages
+      let content = messageText.trim() || null;
+      if (audioBlob && recordingDuration > 0) {
+        const durationStr = formatDuration(recordingDuration);
+        content = content ? `${content} [duration:${durationStr}]` : `[duration:${durationStr}]`;
+      }
+
       const response = await apiPost<Message>(
         `/conversations/${conversationId}/messages/`,
         {
-          content: messageText.trim() || null,
+          content,
           media_url: mediaUrl,
         },
         {
@@ -400,6 +483,7 @@ export default function ConversationDetailPage() {
       });
       setMessageText("");
       removeMediaAttachment();
+      cancelRecording();
       lastMessageIdRef.current = response.id;
       markAsRead();
     } catch (error) {
@@ -525,6 +609,202 @@ export default function ConversationDetailPage() {
     setEmojiPickerOpen(false);
   };
 
+  // Voice notes functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4",
+      });
+      
+      recordingChunksRef.current = [];
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordingChunksRef.current, { type: mediaRecorder.mimeType });
+        setAudioBlob(blob);
+        const url = URL.createObjectURL(blob);
+        setAudioPreviewUrl(url);
+        
+        // Get audio duration
+        const audio = new Audio(url);
+        audio.onloadedmetadata = () => {
+          setAudioDuration(Math.floor(audio.duration));
+        };
+        
+        // Stop all tracks
+        stream.getTracks().forEach((track) => track.stop());
+      };
+      
+      mediaRecorder.start();
+      mediaRecorderRef.current = mediaRecorder;
+      setIsRecording(true);
+      setRecordingDuration(0);
+      
+      // Start duration timer
+      recordingDurationIntervalRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error("Failed to start recording:", error);
+      toast.show("Failed to start recording. Please allow microphone access.", "error");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    if (recordingDurationIntervalRef.current) {
+      clearInterval(recordingDurationIntervalRef.current);
+      recordingDurationIntervalRef.current = null;
+    }
+    setIsRecording(false);
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    if (recordingDurationIntervalRef.current) {
+      clearInterval(recordingDurationIntervalRef.current);
+      recordingDurationIntervalRef.current = null;
+    }
+    setIsRecording(false);
+    setRecordingDuration(0);
+    setAudioBlob(null);
+    if (audioPreviewUrl) {
+      URL.revokeObjectURL(audioPreviewUrl);
+      setAudioPreviewUrl(null);
+    }
+    setAudioDuration(0);
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  // Generate video thumbnail
+  const generateVideoThumbnail = async (videoUrl: string, messageId: number) => {
+    if (videoThumbnails[messageId]) return;
+    
+    try {
+      const video = document.createElement("video");
+      video.crossOrigin = "anonymous";
+      video.src = videoUrl;
+      video.currentTime = 1; // 1 second into video
+      
+      await new Promise((resolve, reject) => {
+        video.onloadeddata = resolve;
+        video.onerror = reject;
+      });
+      
+      await new Promise((resolve) => {
+        video.onseeked = resolve;
+        video.currentTime = 1;
+      });
+      
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        const thumbnailUrl = canvas.toDataURL("image/jpeg");
+        setVideoThumbnails((prev) => ({ ...prev, [messageId]: thumbnailUrl }));
+      }
+    } catch (error) {
+      console.error("Error generating video thumbnail:", error);
+    }
+  };
+
+  // Audio player functions
+  const playMessageAudio = async (audioUrl: string, messageId: number) => {
+    try {
+      // Stop any currently playing audio
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+        audioPlayerRef.current = null;
+        setPlayingAudioId(null);
+        setWaveformHeights(Array(12).fill(8));
+      }
+
+      const audio = new Audio(audioUrl);
+      audioPlayerRef.current = audio;
+      setPlayingAudioId(messageId);
+
+      // Start waveform animation
+      if (waveformIntervalRef.current) {
+        clearInterval(waveformIntervalRef.current);
+      }
+      waveformIntervalRef.current = setInterval(() => {
+        setWaveformHeights(Array(12).fill(0).map(() => Math.random() * 30 + 10));
+      }, 150);
+
+      audio.addEventListener("loadedmetadata", () => {
+        setAudioPlayerDuration(Math.floor(audio.duration));
+      });
+
+      audio.addEventListener("timeupdate", () => {
+        setAudioPosition(Math.floor(audio.currentTime));
+      });
+
+      audio.addEventListener("ended", () => {
+        if (waveformIntervalRef.current) {
+          clearInterval(waveformIntervalRef.current);
+          waveformIntervalRef.current = null;
+        }
+        setPlayingAudioId(null);
+        setWaveformHeights(Array(12).fill(8));
+        setAudioPosition(0);
+        setAudioPlayerDuration(0);
+        audioPlayerRef.current = null;
+      });
+
+      await audio.play();
+    } catch (error) {
+      console.error("Error playing audio:", error);
+      toast.show("Failed to play audio", "error");
+    }
+  };
+
+  const stopMessageAudio = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current = null;
+      setPlayingAudioId(null);
+      if (waveformIntervalRef.current) {
+        clearInterval(waveformIntervalRef.current);
+        waveformIntervalRef.current = null;
+      }
+      setWaveformHeights(Array(12).fill(8));
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingDurationIntervalRef.current) {
+        clearInterval(recordingDurationIntervalRef.current);
+      }
+      if (waveformIntervalRef.current) {
+        clearInterval(waveformIntervalRef.current);
+      }
+      if (audioPreviewUrl) {
+        URL.revokeObjectURL(audioPreviewUrl);
+      }
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+      }
+    };
+  }, [audioPreviewUrl]);
+
   const getConversationTitle = (): string => {
     if (!conversation) return "Messages";
     if (conversation.title) return conversation.title;
@@ -560,10 +840,91 @@ export default function ConversationDetailPage() {
     );
   }
 
+  // Get background colors for themed backgrounds
+  const getBackgroundColors = (): [string, string, string] => {
+    switch (chatBackgroundTheme) {
+      case "clouds":
+        return ["#E3F2FD", "#BBDEFB", "#90CAF9"];
+      case "nature":
+        return ["#F1F8E9", "#DCEDC8", "#C5E1A5"];
+      case "space":
+        return ["#1A237E", "#283593", "#3949AB"];
+      case "ocean":
+        return ["#E1F5FE", "#B3E5FC", "#81D4FA"];
+      case "forest":
+        return ["#E8F5E9", "#C8E6C9", "#A5D6A7"];
+      case "sunset":
+        return ["#FFF3E0", "#FFCCBC", "#FFAB91"];
+      case "stars":
+        return ["#0D1B2A", "#1B263B", "#415A77"];
+      case "american":
+        return ["#B22234", "#FFFFFF", "#3C3B6E"];
+      case "christmas":
+        return ["#165B33", "#BB2528", "#F8F8F8"];
+      case "halloween":
+        return ["#FF6600", "#1A1A1A", "#FFA500"];
+      case "butterflies":
+        return ["#FFF0F5", "#FFE4E1", "#FFB6C1"];
+      case "dragons":
+        return ["#2C1810", "#8B4513", "#CD853F"];
+      case "christmas-trees":
+        return ["#0B6623", "#228B22", "#32CD32"];
+      case "music-notes":
+        return ["#663399", "#9370DB", "#BA55D3"];
+      case "pixel-hearts":
+        return ["#FF1744", "#F50057", "#C51162"];
+      default:
+        return ["#111827", "#111827", "#111827"];
+    }
+  };
+
+  const hasAnimatedBackground = [
+    "american",
+    "christmas",
+    "halloween",
+    "clouds",
+    "nature",
+    "space",
+    "ocean",
+    "forest",
+    "sunset",
+    "stars",
+    "butterflies",
+    "dragons",
+    "christmas-trees",
+    "music-notes",
+    "pixel-hearts",
+  ].includes(chatBackgroundTheme);
+
   return (
     <>
-      <div className="flex flex-col h-[calc(100vh-200px)] sm:h-[calc(100vh-120px)] rounded-2xl border border-gray-700 bg-gray-900 overflow-hidden shadow-2xl mx-auto w-full">
-        <header className="flex items-center gap-4 p-4 border-b border-gray-700 bg-gray-800 shadow-sm sticky z-20 flex-shrink-0" style={{ top: '0' }}>
+      <div 
+        className="flex flex-col h-[calc(100vh-200px)] sm:h-[calc(100vh-120px)] rounded-2xl border border-gray-700 overflow-hidden shadow-2xl mx-auto w-full relative"
+        style={{
+          backgroundColor: backgroundMounted && chatBackgroundTheme !== "default" ? "transparent" : "#111827",
+        }}
+      >
+        {/* Background gradient layer */}
+        {backgroundMounted && !hasAnimatedBackground && chatBackgroundTheme !== "default" && (
+          <div
+            className="absolute inset-0 -z-10"
+            style={{
+              background: `linear-gradient(135deg, ${getBackgroundColors().join(", ")})`,
+            }}
+          />
+        )}
+        
+        {/* Dark overlay for text visibility */}
+        {backgroundMounted && chatBackgroundTheme !== "default" && (
+          <div
+            className="absolute inset-0 -z-10"
+            style={{
+              background: "linear-gradient(to bottom, rgba(0, 0, 0, 0.3) 0%, transparent 20%, transparent 100%)",
+            }}
+          />
+        )}
+        
+        <header className="flex items-center gap-4 p-4 border-b border-gray-700 bg-gray-800/80 backdrop-blur-sm shadow-sm sticky z-20 flex-shrink-0" style={{ top: '0' }}>
           <button
             onClick={() => router.back()}
             className="text-gray-300 hover:text-white p-2 font-medium transition"
@@ -571,11 +932,114 @@ export default function ConversationDetailPage() {
             ← Back
           </button>
           <h1 className="text-xl font-bold flex-1 text-white">{getConversationTitle()}</h1>
+          <div className="relative">
+            <button
+              onClick={() => setHeaderMenuOpen(!headerMenuOpen)}
+              className="text-gray-300 hover:text-white p-2 transition"
+              title="Options"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2v20M2 12h20" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+            {headerMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setHeaderMenuOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-600 bg-gray-800 shadow-xl z-40">
+                  {conversation && !conversation.is_group && (() => {
+                    const otherParticipant = conversation.participants.find((p) => p.user.id !== user?.id);
+                    if (!otherParticipant) return null;
+                    return (
+                      <>
+                        <button
+                          onClick={() => {
+                            setHeaderMenuOpen(false);
+                            router.push(`/app/users/${otherParticipant.user.id}`);
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700 rounded-t-lg flex items-center gap-3"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                          View Profile
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setHeaderMenuOpen(false);
+                            if (!window.confirm(`Are you sure you want to block ${otherParticipant.user.first_name || otherParticipant.user.username || 'this user'}? You won't be able to see their posts or interact with them.`)) {
+                              return;
+                            }
+                            try {
+                              await apiPost("/auth/blocks/", { blocked_user_id: otherParticipant.user.id }, {
+                                token: accessToken,
+                                cache: "no-store",
+                              });
+                              toast.show(`${otherParticipant.user.first_name || otherParticipant.user.username || 'User'} has been blocked`, "success");
+                              router.push("/app/messages");
+                            } catch (error: any) {
+                              const errorMessage = error?.response?.data?.message || error?.response?.data?.detail || "Failed to block user";
+                              toast.show(errorMessage, "error");
+                            }
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-900/20 flex items-center gap-3"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="15" y1="9" x2="9" y2="15" />
+                            <line x1="9" y1="9" x2="15" y2="15" />
+                          </svg>
+                          Block User
+                        </button>
+                      </>
+                    );
+                  })()}
+                  <button
+                    onClick={() => {
+                      setHeaderMenuOpen(false);
+                      setBackgroundModalOpen(true);
+                    }}
+                    className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-3"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2v20M2 12h20" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    Change Background
+                  </button>
+                  <div className="border-t border-gray-700 my-1" />
+                  <button
+                    onClick={() => {
+                      setHeaderMenuOpen(false);
+                      if (window.confirm("Are you sure you want to clear all messages in this chat? This action cannot be undone.")) {
+                        setMessages([]);
+                        toast.show("Chat cleared", "success");
+                      }
+                    }}
+                    className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-900/20 rounded-b-lg flex items-center gap-3"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                    Clear Chat
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </header>
 
         <div 
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4 bg-gray-900"
+          className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4"
+          style={{
+            backgroundColor: backgroundMounted && chatBackgroundTheme !== "default" ? "transparent" : "#111827",
+          }}
         >
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full space-y-4">
@@ -697,37 +1161,171 @@ export default function ConversationDetailPage() {
                             </div>
                           ) : (
                             <>
-                              {message.media_url && (
-                                <div className="mb-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => setGalleryImage(message.media_url!)}
-                                    className="block"
-                                  >
-                                    {message.media_url.match(/\.(mp4|webm|quicktime)$/i) ? (
-                                      <video
-                                        src={message.media_url}
-                                        controls
-                                        className="max-w-full h-auto rounded-lg"
-                                        style={{ maxHeight: "300px" }}
-                                      />
-                                    ) : (
+                              {message.media_url && (() => {
+                                const mediaUrl = message.media_url;
+                                const isVideo = isVideoUrl(mediaUrl);
+                                const isAudio = isAudioUrl(mediaUrl);
+                                
+                                // Generate video thumbnail if needed
+                                if (isVideo && !videoThumbnails[message.id]) {
+                                  generateVideoThumbnail(mediaUrl, message.id);
+                                }
+                                
+                                if (isAudio) {
+                                  return (
+                                    <div className="mb-2 p-3 rounded-lg bg-black/20 flex items-center gap-3">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (playingAudioId === message.id) {
+                                            stopMessageAudio();
+                                          } else {
+                                            playMessageAudio(mediaUrl, message.id);
+                                          }
+                                        }}
+                                        className="w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center transition flex-shrink-0"
+                                      >
+                                        {playingAudioId === message.id ? (
+                                          <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                                          </svg>
+                                        ) : (
+                                          <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                                            <path d="M8 5v14l11-7z" />
+                                          </svg>
+                                        )}
+                                      </button>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1 mb-1" style={{ height: "24px" }}>
+                                          {waveformHeights.map((height, i) => (
+                                            <div
+                                              key={i}
+                                              className="bg-blue-400 rounded-full transition-all"
+                                              style={{
+                                                width: "3px",
+                                                height: playingAudioId === message.id ? `${height}px` : "8px",
+                                                minHeight: "8px",
+                                                transition: "height 0.15s ease",
+                                              }}
+                                            />
+                                          ))}
+                                        </div>
+                                        {playingAudioId === message.id && audioPlayerDuration > 0 && (
+                                          <div className="flex items-center gap-2 text-xs text-gray-300">
+                                            <span>{formatDuration(audioPosition)}</span>
+                                            <div className="flex-1 h-1 bg-gray-700 rounded-full overflow-hidden">
+                                              <div
+                                                className="h-full bg-blue-500 transition-all"
+                                                style={{ width: `${(audioPosition / audioPlayerDuration) * 100}%` }}
+                                              />
+                                            </div>
+                                            <span>{formatDuration(audioPlayerDuration)}</span>
+                                          </div>
+                                        )}
+                                        {playingAudioId !== message.id && (
+                                          <p className="text-xs text-gray-400">
+                                            Voice note{(() => {
+                                              if (message.content && message.content.includes("[duration:")) {
+                                                const match = message.content.match(/\[duration:(\d+:\d+)\]/);
+                                                if (match) return ` • ${match[1]}`;
+                                              }
+                                              return "";
+                                            })()}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                if (isVideo) {
+                                  return (
+                                    <div className="mb-2 relative">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const index = galleryMedia.findIndex((m) => m.url === mediaUrl);
+                                          if (index >= 0) {
+                                            setGalleryIndex(index);
+                                            setGalleryVisible(true);
+                                          }
+                                        }}
+                                        className="block relative w-full"
+                                        onMouseEnter={() => {
+                                          if (!videoThumbnails[message.id]) {
+                                            generateVideoThumbnail(mediaUrl, message.id);
+                                          }
+                                        }}
+                                      >
+                                        {videoThumbnails[message.id] ? (
+                                          <div className="relative">
+                                            <Image
+                                              src={videoThumbnails[message.id]}
+                                              alt="Video thumbnail"
+                                              width={300}
+                                              height={300}
+                                              className="rounded-lg object-cover max-h-[300px] w-full"
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-lg">
+                                              <svg width="64" height="64" viewBox="0 0 24 24" fill="white">
+                                                <path d="M8 5v14l11-7z" />
+                                              </svg>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <video
+                                            src={mediaUrl}
+                                            className="max-w-full h-auto rounded-lg"
+                                            style={{ maxHeight: "300px" }}
+                                            preload="metadata"
+                                          />
+                                        )}
+                                      </button>
+                                    </div>
+                                  );
+                                }
+                                
+                                return (
+                                  <div className="mb-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const index = galleryMedia.findIndex((m) => m.url === mediaUrl);
+                                        if (index >= 0) {
+                                          setGalleryIndex(index);
+                                          setGalleryVisible(true);
+                                        }
+                                      }}
+                                      className="block"
+                                    >
                                       <Image
-                                        src={message.media_url}
+                                        src={mediaUrl}
                                         alt="Message media"
                                         width={300}
                                         height={300}
                                         className="rounded-lg object-cover max-h-[300px]"
                                       />
-                                    )}
-                                  </button>
-                                </div>
-                              )}
-                              {message.content && (
-                                <p className="text-sm whitespace-pre-wrap break-words">
-                                  {message.content}
-                                </p>
-                              )}
+                                    </button>
+                                  </div>
+                                );
+                              })()}
+                              {message.content && (() => {
+                                // Filter out [duration:...] from content display
+                                let displayContent = message.content;
+                                if (displayContent.includes("[duration:")) {
+                                  displayContent = displayContent.replace(/\[duration:\d+:\d+\]/g, "").trim();
+                                }
+                                return displayContent ? (
+                                  <p 
+                                    className="text-sm whitespace-pre-wrap break-words"
+                                    style={{
+                                      textShadow: chatBackgroundTheme !== "default" ? "0 1px 2px rgba(0, 0, 0, 0.5)" : "none",
+                                    }}
+                                  >
+                                    {displayContent}
+                                  </p>
+                                ) : null;
+                              })()}
                               {message.edited_at && (
                                 <p className={`text-xs mt-1 ${isOwn ? "text-blue-200" : "text-gray-500"}`}>
                                   (edited)
@@ -812,22 +1410,42 @@ export default function ConversationDetailPage() {
                                 </button>
                                 {openMessageMenuId === message.id && (
                                   <div className="absolute right-0 mt-1 w-32 rounded-lg border border-gray-600 bg-gray-800 shadow-xl z-20">
-                                    <button
-                                      onClick={() => {
-                                        setEditText(message.content || "");
-                                        setEditingMessageId(message.id);
-                                        setOpenMessageMenuId(null);
-                                      }}
-                                      className="w-full px-3 py-2 text-left text-sm text-gray-200 hover:bg-gray-700 rounded-t-lg"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteMessage(message.id)}
-                                      className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 rounded-b-lg"
-                                    >
-                                      Delete
-                                    </button>
+                                    {message.content && (
+                                      <button
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(message.content || "");
+                                            toast.show("Message copied to clipboard", "success");
+                                            setOpenMessageMenuId(null);
+                                          } catch (error) {
+                                            toast.show("Failed to copy message", "error");
+                                          }
+                                        }}
+                                        className="w-full px-3 py-2 text-left text-sm text-gray-200 hover:bg-gray-700 rounded-t-lg"
+                                      >
+                                        Copy
+                                      </button>
+                                    )}
+                                    {isOwn && (
+                                      <>
+                                        <button
+                                          onClick={() => {
+                                            setEditText(message.content || "");
+                                            setEditingMessageId(message.id);
+                                            setOpenMessageMenuId(null);
+                                          }}
+                                          className={`w-full px-3 py-2 text-left text-sm text-gray-200 hover:bg-gray-700 ${message.content ? "" : "rounded-t-lg"}`}
+                                        >
+                                          Edit
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteMessage(message.id)}
+                                          className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 rounded-b-lg"
+                                        >
+                                          Delete
+                                        </button>
+                                      </>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -909,10 +1527,74 @@ export default function ConversationDetailPage() {
         </div>
 
         {/* Input area */}
-        <div className="border-t border-gray-700 bg-gray-800 p-3 sm:p-4">
+        <div className="border-t border-gray-700 bg-gray-800/80 backdrop-blur-sm p-3 sm:p-4">
           {/* Typing Indicator */}
           {typingUsers.length > 0 && (
             <TypingIndicator typingUsers={typingUsers} className="mb-3" />
+          )}
+          {/* Audio preview */}
+          {audioPreviewUrl && !isRecording && (
+            <div className="mb-2 p-3 rounded-lg bg-gray-700 flex items-center gap-3">
+              <audio ref={audioElementRef} src={audioPreviewUrl} className="hidden" />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (audioElementRef.current) {
+                    try {
+                      if (audioElementRef.current.paused) {
+                        await audioElementRef.current.play();
+                      } else {
+                        audioElementRef.current.pause();
+                      }
+                    } catch (error) {
+                      console.error("Error playing preview audio:", error);
+                    }
+                  }
+                }}
+                className="w-10 h-10 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center transition flex-shrink-0"
+              >
+                {audioElementRef.current && !audioElementRef.current.paused ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                )}
+              </button>
+              <div className="flex-1">
+                <p className="text-sm text-white">Voice note</p>
+                <p className="text-xs text-gray-400">{formatDuration(audioDuration || recordingDuration)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={cancelRecording}
+                className="text-red-400 hover:text-red-300 p-2"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
+          {/* Recording indicator */}
+          {isRecording && (
+            <div className="mb-2 p-3 rounded-lg bg-red-900/30 flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+              <div className="flex-1">
+                <p className="text-sm text-white">Recording...</p>
+                <p className="text-xs text-gray-400">{formatDuration(recordingDuration)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={stopRecording}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition"
+              >
+                Stop
+              </button>
+            </div>
           )}
           {mediaAttachment && (
             <div className="mb-2 relative inline-block">
@@ -947,22 +1629,51 @@ export default function ConversationDetailPage() {
             }}
             className="flex gap-2 items-end"
           >
-            <button
-              type="button"
-              onClick={handleFileSelect}
-              className="p-2.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition flex-shrink-0"
-              title="Attach image or video"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
+            {!isRecording && !audioPreviewUrl && (
+              <button
+                type="button"
+                onClick={handleFileSelect}
+                className="p-2.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition flex-shrink-0"
+                title="Attach image or video"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            )}
+            {!isRecording && !audioPreviewUrl && (
+              <button
+                type="button"
+                onClick={startRecording}
+                className="p-2.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition flex-shrink-0"
+                title="Record voice note"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M19 10v2a7 7 0 0 1-14 0v-2"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -1013,7 +1724,7 @@ export default function ConversationDetailPage() {
             </div>
             <button
               type="submit"
-              disabled={(!messageText.trim() && !mediaAttachment) || sending}
+              disabled={(!messageText.trim() && !mediaAttachment && !audioBlob) || sending || isRecording}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition flex-shrink-0"
             >
               {sending ? "Sending..." : "Send"}
@@ -1023,12 +1734,20 @@ export default function ConversationDetailPage() {
       </div>
 
       {/* Image Gallery */}
-      {galleryImage && (
+      {galleryVisible && galleryMedia.length > 0 && (
         <ImageGallery
-          open={true}
-          onClose={() => setGalleryImage(null)}
-          images={[galleryImage]}
-          currentIndex={0}
+          open={galleryVisible}
+          onClose={() => setGalleryVisible(false)}
+          images={galleryMedia.map((m) => m.url)}
+          currentIndex={galleryIndex}
+          onNavigate={(direction) => {
+            if (direction === "prev" && galleryIndex > 0) {
+              setGalleryIndex(galleryIndex - 1);
+            } else if (direction === "next" && galleryIndex < galleryMedia.length - 1) {
+              setGalleryIndex(galleryIndex + 1);
+            }
+          }}
+          onSelect={(index) => setGalleryIndex(index)}
         />
       )}
       <ReactionsModal
@@ -1036,6 +1755,12 @@ export default function ConversationDetailPage() {
         isOpen={reactionsModalOpen}
         onClose={() => setReactionsModalOpen(false)}
         postOrCommentTitle="Message"
+      />
+      <FeedBackgroundModal
+        open={backgroundModalOpen}
+        onClose={() => setBackgroundModalOpen(false)}
+        currentTheme={chatBackgroundTheme}
+        onThemeChange={changeTheme}
       />
     </>
   );
