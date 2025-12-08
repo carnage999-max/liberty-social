@@ -220,32 +220,58 @@ class UserStatusConsumer(AsyncJsonWebsocketConsumer):
     """Tracks and broadcasts user online/offline status in real-time."""
 
     async def connect(self):
-        user = self.scope.get("user")
-        if not user or isinstance(user, AnonymousUser) or user.is_anonymous:
-            await self.close(code=4401)
-            return
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            user = self.scope.get("user")
+            if not user or isinstance(user, AnonymousUser) or user.is_anonymous:
+                logger.warning("UserStatusConsumer.connect - Unauthorized (401)")
+                await self.close(code=4401)
+                return
 
-        self.user_id = str(user.id)
-        self.group_name = "user_status"  # Global group for all online users
+            self.user_id = str(user.id)
+            self.group_name = "user_status"  # Global group for all online users
 
-        # Mark user as online
-        await self._set_user_online(self.user_id, True)
+            # Mark user as online
+            try:
+                await self._set_user_online(self.user_id, True)
+            except Exception as e:
+                logger.error(f"Error setting user online: {e}", exc_info=True)
+                # Continue anyway - don't fail the connection
 
-        # Add user to the global status group
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-        await self.accept()
+            # Add user to the global status group
+            try:
+                await self.channel_layer.group_add(self.group_name, self.channel_name)
+            except Exception as e:
+                logger.error(f"Error adding to channel group: {e}", exc_info=True)
+                await self.close(code=4500)
+                return
 
-        # Notify all clients that this user is online
-        await self.channel_layer.group_send(
-            self.group_name,
-            {
-                "type": "user.status.changed",
-                "user_id": self.user_id,
-                "is_online": True,
-            },
-        )
+            await self.accept()
 
-        await self.send_json({"type": "connection.ack", "user_id": self.user_id})
+            # Notify all clients that this user is online
+            try:
+                await self.channel_layer.group_send(
+                    self.group_name,
+                    {
+                        "type": "user.status.changed",
+                        "user_id": self.user_id,
+                        "is_online": True,
+                    },
+                )
+            except Exception as e:
+                logger.error(f"Error sending status change notification: {e}", exc_info=True)
+                # Continue anyway - connection is already established
+
+            await self.send_json({"type": "connection.ack", "user_id": self.user_id})
+            logger.info(f"UserStatusConsumer.connect - Successfully connected user {self.user_id}")
+        except Exception as e:
+            logger.error(f"Error in UserStatusConsumer.connect: {e}", exc_info=True)
+            try:
+                await self.close(code=4500)
+            except:
+                pass
 
     async def disconnect(self, code):
         if hasattr(self, "user_id"):

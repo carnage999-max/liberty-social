@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { API_BASE } from '@/lib/api';
 
 interface UserStatusEvent {
   type: 'user.status.changed';
@@ -44,11 +45,14 @@ export function useUserStatus(onStatusChange?: StatusChangeCallback) {
     }
 
     try {
-      // Use NEXT_PUBLIC_WS_BASE_URL if set, otherwise derive from current location
-      const wsBase = process.env.NEXT_PUBLIC_WS_BASE_URL || 
-        `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+      // Use API_BASE to construct WebSocket URL (same as chat WebSocket)
+      // Convert https:// to wss:// and http:// to ws://
+      let wsBase = API_BASE.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://");
+      // Remove trailing /api if present
+      wsBase = wsBase.replace(/\/api\/?$/, "");
       const wsUrl = `${wsBase}/ws/user-status/?token=${accessToken}`;
 
+      console.log('[UserStatus] Connecting to WebSocket:', wsUrl.replace(/token=[^&]+/, 'token=***'));
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -77,8 +81,8 @@ export function useUserStatus(onStatusChange?: StatusChangeCallback) {
         console.error('[UserStatus] WebSocket error:', error);
       };
 
-      ws.onclose = () => {
-        console.log('[UserStatus] Connection closed');
+      ws.onclose = (event) => {
+        console.log('[UserStatus] Connection closed', { code: event.code, reason: event.reason, wasClean: event.wasClean });
         wsRef.current = null;
 
         // Attempt to reconnect with exponential backoff

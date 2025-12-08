@@ -1,7 +1,6 @@
 from urllib.parse import parse_qs
 
 from asgiref.sync import sync_to_async
-from channels.auth import AuthMiddlewareStack
 from django.contrib.auth.models import AnonymousUser
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
@@ -72,4 +71,7 @@ class JWTAuthMiddleware:
 
 
 def JWTAuthMiddlewareStack(inner):
-    return JWTAuthMiddleware(AuthMiddlewareStack(inner))
+    # Skip AuthMiddlewareStack (which includes session middleware) since we use JWT auth
+    # Session middleware uses Redis Lua scripts which aren't supported in cluster mode
+    # We only need JWT authentication, not sessions
+    return JWTAuthMiddleware(inner)

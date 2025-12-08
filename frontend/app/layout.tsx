@@ -107,6 +107,7 @@ export default function RootLayout({
                     width={36}
                     height={36}
                     className="rounded-full"
+                    style={{ height: 'auto' }}
                     priority
                   />
                   <div>

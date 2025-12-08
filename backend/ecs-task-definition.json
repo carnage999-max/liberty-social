@@ -9,7 +9,7 @@
   "containerDefinitions": [
     {
       "name": "liberty-social-backend",
-      "image": "704788056506.dkr.ecr.us-east-1.amazonaws.com/liberty-social-backend:v9",
+      "image": "704788056506.dkr.ecr.us-east-1.amazonaws.com/liberty-social-backend:v18",
       "essential": true,
       "portMappings": [
         {

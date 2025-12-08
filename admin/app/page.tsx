@@ -250,10 +250,10 @@ export default function AdminDashboardPage() {
               subtitle="Sign-ups in the last 7 days."
             />
             <MetricCard
-              title="Active (30 days)"
-              value={metrics?.active_users?.last_30_days ?? "—"}
-              subtitle="Users who logged in within the last 30 days."
-              tone="warning"
+              title="Users with posts"
+              value={metrics?.users_with_posts ?? "—"}
+              subtitle="Users who have created at least one post."
+              tone="info"
             />
           </section>
 

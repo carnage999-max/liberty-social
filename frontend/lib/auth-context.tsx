@@ -8,7 +8,7 @@ import {
   useState,
   ReactNode,
 } from "react";
-import { apiPost, isApiError } from "@/lib/api";
+import { apiPost, isApiError, API_BASE } from "@/lib/api";
 import { AuthTokens, User, LoginRequest, RegisterRequest } from "@/lib/types";
 
 /* -----------------------------
@@ -35,7 +35,6 @@ type AuthContextValue = {
 ----------------------------- */
 
 const STORAGE_KEY = "liberty_auth_v1";
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 const HIDDEN_VALUE = "******";
 
 const logAuthPayload = (action: "login" | "register", payload: unknown) => {

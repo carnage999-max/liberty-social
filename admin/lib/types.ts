@@ -18,10 +18,7 @@ export interface AdminMetrics {
     last_7_days: number;
     last_30_days: number;
   };
-  active_users: {
-    last_7_days: number;
-    last_30_days: number;
-  };
+  users_with_posts: number;
   signups_per_day: SignupDailyEntry[];
   signups_per_month: SignupMonthlyEntry[];
 }

@@ -88,7 +88,6 @@ export async function apiPost<T = any>(path: string, body?: unknown, opts: Optio
     method: "POST",
     headers: withAuthHeaders(opts),
     body: body ? JSON.stringify(body) : undefined,
-    credentials: "include",
     next: opts.next,
     cache: opts.cache,
     signal: opts.signal,
@@ -105,7 +104,6 @@ export async function apiGet<T = any>(
   const res = await fetch(url, {
     method: "GET",
     headers: withAuthHeaders(opts),
-    credentials: "include",
     next: opts.next,
     cache: opts.cache,
     signal: opts.signal,
@@ -137,7 +135,6 @@ export async function apiGetUrl<T = any>(
   const res = await fetch(normalizedUrl, {
     method: "GET",
     headers: withAuthHeaders(opts),
-    credentials: "include",
     next: opts.next,
     cache: opts.cache,
     signal: opts.signal,
@@ -154,7 +151,6 @@ export async function apiDelete(
   const res = await fetch(url, {
     method: "DELETE",
     headers: withAuthHeaders(opts),
-    credentials: "include",
     next: opts.next,
     cache: opts.cache,
     signal: opts.signal,
@@ -172,7 +168,6 @@ export async function apiPatch<T = any>(
     method: "PATCH",
     headers: withAuthHeaders(opts),
     body: body ? JSON.stringify(body) : undefined,
-    credentials: "include",
     next: opts.next,
     cache: opts.cache,
     signal: opts.signal,

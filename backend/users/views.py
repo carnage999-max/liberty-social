@@ -774,10 +774,12 @@ class UserMetricsView(APIView):
         new_last_7_days = User.objects.filter(date_joined__gte=last_7_days).count()
         new_last_30_days = User.objects.filter(date_joined__gte=last_30_days).count()
 
-        # Use last_seen instead of last_login to track active users (matches how active friends are tracked)
-        # Exclude users with null last_seen (never been active)
-        active_last_7_days = User.objects.filter(last_seen__gte=last_7_days, last_seen__isnull=False).count()
-        active_last_30_days = User.objects.filter(last_seen__gte=last_30_days, last_seen__isnull=False).count()
+        # Count users who have created at least one post (shows engagement)
+        from main.models import Post
+        users_with_posts = Post.objects.filter(
+            deleted_at__isnull=True,
+            author_type="user"
+        ).values('author').distinct().count()
 
         signups_per_day_qs = (
             User.objects.filter(date_joined__gte=now - timedelta(days=14))
@@ -815,10 +817,7 @@ class UserMetricsView(APIView):
                     "last_7_days": new_last_7_days,
                     "last_30_days": new_last_30_days,
                 },
-                "active_users": {
-                    "last_7_days": active_last_7_days,
-                    "last_30_days": active_last_30_days,
-                },
+                "users_with_posts": users_with_posts,
                 "signups_per_day": signups_per_day,
                 "signups_per_month": signups_per_month,
             }

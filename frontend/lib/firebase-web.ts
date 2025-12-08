@@ -187,7 +187,6 @@ async function fetchFirebaseConfigFromBackend() {
       ? `${API_BASE}/firebase-config/`
       : "/api/firebase-config/";
     remoteConfigPromise = fetch(endpoint, {
-      credentials: "include",
       cache: "no-store",
     })
       .then(async (response) => {
