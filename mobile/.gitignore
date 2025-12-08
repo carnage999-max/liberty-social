@@ -56,3 +56,4 @@ eas.json.local
 *.log
 *.tmp
 *.temp
+google-services.json
