@@ -253,7 +253,7 @@ export default function AdminDashboardPage() {
               title="Users with posts"
               value={metrics?.users_with_posts ?? "—"}
               subtitle="Users who have created at least one post."
-              tone="info"
+              tone="default"
             />
           </section>
 

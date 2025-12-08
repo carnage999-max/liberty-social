@@ -45,10 +45,9 @@ export default function MessagesPage() {
   const loadArchivedConversations = useCallback(async () => {
     if (!accessToken) return;
     try {
-      const response = await apiGet<PaginatedResponse<Conversation>>("/conversations/", {
+      const response = await apiGet<PaginatedResponse<Conversation>>("/conversations/?include_archived=true", {
         token: accessToken,
         cache: "no-store",
-        params: { include_archived: "true" },
       });
       const archived = response.results.filter((conv) => {
         const participant = conv.participants.find((p) => p.user.id === user?.id);
