@@ -998,16 +998,48 @@ export default function ConversationDetailPage() {
     "pixel-hearts",
   ].includes(chatBackgroundTheme);
 
+  // Check if theme is an image URL
+  const isImageBackground = typeof chatBackgroundTheme === "string" && 
+    (chatBackgroundTheme.startsWith("/backgrounds/") || chatBackgroundTheme.startsWith("http"));
+
+  // Get CSS class for animated backgrounds
+  const getBackgroundClass = (): string => {
+    if (isImageBackground) return "";
+    if (chatBackgroundTheme === "default") return "";
+    const themeMap: Record<string, string> = {
+      american: "feed-bg-american",
+      christmas: "feed-bg-christmas",
+      halloween: "feed-bg-halloween",
+      clouds: "feed-bg-clouds",
+      nature: "feed-bg-nature",
+      space: "feed-bg-space",
+      ocean: "feed-bg-ocean",
+      forest: "feed-bg-forest",
+      sunset: "feed-bg-sunset",
+      stars: "feed-bg-stars",
+      butterflies: "feed-bg-butterflies",
+      dragons: "feed-bg-dragons",
+      "christmas-trees": "feed-bg-christmas-trees",
+      "music-notes": "feed-bg-music-notes",
+      "pixel-hearts": "feed-bg-pixel-hearts",
+    };
+    return themeMap[chatBackgroundTheme] || "";
+  };
+
   return (
     <>
       <div 
-        className="flex flex-col h-[calc(100vh-200px)] sm:h-[calc(100vh-120px)] rounded-2xl border border-gray-700 overflow-hidden shadow-2xl mx-auto w-full relative"
+        className={`flex flex-col h-[calc(100vh-200px)] sm:h-[calc(100vh-120px)] rounded-2xl border border-gray-700 overflow-hidden shadow-2xl mx-auto w-full relative ${getBackgroundClass()}`}
         style={{
-          backgroundColor: backgroundMounted && chatBackgroundTheme !== "default" ? "transparent" : "#111827",
+          backgroundColor: backgroundMounted && chatBackgroundTheme !== "default" && !hasAnimatedBackground && !isImageBackground ? "transparent" : "#111827",
+          backgroundImage: isImageBackground && backgroundMounted ? `url(${chatBackgroundTheme})` : undefined,
+          backgroundSize: isImageBackground && backgroundMounted ? "cover" : undefined,
+          backgroundPosition: isImageBackground && backgroundMounted ? "center" : undefined,
+          backgroundRepeat: isImageBackground && backgroundMounted ? "no-repeat" : undefined,
         }}
       >
-        {/* Background gradient layer */}
-        {backgroundMounted && !hasAnimatedBackground && chatBackgroundTheme !== "default" && (
+        {/* Background gradient layer for non-animated themes */}
+        {backgroundMounted && !hasAnimatedBackground && !isImageBackground && chatBackgroundTheme !== "default" && (
           <div
             className="absolute inset-0 -z-10"
             style={{
@@ -1166,7 +1198,7 @@ export default function ConversationDetailPage() {
           ref={messagesContainerRef}
           className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4"
           style={{
-            backgroundColor: backgroundMounted && chatBackgroundTheme !== "default" ? "transparent" : "#111827",
+            backgroundColor: backgroundMounted && chatBackgroundTheme !== "default" && !hasAnimatedBackground && !isImageBackground ? "transparent" : (backgroundMounted && chatBackgroundTheme !== "default" ? "transparent" : "#111827"),
           }}
         >
           {messages.length === 0 ? (
@@ -1919,8 +1951,14 @@ export default function ConversationDetailPage() {
                       type="button"
                       onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
                       className="p-1.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded transition"
+                      title="Add emoji"
                     >
-                      <span className="text-xl">😀</span>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                        <line x1="9" y1="9" x2="9.01" y2="9" />
+                        <line x1="15" y1="9" x2="15.01" y2="9" />
+                      </svg>
                     </button>
                     <EmojiPickerPopper
                       open={emojiPickerOpen}
