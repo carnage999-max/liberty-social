@@ -835,6 +835,36 @@ class ConversationViewSet(ModelViewSet):
         
         return queryset
 
+    def get_object(self):
+        """
+        Override to allow accessing archived conversations when include_archived=true
+        is passed, even for POST/PATCH/DELETE actions.
+        """
+        # Check if include_archived is in query params (works for GET, POST, etc.)
+        include_archived = self.request.query_params.get("include_archived", "false").lower() == "true"
+        
+        if include_archived:
+            # Temporarily modify queryset to include archived
+            original_queryset = self.get_queryset()
+            # Get all conversations user is part of (including archived)
+            user = self.request.user
+            queryset = (
+                Conversation.objects.filter(participants__user=user)
+                .select_related("created_by")
+                .prefetch_related("participants__user")
+                .distinct()
+            )
+            # Use the modified queryset for get_object
+            lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+            lookup_value = self.kwargs[lookup_url_kwarg]
+            filter_kwargs = {self.lookup_field: lookup_value}
+            obj = queryset.get(**filter_kwargs)
+            self.check_object_permissions(self.request, obj)
+            return obj
+        else:
+            # Use default behavior
+            return super().get_object()
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context["request"] = self.request
@@ -855,6 +885,7 @@ class ConversationViewSet(ModelViewSet):
 
     @action(detail=True, methods=["get"], url_path="messages")
     def list_messages(self, request, pk=None):
+        # get_object() now handles include_archived automatically
         conversation = self._ensure_participant(self.get_object())
         paginator = PageNumberPagination()
         paginator.page_size = int(request.query_params.get("page_size", 25))

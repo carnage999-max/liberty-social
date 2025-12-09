@@ -7,11 +7,12 @@ import type { Conversation, Friend } from "@/lib/types";
 import type { PaginatedResponse } from "@/lib/api";
 import { useConversations } from "@/hooks/useConversations";
 import { usePaginatedResource } from "@/hooks/usePaginatedResource";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { resolveRemoteUrl } from "@/lib/api";
+import ConfirmationDialog from "@/components/ConfirmationDialog";
 
 export default function MessagesPage() {
   const { accessToken, user } = useAuth();
@@ -243,17 +244,270 @@ export default function MessagesPage() {
     if (!dateString) return "";
     const date = new Date(dateString);
     const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
+    const daysDiff = Math.floor((today.getTime() - messageDate.getTime()) / 86400000);
 
-    if (minutes < 1) return "Just now";
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString();
+    // Today: show time (e.g., "2:30 PM")
+    if (daysDiff === 0) {
+      return date.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      });
+    }
+    
+    // Yesterday
+    if (daysDiff === 1) {
+      return 'Yesterday';
+    }
+    
+    // This week: show day name (e.g., "Monday")
+    if (daysDiff < 7) {
+      return date.toLocaleDateString('en-US', { weekday: 'long' });
+    }
+    
+    // Older: show date (e.g., "12/25/2024")
+    return date.toLocaleDateString('en-US', { 
+      month: 'numeric', 
+      day: 'numeric',
+      year: daysDiff > 365 ? 'numeric' : undefined
+    });
   };
+
+  // Helper to format last message preview with media indicators
+  const formatLastMessage = (conversation: Conversation): string => {
+    const lastMessage = conversation.last_message;
+    if (!lastMessage) return "No messages yet";
+    
+    if (lastMessage.is_deleted) {
+      return "🚫 This message was deleted";
+    }
+    
+    if (lastMessage.media_url) {
+      const mediaUrl = resolveRemoteUrl(lastMessage.media_url);
+      const isVideo = /\.(mp4|mov|m4v|webm|mkv|avi|3gp)(\?.*)?$/i.test(mediaUrl || "");
+      const isAudio = /\.(m4a|mp3|wav|aac|ogg|flac|wma|webm)(\?.*)?$/i.test(mediaUrl || "");
+      
+      if (isAudio) {
+        // Extract duration from content if available (format: "[duration:MM:SS]")
+        let durationText = "";
+        if (lastMessage.content && lastMessage.content.includes("[duration:")) {
+          const durationMatch = lastMessage.content.match(/\[duration:(\d+:\d+)\]/);
+          if (durationMatch) {
+            durationText = ` (${durationMatch[1]})`;
+          }
+        }
+        const contentText = lastMessage.content && !lastMessage.content.includes("[duration:")
+          ? lastMessage.content.replace(/\[duration:\d+:\d+\]/g, "").trim()
+          : "";
+        return contentText 
+          ? `🎤 ${contentText}${durationText}` 
+          : `🎤 Voice message${durationText}`;
+      } else if (isVideo) {
+        return lastMessage.content 
+          ? `🎥 ${lastMessage.content}` 
+          : "🎥 Video";
+      } else {
+        return lastMessage.content 
+          ? `📷 ${lastMessage.content}` 
+          : "📷 Photo";
+      }
+    }
+    
+    let messageText = lastMessage.content || "No messages yet";
+    
+    // Add sender name for group chats
+    if (conversation.is_group && lastMessage.sender) {
+      const senderName = lastMessage.sender.id === user?.id 
+        ? "You" 
+        : (lastMessage.sender.first_name || lastMessage.sender.username || "Someone");
+      messageText = `${senderName}: ${messageText}`;
+    } else if (lastMessage.sender?.id === user?.id && !conversation.is_group) {
+      // Add "You: " prefix for your own messages in DMs
+      messageText = `You: ${messageText}`;
+    }
+    
+    return messageText;
+  };
+
+  // Determine read/unread status of selected conversations
+  const selectedConversationsStatus = useMemo(() => {
+    if (selectedConversations.size === 0) {
+      return { allRead: false, allUnread: false, mixed: false };
+    }
+
+    let readCount = 0;
+    let unreadCount = 0;
+
+    selectedConversations.forEach((convId) => {
+      const conversation = conversations.find((c) => c.id === convId);
+      if (!conversation) return;
+
+      const userParticipant = conversation.participants.find(
+        (p) => String(p.user.id) === String(user?.id)
+      );
+      const lastReadTs = userParticipant?.last_read_at
+        ? new Date(userParticipant.last_read_at).getTime()
+        : null;
+      const lastMessage = conversation.last_message;
+      const lastMessageTs = lastMessage?.created_at
+        ? new Date(lastMessage.created_at).getTime()
+        : null;
+      const lastMessageAtTs = conversation.last_message_at
+        ? new Date(conversation.last_message_at).getTime()
+        : null;
+      const latestActivityTs = lastMessageTs ?? lastMessageAtTs;
+      const hasUnread = Boolean(
+        latestActivityTs && (!lastReadTs || lastReadTs < latestActivityTs)
+      );
+
+      if (hasUnread) {
+        unreadCount++;
+      } else {
+        readCount++;
+      }
+    });
+
+    const total = readCount + unreadCount;
+    if (total === 0) {
+      return { allRead: false, allUnread: false, mixed: false };
+    }
+
+    return {
+      allRead: readCount > 0 && unreadCount === 0,
+      allUnread: unreadCount > 0 && readCount === 0,
+      mixed: readCount > 0 && unreadCount > 0,
+    };
+  }, [selectedConversations, conversations, user]);
+
+  // Handle mark read/unread
+  const handleMarkRead = async () => {
+    try {
+      const promises = Array.from(selectedConversations).map((convId) =>
+        apiPost(`/conversations/${convId}/mark-read/`, undefined, {
+          token: accessToken,
+          cache: "no-store",
+        })
+      );
+      await Promise.all(promises);
+      toast.show(`${selectedConversations.size} conversation(s) marked as read`, "success");
+      setSelectedConversations(new Set());
+      setIsSelectionMode(false);
+      refresh();
+    } catch (error) {
+      toast.show("Failed to mark conversations as read", "error");
+    }
+  };
+
+  const handleMarkUnread = async () => {
+    try {
+      const promises = Array.from(selectedConversations).map((convId) =>
+        apiPost(`/conversations/${convId}/mark-unread/`, undefined, {
+          token: accessToken,
+          cache: "no-store",
+        })
+      );
+      await Promise.all(promises);
+      toast.show(`${selectedConversations.size} conversation(s) marked as unread`, "success");
+      setSelectedConversations(new Set());
+      setIsSelectionMode(false);
+      refresh();
+    } catch (error) {
+      toast.show("Failed to mark conversations as unread", "error");
+    }
+  };
+
+  const handleClearArchivedChats = async () => {
+    try {
+      // Clear messages in selected archived conversations
+      const promises = Array.from(selectedArchivedConversations).map(async (convId) => {
+        let allMessages: any[] = [];
+        let nextUrl: string | null = `/conversations/${convId}/messages/?include_archived=true`;
+        
+        // Fetch all messages (handle pagination)
+        while (nextUrl) {
+          const response: PaginatedResponse<any> = await apiGet<PaginatedResponse<any>>(nextUrl, {
+            token: accessToken,
+            cache: "no-store",
+          });
+          if (response.results) {
+            allMessages = [...allMessages, ...response.results];
+          }
+          nextUrl = response.next || null;
+        }
+        
+        // Delete all messages
+        if (allMessages.length > 0) {
+          const deletePromises = allMessages.map((msg: any) =>
+            apiPost(`/conversations/${convId}/messages/${msg.id}/delete/?include_archived=true`, undefined, {
+              token: accessToken,
+              cache: "no-store",
+            }).catch(() => {
+              // Fallback without query param
+              return apiPost(`/conversations/${convId}/messages/${msg.id}/delete/`, undefined, {
+                token: accessToken,
+                cache: "no-store",
+              });
+            })
+          );
+          await Promise.all(deletePromises);
+        }
+      });
+      await Promise.all(promises);
+      toast.show(`${selectedArchivedConversations.size} chat(s) cleared`, "success");
+      setSelectedArchivedConversations(new Set());
+      setIsArchivedSelectionMode(false);
+      loadArchivedConversations();
+    } catch (error) {
+      toast.show("Failed to clear chats", "error");
+    }
+  };
+
+  const handleClearChats = async () => {
+    try {
+      // Clear messages in selected conversations by deleting all messages
+      const promises = Array.from(selectedConversations).map(async (convId) => {
+        let allMessages: any[] = [];
+        let nextUrl: string | null = `/conversations/${convId}/messages/`;
+        
+        // Fetch all messages (handle pagination)
+        while (nextUrl) {
+          const response: PaginatedResponse<any> = await apiGet<PaginatedResponse<any>>(nextUrl, {
+            token: accessToken,
+            cache: "no-store",
+          });
+          if (response.results) {
+            allMessages = [...allMessages, ...response.results];
+          }
+          nextUrl = response.next || null;
+        }
+        
+        // Delete all messages
+        if (allMessages.length > 0) {
+          const deletePromises = allMessages.map((msg: any) =>
+            apiPost(`/conversations/${convId}/messages/${msg.id}/delete/`, undefined, {
+              token: accessToken,
+              cache: "no-store",
+            })
+          );
+          await Promise.all(deletePromises);
+        }
+      });
+      await Promise.all(promises);
+      toast.show(`${selectedConversations.size} chat(s) cleared`, "success");
+      setSelectedConversations(new Set());
+      setIsSelectionMode(false);
+      refresh();
+    } catch (error) {
+      toast.show("Failed to clear chats", "error");
+    }
+  };
+
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [showClearArchivedConfirm, setShowClearArchivedConfirm] = useState(false);
 
   if (loading) {
     return (
@@ -279,19 +533,73 @@ export default function MessagesPage() {
 
   return (
     <div className="space-y-6">
+      {/* Archived Chats Row - Show at top if there are archived chats */}
+      {archivedConversations.length > 0 && !isSelectionMode && (
+        <button
+          onClick={() => setShowArchivedModal(true)}
+          className="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors border border-gray-700"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--color-gold)]">
+            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+          <span className="text-gray-300 font-medium">Archived Chats</span>
+          <span className="ml-auto px-2 py-1 bg-[var(--color-gold)] text-[var(--color-deep-navy)] rounded-full text-xs font-bold">
+            {archivedConversations.length}
+          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+      )}
+
       <header className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Messages</h1>
         <div className="flex items-center gap-2">
           {isSelectionMode && selectedConversations.size > 0 && (
-            <button
-              onClick={handleArchiveChats}
-              className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-              Archive ({selectedConversations.size})
-            </button>
+            <>
+              {/* Show Mark Read only if all are unread OR mixed */}
+              {(selectedConversationsStatus.allUnread || selectedConversationsStatus.mixed) && (
+                <button
+                  onClick={handleMarkRead}
+                  className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Mark Read
+                </button>
+              )}
+              {/* Show Mark Unread only if all are read OR mixed */}
+              {(selectedConversationsStatus.allRead || selectedConversationsStatus.mixed) && (
+                <button
+                  onClick={handleMarkUnread}
+                  className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                  </svg>
+                  Mark Unread
+                </button>
+              )}
+              <button
+                onClick={() => setShowArchiveConfirm(true)}
+                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Archive
+              </button>
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Clear
+              </button>
+            </>
           )}
           {isSelectionMode && (
             <button
@@ -328,12 +636,26 @@ export default function MessagesPage() {
               const title = getConversationTitle(conversation);
               const avatarUrl = getConversationAvatar(conversation);
               const lastMessage = conversation.last_message;
-              const lastMessageText = lastMessage?.content 
-                ? lastMessage.content 
-                : lastMessage?.media_url 
-                  ? "Attachment" 
-                  : "No messages yet";
+              const lastMessageText = formatLastMessage(conversation);
               const lastMessageTime = formatTime(conversation.last_message_at);
+              
+              // Check unread status
+              const userParticipant = conversation.participants.find(
+                (p) => String(p.user.id) === String(user?.id)
+              );
+              const lastReadTs = userParticipant?.last_read_at
+                ? new Date(userParticipant.last_read_at).getTime()
+                : null;
+              const lastMessageTs = lastMessage?.created_at
+                ? new Date(lastMessage.created_at).getTime()
+                : null;
+              const lastMessageAtTs = conversation.last_message_at
+                ? new Date(conversation.last_message_at).getTime()
+                : null;
+              const latestActivityTs = lastMessageTs ?? lastMessageAtTs;
+              const hasUnread = Boolean(
+                latestActivityTs && (!lastReadTs || lastReadTs < latestActivityTs)
+              );
               const isSelected = selectedConversations.has(conversation.id);
 
               return (
@@ -346,7 +668,7 @@ export default function MessagesPage() {
                   }}
                   className={`w-full flex items-center gap-4 p-4 hover:bg-gray-800 transition-colors text-left ${
                     idx !== conversations.length - 1 ? "border-b border-gray-700" : ""
-                  } ${isSelected ? "bg-blue-900/30" : ""}`}
+                  } ${isSelected ? "bg-blue-900/30" : ""} ${hasUnread ? "bg-gray-800/50" : ""}`}
                 >
                   {isSelectionMode && (
                     <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
@@ -377,14 +699,19 @@ export default function MessagesPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-semibold truncate text-white">{title}</h3>
+                      <h3 className={`font-semibold truncate ${hasUnread ? "text-white font-bold" : "text-white"}`}>{title}</h3>
                       {lastMessageTime && (
-                        <span className="text-xs text-gray-400 flex-shrink-0">
+                        <span className={`text-xs flex-shrink-0 ${hasUnread ? "text-[var(--color-gold)] font-semibold" : "text-gray-400"}`}>
                           {lastMessageTime}
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-400 truncate">{lastMessageText}</p>
+                    <div className="flex items-center gap-2">
+                      <p className={`text-sm truncate ${hasUnread ? "text-white font-medium" : "text-gray-400"}`}>{lastMessageText}</p>
+                      {hasUnread && !isSelectionMode && (
+                        <div className="w-2 h-2 rounded-full bg-[var(--color-gold)] flex-shrink-0" />
+                      )}
+                    </div>
                   </div>
                 </button>
               );
@@ -398,43 +725,25 @@ export default function MessagesPage() {
                 {loadingMore ? "Loading..." : "Load more"}
               </button>
             )}
-            {archivedConversations.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-700">
-                <button
-                  onClick={() => setShowArchivedModal(true)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors text-left"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
-                  <span className="text-gray-300 font-medium">Archived Chats</span>
-                  <span className="ml-auto px-2 py-1 bg-gray-700 rounded-full text-xs text-gray-300">
-                    {archivedConversations.length}
-                  </span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}
 
       {/* Archived Conversations Modal */}
       {showArchivedModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => {
+          if (!isArchivedSelectionMode) {
+            setShowArchivedModal(false);
+            setIsArchivedSelectionMode(false);
+            setSelectedArchivedConversations(new Set());
+          }
+        }}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">
                 {isArchivedSelectionMode ? `${selectedArchivedConversations.size} selected` : "Archived Chats"}
               </h2>
               <div className="flex items-center gap-2">
-                {isArchivedSelectionMode && selectedArchivedConversations.size > 0 && (
-                  <button
-                    onClick={handleUnarchiveChats}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                  >
-                    Unarchive ({selectedArchivedConversations.size})
-                  </button>
-                )}
                 {isArchivedSelectionMode && (
                   <button
                     onClick={() => {
@@ -458,6 +767,133 @@ export default function MessagesPage() {
                 </button>
               </div>
             </div>
+            {/* Action Bar for Archived Conversations */}
+            {isArchivedSelectionMode && selectedArchivedConversations.size > 0 && (
+              <div className="mb-4 pb-4 border-b border-gray-700 flex items-center gap-2 overflow-x-auto">
+                {/* Show Mark Read only if all are unread OR mixed */}
+                {(() => {
+                  let readCount = 0;
+                  let unreadCount = 0;
+                  selectedArchivedConversations.forEach((convId) => {
+                    const conversation = archivedConversations.find((c) => c.id === convId);
+                    if (!conversation) return;
+                    const userParticipant = conversation.participants.find(
+                      (p) => String(p.user.id) === String(user?.id)
+                    );
+                    const lastReadTs = userParticipant?.last_read_at
+                      ? new Date(userParticipant.last_read_at).getTime()
+                      : null;
+                    const lastMessage = conversation.last_message;
+                    const lastMessageTs = lastMessage?.created_at
+                      ? new Date(lastMessage.created_at).getTime()
+                      : null;
+                    const lastMessageAtTs = conversation.last_message_at
+                      ? new Date(conversation.last_message_at).getTime()
+                      : null;
+                    const latestActivityTs = lastMessageTs ?? lastMessageAtTs;
+                    const hasUnread = Boolean(
+                      latestActivityTs && (!lastReadTs || lastReadTs < latestActivityTs)
+                    );
+                    if (hasUnread) unreadCount++;
+                    else readCount++;
+                  });
+                  const allUnread = unreadCount > 0 && readCount === 0;
+                  const allRead = readCount > 0 && unreadCount === 0;
+                  const mixed = readCount > 0 && unreadCount > 0;
+                  
+                  return (
+                    <>
+                      {(allUnread || mixed) && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const promises = Array.from(selectedArchivedConversations).map((convId) =>
+                                apiPost(`/conversations/${convId}/mark-read/?include_archived=true`, undefined, {
+                                  token: accessToken,
+                                  cache: "no-store",
+                                }).catch(() => {
+                                  // Fallback without query param
+                                  return apiPost(`/conversations/${convId}/mark-read/`, undefined, {
+                                    token: accessToken,
+                                    cache: "no-store",
+                                  });
+                                })
+                              );
+                              await Promise.all(promises);
+                              toast.show(`${selectedArchivedConversations.size} conversation(s) marked as read`, "success");
+                              setSelectedArchivedConversations(new Set());
+                              setIsArchivedSelectionMode(false);
+                              loadArchivedConversations();
+                            } catch (error) {
+                              toast.show("Failed to mark conversations as read", "error");
+                            }
+                          }}
+                          className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2 text-sm whitespace-nowrap"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                          Mark Read
+                        </button>
+                      )}
+                      {(allRead || mixed) && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const promises = Array.from(selectedArchivedConversations).map((convId) =>
+                                apiPost(`/conversations/${convId}/mark-unread/?include_archived=true`, undefined, {
+                                  token: accessToken,
+                                  cache: "no-store",
+                                }).catch(() => {
+                                  return apiPost(`/conversations/${convId}/mark-unread/`, undefined, {
+                                    token: accessToken,
+                                    cache: "no-store",
+                                  });
+                                })
+                              );
+                              await Promise.all(promises);
+                              toast.show(`${selectedArchivedConversations.size} conversation(s) marked as unread`, "success");
+                              setSelectedArchivedConversations(new Set());
+                              setIsArchivedSelectionMode(false);
+                              loadArchivedConversations();
+                            } catch (error) {
+                              toast.show("Failed to mark conversations as unread", "error");
+                            }
+                          }}
+                          className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2 text-sm whitespace-nowrap"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                          </svg>
+                          Mark Unread
+                        </button>
+                      )}
+                      <button
+                        onClick={handleUnarchiveChats}
+                        className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 flex items-center gap-2 text-sm whitespace-nowrap"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                        Unarchive
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowClearArchivedConfirm(true);
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 text-sm whitespace-nowrap"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                        Clear
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
             {archivedConversations.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-400">No archived conversations</p>
@@ -468,11 +904,7 @@ export default function MessagesPage() {
                   const title = getConversationTitle(conversation);
                   const avatarUrl = getConversationAvatar(conversation);
                   const lastMessage = conversation.last_message;
-                  const lastMessageText = lastMessage?.content 
-                    ? lastMessage.content 
-                    : lastMessage?.media_url 
-                      ? "Attachment" 
-                      : "No messages yet";
+                  const lastMessageText = formatLastMessage(conversation);
                   const lastMessageTime = formatTime(conversation.last_message_at);
                   const isSelected = selectedArchivedConversations.has(conversation.id);
 
@@ -612,6 +1044,49 @@ export default function MessagesPage() {
           </div>
         </div>
       )}
+
+      {/* Confirmation Dialogs */}
+      <ConfirmationDialog
+        isOpen={showClearConfirm}
+        title="Clear Chats"
+        message={`Are you sure you want to clear all messages in ${selectedConversations.size} selected chat(s)? This action cannot be undone.`}
+        confirmText="Clear"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={() => {
+          setShowClearConfirm(false);
+          handleClearChats();
+        }}
+        onCancel={() => setShowClearConfirm(false)}
+      />
+
+      <ConfirmationDialog
+        isOpen={showArchiveConfirm}
+        title="Archive Conversations"
+        message={`Are you sure you want to archive ${selectedConversations.size} conversation(s)?`}
+        confirmText="Archive"
+        cancelText="Cancel"
+        confirmVariant="default"
+        onConfirm={() => {
+          setShowArchiveConfirm(false);
+          handleArchiveChats();
+        }}
+        onCancel={() => setShowArchiveConfirm(false)}
+      />
+
+      <ConfirmationDialog
+        isOpen={showClearArchivedConfirm}
+        title="Clear Archived Chats"
+        message={`Are you sure you want to clear all messages in ${selectedArchivedConversations.size} selected archived chat(s)? This action cannot be undone.`}
+        confirmText="Clear"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={() => {
+          setShowClearArchivedConfirm(false);
+          handleClearArchivedChats();
+        }}
+        onCancel={() => setShowClearArchivedConfirm(false)}
+      />
     </div>
   );
 }

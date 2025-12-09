@@ -17,6 +17,7 @@ import { usePaginatedResource } from "@/hooks/usePaginatedResource";
 import { useNotifications } from "@/hooks/useNotifications";
 import { usePageInvites } from "@/hooks/usePageInvites";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { Dog } from 'lucide-react';
 
 const NAV_LINKS = [
@@ -238,19 +239,23 @@ export default function AppShell({ children }: AppShellProps) {
   );
   const { pendingCount: pageInviteCount } = usePageInvites();
   const { unreadCount: notificationUnreadCount } = useNotifications();
+  const { unreadCount: unreadMessagesCount } = useUnreadMessages();
 
   const getBadgeCount = useCallback(
     (href: string) => {
       if (href === "/app/friend-requests") return incomingFriendRequests;
       if (href === "/app/invites") return pageInviteCount;
       if (href === "/app/notifications") return notificationUnreadCount;
+      if (href === "/app/messages") return unreadMessagesCount;
       return 0;
     },
-    [incomingFriendRequests, pageInviteCount, notificationUnreadCount]
+    [incomingFriendRequests, pageInviteCount, notificationUnreadCount, unreadMessagesCount]
   );
 
   const notificationBadgeLabel =
     notificationUnreadCount > 99 ? "99+" : String(notificationUnreadCount);
+  const messagesBadgeLabel =
+    unreadMessagesCount > 99 ? "99+" : String(unreadMessagesCount);
   usePushNotifications();
 
   const openCreateModal = useCallback(() => {
@@ -430,6 +435,22 @@ export default function AppShell({ children }: AppShellProps) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                onClick={() => handleNavigate("/app/messages")}
+                aria-label="View messages"
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80"
+                title="Messages"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                {unreadMessagesCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                    {messagesBadgeLabel}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
                 onClick={() => setBugModalOpen(true)}
                 aria-label="Report bug"
                 className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80"
@@ -522,6 +543,21 @@ export default function AppShell({ children }: AppShellProps) {
                   <path d="M3 6h18" />
                   <path d="M16 10a4 4 0 0 1-8 0" />
                 </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNavigate("/app/messages")}
+                aria-label="View messages"
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full bg-(--color-gold) text-[var(--color-deeper-navy)] shadow-sm transition hover:opacity-80 border-2 border-(--color-gold)"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                {unreadMessagesCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white">
+                    {messagesBadgeLabel}
+                  </span>
+                )}
               </button>
               <button
                 type="button"

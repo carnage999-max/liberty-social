@@ -18,6 +18,7 @@ import { ReactionsModal } from "@/components/feed/ReactionsModal";
 import ImageGallery from "@/components/ImageGallery";
 import { useFeedBackground } from "@/hooks/useFeedBackground";
 import FeedBackgroundModal from "@/components/modals/FeedBackgroundModal";
+import ConfirmationDialog from "@/components/ConfirmationDialog";
 
 // Map old text reaction types to emojis for backward compatibility
 const REACTION_TYPE_TO_EMOJI: Record<string, string> = {
@@ -70,6 +71,8 @@ export default function ConversationDetailPage() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextUrl, setNextUrl] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [pollingEnabled, setPollingEnabled] = useState(false);
@@ -135,11 +138,19 @@ export default function ConversationDetailPage() {
   // Chat background state
   const [backgroundModalOpen, setBackgroundModalOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  
+  // Confirmation dialogs
+  const [showDeleteMessageConfirm, setShowDeleteMessageConfirm] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<number | null>(null);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [userToBlock, setUserToBlock] = useState<{ id: string; name: string } | null>(null);
+  const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
 
   const loadConversation = async () => {
     if (!accessToken || !conversationId) return;
     try {
-      const data = await apiGet<Conversation>(`/conversations/${conversationId}/`, {
+      // Include archived conversations in the request
+      const data = await apiGet<Conversation>(`/conversations/${conversationId}/?include_archived=true`, {
         token: accessToken,
         cache: "no-store",
       });
@@ -163,8 +174,9 @@ export default function ConversationDetailPage() {
       }
       
       if (!silent) setLoading(true);
+      // Include archived conversations in the request
       const response = await apiGet<PaginatedResponse<Message>>(
-        `/conversations/${conversationId}/messages/`,
+        `/conversations/${conversationId}/messages/?include_archived=true`,
         {
           token: accessToken,
           cache: "no-store",
@@ -172,6 +184,7 @@ export default function ConversationDetailPage() {
       );
       const newMessages = response.results.reverse();
       setMessages(newMessages);
+      setNextUrl(response.next || null);
       
       if (newMessages.length > 0) {
         lastMessageIdRef.current = newMessages[newMessages.length - 1].id;
@@ -192,19 +205,108 @@ export default function ConversationDetailPage() {
     }
   };
 
+  const loadOlderMessages = useCallback(async () => {
+    if (!accessToken || !conversationId || !nextUrl || loadingMore) return;
+    
+    try {
+      setLoadingMore(true);
+      
+      // Save current scroll position and height
+      const container = messagesContainerRef.current;
+      if (!container) return;
+      
+      const previousScrollHeight = container.scrollHeight;
+      const previousScrollTop = container.scrollTop;
+      
+      // Extract the path from the URL (handle both full URLs and relative paths)
+      let path: string;
+      try {
+        if (nextUrl.startsWith("http://") || nextUrl.startsWith("https://")) {
+          // Full URL - extract path and query
+          const url = new URL(nextUrl);
+          path = url.pathname + url.search;
+          // Remove /api prefix if present since API_BASE already includes it
+          if (path.startsWith("/api/")) {
+            path = path.substring(4); // Remove "/api"
+          }
+        } else if (nextUrl.startsWith("/api/")) {
+          // Relative path starting with /api/ - remove /api prefix
+          path = nextUrl.substring(4);
+        } else if (nextUrl.startsWith("/")) {
+          // Relative path starting with / - use as is
+          path = nextUrl;
+        } else {
+          // Relative path without / - use as is
+          path = nextUrl;
+        }
+      } catch (error) {
+        console.error("Error parsing nextUrl:", nextUrl, error);
+        // If URL parsing fails, try to use it as a relative path
+        path = nextUrl.startsWith("/api/") ? nextUrl.substring(4) : (nextUrl.startsWith("/") ? nextUrl : nextUrl);
+      }
+      
+      console.log("Loading older messages from:", path);
+      const response = await apiGet<PaginatedResponse<Message>>(path, {
+        token: accessToken,
+        cache: "no-store",
+      });
+      
+      const olderMessages = response.results.reverse();
+      
+      // Prepend older messages to the existing messages
+      setMessages((prev) => [...olderMessages, ...prev]);
+      setNextUrl(response.next || null);
+      
+      // Restore scroll position after new messages are added
+      setTimeout(() => {
+        if (container) {
+          const newScrollHeight = container.scrollHeight;
+          const scrollDifference = newScrollHeight - previousScrollHeight;
+          container.scrollTop = previousScrollTop + scrollDifference;
+        }
+      }, 50);
+    } catch (error: any) {
+      console.error("Failed to load older messages:", error);
+      console.error("nextUrl was:", nextUrl);
+      const errorMessage = error?.response?.data?.detail || error?.message || "Failed to load older messages";
+      toast.show(errorMessage, "error");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [accessToken, conversationId, nextUrl, loadingMore, toast]);
+
   const markAsRead = async () => {
     if (!accessToken || !conversationId) return;
     try {
-      await apiPost(
-        `/conversations/${conversationId}/mark-read/`,
-        undefined,
-        {
-          token: accessToken,
-          cache: "no-store",
+      // Include archived conversations - the backend should handle this via get_object()
+      // but we'll try with query param first, fallback to without if needed
+      try {
+        await apiPost(
+          `/conversations/${conversationId}/mark-read/?include_archived=true`,
+          undefined,
+          {
+            token: accessToken,
+            cache: "no-store",
+          }
+        );
+      } catch (error: any) {
+        // If that fails, try without the query param (for backwards compatibility)
+        if (error?.status === 404) {
+          await apiPost(
+            `/conversations/${conversationId}/mark-read/`,
+            undefined,
+            {
+              token: accessToken,
+              cache: "no-store",
+            }
+          );
+        } else {
+          throw error;
         }
-      );
+      }
     } catch (error) {
-      // Silently fail
+      // Silently fail - mark as read is not critical
+      console.error("Failed to mark as read:", error);
     }
   };
 
@@ -359,6 +461,22 @@ export default function ConversationDetailPage() {
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Handle scroll to top for loading older messages
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      // Load older messages when user scrolls near the top (within 100px)
+      if (container.scrollTop < 100 && nextUrl && !loadingMore) {
+        loadOlderMessages();
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [nextUrl, loadingMore, loadOlderMessages]);
 
   // Don't auto-scroll on every messages array change - only for new messages via WebSocket
   // This prevents aggressive scrolling when messages are updated/edited/deleted
@@ -516,26 +634,10 @@ export default function ConversationDetailPage() {
 
   const handleDeleteMessage = async (messageId: number) => {
     if (!accessToken || !conversationId) return;
-
-    // Confirmation dialog
-    if (!window.confirm("Are you sure you want to delete this message?")) {
-      return;
-    }
-
-    try {
-      await apiDelete(`/conversations/${conversationId}/messages/${messageId}/`, {
-        token: accessToken,
-        cache: "no-store",
-      });
-      setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, is_deleted: true } : m))
-      );
-      setOpenMessageMenuId(null);
-      toast.show("Message deleted", "success");
-    } catch (error) {
-      toast.show("Failed to delete message", "error");
-    }
+    setMessageToDelete(messageId);
+    setShowDeleteMessageConfirm(true);
   };
+
 
   const handleToggleReaction = async (messageId: number, reactionType: string) => {
     if (!accessToken || reactionPendingId === messageId) return;
@@ -969,22 +1071,13 @@ export default function ConversationDetailPage() {
                           View Profile
                         </button>
                         <button
-                          onClick={async () => {
+                          onClick={() => {
                             setHeaderMenuOpen(false);
-                            if (!window.confirm(`Are you sure you want to block ${otherParticipant.user.first_name || otherParticipant.user.username || 'this user'}? You won't be able to see their posts or interact with them.`)) {
-                              return;
-                            }
-                            try {
-                              await apiPost("/auth/blocks/", { blocked_user_id: otherParticipant.user.id }, {
-                                token: accessToken,
-                                cache: "no-store",
-                              });
-                              toast.show(`${otherParticipant.user.first_name || otherParticipant.user.username || 'User'} has been blocked`, "success");
-                              router.push("/app/messages");
-                            } catch (error: any) {
-                              const errorMessage = error?.response?.data?.message || error?.response?.data?.detail || "Failed to block user";
-                              toast.show(errorMessage, "error");
-                            }
+                            setUserToBlock({
+                              id: otherParticipant.user.id,
+                              name: otherParticipant.user.first_name || otherParticipant.user.username || 'this user'
+                            });
+                            setShowBlockConfirm(true);
                           }}
                           className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-900/20 flex items-center gap-3"
                         >
@@ -1011,14 +1104,49 @@ export default function ConversationDetailPage() {
                     </svg>
                     Change Background
                   </button>
+                  {conversation && (() => {
+                    const userParticipant = conversation.participants.find((p) => p.user.id === user?.id);
+                    const isArchived = userParticipant?.is_archived || false;
+                    return (
+                      <button
+                        onClick={async () => {
+                          setHeaderMenuOpen(false);
+                          try {
+                            if (isArchived) {
+                              await apiPost(`/conversations/${conversationId}/unarchive/`, undefined, {
+                                token: accessToken,
+                                cache: "no-store",
+                              });
+                              toast.show("Conversation unarchived", "success");
+                              // Reload conversation to update archived status
+                              loadConversation();
+                            } else {
+                              await apiPost(`/conversations/${conversationId}/archive/`, undefined, {
+                                token: accessToken,
+                                cache: "no-store",
+                              });
+                              toast.show("Conversation archived", "success");
+                              router.push("/app/messages");
+                            }
+                          } catch (error: any) {
+                            const errorMessage = error?.response?.data?.message || error?.response?.data?.detail || `Failed to ${isArchived ? 'unarchive' : 'archive'} conversation`;
+                            toast.show(errorMessage, "error");
+                          }
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-3"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                        {isArchived ? "Unarchive" : "Archive"}
+                      </button>
+                    );
+                  })()}
                   <div className="border-t border-gray-700 my-1" />
                   <button
                     onClick={() => {
                       setHeaderMenuOpen(false);
-                      if (window.confirm("Are you sure you want to clear all messages in this chat? This action cannot be undone.")) {
-                        setMessages([]);
-                        toast.show("Chat cleared", "success");
-                      }
+                      setShowClearChatConfirm(true);
                     }}
                     className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-900/20 rounded-b-lg flex items-center gap-3"
                   >
@@ -1048,13 +1176,68 @@ export default function ConversationDetailPage() {
             </div>
           ) : (
             <>
-              {messages.map((message) => {
+              {loadingMore && (
+                <div className="flex justify-center py-2">
+                  <Spinner />
+                </div>
+              )}
+              {messages.map((message, index) => {
+                // Check if we need to show a date separator
+                const showDateSeparator = (() => {
+                  if (index === 0) return true; // Always show for first message
+                  
+                  const currentDate = new Date(message.created_at);
+                  const previousMessage = messages[index - 1];
+                  if (!previousMessage) return false;
+                  
+                  const previousDate = new Date(previousMessage.created_at);
+                  
+                  // Check if dates are different
+                  return (
+                    currentDate.getDate() !== previousDate.getDate() ||
+                    currentDate.getMonth() !== previousDate.getMonth() ||
+                    currentDate.getFullYear() !== previousDate.getFullYear()
+                  );
+                })();
+
+                const formatDateSeparator = (date: Date): string => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  
+                  const yesterday = new Date(today);
+                  yesterday.setDate(yesterday.getDate() - 1);
+                  
+                  const messageDate = new Date(date);
+                  messageDate.setHours(0, 0, 0, 0);
+                  
+                  if (messageDate.getTime() === today.getTime()) {
+                    return "Today";
+                  } else if (messageDate.getTime() === yesterday.getTime()) {
+                    return "Yesterday";
+                  } else {
+                    // Format as DD/MM/YYYY
+                    const day = String(messageDate.getDate()).padStart(2, "0");
+                    const month = String(messageDate.getMonth() + 1).padStart(2, "0");
+                    const year = messageDate.getFullYear();
+                    return `${day}/${month}/${year}`;
+                  }
+                };
+
                 if (message.is_deleted) {
                   return (
-                    <div key={message.id} className="flex justify-end">
-                      <p className="text-sm text-gray-600 italic">
-                        This message was deleted
-                      </p>
+                    <div key={message.id}>
+                      {showDateSeparator && (
+                        <div className="flex justify-center my-4">
+                          <span className="px-3 py-1 text-xs font-medium text-gray-500 bg-gray-800 rounded-full">
+                            {formatDateSeparator(new Date(message.created_at))}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-end">
+                        <p className="text-sm text-gray-600 italic">
+                          This message was deleted
+                        </p>
+                      </div>
                     </div>
                   );
                 }
@@ -1066,11 +1249,37 @@ export default function ConversationDetailPage() {
                 const userReaction = message.reactions?.find((r) => r.user?.id === user?.id);
                 const isEditing = editingMessageId === message.id;
 
+                if (message.is_deleted) {
+                  return (
+                    <div key={message.id}>
+                      {showDateSeparator && (
+                        <div className="flex justify-center my-4">
+                          <span className="px-3 py-1 text-xs font-medium text-gray-500 bg-gray-800 rounded-full">
+                            {formatDateSeparator(new Date(message.created_at))}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-end">
+                        <p className="text-sm text-gray-600 italic">
+                          This message was deleted
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div
-                    key={message.id}
-                    className={`flex gap-2 group ${isOwn ? "justify-end" : "justify-start"} w-full min-w-0`}
-                  >
+                  <div key={message.id}>
+                    {showDateSeparator && (
+                      <div className="flex justify-center my-4">
+                        <span className="px-3 py-1 text-xs font-medium text-gray-500 bg-gray-800 rounded-full">
+                          {formatDateSeparator(new Date(message.created_at))}
+                        </span>
+                      </div>
+                    )}
+                    <div
+                      className={`flex gap-2 group ${isOwn ? "justify-end" : "justify-start"} w-full min-w-0`}
+                    >
                     {!isOwn && (
                       <button
                         type="button"
@@ -1519,6 +1728,7 @@ export default function ConversationDetailPage() {
                       </p>
                     </div>
                   </div>
+                </div>
                 );
               })}
               <div ref={messagesEndRef} />
@@ -1761,6 +1971,117 @@ export default function ConversationDetailPage() {
         onClose={() => setBackgroundModalOpen(false)}
         currentTheme={chatBackgroundTheme}
         onThemeChange={changeTheme}
+      />
+
+      {/* Confirmation Dialogs */}
+      <ConfirmationDialog
+        isOpen={showDeleteMessageConfirm}
+        title="Delete Message"
+        message="Are you sure you want to delete this message?"
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={async () => {
+          if (!accessToken || !conversationId || !messageToDelete) return;
+          try {
+            await apiDelete(`/conversations/${conversationId}/messages/${messageToDelete}/`, {
+              token: accessToken,
+              cache: "no-store",
+            });
+            setMessages((prev) =>
+              prev.map((m) => (m.id === messageToDelete ? { ...m, is_deleted: true } : m))
+            );
+            setOpenMessageMenuId(null);
+            toast.show("Message deleted", "success");
+          } catch (error) {
+            toast.show("Failed to delete message", "error");
+          } finally {
+            setShowDeleteMessageConfirm(false);
+            setMessageToDelete(null);
+          }
+        }}
+        onCancel={() => {
+          setShowDeleteMessageConfirm(false);
+          setMessageToDelete(null);
+        }}
+      />
+
+      <ConfirmationDialog
+        isOpen={showBlockConfirm}
+        title="Block User"
+        message={`Are you sure you want to block ${userToBlock?.name}? You won't be able to see their posts or interact with them.`}
+        confirmText="Block"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={async () => {
+          if (!accessToken || !userToBlock) return;
+          try {
+            await apiPost("/auth/blocks/", { blocked_user_id: userToBlock.id }, {
+              token: accessToken,
+              cache: "no-store",
+            });
+            toast.show(`${userToBlock.name} has been blocked`, "success");
+            router.push("/app/messages");
+          } catch (error: any) {
+            const errorMessage = error?.response?.data?.message || error?.response?.data?.detail || "Failed to block user";
+            toast.show(errorMessage, "error");
+          } finally {
+            setShowBlockConfirm(false);
+            setUserToBlock(null);
+          }
+        }}
+        onCancel={() => {
+          setShowBlockConfirm(false);
+          setUserToBlock(null);
+        }}
+      />
+
+      <ConfirmationDialog
+        isOpen={showClearChatConfirm}
+        title="Clear Chat"
+        message="Are you sure you want to clear all messages in this chat? This action cannot be undone."
+        confirmText="Clear"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={async () => {
+          if (!accessToken || !conversationId) return;
+          try {
+            // Fetch all messages and delete them
+            let allMessages: Message[] = [];
+            let nextUrl: string | null = `/conversations/${conversationId}/messages/`;
+            
+            while (nextUrl) {
+              const response: PaginatedResponse<Message> = await apiGet<PaginatedResponse<Message>>(nextUrl, {
+                token: accessToken,
+                cache: "no-store",
+              });
+              if (response.results) {
+                allMessages = [...allMessages, ...response.results];
+              }
+              nextUrl = response.next || null;
+            }
+            
+            // Delete all messages
+            if (allMessages.length > 0) {
+              await Promise.all(
+                allMessages.map((msg) =>
+                  apiDelete(`/conversations/${conversationId}/messages/${msg.id}/`, {
+                    token: accessToken,
+                    cache: "no-store",
+                  })
+                )
+              );
+            }
+            
+            setMessages([]);
+            toast.show("Chat cleared", "success");
+          } catch (error: any) {
+            toast.show("Failed to clear chat", "error");
+          } finally {
+            setShowClearChatConfirm(false);
+          }
+        }}
+        onCancel={() => setShowClearChatConfirm(false)}
       />
     </>
   );
