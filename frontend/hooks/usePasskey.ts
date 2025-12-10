@@ -5,11 +5,10 @@ import { apiGet, apiPost, apiDelete } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
 export type PasskeyCredential = {
-  credential_id: string;
+  id: string; // UUID of the PasskeyCredential model
   device_name: string | null;
-  device_info: Record<string, unknown> | null;
   created_at: string;
-  last_used_at: string;
+  last_used_at: string | null;
 };
 
 export type PasskeyStatus = {

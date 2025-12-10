@@ -436,7 +436,7 @@ export default function SettingsPage() {
                         <ul className="space-y-2">
                           {passkeyStatus.credentials.map((cred) => (
                             <li
-                              key={cred.credential_id}
+                              key={cred.id}
                               className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3"
                             >
                               <div>
@@ -458,8 +458,8 @@ export default function SettingsPage() {
                                     )
                                   ) {
                                     try {
-                                      setRemovingPasskeyId(cred.credential_id);
-                                      await removePasskey(cred.credential_id);
+                                      setRemovingPasskeyId(cred.id);
+                                      await removePasskey(cred.id);
                                       toast.show("Passkey removed successfully");
                                     } catch (err: any) {
                                       toast.show(err?.message || "Failed to remove passkey", "error");
@@ -468,10 +468,10 @@ export default function SettingsPage() {
                                     }
                                   }
                                 }}
-                                disabled={removingPasskeyId === cred.credential_id || passkeyLoading}
+                                disabled={removingPasskeyId === cred.id || passkeyLoading}
                                 className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                               >
-                                {removingPasskeyId === cred.credential_id ? "Removing..." : "Remove"}
+                                {removingPasskeyId === cred.id ? "Removing..." : "Remove"}
                               </button>
                             </li>
                           ))}

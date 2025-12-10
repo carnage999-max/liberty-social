@@ -126,23 +126,38 @@ class PasskeyRegisterBeginView(APIView):
                 f"Request Origin: {request.META.get('HTTP_ORIGIN', 'N/A')}"
             )
 
+            # Ensure user.email exists (required field, but double-check)
+            if not user.email:
+                return Response(
+                    {"error": "User email is required for passkey registration"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Exclude existing credentials for this user
+            exclude_credentials = []
+            for cred in user.passkey_credentials.all():
+                if cred.credential_id:
+                    try:
+                        exclude_credentials.append(
+                            PublicKeyCredentialDescriptor(id=base64url_to_bytes(cred.credential_id))
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to decode credential_id for exclusion: {e}")
+                        continue
+
             registration_options = generate_registration_options(
                 rp_id=rp_id,
                 rp_name="Liberty Social",
                 user_id=bytes(str(user.id), "utf-8"),
                 user_name=user.email,
-                user_display_name=user.get_full_name() or user.username or user.email,
+                user_display_name=user.get_full_name() or user.username or user.email or "User",
                 # Allow both platform and cross-platform authenticators
                 authenticator_selection=AuthenticatorSelectionCriteria(
                     authenticator_attachment=None,  # Allow both
                     user_verification=UserVerificationRequirement.PREFERRED,
                     require_resident_key=False,  # Not required for Phase 1
                 ),
-                # Exclude existing credentials for this user
-                exclude_credentials=[
-                    PublicKeyCredentialDescriptor(id=base64url_to_bytes(cred.credential_id))
-                    for cred in user.passkey_credentials.all()
-                ],
+                exclude_credentials=exclude_credentials,
             )
 
             # Store challenge in session (or use a cache/DB for stateless)
@@ -198,13 +213,40 @@ class PasskeyRegisterCompleteView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # Validate challenge is not empty
+            if not isinstance(challenge, str) or not challenge.strip():
+                return Response(
+                    {"error": "Invalid challenge"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Ensure credential_json is a dict (can be dict, str, or RegistrationCredential)
+            if not isinstance(credential_json, dict):
+                return Response(
+                    {"error": "Invalid credential format"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Ensure device_info is a dict
+            if not isinstance(device_info, dict):
+                device_info = {}
+
             # Verify the registration response (credential can be dict, str, or RegistrationCredential)
             rp_id = get_rp_id(request)
             rp_origin = get_rp_origin(request)
 
+            try:
+                challenge_bytes = base64url_to_bytes(challenge)
+            except Exception as e:
+                logger.error(f"Failed to decode challenge: {e}")
+                return Response(
+                    {"error": "Invalid challenge format"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             verification = verify_registration_response(
                 credential=credential_json,  # Can be dict, str, or RegistrationCredential
-                expected_challenge=base64url_to_bytes(challenge),
+                expected_challenge=challenge_bytes,
                 expected_rp_id=rp_id,
                 expected_origin=rp_origin,
             )
@@ -257,41 +299,68 @@ class PasskeyAuthenticateBeginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Get user identifier (email or username)
+        # Get user identifier (email or username) - optional for better UX
+        # If not provided, we'll allow all credentials (browser will show available passkeys)
         user_identifier = request.data.get("email") or request.data.get("username")
 
-        if not user_identifier:
-            return Response(
-                {"error": "Email or username required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
         try:
-            # Find user by email or username
-            try:
-                user = User.objects.get(
-                    Q(email=user_identifier) | Q(username=user_identifier)
-                )
-            except User.DoesNotExist:
-                # Don't reveal if user exists - return generic error
-                return Response(
-                    {"error": "Invalid credentials"},
-                    status=status.HTTP_401_UNAUTHORIZED,
-                )
+            if user_identifier:
+                # If user identifier provided, only allow that user's credentials
+                try:
+                    user = User.objects.get(
+                        Q(email=user_identifier) | Q(username=user_identifier)
+                    )
+                except User.DoesNotExist:
+                    # Don't reveal if user exists - return generic error
+                    return Response(
+                        {"error": "Invalid credentials"},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
 
-            if not user.has_passkey:
-                return Response(
-                    {"error": "User does not have a passkey registered"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                if not user.has_passkey:
+                    return Response(
+                        {"error": "User does not have a passkey registered"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
-            # Get user's passkey credentials
-            credentials = user.passkey_credentials.all()
-            if not credentials.exists():
-                return Response(
-                    {"error": "No passkey credentials found"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                # Get user's passkey credentials
+                credentials = user.passkey_credentials.all()
+                if not credentials.exists():
+                    return Response(
+                        {"error": "No passkey credentials found"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                
+                allow_credentials = []
+                for cred in credentials:
+                    if cred.credential_id:
+                        try:
+                            allow_credentials.append(
+                                PublicKeyCredentialDescriptor(id=base64url_to_bytes(cred.credential_id))
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to decode credential_id: {e}")
+                            continue
+            else:
+                # No user identifier - allow all credentials (browser will show available passkeys)
+                # This is less secure but provides better UX
+                all_credentials = PasskeyCredential.objects.all()
+                if not all_credentials.exists():
+                    return Response(
+                        {"error": "No passkey credentials found"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                
+                allow_credentials = []
+                for cred in all_credentials:
+                    if cred.credential_id:
+                        try:
+                            allow_credentials.append(
+                                PublicKeyCredentialDescriptor(id=base64url_to_bytes(cred.credential_id))
+                            )
+                        except Exception as e:
+                            logger.warning(f"Failed to decode credential_id: {e}")
+                            continue
 
             # Generate authentication options
             rp_id = get_rp_id(request)
@@ -299,17 +368,17 @@ class PasskeyAuthenticateBeginView(APIView):
 
             authentication_options = generate_authentication_options(
                 rp_id=rp_id,
-                allow_credentials=[
-                    PublicKeyCredentialDescriptor(id=base64url_to_bytes(cred.credential_id))
-                    for cred in credentials
-                ],
+                allow_credentials=allow_credentials,
                 user_verification=UserVerificationRequirement.PREFERRED,
             )
 
             challenge = bytes_to_base64url(authentication_options.challenge)
             options_dict = json.loads(options_to_json(authentication_options))
 
-            logger.info(f"Passkey authentication started for user {user.id}")
+            if user_identifier:
+                logger.info(f"Passkey authentication started for user {user.id}")
+            else:
+                logger.info("Passkey authentication started (no user identifier provided)")
 
             return Response(
                 {
@@ -343,21 +412,24 @@ class PasskeyAuthenticateCompleteView(APIView):
             challenge = request.data.get("challenge")
             user_identifier = request.data.get("email") or request.data.get("username")
 
-            if not credential_json or not challenge or not user_identifier:
+            if not credential_json or not challenge:
                 return Response(
                     {"error": "Missing required fields"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Find user by email or username
-            try:
-                user = User.objects.get(
-                    Q(email=user_identifier) | Q(username=user_identifier)
-                )
-            except User.DoesNotExist:
+            # Validate challenge is not empty
+            if not isinstance(challenge, str) or not challenge.strip():
                 return Response(
-                    {"error": "Invalid credentials"},
-                    status=status.HTTP_401_UNAUTHORIZED,
+                    {"error": "Invalid challenge"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Ensure credential_json is a dict
+            if not isinstance(credential_json, dict):
+                return Response(
+                    {"error": "Invalid credential format"},
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
             # Extract credential ID from the credential JSON
@@ -368,9 +440,9 @@ class PasskeyAuthenticateCompleteView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Find the stored credential
+            # Find the stored credential by credential_id (this identifies the user)
             passkey_credential = PasskeyCredential.objects.filter(
-                user=user, credential_id=credential_id_b64
+                credential_id=credential_id_b64
             ).first()
 
             if not passkey_credential:
@@ -379,16 +451,39 @@ class PasskeyAuthenticateCompleteView(APIView):
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
 
+            # Get user from the credential
+            user = passkey_credential.user
+
+            # If user_identifier was provided, validate it matches (optional security check)
+            if user_identifier:
+                user_email = user.email or ""
+                user_username = user.username or ""
+                if user_email != user_identifier and user_username != user_identifier:
+                    return Response(
+                        {"error": "Invalid credentials"},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
+
             # Verify the authentication response
             rp_id = get_rp_id(request)
             rp_origin = get_rp_origin(request)
 
+            try:
+                challenge_bytes = base64url_to_bytes(challenge)
+                public_key_bytes = base64url_to_bytes(passkey_credential.public_key)
+            except Exception as e:
+                logger.error(f"Failed to decode challenge or public key: {e}")
+                return Response(
+                    {"error": "Invalid credential data format"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             verification = verify_authentication_response(
                 credential=credential_json,  # Can be dict, str, or AuthenticationCredential
-                expected_challenge=base64url_to_bytes(challenge),
+                expected_challenge=challenge_bytes,
                 expected_rp_id=rp_id,
                 expected_origin=rp_origin,
-                credential_public_key=base64url_to_bytes(passkey_credential.public_key),
+                credential_public_key=public_key_bytes,
                 credential_current_sign_count=passkey_credential.sign_count,
             )
 

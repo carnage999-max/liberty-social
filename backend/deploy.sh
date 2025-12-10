@@ -49,7 +49,7 @@ echo ""
 echo "Step 1b: Building Docker image (no cache to ensure fresh build)..."
 # Enable BuildKit for better performance
 export DOCKER_BUILDKIT=1
-sudo -E docker build --no-cache \
+sudo -E docker build \
     -t ${IMAGE_NAME}:${VERSION_TAG} \
     -t ${IMAGE_NAME}:latest \
     .
