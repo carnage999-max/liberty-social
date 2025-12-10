@@ -67,6 +67,11 @@ class User(AbstractUser):
         _("Last Activity"), auto_now_add=False, null=True, blank=True
     )
 
+    # Passkey support
+    has_passkey = models.BooleanField(
+        _("Has Passkey"), default=False, help_text="Whether user has registered a passkey"
+    )
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
 
@@ -227,3 +232,62 @@ class FriendshipHistory(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} {self.action} {self.friend} ({self.get_action_display()})"
+
+
+class PasskeyCredential(models.Model):
+    """Stores WebAuthn passkey credentials for users."""
+
+    id = models.UUIDField(
+        _("Credential ID"), primary_key=True, unique=True, default=uuid4, editable=False
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="passkey_credentials",
+        help_text="User who owns this passkey",
+    )
+    credential_id = models.TextField(
+        _("Credential ID"),
+        unique=True,
+        help_text="Base64-encoded credential ID from WebAuthn",
+        db_index=True,
+    )
+    public_key = models.TextField(
+        _("Public Key"),
+        help_text="Base64-encoded public key from WebAuthn",
+    )
+    sign_count = models.BigIntegerField(
+        _("Sign Count"),
+        default=0,
+        help_text="Number of times this credential has been used",
+    )
+    device_name = models.CharField(
+        _("Device Name"),
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="User-friendly name for the device (e.g., 'iPhone 15', 'Chrome on Mac')",
+    )
+    device_info = models.JSONField(
+        _("Device Info"),
+        default=dict,
+        blank=True,
+        help_text="Additional device information (OS, browser, user agent, etc.)",
+    )
+    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
+    last_used_at = models.DateTimeField(
+        _("Last Used At"), null=True, blank=True, help_text="When this passkey was last used"
+    )
+
+    class Meta:
+        verbose_name = _("Passkey Credential")
+        verbose_name_plural = _("Passkey Credentials")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["credential_id"]),
+        ]
+
+    def __str__(self) -> str:
+        device_name = self.device_name or "Unknown Device"
+        return f"Passkey for {self.user.email} on {device_name}"

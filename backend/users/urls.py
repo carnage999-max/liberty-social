@@ -21,6 +21,14 @@ from .views import (
     OnlineUsersView,
     AccountDeletionRequestView,
 )
+from .passkey_views import (
+    PasskeyRegisterBeginView,
+    PasskeyRegisterCompleteView,
+    PasskeyAuthenticateBeginView,
+    PasskeyAuthenticateCompleteView,
+    PasskeyStatusView,
+    PasskeyRemoveView,
+)
 
 router = DefaultRouter()
 router.register("login", LoginUserview, basename="login")
@@ -70,5 +78,36 @@ urlpatterns = [
         "request-deletion/",
         AccountDeletionRequestView.as_view(),
         name="request-account-deletion",
+    ),
+    # Passkey endpoints
+    path(
+        "passkey/register/begin/",
+        PasskeyRegisterBeginView.as_view(),
+        name="passkey-register-begin",
+    ),
+    path(
+        "passkey/register/complete/",
+        PasskeyRegisterCompleteView.as_view(),
+        name="passkey-register-complete",
+    ),
+    path(
+        "passkey/authenticate/begin/",
+        PasskeyAuthenticateBeginView.as_view(),
+        name="passkey-authenticate-begin",
+    ),
+    path(
+        "passkey/authenticate/complete/",
+        PasskeyAuthenticateCompleteView.as_view(),
+        name="passkey-authenticate-complete",
+    ),
+    path(
+        "passkey/status/",
+        PasskeyStatusView.as_view(),
+        name="passkey-status",
+    ),
+    path(
+        "passkey/remove/<uuid:credential_id>/",
+        PasskeyRemoveView.as_view(),
+        name="passkey-remove",
     ),
 ]
