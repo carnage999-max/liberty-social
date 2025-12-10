@@ -24,6 +24,7 @@ type AuthContextValue = {
   hydrated: boolean;
   isAuthenticated: boolean;
   login: (data: LoginRequest) => Promise<void>;
+  loginWithTokens: (tokens: AuthTokens, userData?: User | User[]) => Promise<void>;
   register: (data: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   clearAuth: () => void;
@@ -167,8 +168,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /* -----------------------------
+     🔑 Login with Tokens (for passkey)
+     ----------------------------- */
+  const loginWithTokens = async (tokens: AuthTokens, userData?: User | User[]) => {
+    setLoading(true);
+    try {
+      let me = userData;
+      if (!me) {
+        const res = await fetch(`${API_BASE}/auth/user/`, {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        if (!res.ok) throw new Error("Failed to fetch user");
+        me = await res.json();
+      }
+      persist(tokens, me);
+    } catch (err) {
+      if (isApiError(err)) {
+        console.error("Login with tokens failed:", {
+          status: err.status,
+          message: err.message,
+        });
+      } else {
+        console.error("Login with tokens failed:", err);
+      }
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* -----------------------------
      🧾 Register
-  ----------------------------- */
+     ----------------------------- */
   const register = async (data: RegisterRequest) => {
     setLoading(true);
     try {
@@ -236,6 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hydrated,
       isAuthenticated: !!accessToken && !!user,
       login,
+      loginWithTokens,
       register,
       logout,
       clearAuth,

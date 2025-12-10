@@ -15,6 +15,7 @@ import type { BlockedUser } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { PasswordField } from "@/components/forms/PasswordField";
 import FeedPreferencesSection from "@/components/FeedPreferencesSection";
+import { usePasskey } from "@/hooks/usePasskey";
 
 type ProfileForm = {
   first_name: string;
@@ -120,6 +121,67 @@ export default function SettingsPage() {
   });
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  
+  // Passkey management
+  const {
+    status: passkeyStatus,
+    loading: passkeyLoading,
+    error: passkeyError,
+    register: registerPasskey,
+    remove: removePasskey,
+    refetch: refetchPasskey,
+  } = usePasskey();
+  const [registeringPasskey, setRegisteringPasskey] = useState(false);
+  const [removingPasskeyId, setRemovingPasskeyId] = useState<string | null>(null);
+  const [deviceName, setDeviceName] = useState("");
+
+  // Auto-detect and set device name on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const detectedName = (() => {
+      const ua = navigator.userAgent;
+      const platform = navigator.platform;
+      const vendor = navigator.vendor;
+      
+      // Detect mobile devices
+      if (/iPhone|iPad|iPod/.test(ua)) {
+        return "iPhone";
+      }
+      if (/Android/.test(ua)) {
+        return "Android Device";
+      }
+      
+      // Detect desktop OS
+      if (/Mac/.test(platform)) {
+        return "Mac";
+      }
+      if (/Win/.test(platform)) {
+        return "Windows PC";
+      }
+      if (/Linux/.test(platform)) {
+        return "Linux PC";
+      }
+      
+      // Detect browser
+      if (/Chrome/.test(ua) && !/Edg/.test(ua)) {
+        return "Chrome Browser";
+      }
+      if (/Firefox/.test(ua)) {
+        return "Firefox Browser";
+      }
+      if (/Safari/.test(ua) && !/Chrome/.test(ua)) {
+        return "Safari Browser";
+      }
+      if (/Edg/.test(ua)) {
+        return "Edge Browser";
+      }
+      
+      return "This Device";
+    })();
+    
+    setDeviceName(detectedName);
+  }, []);
 
   useEffect(() => {
     if (!profile) return;
@@ -332,6 +394,142 @@ export default function SettingsPage() {
                         </button>
                       </div>
                     </form>
+                  </div>
+                </details>
+              </section>
+
+              <section className="rounded-[18px] border border-(--color-gold) bg-white/95 p-6 shadow-metallic backdrop-blur-sm">
+                <details className="group">
+                  <summary className="flex cursor-pointer items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">Passkeys (WebAuthn)</h2>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Use passkeys for passwordless authentication. More secure and convenient than passwords.
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-(--color-deep-navy)/5 p-2 text-(--color-deep-navy) transition group-open:rotate-180">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                  </summary>
+
+                  <div className="mt-6">
+                    {!window.PublicKeyCredential && (
+                      <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                        <p className="font-semibold">WebAuthn not supported</p>
+                        <p className="mt-1">
+                          Your browser does not support passkeys. Please use a modern browser like Chrome, Firefox, Safari, or Edge.
+                        </p>
+                      </div>
+                    )}
+
+                    {passkeyError && (
+                      <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
+                        {passkeyError}
+                      </div>
+                    )}
+
+                    {passkeyStatus && passkeyStatus.has_passkey && (
+                      <div className="mb-6">
+                        <h3 className="text-sm font-semibold text-gray-900 mb-3">Registered Passkeys</h3>
+                        <ul className="space-y-2">
+                          {passkeyStatus.credentials.map((cred) => (
+                            <li
+                              key={cred.credential_id}
+                              className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3"
+                            >
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {cred.device_name || "Unknown Device"}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Added {new Date(cred.created_at).toLocaleDateString()}
+                                  {cred.last_used_at && (
+                                    <> • Last used {new Date(cred.last_used_at).toLocaleDateString()}</>
+                                  )}
+                                </p>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  if (
+                                    confirm(
+                                      `Are you sure you want to remove this passkey? You won't be able to use it to sign in anymore.`
+                                    )
+                                  ) {
+                                    try {
+                                      setRemovingPasskeyId(cred.credential_id);
+                                      await removePasskey(cred.credential_id);
+                                      toast.show("Passkey removed successfully");
+                                    } catch (err: any) {
+                                      toast.show(err?.message || "Failed to remove passkey", "error");
+                                    } finally {
+                                      setRemovingPasskeyId(null);
+                                    }
+                                  }
+                                }}
+                                disabled={removingPasskeyId === cred.credential_id || passkeyLoading}
+                                className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {removingPasskeyId === cred.credential_id ? "Removing..." : "Remove"}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Device Nickname
+                        </label>
+                        <p className="text-xs text-gray-500 mb-2">
+                          A friendly name to identify this device (e.g., "My iPhone", "Work Laptop")
+                        </p>
+                        <input
+                          type="text"
+                          value={deviceName}
+                          onChange={(e) => setDeviceName(e.target.value)}
+                          placeholder="e.g., My iPhone, Work Laptop"
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-(--color-gold) focus:ring-2 focus:ring-(--color-deep-navy)/20 placeholder:text-gray-400"
+                        />
+                      </div>
+
+                      <button
+                        onClick={async () => {
+                          if (!window.PublicKeyCredential) {
+                            toast.show("Passkeys are not supported in your browser", "error");
+                            return;
+                          }
+
+                          try {
+                            setRegisteringPasskey(true);
+                            await registerPasskey(deviceName.trim() || undefined);
+                            setDeviceName("");
+                            toast.show("Passkey registered successfully! You can now use it to sign in.");
+                            await refetchPasskey();
+                          } catch (err: any) {
+                            toast.show(
+                              err?.message || "Failed to register passkey. Please try again.",
+                              "error"
+                            );
+                          } finally {
+                            setRegisteringPasskey(false);
+                          }
+                        }}
+                        disabled={registeringPasskey || passkeyLoading || !window.PublicKeyCredential}
+                        className="w-full rounded-lg btn-primary px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {registeringPasskey ? "Registering..." : passkeyStatus?.has_passkey ? "Add Another Passkey" : "Enable Passkey"}
+                      </button>
+                    </div>
+
+                    {passkeyStatus && passkeyStatus.has_passkey && (
+                      <p className="mt-4 text-xs text-gray-500">
+                        You can use any of your registered passkeys to sign in without a password.
+                      </p>
+                    )}
                   </div>
                 </details>
               </section>

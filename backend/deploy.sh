@@ -33,27 +33,44 @@ echo "Full Image: ${FULL_IMAGE_NAME}"
 echo "=========================================="
 echo ""
 
-# Step 1: Build Docker image
-echo "Step 1: Building Docker image..."
-docker build -t ${IMAGE_NAME}:latest .
+# Step 1: Verify local code is valid before building
+echo "Step 1a: Verifying local code..."
+if ! python3 -m py_compile users/passkey_views.py 2>/dev/null; then
+    echo "❌ ERROR: users/passkey_views.py has syntax errors!"
+    echo "   Please fix the code before deploying."
+    exit 1
+fi
+echo "✓ Local code syntax is valid"
+echo ""
+
+# Step 1b: Build Docker image
+# Use --no-cache to ensure we get a completely fresh build with the latest code
+# This is important when fixing bugs to ensure the fix is included
+echo "Step 1b: Building Docker image (no cache to ensure fresh build)..."
+# Enable BuildKit for better performance
+export DOCKER_BUILDKIT=1
+sudo -E docker build --no-cache \
+    -t ${IMAGE_NAME}:${VERSION_TAG} \
+    -t ${IMAGE_NAME}:latest \
+    .
 echo "✓ Build complete"
 echo ""
 
 # Step 2: Tag the image
 echo "Step 2: Tagging image as ${VERSION_TAG}..."
-docker tag ${IMAGE_NAME}:latest ${FULL_IMAGE_NAME}
+sudo -E docker tag ${IMAGE_NAME}:${VERSION_TAG} ${FULL_IMAGE_NAME}
 echo "✓ Image tagged"
 echo ""
 
 # Step 3: Login to ECR
 echo "Step 3: Logging in to ECR..."
-aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+aws ecr get-login-password --region ${AWS_REGION} | sudo -E docker login --username AWS --password-stdin ${ECR_REGISTRY}
 echo "✓ ECR login successful"
 echo ""
 
 # Step 4: Push to ECR
 echo "Step 4: Pushing image to ECR..."
-docker push ${FULL_IMAGE_NAME}
+sudo -E docker push ${FULL_IMAGE_NAME}
 echo "✓ Image pushed successfully"
 echo ""
 

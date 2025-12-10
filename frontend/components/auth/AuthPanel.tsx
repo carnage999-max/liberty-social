@@ -15,6 +15,7 @@ import { useToast } from "../Toast";
 import Spinner from "../Spinner";
 import { isApiError } from "@/lib/api";
 import Link from "next/link";
+import { usePasskey } from "@/hooks/usePasskey";
 
 type Mode = "login" | "register";
 
@@ -343,11 +344,13 @@ function LoginForm({
   onError: (m: string | null) => void;
   onSuccess: () => void;
 }) {
-  const { login, loading } = useAuth();
+  const { login, loginWithTokens, loading } = useAuth();
+  const { authenticate: authenticatePasskey } = usePasskey();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
 
   const blurValidate = (field: "identifier" | "password") => {
     setTouched((t) => ({ ...t, [field]: true }));
@@ -448,11 +451,62 @@ function LoginForm({
           Forgot your password?
         </Link>
       </div>
+
+      {/* Passkey login option */}
+      {typeof window !== "undefined" && window.PublicKeyCredential && (
+        <div className="pt-2">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-2 text-gray-500">Or</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                setPasskeyLoading(true);
+                onError(null);
+                const tokens = await authenticatePasskey();
+                await loginWithTokens(tokens);
+                onSuccess();
+              } catch (err: any) {
+                if (err?.message?.includes("NotAllowedError") || err?.message?.includes("AbortError")) {
+                  // User cancelled or denied the passkey prompt
+                  return;
+                }
+                onError(err?.message || "Passkey authentication failed. Please try password login.");
+              } finally {
+                setPasskeyLoading(false);
+              }
+            }}
+            disabled={passkeyLoading || loading}
+            className="mt-4 w-full rounded-[12px] border-2 border-(--color-gold) bg-white px-4 py-3 text-sm font-semibold text-(--color-deep-navy) transition hover:bg-(--color-gold)/10 disabled:opacity-60"
+          >
+            {passkeyLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Spinner />
+                Authenticating...
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="M9 12l2 2 4-4" />
+                </svg>
+                Sign in with Passkey
+              </span>
+            )}
+          </button>
+        </div>
+      )}
       
       <div className="pt-1">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || passkeyLoading}
           className="w-full rounded-[12px] px-4 py-3 text-white font-semibold btn-primary disabled:opacity-60"
         >
           {loading ? "Signing in..." : "Sign in"}
