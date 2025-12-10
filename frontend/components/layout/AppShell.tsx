@@ -19,6 +19,8 @@ import { usePageInvites } from "@/hooks/usePageInvites";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { Dog } from 'lucide-react';
+import FeatureAnnouncementModal from "@/components/modals/FeatureAnnouncementModal";
+import { useFeatureAnnouncements } from "@/hooks/useFeatureAnnouncements";
 
 const NAV_LINKS = [
   {
@@ -230,6 +232,15 @@ export default function AppShell({ children }: AppShellProps) {
   const [isDesktop, setIsDesktop] = useState(false);
   const [showCompactLogo, setShowCompactLogo] = useState(false);
   const [bugModalOpen, setBugModalOpen] = useState(false);
+  
+  // Feature announcements
+  const {
+    currentAnnouncement,
+    isOpen: isAnnouncementOpen,
+    onClose: onAnnouncementClose,
+    onDismiss: onAnnouncementDismiss,
+  } = useFeatureAnnouncements();
+  
   const { count: incomingFriendRequests } = usePaginatedResource<FriendRequest>(
     "/auth/friend-requests/",
     {
@@ -874,6 +885,16 @@ export default function AppShell({ children }: AppShellProps) {
           onClose={() => {
             setBugModalOpen(false);
           }}
+        />
+      )}
+
+      {/* Feature Announcement Modal */}
+      {currentAnnouncement && (
+        <FeatureAnnouncementModal
+          announcement={currentAnnouncement}
+          isOpen={isAnnouncementOpen}
+          onClose={onAnnouncementClose}
+          onDismiss={onAnnouncementDismiss}
         />
       )}
 
