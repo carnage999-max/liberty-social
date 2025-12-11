@@ -46,16 +46,24 @@ class MainApplication : Application(), ReactApplication {
     // Use reflection to avoid compile-time dependency if Firebase isn't available
     try {
       val firebaseAppClass = Class.forName("com.google.firebase.FirebaseApp")
-      val getAppsMethod = firebaseAppClass.getMethod("getApps", android.content.Context::class.java)
-      val apps = getAppsMethod.invoke(null, this) as? Collection<*>
+      val getAppsMethod = firebaseAppClass.getMethod("getApps")
+      val apps = getAppsMethod.invoke(null) as? Collection<*>
       if (apps.isNullOrEmpty()) {
+        // Try to initialize with default options
         val initializeAppMethod = firebaseAppClass.getMethod("initializeApp", android.content.Context::class.java)
         initializeAppMethod.invoke(null, this)
+        android.util.Log.i("MainApplication", "FirebaseApp initialized successfully")
+      } else {
+        android.util.Log.i("MainApplication", "FirebaseApp already initialized")
       }
+    } catch (e: ClassNotFoundException) {
+      android.util.Log.w("MainApplication", "FirebaseApp class not found. Firebase features will be unavailable.")
+    } catch (e: NoSuchMethodException) {
+      android.util.Log.w("MainApplication", "FirebaseApp method not found. Firebase features will be unavailable.")
     } catch (e: Exception) {
       // Firebase might not be available if google-services.json is missing
       // This is okay - push notifications will fail gracefully
-      android.util.Log.w("MainApplication", "Firebase initialization skipped: ${e.message}")
+      android.util.Log.w("MainApplication", "Firebase initialization failed: ${e.message}")
     }
     
     DefaultNewArchitectureEntryPoint.releaseLevel = try {

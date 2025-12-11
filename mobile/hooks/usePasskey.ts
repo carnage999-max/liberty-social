@@ -127,12 +127,27 @@ export function usePasskey() {
         throw new Error('Invalid registration options');
       }
 
+      // Ensure user object exists with required fields
+      if (!publicKeyOptions.user) {
+        throw new Error('Invalid registration options: user object is missing');
+      }
+
+      // user.name is required by react-native-passkeys - ensure it exists
+      if (!publicKeyOptions.user.name) {
+        // Fallback to user.displayName or email if name is missing
+        publicKeyOptions.user.name = publicKeyOptions.user.displayName || 'User';
+      }
+
       // Convert challenge and user ID from base64url to ArrayBuffer
       publicKeyOptions.challenge = base64urlToArrayBuffer(optionsResponse.challenge);
-      if (publicKeyOptions.user?.id) {
-        publicKeyOptions.user.id = base64urlToArrayBuffer(
-          publicKeyOptions.user.id as unknown as string
-        );
+      if (publicKeyOptions.user.id) {
+        // Preserve user.name and user.displayName - they are required by react-native-passkeys
+        publicKeyOptions.user = {
+          ...publicKeyOptions.user,
+          id: base64urlToArrayBuffer(
+            publicKeyOptions.user.id as unknown as string
+          ),
+        };
       }
 
       // Convert excludeCredentials if present
