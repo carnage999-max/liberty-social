@@ -136,18 +136,32 @@ export function usePasskey() {
       publicKeyOptions.challenge = base64urlToArrayBuffer(optionsResponse.challenge);
       
       // Convert user.id to ArrayBuffer while preserving all other user fields
-      // react-native-passkeys requires user.name to be explicitly set
+      // react-native-passkeys requires user.name to be explicitly set as a string
       const originalUser = publicKeyOptions.user;
       const convertedUserId = originalUser.id 
         ? base64urlToArrayBuffer(originalUser.id as unknown as string)
         : null;
       
-      // Ensure user.name exists - it's required by react-native-passkeys
-      // The webauthn library should return it as 'name', but ensure it's set
+      // CRITICAL: react-native-passkeys requires user.name to be a non-empty string
+      // The webauthn library returns user_name which becomes 'name' in JSON
+      // But we need to ensure it's explicitly set and not undefined/null
+      const userName = String(
+        originalUser.name || 
+        originalUser.user_name || 
+        originalUser.displayName || 
+        'User'
+      ).trim();
+      
+      if (!userName || userName.length === 0) {
+        throw new Error('Invalid registration options: user.name cannot be empty');
+      }
+      
+      // Reconstruct user object with all required fields
+      // This ensures react-native-passkeys receives properly formatted data
       publicKeyOptions.user = {
         id: convertedUserId!,
-        name: originalUser.name || originalUser.user_name || originalUser.displayName || 'User',
-        displayName: originalUser.displayName || originalUser.name || 'User',
+        name: userName, // Must be a non-empty string
+        displayName: String(originalUser.displayName || originalUser.name || userName).trim(),
       };
 
       // Convert excludeCredentials if present
