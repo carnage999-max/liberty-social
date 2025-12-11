@@ -132,39 +132,23 @@ export function usePasskey() {
         throw new Error('Invalid registration options: user object is missing');
       }
 
-      // Log the user object to debug
-      console.log('Original user object from backend:', JSON.stringify(publicKeyOptions.user, null, 2));
-
-      // user.name is required by react-native-passkeys - ensure it exists
-      // The backend returns user_name which becomes user.name in the JSON
-      if (!publicKeyOptions.user.name) {
-        // Try alternative field names that might be returned
-        publicKeyOptions.user.name = 
-          publicKeyOptions.user.name || 
-          publicKeyOptions.user.user_name || 
-          publicKeyOptions.user.displayName || 
-          'User';
-        console.warn('user.name was missing, using fallback:', publicKeyOptions.user.name);
-      }
-
       // Convert challenge and user ID from base64url to ArrayBuffer
       publicKeyOptions.challenge = base64urlToArrayBuffer(optionsResponse.challenge);
       
       // Convert user.id to ArrayBuffer while preserving all other user fields
-      if (publicKeyOptions.user.id) {
-        const userObj = { ...publicKeyOptions.user };
-        userObj.id = base64urlToArrayBuffer(
-          publicKeyOptions.user.id as unknown as string
-        );
-        publicKeyOptions.user = userObj;
-      }
-
-      // Log the final user object before calling Passkeys.create
-      console.log('Final user object before Passkeys.create:', {
-        id: publicKeyOptions.user.id ? 'ArrayBuffer' : 'missing',
-        name: publicKeyOptions.user.name,
-        displayName: publicKeyOptions.user.displayName,
-      });
+      // react-native-passkeys requires user.name to be explicitly set
+      const originalUser = publicKeyOptions.user;
+      const convertedUserId = originalUser.id 
+        ? base64urlToArrayBuffer(originalUser.id as unknown as string)
+        : null;
+      
+      // Ensure user.name exists - it's required by react-native-passkeys
+      // The webauthn library should return it as 'name', but ensure it's set
+      publicKeyOptions.user = {
+        id: convertedUserId!,
+        name: originalUser.name || originalUser.user_name || originalUser.displayName || 'User',
+        displayName: originalUser.displayName || originalUser.name || 'User',
+      };
 
       // Convert excludeCredentials if present
       if (publicKeyOptions.excludeCredentials) {
