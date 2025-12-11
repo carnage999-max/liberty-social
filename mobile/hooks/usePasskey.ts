@@ -201,10 +201,46 @@ export function usePasskey() {
       
       console.log('After JSON round-trip - user.name:', parsedOptions.user.name);
       
+      // The library might be checking for user.name in a specific way
+      // Try ensuring the user object is at the top level of publicKey, not nested
+      // Also ensure all fields are explicitly set as strings
+      const finalOptions = {
+        challenge: String(parsedOptions.challenge),
+        rp: {
+          id: String(parsedOptions.rp?.id || ''),
+          name: String(parsedOptions.rp?.name || ''),
+        },
+        user: {
+          id: String(parsedOptions.user.id),
+          name: String(parsedOptions.user.name), // Explicitly ensure it's a string
+          displayName: String(parsedOptions.user.displayName),
+        },
+        pubKeyCredParams: parsedOptions.pubKeyCredParams || [],
+        authenticatorSelection: parsedOptions.authenticatorSelection || {},
+      };
+
+      // Add optional fields
+      if (parsedOptions.timeout) finalOptions.timeout = parsedOptions.timeout;
+      if (parsedOptions.attestation) finalOptions.attestation = parsedOptions.attestation;
+      if (parsedOptions.excludeCredentials) {
+        finalOptions.excludeCredentials = parsedOptions.excludeCredentials;
+      }
+
+      // Final verification
+      if (!finalOptions.user.name) {
+        throw new Error('user.name is missing in finalOptions');
+      }
+
+      console.log('Final options user.name:', finalOptions.user.name);
+      console.log('Final options structure:', JSON.stringify({
+        hasUser: !!finalOptions.user,
+        userName: finalOptions.user.name,
+        userKeys: Object.keys(finalOptions.user),
+      }));
+
       // react-native-passkeys provides create method that handles base64url conversion automatically
-      // Pass the JSON-parsed options to ensure it matches what the library will see
       const credential = await Passkeys.create({
-        publicKey: parsedOptions,
+        publicKey: finalOptions,
       }) as PublicKeyCredential;
 
       if (!credential) {
