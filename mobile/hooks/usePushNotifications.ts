@@ -13,10 +13,11 @@ let Notifications: typeof import('expo-notifications') | null = null;
 if (!isExpoGo) {
   try {
     Notifications = require('expo-notifications');
-    // Configure notification handler
+    // Configure notification handler - matches Expo documentation
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
       }),
@@ -127,16 +128,21 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
   }
 
   if (finalStatus !== 'granted') {
-    console.warn('Failed to get push token for push notification!');
+    console.warn('Failed to get push token for push notification! Permission status:', finalStatus);
+    console.warn('Permission details:', await Notifications.getPermissionsAsync());
     return null;
   }
+  
+  console.log('Notification permissions granted:', finalStatus);
 
   try {
     // Get project ID from Constants
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     
     if (projectId) {
+      console.log('Getting Expo push token with projectId:', projectId);
       token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+      console.log('Expo push token obtained successfully, length:', token?.length);
     } else {
       // Try without projectId (works in managed workflow with Expo Go)
       // For production builds, projectId is required
@@ -166,4 +172,5 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 
   return token;
 }
+
 

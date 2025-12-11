@@ -52,6 +52,28 @@ class UserActivityMiddleware:
 
             now = timezone.now()
             User.objects.filter(id=user.id).update(last_activity=now, last_seen=now)
+            
+            # Update current session's last_activity (Phase 2)
+            try:
+                from rest_framework_simplejwt.tokens import UntypedToken
+                from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+                from users.models import Session
+                
+                auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+                if auth_header.startswith("Bearer "):
+                    current_token = auth_header.split(" ")[1]
+                    try:
+                        untyped_token = UntypedToken(current_token)
+                        token_jti = untyped_token.get("jti")
+                        if token_jti:
+                            Session.objects.filter(user=user, token_jti=token_jti, revoked_at__isnull=True).update(
+                                last_activity=now
+                            )
+                    except (InvalidToken, TokenError, KeyError):
+                        pass  # If we can't decode token, skip session update
+            except Exception as e:
+                logger.debug(f"Failed to update session activity: {e}")
+            
             logger.debug(f"Updated activity for user {user.id} on {request.path}")
         except Exception as e:
             logger.exception(f"Failed to update user activity: {e}")

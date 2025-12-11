@@ -292,14 +292,14 @@ export default function ConversationDetailPage() {
       } catch (error: any) {
         // If that fails, try without the query param (for backwards compatibility)
         if (error?.status === 404) {
-          await apiPost(
-            `/conversations/${conversationId}/mark-read/`,
-            undefined,
-            {
-              token: accessToken,
-              cache: "no-store",
-            }
-          );
+      await apiPost(
+        `/conversations/${conversationId}/mark-read/`,
+        undefined,
+        {
+          token: accessToken,
+          cache: "no-store",
+        }
+      );
         } else {
           throw error;
         }
@@ -1266,9 +1266,9 @@ export default function ConversationDetailPage() {
                         </div>
                       )}
                       <div className="flex justify-end">
-                        <p className="text-sm text-gray-600 italic">
-                          This message was deleted
-                        </p>
+                      <p className="text-sm text-gray-600 italic">
+                        This message was deleted
+                      </p>
                       </div>
                     </div>
                   );
@@ -1282,7 +1282,7 @@ export default function ConversationDetailPage() {
                 const isEditing = editingMessageId === message.id;
 
                 if (message.is_deleted) {
-                  return (
+                return (
                     <div key={message.id}>
                       {showDateSeparator && (
                         <div className="flex justify-center my-4">
@@ -1310,8 +1310,8 @@ export default function ConversationDetailPage() {
                       </div>
                     )}
                     <div
-                      className={`flex gap-2 group ${isOwn ? "justify-end" : "justify-start"} w-full min-w-0`}
-                    >
+                    className={`flex gap-2 group ${isOwn ? "justify-end" : "justify-start"} w-full min-w-0`}
+                  >
                     {!isOwn && (
                       <button
                         type="button"
@@ -1415,8 +1415,8 @@ export default function ConversationDetailPage() {
                                 if (isAudio) {
                                   return (
                                     <div className="mb-2 p-3 rounded-lg bg-black/20 flex items-center gap-3">
-                                      <button
-                                        type="button"
+                                  <button
+                                    type="button"
                                         onClick={() => {
                                           if (playingAudioId === message.id) {
                                             stopMessageAudio();
@@ -1514,12 +1514,12 @@ export default function ConversationDetailPage() {
                                             </div>
                                           </div>
                                         ) : (
-                                          <video
+                                      <video
                                             src={mediaUrl}
-                                            className="max-w-full h-auto rounded-lg"
-                                            style={{ maxHeight: "300px" }}
+                                        className="max-w-full h-auto rounded-lg"
+                                        style={{ maxHeight: "300px" }}
                                             preload="metadata"
-                                          />
+                                      />
                                         )}
                                       </button>
                                     </div>
@@ -1546,8 +1546,8 @@ export default function ConversationDetailPage() {
                                         height={300}
                                         className="rounded-lg object-cover max-h-[300px]"
                                       />
-                                    </button>
-                                  </div>
+                                  </button>
+                                </div>
                                 );
                               })()}
                               {message.content && (() => {
@@ -1564,7 +1564,7 @@ export default function ConversationDetailPage() {
                                     }}
                                   >
                                     {displayContent}
-                                  </p>
+                                </p>
                                 ) : null;
                               })()}
                               {message.edited_at && (
@@ -1669,22 +1669,22 @@ export default function ConversationDetailPage() {
                                     )}
                                     {isOwn && (
                                       <>
-                                        <button
-                                          onClick={() => {
-                                            setEditText(message.content || "");
-                                            setEditingMessageId(message.id);
-                                            setOpenMessageMenuId(null);
-                                          }}
+                                    <button
+                                      onClick={() => {
+                                        setEditText(message.content || "");
+                                        setEditingMessageId(message.id);
+                                        setOpenMessageMenuId(null);
+                                      }}
                                           className={`w-full px-3 py-2 text-left text-sm text-gray-200 hover:bg-gray-700 ${message.content ? "" : "rounded-t-lg"}`}
-                                        >
-                                          Edit
-                                        </button>
-                                        <button
-                                          onClick={() => handleDeleteMessage(message.id)}
-                                          className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 rounded-b-lg"
-                                        >
-                                          Delete
-                                        </button>
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteMessage(message.id)}
+                                      className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-900/20 rounded-b-lg"
+                                    >
+                                      Delete
+                                    </button>
                                       </>
                                     )}
                                   </div>
@@ -1759,8 +1759,8 @@ export default function ConversationDetailPage() {
                         {formatTime(message.created_at)}
                       </p>
                     </div>
+                    </div>
                   </div>
-                </div>
                 );
               })}
               <div ref={messagesEndRef} />
@@ -1872,22 +1872,22 @@ export default function ConversationDetailPage() {
             className="flex gap-2 items-end"
           >
             {!isRecording && !audioPreviewUrl && (
-              <button
-                type="button"
-                onClick={handleFileSelect}
-                className="p-2.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition flex-shrink-0"
-                title="Attach image or video"
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+            <button
+              type="button"
+              onClick={handleFileSelect}
+              className="p-2.5 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-lg transition flex-shrink-0"
+              title="Attach image or video"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
             )}
             {!isRecording && !audioPreviewUrl && (
               <button

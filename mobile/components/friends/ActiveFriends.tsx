@@ -195,7 +195,7 @@ export default function ActiveFriends({
               )}
               <Text style={styles.statusBadgeText}>
                 {showingType === 'online' ? 'Online' : 'Recently Active'}
-              </Text>
+          </Text>
             </View>
           </LinearGradient>
         </View>

@@ -50,8 +50,73 @@ class LoginUserview(ModelViewSet):
         user = User.objects.filter(
             Q(email=username) | Q(phone_number=username) | Q(username=username)
         ).first()
+        
+        # Get device info for logging
+        from .device_utils import get_client_ip, get_user_agent, get_location_from_ip
+        ip_address = get_client_ip(request)
+        user_agent = get_user_agent(request)
+        location = get_location_from_ip(ip_address)
+        
         if user and user.check_password(password):
+            # Check if account is locked
+            if user.account_locked_at:
+                from .models import SecurityEvent
+                SecurityEvent.objects.create(
+                    user=user,
+                    event_type="login_failed",
+                    description="Login attempt on locked account",
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                )
+                return Response(
+                    {"detail": "Account is locked. Please contact support."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            
             refresh_token = RefreshToken.for_user(user)
+            access_token = refresh_token.access_token
+            
+            # Extract token JTI for session tracking
+            from rest_framework_simplejwt.tokens import UntypedToken
+            from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+            token_jti = None
+            try:
+                untyped_token = UntypedToken(str(access_token))
+                token_jti = untyped_token.get("jti")
+            except (InvalidToken, TokenError, KeyError):
+                pass  # If we can't get jti, continue without it
+            
+            # Create session
+            from .models import Session, SessionHistory, SecurityEvent
+            session = Session.objects.create(
+                user=user,
+                device_name=f"{user_agent or 'Unknown'}",
+                ip_address=ip_address,
+                location=location,
+                user_agent=user_agent,
+                token_jti=token_jti,
+            )
+
+            # Create session history entry
+            SessionHistory.objects.create(
+                user=user,
+                device_name=f"{user_agent or 'Unknown'}",
+                ip_address=ip_address,
+                location=location,
+                user_agent=user_agent,
+                authentication_method="password",
+            )
+
+            # Log security event
+            SecurityEvent.objects.create(
+                user=user,
+                event_type="login",
+                description="Login via password",
+                ip_address=ip_address,
+                user_agent=user_agent,
+                metadata={"session_id": str(session.id)},
+            )
+            
             return Response(
                 {
                     "refresh_token": str(refresh_token),
@@ -60,6 +125,18 @@ class LoginUserview(ModelViewSet):
                 },
                 status=status.HTTP_200_OK,
             )
+        
+        # Log failed login attempt
+        if user:
+            from .models import SecurityEvent
+            SecurityEvent.objects.create(
+                user=user,
+                event_type="login_failed",
+                description="Invalid password",
+                ip_address=ip_address,
+                user_agent=user_agent,
+            )
+        
         return Response(
             {"detail": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED
         )

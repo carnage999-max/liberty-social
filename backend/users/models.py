@@ -72,6 +72,20 @@ class User(AbstractUser):
         _("Has Passkey"), default=False, help_text="Whether user has registered a passkey"
     )
 
+    # Account lock (Phase 3)
+    account_locked_at = models.DateTimeField(
+        _("Account Locked At"),
+        null=True,
+        blank=True,
+        help_text="When the account was locked",
+    )
+    locked_reason = models.TextField(
+        _("Locked Reason"),
+        blank=True,
+        null=True,
+        help_text="Reason for account lock",
+    )
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username"]
 
@@ -274,9 +288,41 @@ class PasskeyCredential(models.Model):
         blank=True,
         help_text="Additional device information (OS, browser, user agent, etc.)",
     )
+    ip_address = models.GenericIPAddressField(
+        _("IP Address"),
+        null=True,
+        blank=True,
+        help_text="IP address when passkey was registered",
+    )
+    location = models.CharField(
+        _("Location"),
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="Approximate location (city, country) when registered",
+    )
+    last_seen_ip = models.GenericIPAddressField(
+        _("Last Seen IP"),
+        null=True,
+        blank=True,
+        help_text="IP address from last authentication",
+    )
+    last_seen_location = models.CharField(
+        _("Last Seen Location"),
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="Location from last authentication",
+    )
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     last_used_at = models.DateTimeField(
         _("Last Used At"), null=True, blank=True, help_text="When this passkey was last used"
+    )
+    device_removed_at = models.DateTimeField(
+        _("Device Removed At"),
+        null=True,
+        blank=True,
+        help_text="When this device was removed (soft delete)",
     )
 
     class Meta:
@@ -291,3 +337,228 @@ class PasskeyCredential(models.Model):
     def __str__(self) -> str:
         device_name = self.device_name or "Unknown Device"
         return f"Passkey for {self.user.email} on {device_name}"
+
+
+class Session(models.Model):
+    """Tracks active user sessions (JWT tokens)."""
+
+    id = models.UUIDField(
+        _("Session ID"), primary_key=True, unique=True, default=uuid4, editable=False
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="sessions",
+        help_text="User who owns this session",
+    )
+    device_id = models.UUIDField(
+        _("Device ID"),
+        null=True,
+        blank=True,
+        help_text="Associated passkey credential ID if authenticated via passkey",
+    )
+    device_name = models.CharField(
+        _("Device Name"),
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="Device name from passkey or user agent",
+    )
+    ip_address = models.GenericIPAddressField(
+        _("IP Address"),
+        null=True,
+        blank=True,
+        help_text="IP address when session was created",
+    )
+    location = models.CharField(
+        _("Location"),
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="Approximate location (city, country)",
+    )
+    user_agent = models.TextField(
+        _("User Agent"),
+        blank=True,
+        null=True,
+        help_text="Browser/client user agent string",
+    )
+    token_jti = models.CharField(
+        _("Token JTI"),
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="JWT token ID (jti) to identify the session",
+    )
+    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
+    last_activity = models.DateTimeField(
+        _("Last Activity"), auto_now=True, help_text="Last time this session was used"
+    )
+    revoked_at = models.DateTimeField(
+        _("Revoked At"),
+        null=True,
+        blank=True,
+        help_text="When this session was revoked",
+    )
+
+    class Meta:
+        verbose_name = _("Session")
+        verbose_name_plural = _("Sessions")
+        ordering = ["-last_activity"]
+        indexes = [
+            models.Index(fields=["user", "-last_activity"]),
+            models.Index(fields=["device_id"]),
+        ]
+
+    def __str__(self) -> str:
+        device = self.device_name or "Unknown Device"
+        return f"Session for {self.user.email} on {device}"
+
+
+class SessionHistory(models.Model):
+    """Historical record of login sessions for activity log."""
+
+    id = models.UUIDField(
+        _("History ID"), primary_key=True, unique=True, default=uuid4, editable=False
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="session_history",
+        help_text="User who logged in",
+    )
+    device_id = models.UUIDField(
+        _("Device ID"),
+        null=True,
+        blank=True,
+        help_text="Associated passkey credential ID if authenticated via passkey",
+    )
+    device_name = models.CharField(
+        _("Device Name"),
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="Device name",
+    )
+    ip_address = models.GenericIPAddressField(
+        _("IP Address"),
+        null=True,
+        blank=True,
+        help_text="IP address when login occurred",
+    )
+    location = models.CharField(
+        _("Location"),
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text="Approximate location (city, country)",
+    )
+    user_agent = models.TextField(
+        _("User Agent"),
+        blank=True,
+        null=True,
+        help_text="Browser/client user agent string",
+    )
+    authentication_method = models.CharField(
+        _("Authentication Method"),
+        max_length=50,
+        choices=[
+            ("password", "Password"),
+            ("passkey", "Passkey"),
+        ],
+        default="password",
+        help_text="Method used to authenticate",
+    )
+    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
+    ended_at = models.DateTimeField(
+        _("Ended At"),
+        null=True,
+        blank=True,
+        help_text="When the session ended (logout or expiry)",
+    )
+
+    class Meta:
+        verbose_name = _("Session History")
+        verbose_name_plural = _("Session Histories")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        method = self.authentication_method
+        device = self.device_name or "Unknown Device"
+        return f"{method.title()} login for {self.user.email} on {device}"
+
+
+class SecurityEvent(models.Model):
+    """Audit log for security-related events."""
+
+    EVENT_TYPES = [
+        ("login", "Login"),
+        ("login_failed", "Login Failed"),
+        ("logout", "Logout"),
+        ("passkey_registered", "Passkey Registered"),
+        ("passkey_removed", "Passkey Removed"),
+        ("device_removed", "Device Removed"),
+        ("session_revoked", "Session Revoked"),
+        ("account_locked", "Account Locked"),
+        ("account_unlocked", "Account Unlocked"),
+        ("password_changed", "Password Changed"),
+    ]
+
+    id = models.UUIDField(
+        _("Event ID"), primary_key=True, unique=True, default=uuid4, editable=False
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="security_events",
+        null=True,
+        blank=True,
+        help_text="User associated with this event (null for system events)",
+    )
+    event_type = models.CharField(
+        _("Event Type"),
+        max_length=50,
+        choices=EVENT_TYPES,
+        help_text="Type of security event",
+    )
+    description = models.TextField(
+        _("Description"),
+        blank=True,
+        help_text="Human-readable description of the event",
+    )
+    ip_address = models.GenericIPAddressField(
+        _("IP Address"),
+        null=True,
+        blank=True,
+        help_text="IP address where event occurred",
+    )
+    user_agent = models.TextField(
+        _("User Agent"),
+        blank=True,
+        null=True,
+        help_text="Browser/client user agent string",
+    )
+    metadata = models.JSONField(
+        _("Metadata"),
+        default=dict,
+        blank=True,
+        help_text="Additional event data (device_id, session_id, etc.)",
+    )
+    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("Security Event")
+        verbose_name_plural = _("Security Events")
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["event_type", "-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        user_str = self.user.email if self.user else "System"
+        return f"{self.get_event_type_display()} - {user_str} - {self.created_at}"

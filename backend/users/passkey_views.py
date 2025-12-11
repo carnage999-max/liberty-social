@@ -38,7 +38,8 @@ from webauthn.helpers.structs import (
     AuthenticationCredential,
 )
 
-from .models import User, PasskeyCredential
+from .models import User, PasskeyCredential, Session, SessionHistory, SecurityEvent
+from .device_utils import get_client_ip, get_user_agent, get_location_from_ip, extract_device_info
 
 logger = logging.getLogger(__name__)
 
@@ -255,6 +256,16 @@ class PasskeyRegisterCompleteView(APIView):
             credential_id_b64 = bytes_to_base64url(verification.credential_id)
             public_key_b64 = bytes_to_base64url(verification.credential_public_key)
 
+            # Get device info from request
+            ip_address = get_client_ip(request)
+            user_agent = get_user_agent(request)
+            location = get_location_from_ip(ip_address)
+            
+            # Enhance device_info with extracted info
+            if user_agent:
+                extracted_info = extract_device_info(user_agent)
+                device_info.update(extracted_info)
+
             passkey_credential = PasskeyCredential.objects.create(
                 user=user,
                 credential_id=credential_id_b64,
@@ -262,12 +273,26 @@ class PasskeyRegisterCompleteView(APIView):
                 sign_count=verification.sign_count,
                 device_name=device_name or f"{device_info.get('platform', 'Unknown')} Device",
                 device_info=device_info,
+                ip_address=ip_address,
+                location=location,
+                last_seen_ip=ip_address,
+                last_seen_location=location,
                 last_used_at=timezone.now(),
             )
 
             # Update user's has_passkey flag
             user.has_passkey = True
             user.save(update_fields=["has_passkey"])
+
+            # Log security event
+            SecurityEvent.objects.create(
+                user=user,
+                event_type="passkey_registered",
+                description=f"Passkey registered on {passkey_credential.device_name}",
+                ip_address=ip_address,
+                user_agent=user_agent,
+                metadata={"device_id": str(passkey_credential.id), "device_name": passkey_credential.device_name},
+            )
 
             logger.info(
                 f"Passkey registered successfully for user {user.id}, credential: {credential_id_b64[:20]}..."
@@ -490,11 +515,61 @@ class PasskeyAuthenticateCompleteView(APIView):
             # Update credential sign count and last used
             passkey_credential.sign_count = verification.new_sign_count
             passkey_credential.last_used_at = timezone.now()
-            passkey_credential.save(update_fields=["sign_count", "last_used_at"])
+            
+            # Update last seen info
+            ip_address = get_client_ip(request)
+            user_agent = get_user_agent(request)
+            location = get_location_from_ip(ip_address)
+            
+            passkey_credential.last_seen_ip = ip_address
+            passkey_credential.last_seen_location = location
+            passkey_credential.save(update_fields=["sign_count", "last_used_at", "last_seen_ip", "last_seen_location"])
 
             # Generate JWT tokens
             refresh_token = RefreshToken.for_user(user)
             access_token = refresh_token.access_token
+
+            # Extract token JTI for session tracking
+            from rest_framework_simplejwt.tokens import UntypedToken
+            from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+            token_jti = None
+            try:
+                untyped_token = UntypedToken(str(access_token))
+                token_jti = untyped_token.get("jti")
+            except (InvalidToken, TokenError, KeyError):
+                pass  # If we can't get jti, continue without it
+
+            # Create session
+            session = Session.objects.create(
+                user=user,
+                device_id=passkey_credential.id,
+                device_name=passkey_credential.device_name,
+                ip_address=ip_address,
+                location=location,
+                user_agent=user_agent,
+                token_jti=token_jti,
+            )
+
+            # Create session history entry
+            SessionHistory.objects.create(
+                user=user,
+                device_id=passkey_credential.id,
+                device_name=passkey_credential.device_name,
+                ip_address=ip_address,
+                location=location,
+                user_agent=user_agent,
+                authentication_method="passkey",
+            )
+
+            # Log security event
+            SecurityEvent.objects.create(
+                user=user,
+                event_type="login",
+                description=f"Login via passkey on {passkey_credential.device_name}",
+                ip_address=ip_address,
+                user_agent=user_agent,
+                metadata={"device_id": str(passkey_credential.id), "session_id": str(session.id)},
+            )
 
             logger.info(f"Passkey authentication successful for user {user.id}")
 

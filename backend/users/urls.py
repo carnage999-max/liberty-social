@@ -29,6 +29,20 @@ from .passkey_views import (
     PasskeyStatusView,
     PasskeyRemoveView,
 )
+from .device_views import (
+    DeviceListView,
+    DeviceDetailView,
+    SessionListView,
+    SessionRevokeAllView,
+    ActivityLogView,
+)
+from .admin_security_views import (
+    UserSecurityView,
+    UserDevicesView,
+    UserActivityView,
+    UserLockView,
+    UserUnlockView,
+)
 
 router = DefaultRouter()
 router.register("login", LoginUserview, basename="login")
@@ -109,5 +123,57 @@ urlpatterns = [
         "passkey/remove/<uuid:credential_id>/",
         PasskeyRemoveView.as_view(),
         name="passkey-remove",
+    ),
+    # Phase 2: Device and Session Management
+    path(
+        "devices/",
+        DeviceListView.as_view(),
+        name="device-list",
+    ),
+    path(
+        "devices/<uuid:device_id>/",
+        DeviceDetailView.as_view(),
+        name="device-detail",
+    ),
+    path(
+        "sessions/",
+        SessionListView.as_view(),
+        name="session-list",
+    ),
+    path(
+        "sessions/revoke-all/",
+        SessionRevokeAllView.as_view(),
+        name="session-revoke-all",
+    ),
+    path(
+        "activity/",
+        ActivityLogView.as_view(),
+        name="activity-log",
+    ),
+    # Phase 3: Admin Security Endpoints
+    path(
+        "admin/users/<uuid:user_id>/security/",
+        UserSecurityView.as_view(),
+        name="admin-user-security",
+    ),
+    path(
+        "admin/users/<uuid:user_id>/devices/",
+        UserDevicesView.as_view(),
+        name="admin-user-devices",
+    ),
+    path(
+        "admin/users/<uuid:user_id>/activity/",
+        UserActivityView.as_view(),
+        name="admin-user-activity",
+    ),
+    path(
+        "admin/users/<uuid:user_id>/lock/",
+        UserLockView.as_view(),
+        name="admin-user-lock",
+    ),
+    path(
+        "admin/users/<uuid:user_id>/unlock/",
+        UserUnlockView.as_view(),
+        name="admin-user-unlock",
     ),
 ]

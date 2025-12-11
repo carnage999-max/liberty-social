@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -70,11 +70,364 @@ type MediaAttachment = {
   filename?: string;
 };
 
-const isVideoUrl = (url?: string | null) =>
-  !!url && /\.(mp4|mov|m4v|webm|mkv|avi|3gp)(\?.*)?$/i.test(url);
-
 const isAudioUrl = (url?: string | null) =>
-  !!url && /\.(m4a|mp3|wav|aac|ogg|flac|wma)(\?.*)?$/i.test(url);
+  !!url && /\.(m4a|mp3|wav|aac|ogg|flac|wma|webm)(\?.*)?$/i.test(url);
+
+// Check video AFTER audio to avoid false positives (webm can be audio or video)
+// Only treat as video if it's NOT audio and matches video extensions
+const isVideoUrl = (url?: string | null) => {
+  if (!url) return false;
+  // First check if it's audio - if so, it's not a video
+  if (isAudioUrl(url)) return false;
+  // Then check for video extensions (excluding webm since it's handled above)
+  return /\.(mp4|mov|m4v|mkv|avi|3gp)(\?.*)?$/i.test(url);
+};
+
+// Memoized MessageItem component for performance optimization
+type MessageItemProps = {
+  item: Message;
+  isOwn: boolean;
+  avatarSource: any;
+  mediaUrl: string | null;
+  isAudio: boolean;
+  isVideo: boolean;
+  playingAudioId: number | null;
+  audioDuration: number;
+  audioPosition: number;
+  videoThumbnails: Record<number, string>;
+  galleryMedia: Array<{ messageId: number; url: string }>;
+  chatBackgroundTheme: string;
+  colors: any;
+  isDark: boolean;
+  onLongPress: () => void;
+  onAudioPress: () => void;
+  onImagePress: () => void;
+  onVideoPress: () => void;
+  onVideoLayout: () => void;
+  onReactionPress: (text: string) => void;
+  formatTime: (date: string) => string;
+  formatDuration: (seconds: number) => string;
+  waveformHeights: number[];
+  progressBarWidthRef: React.MutableRefObject<number>;
+  audioSound: Audio.Sound | null;
+  setAudioPosition: (pos: number) => void;
+};
+
+const MessageItem = memo(({
+  item,
+  isOwn,
+  avatarSource,
+  mediaUrl,
+  isAudio,
+  isVideo,
+  playingAudioId,
+  audioDuration,
+  audioPosition,
+  videoThumbnails,
+  galleryMedia,
+  chatBackgroundTheme,
+  colors,
+  isDark,
+  onLongPress,
+  onAudioPress,
+  onImagePress,
+  onVideoPress,
+  onVideoLayout,
+  onReactionPress,
+  formatTime,
+  formatDuration,
+  waveformHeights,
+  progressBarWidthRef,
+  audioSound,
+  setAudioPosition,
+  showDateSeparator,
+  formatDateSeparator,
+}: MessageItemProps) => {
+  if (item.is_deleted) {
+    return (
+      <View>
+        {showDateSeparator && (
+          <View style={styles.dateSeparatorContainer}>
+            <View style={[styles.dateSeparator, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }]}>
+              <Text style={[styles.dateSeparatorText, { color: colors.textSecondary }]}>
+                {formatDateSeparator(new Date(item.created_at))}
+              </Text>
+            </View>
+          </View>
+        )}
+        <View
+          style={[
+            styles.messageContainer,
+            isOwn ? styles.messageContainerOwn : styles.messageContainerOther,
+          ]}
+        >
+          <View style={styles.messageContent}>
+            <View
+              style={[
+                styles.messageBubble,
+                styles.deletedMessageBubble,
+                {
+                  backgroundColor: '#9CA3AF',
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.deletedMessage,
+                  {
+                    color: '#FFFFFF',
+                    textShadowColor: chatBackgroundTheme !== 'default' ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
+                    textShadowOffset: chatBackgroundTheme !== 'default' ? { width: 0, height: 1 } : { width: 0, height: 0 },
+                    textShadowRadius: chatBackgroundTheme !== 'default' ? 2 : 0,
+                  },
+                ]}
+              >
+                This message was deleted
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      {showDateSeparator && (
+        <View style={styles.dateSeparatorContainer}>
+          <View style={[styles.dateSeparator, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }]}>
+            <Text style={[styles.dateSeparatorText, { color: colors.textSecondary }]}>
+              {formatDateSeparator(new Date(item.created_at))}
+            </Text>
+          </View>
+        </View>
+      )}
+      <View
+        style={[
+          styles.messageContainer,
+          isOwn ? styles.messageContainerOwn : styles.messageContainerOther,
+        ]}
+      >
+      {!isOwn && (
+        <Image source={avatarSource} style={styles.messageAvatar} />
+      )}
+      <View style={styles.messageContent}>
+        <TouchableOpacity
+          onLongPress={onLongPress}
+          activeOpacity={0.9}
+          delayLongPress={300}
+        >
+          <View
+            style={[
+              styles.messageBubble,
+              isOwn
+                ? { backgroundColor: '#0B3D91' }
+                : { backgroundColor: isDark ? colors.backgroundSecondary : '#E5E5E5' },
+            ]}
+          >
+            {!isOwn && (
+              <Text style={[
+                styles.messageSender, 
+                { 
+                  color: colors.textSecondary,
+                  textShadowColor: chatBackgroundTheme !== 'default' ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
+                  textShadowOffset: chatBackgroundTheme !== 'default' ? { width: 0, height: 1 } : { width: 0, height: 0 },
+                  textShadowRadius: chatBackgroundTheme !== 'default' ? 2 : 0,
+                }
+              ]}>
+                {item.sender.first_name || item.sender.username || 'User'}
+              </Text>
+            )}
+            {mediaUrl && isAudio && (
+              <View style={[styles.audioPlayerContainer, { backgroundColor: isOwn ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' }]}>
+                <TouchableOpacity
+                  onPress={onAudioPress}
+                  style={styles.audioPlayButton}
+                >
+                  <Ionicons
+                    name={playingAudioId === item.id ? "pause" : "play"}
+                    size={24}
+                    color={isOwn ? '#FFFFFF' : colors.primary}
+                  />
+                </TouchableOpacity>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <View style={styles.audioWaveform}>
+                    {waveformHeights.map((height, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.audioWaveBar,
+                          {
+                            height: playingAudioId === item.id ? height : 8,
+                            backgroundColor: isOwn ? 'rgba(255, 255, 255, 0.6)' : colors.primary,
+                          }
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  {playingAudioId === item.id && audioDuration > 0 && (
+                    <TouchableOpacity
+                      style={styles.audioProgressContainer}
+                      activeOpacity={1}
+                      onLayout={(e) => {
+                        progressBarWidthRef.current = e.nativeEvent.layout.width;
+                      }}
+                      onPress={async (e) => {
+                        if (audioSound && progressBarWidthRef.current > 0) {
+                          try {
+                            const { locationX } = e.nativeEvent;
+                            const seekRatio = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
+                            const seekMillis = Math.floor(seekRatio * audioDuration * 1000);
+                            await audioSound.setPositionAsync(seekMillis);
+                            setAudioPosition(Math.floor(seekMillis / 1000));
+                          } catch (error) {
+                            console.error('Error seeking audio:', error);
+                          }
+                        }
+                      }}
+                    >
+                      <View style={[
+                        styles.audioProgressBar,
+                        { 
+                          backgroundColor: isOwn ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.1)',
+                        }
+                      ]}>
+                        <View style={[
+                          styles.audioProgressFill,
+                          { 
+                            width: `${(audioPosition / audioDuration) * 100}%`,
+                            backgroundColor: isOwn ? '#FFFFFF' : colors.primary,
+                          }
+                        ]} />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                    <Text style={[styles.audioDuration, { color: isOwn ? 'rgba(255, 255, 255, 0.8)' : colors.textSecondary }]}>
+                      Voice note{(() => {
+                        if (item.content && item.content.includes('[duration:')) {
+                          const durationMatch = item.content.match(/\[duration:(\d+:\d+)\]/);
+                          if (durationMatch) {
+                            return ` • ${durationMatch[1]}`;
+                          }
+                        }
+                        return '';
+                      })()}
+                    </Text>
+                    {playingAudioId === item.id && audioDuration > 0 && (
+                      <Text style={[styles.audioDuration, { color: isOwn ? 'rgba(255, 255, 255, 0.6)' : colors.textSecondary, fontSize: 11 }]}>
+                        {formatDuration(audioPosition)} / {formatDuration(audioDuration)}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </View>
+            )}
+            {mediaUrl && !isVideo && !isAudio && (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={onImagePress}
+              >
+                <Image
+                  source={{ uri: mediaUrl }}
+                  style={styles.messageMedia}
+                  contentFit="cover"
+                />
+              </TouchableOpacity>
+            )}
+            {mediaUrl && isVideo && (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={onVideoPress}
+                onLayout={onVideoLayout}
+              >
+                <View style={[styles.messageMedia, styles.videoPreview, { backgroundColor: '#000' }]}>
+                  {videoThumbnails[item.id] ? (
+                    <Image
+                      source={{ uri: videoThumbnails[item.id] }}
+                      style={[styles.messageMedia, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }]}
+                      contentFit="cover"
+                    />
+                  ) : null}
+                  <View style={styles.videoOverlay}>
+                    <Ionicons name="play-circle" size={64} color="#FFFFFF" />
+                    <Text style={{ color: '#FFFFFF', marginTop: 8, fontSize: 12 }}>Tap to play video</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+            {item.content && (() => {
+              let displayContent = item.content;
+              if (displayContent.includes('[duration:')) {
+                displayContent = displayContent.replace(/\[duration:\d+:\d+\]/g, '').trim();
+              }
+              return displayContent ? (
+                <Text
+                  style={[
+                    styles.messageText,
+                    { 
+                      color: isOwn ? '#FFFFFF' : colors.text,
+                      textShadowColor: chatBackgroundTheme !== 'default' ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
+                      textShadowOffset: chatBackgroundTheme !== 'default' ? { width: 0, height: 1 } : { width: 0, height: 0 },
+                      textShadowRadius: chatBackgroundTheme !== 'default' ? 2 : 0,
+                    },
+                  ]}
+                >
+                  {displayContent}
+                </Text>
+              ) : null;
+            })()}
+            <Text
+              style={[
+                styles.messageTime,
+                { color: isOwn ? 'rgba(255,255,255,0.7)' : colors.textSecondary },
+              ]}
+            >
+              {formatTime(item.created_at)}
+            </Text>
+            
+            {item.reactions && item.reactions.length > 0 && (
+              <View style={[styles.reactionsContainer, isOwn && styles.reactionsContainerOwn]}>
+                {item.reactions.map((reaction, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[
+                      styles.reactionBadge,
+                      { 
+                        backgroundColor: isDark ? 'rgba(200, 162, 95, 0.2)' : 'rgba(200, 162, 95, 0.1)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(200, 162, 95, 0.3)',
+                      }
+                    ]}
+                    onPress={() => onReactionPress(`${reaction.user.first_name || reaction.user.username} reacted`)}
+                  >
+                    <Text style={styles.reactionEmoji}>{reaction.reaction_type}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </View>
+      </View>
+    </View>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison function for React.memo - return true if props are equal (don't re-render)
+  return (
+    prevProps.item.id === nextProps.item.id &&
+    prevProps.item.content === nextProps.item.content &&
+    prevProps.item.media_url === nextProps.item.media_url &&
+    prevProps.item.is_deleted === nextProps.item.is_deleted &&
+    prevProps.item.reactions?.length === nextProps.item.reactions?.length &&
+    prevProps.playingAudioId === nextProps.playingAudioId &&
+    prevProps.audioPosition === nextProps.audioPosition &&
+    prevProps.audioDuration === nextProps.audioDuration &&
+    prevProps.videoThumbnails[prevProps.item.id] === nextProps.videoThumbnails[nextProps.item.id] &&
+    prevProps.chatBackgroundTheme === nextProps.chatBackgroundTheme &&
+    prevProps.showDateSeparator === nextProps.showDateSeparator
+  );
+});
 
 export default function ConversationDetailScreen() {
   const { colors, isDark } = useTheme();
@@ -87,6 +440,7 @@ export default function ConversationDetailScreen() {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [sending, setSending] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [next, setNext] = useState<string | null>(null);
@@ -132,6 +486,10 @@ export default function ConversationDetailScreen() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageIdRef = useRef<number | null>(null);
   const inputContainerRef = useRef<View | null>(null);
+  const loadingOlderRef = useRef(false);
+  const scrollOffsetRef = useRef<number>(0);
+  const firstVisibleItemRef = useRef<number | null>(null);
+  const shouldAutoScrollRef = useRef(true); // Track if user is near bottom (like website)
 
   // Create video player instance at component level to avoid hook order issues
   const videoPlayer = useVideoPlayer(videoPreviewUrl || '', (player) => {
@@ -143,7 +501,7 @@ export default function ConversationDetailScreen() {
 
   const loadConversation = async () => {
     try {
-      const data = await apiClient.get<Conversation>(`/conversations/${id}/`);
+      const data = await apiClient.get<Conversation>(`/conversations/${id}/?include_archived=true`);
       setConversation(data);
     } catch (error) {
       showError('Failed to load conversation');
@@ -155,7 +513,7 @@ export default function ConversationDetailScreen() {
     try {
       if (!silent) setLoading(true);
       const response = await apiClient.get<PaginatedResponse<Message>>(
-        `/conversations/${id}/messages/`
+        `/conversations/${id}/messages/?include_archived=true`
       );
       const newMessages = response.results.reverse(); // Reverse to show oldest first
       setMessages(newMessages);
@@ -172,10 +530,106 @@ export default function ConversationDetailScreen() {
     }
   };
 
+  const loadOlderMessages = async () => {
+    if (!next || loadingMore || !id || loadingOlderRef.current) return;
+    
+    try {
+      loadingOlderRef.current = true;
+      setLoadingMore(true);
+      
+      // Save current scroll position and height (like website does)
+      let previousScrollHeight = 0;
+      let previousScrollOffset = 0;
+      
+      // Get current scroll metrics from FlatList
+      if (flatListRef.current) {
+        try {
+          // Use getScrollMetrics if available, otherwise use ref
+          const metrics = (flatListRef.current as any).getScrollMetrics?.();
+          if (metrics) {
+            previousScrollHeight = metrics.contentLength;
+            previousScrollOffset = metrics.offset;
+          }
+        } catch (e) {
+          // Fallback: use stored offset
+          previousScrollOffset = scrollOffsetRef.current;
+        }
+      }
+      
+      // Extract path from next URL (handle both full URLs and relative paths)
+      let path = next;
+      if (next.startsWith('http://') || next.startsWith('https://')) {
+        try {
+          const url = new URL(next);
+          path = url.pathname + url.search;
+          // Remove /api prefix if present since API base already includes it
+          if (path.startsWith('/api/')) {
+            path = path.substring(4);
+          }
+        } catch (error) {
+          console.error('Error parsing nextUrl:', next, error);
+          path = next.startsWith('/api/') ? next.substring(4) : next;
+        }
+      } else if (path.startsWith('/api/')) {
+        path = path.substring(4);
+      }
+      
+      const response = await apiClient.get<PaginatedResponse<Message>>(path);
+      const olderMessages = response.results.reverse();
+      
+      if (olderMessages.length === 0) {
+        setNext(null);
+        return;
+      }
+      
+      // Prepend older messages to the existing messages (like website does)
+      setMessages((prev) => [...olderMessages, ...prev]);
+      setNext(response.next || null);
+      
+      // Restore scroll position after new messages are added (exact website logic)
+      setTimeout(() => {
+        if (flatListRef.current) {
+          try {
+            // Get new scroll metrics
+            const metrics = (flatListRef.current as any).getScrollMetrics?.();
+            if (metrics) {
+              const newScrollHeight = metrics.contentLength;
+              const scrollDifference = newScrollHeight - previousScrollHeight;
+              const newScrollOffset = previousScrollOffset + scrollDifference;
+              
+              // Scroll to the new offset (like website: scrollTop = previousScrollTop + scrollDifference)
+              flatListRef.current.scrollToOffset({
+                offset: newScrollOffset,
+                animated: false,
+              });
+            } else {
+              // Fallback: try to maintain approximate position
+              flatListRef.current.scrollToOffset({
+                offset: previousScrollOffset + (olderMessages.length * 100), // Approximate 100px per message
+                animated: false,
+              });
+            }
+          } catch (error) {
+            console.warn('Failed to restore scroll position:', error);
+          }
+        }
+      }, 50);
+    } catch (error) {
+      console.error('Failed to load older messages:', error);
+      showError('Failed to load older messages');
+    } finally {
+      setLoadingMore(false);
+      // Reset the ref after a delay to allow scroll to stabilize
+      setTimeout(() => {
+        loadingOlderRef.current = false;
+      }, 1000);
+    }
+  };
+
   const markAsRead = async () => {
     if (!id) return;
     try {
-      await apiClient.post(`/conversations/${id}/mark-read/`);
+      await apiClient.post(`/conversations/${id}/mark-read/?include_archived=true`);
     } catch (error) {
       // Silently fail - not critical
     }
@@ -194,10 +648,12 @@ export default function ConversationDetailScreen() {
         }
         const updated = [...prev, message];
         lastMessageIdRef.current = message.id;
-        // Scroll to bottom
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+        // Only scroll to bottom if user is near bottom (like website)
+        if (shouldAutoScrollRef.current) {
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }
         return updated;
       });
       markAsRead();
@@ -346,10 +802,12 @@ export default function ConversationDetailScreen() {
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
         setKeyboardHeight(e.endCoordinates.height);
-        // Scroll to bottom when keyboard opens
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+        // Scroll to bottom when keyboard opens only if user is near bottom
+        if (shouldAutoScrollRef.current) {
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }
       }
     );
     const hideSubscription = Keyboard.addListener(
@@ -391,6 +849,12 @@ export default function ConversationDetailScreen() {
   // Generate video thumbnail
   const generateVideoThumbnail = async (videoUrl: string, messageId: number) => {
     if (videoThumbnails[messageId]) return; // Already generated
+    
+    // Double-check it's actually a video, not audio (webm can be either)
+    if (isAudioUrl(videoUrl)) {
+      console.warn('Skipping thumbnail generation for audio file:', videoUrl);
+      return;
+    }
     
     try {
       const { uri } = await getThumbnailAsync(videoUrl, {
@@ -929,9 +1393,13 @@ export default function ConversationDetailScreen() {
         markAsRead();
       }
       
-      // Scroll to bottom
+      // Scroll to bottom only if user is near bottom (like website)
+      // When sending a message, user should see it, so set shouldAutoScrollRef to true
+      shouldAutoScrollRef.current = true;
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
+        if (shouldAutoScrollRef.current) {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }
       }, 100);
     } catch (error) {
       showError('Failed to send message');
@@ -967,6 +1435,29 @@ export default function ConversationDetailScreen() {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const formatDateSeparator = (date: Date): string => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const messageDate = new Date(date);
+    messageDate.setHours(0, 0, 0, 0);
+    
+    if (messageDate.getTime() === today.getTime()) {
+      return "Today";
+    } else if (messageDate.getTime() === yesterday.getTime()) {
+      return "Yesterday";
+    } else {
+      // Format as DD/MM/YYYY
+      const day = String(messageDate.getDate()).padStart(2, "0");
+      const month = String(messageDate.getMonth() + 1).padStart(2, "0");
+      const year = messageDate.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+  };
+
   const galleryMedia = useMemo(() => {
     return messages
       .map((message) => {
@@ -978,294 +1469,86 @@ export default function ConversationDetailScreen() {
       .filter((entry): entry is { messageId: number; url: string } => !!entry);
   }, [messages]);
 
-  const renderMessage = ({ item }: { item: Message }) => {
-    if (item.is_deleted) {
-      const isOwn = item.sender.id === user?.id;
-      return (
-        <View
-          style={[
-            styles.messageContainer,
-            isOwn ? styles.messageContainerOwn : styles.messageContainerOther,
-          ]}
-        >
-          <View style={styles.messageContent}>
-            <View
-              style={[
-                styles.messageBubble,
-                styles.deletedMessageBubble,
-                {
-                  backgroundColor: '#9CA3AF',
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.deletedMessage,
-                  {
-                    color: '#FFFFFF',
-                    textShadowColor: chatBackgroundTheme !== 'default' ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
-                    textShadowOffset: chatBackgroundTheme !== 'default' ? { width: 0, height: 1 } : { width: 0, height: 0 },
-                    textShadowRadius: chatBackgroundTheme !== 'default' ? 2 : 0,
-                  },
-                ]}
-              >
-                This message was deleted
-              </Text>
-            </View>
-          </View>
-        </View>
-      );
-    }
-
+  const renderMessage = useCallback(({ item, index }: { item: Message; index: number }) => {
     const isOwn = item.sender.id === user?.id;
     const avatarUrl = item.sender.profile_image_url
       ? resolveRemoteUrl(item.sender.profile_image_url)
       : null;
     const avatarSource = avatarUrl ? { uri: avatarUrl } : DEFAULT_AVATAR;
     const mediaUrl = item.media_url ? resolveMediaUrls(item.media_url)[0] : null;
-    const isVideo = isVideoUrl(mediaUrl);
     const isAudio = isAudioUrl(mediaUrl);
+    const isVideo = isVideoUrl(mediaUrl) && !isAudio;
+
+    // Check if we need to show a date separator (like website)
+    const showDateSeparator = (() => {
+      if (index === 0) return true; // Always show for first message
+      
+      const currentDate = new Date(item.created_at);
+      const previousMessage = messages[index - 1];
+      if (!previousMessage) return false;
+      
+      const previousDate = new Date(previousMessage.created_at);
+      
+      // Check if dates are different
+      return (
+        currentDate.getDate() !== previousDate.getDate() ||
+        currentDate.getMonth() !== previousDate.getMonth() ||
+        currentDate.getFullYear() !== previousDate.getFullYear()
+      );
+    })();
 
     return (
-      <View
-        style={[
-          styles.messageContainer,
-          isOwn ? styles.messageContainerOwn : styles.messageContainerOther,
-        ]}
-      >
-        {!isOwn && (
-          <Image source={avatarSource} style={styles.messageAvatar} />
-        )}
-        <View style={styles.messageContent}>
-          <TouchableOpacity
-            onLongPress={() => {
-              setSelectedMessageId(item.id);
-              setMessageMenuVisible(true);
-            }}
-            activeOpacity={0.9}
-            delayLongPress={300}
-          >
-            <View
-              style={[
-                styles.messageBubble,
-                isOwn
-                  ? { backgroundColor: '#0B3D91' }
-                  : { backgroundColor: isDark ? colors.backgroundSecondary : '#E5E5E5' },
-              ]}
-            >
-              {!isOwn && (
-                <Text style={[
-                  styles.messageSender, 
-                  { 
-                    color: colors.textSecondary,
-                    textShadowColor: chatBackgroundTheme !== 'default' ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
-                    textShadowOffset: chatBackgroundTheme !== 'default' ? { width: 0, height: 1 } : { width: 0, height: 0 },
-                    textShadowRadius: chatBackgroundTheme !== 'default' ? 2 : 0,
-                  }
-                ]}>
-                  {item.sender.first_name || item.sender.username || 'User'}
-                </Text>
-              )}
-              {mediaUrl && isAudio && (
-                <View style={[styles.audioPlayerContainer, { backgroundColor: isOwn ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' }]}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      if (playingAudioId === item.id) {
-                        stopMessageAudio();
-                      } else {
-                        playMessageAudio(mediaUrl, item.id);
-                      }
-                    }}
-                    style={styles.audioPlayButton}
-                  >
-                    <Ionicons
-                      name={playingAudioId === item.id ? "pause" : "play"}
-                      size={24}
-                      color={isOwn ? '#FFFFFF' : colors.primary}
-                    />
-                  </TouchableOpacity>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <View style={styles.audioWaveform}>
-                      {waveformHeights.map((height, i) => (
-                        <View
-                          key={i}
-                          style={[
-                            styles.audioWaveBar,
-                            {
-                              height: playingAudioId === item.id ? height : 8,
-                              backgroundColor: isOwn ? 'rgba(255, 255, 255, 0.6)' : colors.primary,
-                            }
-                          ]}
-                        />
-                      ))}
-                    </View>
-                    {/* Progress bar with seek functionality */}
-                    {playingAudioId === item.id && audioDuration > 0 && (
-                      <TouchableOpacity
-                        style={styles.audioProgressContainer}
-                        activeOpacity={1}
-                        onLayout={(e) => {
-                          progressBarWidthRef.current = e.nativeEvent.layout.width;
-                        }}
-                        onPress={async (e) => {
-                          // Seek to position based on touch location
-                          if (audioSound && progressBarWidthRef.current > 0) {
-                            try {
-                              const { locationX } = e.nativeEvent;
-                              const seekRatio = Math.max(0, Math.min(1, locationX / progressBarWidthRef.current));
-                              const seekMillis = Math.floor(seekRatio * audioDuration * 1000);
-                              await audioSound.setPositionAsync(seekMillis);
-                              setAudioPosition(Math.floor(seekMillis / 1000));
-                            } catch (error) {
-                              console.error('Error seeking audio:', error);
-                            }
-                          }
-                        }}
-                      >
-                        <View style={[
-                          styles.audioProgressBar,
-                          { 
-                            backgroundColor: isOwn ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.1)',
-                          }
-                        ]}>
-                          <View style={[
-                            styles.audioProgressFill,
-                            { 
-                              width: `${(audioPosition / audioDuration) * 100}%`,
-                              backgroundColor: isOwn ? '#FFFFFF' : colors.primary,
-                            }
-                          ]} />
-                        </View>
-                      </TouchableOpacity>
-                    )}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                      <Text style={[styles.audioDuration, { color: isOwn ? 'rgba(255, 255, 255, 0.8)' : colors.textSecondary }]}>
-                        Voice note{(() => {
-                          // Try to get duration from message content if it's stored there
-                          // Format: "[duration:MM:SS]" 
-                          if (item.content && item.content.includes('[duration:')) {
-                            const durationMatch = item.content.match(/\[duration:(\d+:\d+)\]/);
-                            if (durationMatch) {
-                              return ` • ${durationMatch[1]}`;
-                            }
-                          }
-                          return '';
-                        })()}
-                      </Text>
-                      {playingAudioId === item.id && audioDuration > 0 && (
-                        <Text style={[styles.audioDuration, { color: isOwn ? 'rgba(255, 255, 255, 0.6)' : colors.textSecondary, fontSize: 11 }]}>
-                          {formatDuration(audioPosition)} / {formatDuration(audioDuration)}
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                </View>
-              )}
-              {mediaUrl && !isVideo && !isAudio && (
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  onPress={() => {
-                    const index = galleryMedia.findIndex((m) => m.messageId === item.id);
-                    if (index >= 0) {
-                      setGalleryIndex(index);
-                      setGalleryVisible(true);
-                    }
-                  }}
-                >
-                  <Image
-                    source={{ uri: mediaUrl }}
-                    style={styles.messageMedia}
-                    resizeMode="cover"
-                  />
-                </TouchableOpacity>
-              )}
-              {mediaUrl && isVideo && (
-                <TouchableOpacity
-                  activeOpacity={0.9}
-                  onPress={() => setVideoPreviewUrl(mediaUrl)}
-                  onLayout={() => {
-                    // Generate thumbnail when component mounts
-                    if (!videoThumbnails[item.id]) {
-                      generateVideoThumbnail(mediaUrl, item.id);
-                    }
-                  }}
-                >
-                  <View style={[styles.messageMedia, styles.videoPreview, { backgroundColor: '#000' }]}>
-                    {videoThumbnails[item.id] ? (
-                      <Image
-                        source={{ uri: videoThumbnails[item.id] }}
-                        style={[styles.messageMedia, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }]}
-                        resizeMode="cover"
-                      />
-                    ) : null}
-                    <View style={styles.videoOverlay}>
-                      <Ionicons name="play-circle" size={64} color="#FFFFFF" />
-                      <Text style={{ color: '#FFFFFF', marginTop: 8, fontSize: 12 }}>Tap to play video</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              )}
-              {item.content && (() => {
-                // Filter out [duration:...] from content display
-                let displayContent = item.content;
-                if (displayContent.includes('[duration:')) {
-                  displayContent = displayContent.replace(/\[duration:\d+:\d+\]/g, '').trim();
-                }
-                // Only show content if there's something left after filtering
-                return displayContent ? (
-                  <Text
-                    style={[
-                      styles.messageText,
-                      { 
-                        color: isOwn ? '#FFFFFF' : colors.text,
-                        textShadowColor: chatBackgroundTheme !== 'default' ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
-                        textShadowOffset: chatBackgroundTheme !== 'default' ? { width: 0, height: 1 } : { width: 0, height: 0 },
-                        textShadowRadius: chatBackgroundTheme !== 'default' ? 2 : 0,
-                      },
-                    ]}
-                  >
-                    {displayContent}
-                  </Text>
-                ) : null;
-              })()}
-              <Text
-                style={[
-                  styles.messageTime,
-                  { color: isOwn ? 'rgba(255,255,255,0.7)' : colors.textSecondary },
-                ]}
-              >
-                {formatTime(item.created_at)}
-              </Text>
-              
-              {/* Reactions Display - Inside bubble like frontend */}
-              {item.reactions && item.reactions.length > 0 && (
-                <View style={[styles.reactionsContainer, isOwn && styles.reactionsContainerOwn]}>
-                  {item.reactions.map((reaction, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={[
-                        styles.reactionBadge,
-                        { 
-                          backgroundColor: isDark ? 'rgba(200, 162, 95, 0.2)' : 'rgba(200, 162, 95, 0.1)',
-                          borderWidth: 1,
-                          borderColor: 'rgba(200, 162, 95, 0.3)',
-                        }
-                      ]}
-                      onPress={() => {
-                        showSuccess(`${reaction.user.first_name || reaction.user.username} reacted`);
-                      }}
-                    >
-                      <Text style={styles.reactionEmoji}>{reaction.reaction_type}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <MessageItem
+        item={item}
+        isOwn={isOwn}
+        avatarSource={avatarSource}
+        mediaUrl={mediaUrl}
+        isAudio={isAudio}
+        isVideo={isVideo}
+        playingAudioId={playingAudioId}
+        audioDuration={audioDuration}
+        audioPosition={audioPosition}
+        videoThumbnails={videoThumbnails}
+        galleryMedia={galleryMedia}
+        chatBackgroundTheme={chatBackgroundTheme}
+        colors={colors}
+        isDark={isDark}
+        onLongPress={() => {
+          setSelectedMessageId(item.id);
+          setMessageMenuVisible(true);
+        }}
+        onAudioPress={() => {
+          if (playingAudioId === item.id) {
+            stopMessageAudio();
+          } else {
+            playMessageAudio(mediaUrl!, item.id);
+          }
+        }}
+        onImagePress={() => {
+          const galleryIndex = galleryMedia.findIndex((m) => m.messageId === item.id);
+          if (galleryIndex >= 0) {
+            setGalleryIndex(galleryIndex);
+            setGalleryVisible(true);
+          }
+        }}
+        onVideoPress={() => setVideoPreviewUrl(mediaUrl!)}
+        onVideoLayout={() => {
+          if (!videoThumbnails[item.id] && mediaUrl) {
+            generateVideoThumbnail(mediaUrl, item.id);
+          }
+        }}
+        onReactionPress={(text) => showSuccess(text)}
+        formatTime={formatTime}
+        formatDuration={formatDuration}
+        waveformHeights={waveformHeights}
+        progressBarWidthRef={progressBarWidthRef}
+        audioSound={audioSound}
+        setAudioPosition={setAudioPosition}
+        showDateSeparator={showDateSeparator}
+        formatDateSeparator={formatDateSeparator}
+      />
     );
-  };
+  }, [user?.id, colors, isDark, chatBackgroundTheme, playingAudioId, audioDuration, audioPosition, videoThumbnails, galleryMedia, formatTime, formatDuration, waveformHeights, playMessageAudio, stopMessageAudio, setSelectedMessageId, setMessageMenuVisible, setVideoPreviewUrl, setGalleryIndex, setGalleryVisible, generateVideoThumbnail, showSuccess, audioSound, messages, formatDateSeparator]);
 
   const canSend = editingMessageId !== null 
     ? editText.trim() 
@@ -1485,11 +1768,18 @@ export default function ConversationDetailScreen() {
           </Text>
         </View>
       ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderMessage}
-            keyExtractor={(item) => item.id.toString()}
+              <FlatList
+                ref={flatListRef}
+                data={messages}
+                renderItem={({ item, index }) => renderMessage({ item, index })}
+                keyExtractor={(item) => item.id.toString()}
+            onScrollToIndexFailed={(info) => {
+              // If scroll to index fails, try scrolling to offset instead
+              const wait = new Promise(resolve => setTimeout(resolve, 500));
+              wait.then(() => {
+                flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+              });
+            }}
             style={[{ flex: 1 }, { backgroundColor: backgroundMounted && chatBackgroundTheme !== 'default' ? 'transparent' : (isDark ? '#0f172a' : '#f8fafc') }]}
             contentContainerStyle={[
               styles.messagesList,
@@ -1498,6 +1788,13 @@ export default function ConversationDetailScreen() {
                 paddingBottom: inputContainerHeight + inputBottom + inputPaddingBottom + (mediaAttachment ? 80 : 0) + (editingMessageId !== null ? 60 : 0) + (typingUsers.length > 0 ? 50 : 0)
               }
             ]}
+            ListHeaderComponent={
+              loadingMore ? (
+                <View style={{ paddingVertical: 10, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : null
+            }
             ListFooterComponent={
               typingUsers.length > 0 ? (
                 <View style={styles.typingIndicatorContainer}>
@@ -1510,16 +1807,36 @@ export default function ConversationDetailScreen() {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
             onContentSizeChange={() => {
-              // Auto-scroll to bottom when content size changes
-              setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
-              }, 100);
+              // Only auto-scroll to bottom if user is near bottom AND not loading older messages (like website)
+              if (!loadingMore && !loadingOlderRef.current && shouldAutoScrollRef.current) {
+                // Small delay to ensure content is rendered
+                setTimeout(() => {
+                  if (flatListRef.current) {
+                    flatListRef.current.scrollToEnd({ animated: false });
+                  }
+                }, 50);
+              }
             }}
+            onScroll={(event) => {
+              // Save scroll offset for scroll position restoration (like website)
+              const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+              scrollOffsetRef.current = contentOffset.y;
+              
+              // Track if user is near bottom (like website) - only auto-scroll if within 50px
+              const distanceFromBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
+              shouldAutoScrollRef.current = distanceFromBottom < 50;
+              
+              // Load older messages when scrolling near the top (within 100px, like website)
+              if (contentOffset.y < 100 && next && !loadingMore && !loadingOlderRef.current) {
+                loadOlderMessages();
+              }
+            }}
+            scrollEventThrottle={16}
             removeClippedSubviews={true}
             windowSize={10}
-            initialNumToRender={15}
-            maxToRenderPerBatch={10}
-            updateCellsBatchingPeriod={50}
+            initialNumToRender={10}
+            maxToRenderPerBatch={5}
+            updateCellsBatchingPeriod={100}
             onLayout={() => {
               // Scroll to bottom on initial layout
               setTimeout(() => {
@@ -1555,7 +1872,7 @@ export default function ConversationDetailScreen() {
                 <Image
                   source={{ uri: mediaAttachment.uri }}
                   style={styles.mediaPreviewImage}
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
               )}
               <View style={{ flex: 1 }}>
@@ -2018,6 +2335,73 @@ export default function ConversationDetailScreen() {
                 <Text style={[styles.menuItemText, { color: colors.text }]}>Change Background</Text>
               </TouchableOpacity>
               
+              {/* Archive/Unarchive option */}
+              {(() => {
+                const userParticipant = conversation?.participants.find(
+                  (p) => p.user.id === user?.id
+                );
+                const isArchived = userParticipant?.is_archived || false;
+                
+                return (
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={() => {
+                      setHeaderMenuVisible(false);
+                      if (isArchived) {
+                        showConfirm(
+                          'Are you sure you want to unarchive this conversation?',
+                          async () => {
+                            try {
+                              await apiClient.post(`/conversations/${id}/unarchive/`);
+                              showSuccess('Conversation unarchived');
+                              loadConversation(); // Reload to update archived status
+                            } catch (error: any) {
+                              console.error('Unarchive error:', error);
+                              const errorMessage = error.response?.data?.message || 
+                                                  error.response?.data?.detail ||
+                                                  'Failed to unarchive conversation';
+                              showError(errorMessage);
+                            }
+                          },
+                          undefined,
+                          'Unarchive Conversation',
+                          false
+                        );
+                      } else {
+                        showConfirm(
+                          'Are you sure you want to archive this conversation? It will be moved to your archived chats.',
+                          async () => {
+                            try {
+                              await apiClient.post(`/conversations/${id}/archive/`);
+                              showSuccess('Conversation archived');
+                              router.push('/messages');
+                            } catch (error: any) {
+                              console.error('Archive error:', error);
+                              const errorMessage = error.response?.data?.message || 
+                                                  error.response?.data?.detail ||
+                                                  'Failed to archive conversation';
+                              showError(errorMessage);
+                            }
+                          },
+                          undefined,
+                          'Archive Conversation',
+                          false
+                        );
+                      }
+                    }}
+                  >
+                    <Ionicons 
+                      name={isArchived ? "archive-outline" : "archive"} 
+                      size={20} 
+                      color={colors.text} 
+                    />
+                    <Text style={[styles.menuItemText, { color: colors.text }]}>
+                      {isArchived ? 'Unarchive' : 'Archive'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })()}
+              
               <TouchableOpacity
                 style={[styles.menuItem, { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 8, paddingTop: 8 }]}
                 onPress={() => {
@@ -2279,6 +2663,19 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     flexGrow: 1,
   },
+  dateSeparatorContainer: {
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  dateSeparator: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  dateSeparatorText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   messageContainer: {
     flexDirection: 'row',
     marginVertical: 6,
@@ -2322,6 +2719,400 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 20,
     flexShrink: 1,
+  },
+  messageMedia: {
+    width: 240,
+    height: 180,
+    marginTop: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  messageImage: {
+    width: 240,
+    height: 180,
+    borderRadius: 12,
+  },
+  videoPreview: {
+    position: 'relative',
+    width: 240,
+    height: 180,
+  },
+  videoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  messageTimestamp: {
+    fontSize: 11,
+    marginTop: 4,
+    opacity: 0.6,
+  },
+  reactionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 6,
+  },
+  reactionsContainerOwn: {
+    justifyContent: 'flex-end',
+  },
+  reactionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  reactionEmoji: {
+    fontSize: 14,
+  },
+  reactionCount: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  inputContainer: {
+    flexDirection: 'column',
+    backgroundColor: 'transparent',
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  sendButtonGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+  },
+  typingIndicatorContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  typingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  typingText: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    opacity: 0.7,
+  },
+  headerMenu: {
+    position: 'absolute',
+    top: 60,
+    right: 16,
+    borderRadius: 12,
+    padding: 8,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  menuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 12,
+    borderRadius: 8,
+  },
+  menuOptionText: {
+    fontSize: 15,
+  },
+  messageMenu: {
+    position: 'absolute',
+    borderRadius: 12,
+    padding: 8,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  messageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    gap: 10,
+    borderRadius: 8,
+  },
+  messageOptionText: {
+    fontSize: 14,
+  },
+  quickReactionsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  quickReactionButton: {
+    padding: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  quickReactionEmoji: {
+    fontSize: 20,
+  },
+  mediaPreviewContainer: {
+    padding: 12,
+    borderTopWidth: 1,
+  },
+  mediaPreview: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  mediaPreviewImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  mediaPreviewInfo: {
+    flex: 1,
+  },
+  mediaPreviewName: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  mediaPreviewSize: {
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  removeMediaButton: {
+    padding: 8,
+  },
+  typingIndicator: {
+    marginBottom: 8,
+  },
+  deletedMessage: {
+    fontSize: 13,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  deletedMessageBubble: {
+    opacity: 0.7,
+  },
+  messageContainerOther: {
+    justifyContent: 'flex-start',
+    
+  },
+  messageAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  messageSender: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  messageTime: {
+    fontSize: 11,
+    alignSelf: 'flex-end',
+    opacity: 0.6,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  editIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 2,
+    gap: 8,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  inputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 24,
+    borderWidth: 1,
+    minHeight: 44,
+    maxHeight: 120,
+  },
+  attachButtonInside: {
+    padding: 8,
+    paddingLeft: 12,
+  },
+  emojiButtonInside: {
+    padding: 8,
+    paddingRight: 12,
+  },
+  textInput: {
+    flex: 1,
+    minHeight: 28,
+    maxHeight: 100,
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+    fontSize: 16,
+  },
+  micButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  micButtonGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+  },
+  contextMenu: {
+    position: 'absolute',
+    top: 60,
+    right: 10,
+    borderRadius: 12,
+    paddingVertical: 8,
+    minWidth: 180,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  menuItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  messageOptionsMenu: {
+    position: 'absolute',
+    bottom: 100,
+    left: 20,
+    right: 20,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  messageOptionsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+    paddingHorizontal: 8,
+  },
+  quickReactions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  divider: {
+    height: 1,
+    marginVertical: 12,
+  },
+  audioPlayerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 8,
+    minWidth: 200,
+  },
+  audioPlayButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(200, 162, 95, 0.2)',
+  },
+  audioWaveform: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2.5,
+    height: 30,
+    justifyContent: 'center',
+  },
+  audioWaveBar: {
+    width: 2.5,
+    borderRadius: 1.25,
+    minHeight: 8,
+  },
+  audioProgressContainer: {
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  audioProgressBar: {
+    height: 3,
+    borderRadius: 1.5,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  audioProgressFill: {
+    height: '100%',
+    borderRadius: 1.5,
+  },
+  audioDuration: {
+    fontSize: 12,
+    marginTop: 4,
   },
   messageMedia: {
     width: 240,

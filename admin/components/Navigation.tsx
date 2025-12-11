@@ -10,6 +10,7 @@ export function Navigation() {
     { href: "/" as const, label: "Dashboard" },
     { href: "/kyc" as const, label: "KYC Submissions" },
     { href: "/admin-logs" as const, label: "Admin Logs" },
+    { href: "/security" as const, label: "Security" },
   ];
 
   return (

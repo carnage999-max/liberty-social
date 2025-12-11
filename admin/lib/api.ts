@@ -123,3 +123,36 @@ export function fetchAdminLogs(token: string, page: number = 1, page_size: numbe
   const path = `/admin/action-logs/?page=${page}&page_size=${page_size}`;
   return request<any>(path, { token });
 }
+
+// Admin Security endpoints (Phase 3)
+export function fetchUserSecurity(token: string, userId: string) {
+  return request<any>(`/auth/admin/users/${userId}/security/`, { token });
+}
+
+export function fetchUserDevices(token: string, userId: string) {
+  return request<any>(`/auth/admin/users/${userId}/devices/`, { token });
+}
+
+export function fetchUserActivity(token: string, userId: string, limit: number = 50, offset: number = 0) {
+  return request<any>(`/auth/admin/users/${userId}/activity/?limit=${limit}&offset=${offset}`, { token });
+}
+
+export function lockUserAccount(token: string, userId: string, reason: string) {
+  return request<any>(`/auth/admin/users/${userId}/lock/`, {
+    method: "POST",
+    token,
+    body: { reason },
+  });
+}
+
+export function unlockUserAccount(token: string, userId: string) {
+  return request<any>(`/auth/admin/users/${userId}/unlock/`, {
+    method: "POST",
+    token,
+  });
+}
+
+// User search for admin (using universal search endpoint)
+export function searchUsers(token: string, query: string) {
+  return request<any>(`/search/?q=${encodeURIComponent(query)}&type=user&limit=20`, { token });
+}
