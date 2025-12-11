@@ -243,19 +243,41 @@ export function usePasskey() {
         throw new Error('user.name is required but is missing or empty');
       }
 
-      // Final verification - serialize and deserialize to ensure it works
-      const testSerialized = JSON.stringify(optionsForNative);
-      const testDeserialized = JSON.parse(testSerialized);
-      if (!testDeserialized.user || !testDeserialized.user.name) {
-        console.error('ERROR: user.name lost during serialization!', testSerialized);
-        throw new Error('user.name is lost during JSON serialization');
+      // The library might be doing its own serialization, so ensure the object is completely plain
+      // Use Object.create(null) to create objects without prototype chain
+      // This ensures no hidden properties interfere with JSON serialization
+      const plainOptions: any = Object.create(null);
+      plainOptions.challenge = String(optionsForNative.challenge);
+      plainOptions.rp = Object.create(null);
+      plainOptions.rp.id = String(optionsForNative.rp.id);
+      plainOptions.rp.name = String(optionsForNative.rp.name);
+      plainOptions.user = Object.create(null);
+      plainOptions.user.id = String(optionsForNative.user.id);
+      plainOptions.user.name = String(optionsForNative.user.name);
+      plainOptions.user.displayName = String(optionsForNative.user.displayName);
+      plainOptions.pubKeyCredParams = optionsForNative.pubKeyCredParams;
+      plainOptions.authenticatorSelection = optionsForNative.authenticatorSelection;
+      if (optionsForNative.excludeCredentials) {
+        plainOptions.excludeCredentials = optionsForNative.excludeCredentials;
+      }
+      if (optionsForNative.timeout) {
+        plainOptions.timeout = optionsForNative.timeout;
+      }
+      if (optionsForNative.attestation) {
+        plainOptions.attestation = optionsForNative.attestation;
       }
 
-      console.log('Final verified options - user.name:', testDeserialized.user.name);
+      // Final check - ensure user.name exists
+      if (!plainOptions.user.name || plainOptions.user.name.trim().length === 0) {
+        throw new Error('user.name is missing in plainOptions');
+      }
+
+      console.log('Sending plain object - user.name:', plainOptions.user.name);
+      console.log('Plain object keys:', Object.keys(plainOptions.user));
 
       // react-native-passkeys provides create method that handles base64url conversion automatically
       const credential = await Passkeys.create({
-        publicKey: testDeserialized,
+        publicKey: plainOptions,
       }) as PublicKeyCredential;
 
       if (!credential) {
