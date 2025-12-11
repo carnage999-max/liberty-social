@@ -1,8 +1,9 @@
-import { NativeModulesProxy, EventEmitter, Subscription } from 'expo-modules-core';
+import { NativeModulesProxy } from 'expo-modules-core';
 
-// Import the native module. On web, it will be resolved to ExpoPasskeys.web.ts
-// and on native platforms to the native module.
-const ExpoPasskeysModule = NativeModulesProxy.ExpoPasskeys ?? 
+// Import the native module. On web, it will use ExpoPasskeysModule.ts
+// On native platforms, it will use the native module
+const ExpoPasskeysModule = 
+  NativeModulesProxy.ExpoPasskeys || 
   require('./ExpoPasskeysModule').default;
 
 export interface PublicKeyCredentialCreationOptions {
