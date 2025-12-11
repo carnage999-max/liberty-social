@@ -132,23 +132,39 @@ export function usePasskey() {
         throw new Error('Invalid registration options: user object is missing');
       }
 
+      // Log the user object to debug
+      console.log('Original user object from backend:', JSON.stringify(publicKeyOptions.user, null, 2));
+
       // user.name is required by react-native-passkeys - ensure it exists
+      // The backend returns user_name which becomes user.name in the JSON
       if (!publicKeyOptions.user.name) {
-        // Fallback to user.displayName or email if name is missing
-        publicKeyOptions.user.name = publicKeyOptions.user.displayName || 'User';
+        // Try alternative field names that might be returned
+        publicKeyOptions.user.name = 
+          publicKeyOptions.user.name || 
+          publicKeyOptions.user.user_name || 
+          publicKeyOptions.user.displayName || 
+          'User';
+        console.warn('user.name was missing, using fallback:', publicKeyOptions.user.name);
       }
 
       // Convert challenge and user ID from base64url to ArrayBuffer
       publicKeyOptions.challenge = base64urlToArrayBuffer(optionsResponse.challenge);
+      
+      // Convert user.id to ArrayBuffer while preserving all other user fields
       if (publicKeyOptions.user.id) {
-        // Preserve user.name and user.displayName - they are required by react-native-passkeys
-        publicKeyOptions.user = {
-          ...publicKeyOptions.user,
-          id: base64urlToArrayBuffer(
-            publicKeyOptions.user.id as unknown as string
-          ),
-        };
+        const userObj = { ...publicKeyOptions.user };
+        userObj.id = base64urlToArrayBuffer(
+          publicKeyOptions.user.id as unknown as string
+        );
+        publicKeyOptions.user = userObj;
       }
+
+      // Log the final user object before calling Passkeys.create
+      console.log('Final user object before Passkeys.create:', {
+        id: publicKeyOptions.user.id ? 'ArrayBuffer' : 'missing',
+        name: publicKeyOptions.user.name,
+        displayName: publicKeyOptions.user.displayName,
+      });
 
       // Convert excludeCredentials if present
       if (publicKeyOptions.excludeCredentials) {
