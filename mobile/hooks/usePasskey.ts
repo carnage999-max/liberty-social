@@ -254,15 +254,17 @@ export function usePasskey() {
         throw new Error('Invalid authentication options');
       }
 
-      // Convert challenge from base64url to ArrayBuffer
-      publicKeyOptions.challenge = base64urlToArrayBuffer(optionsResponse.challenge);
+      // react-native-passkeys expects JSON-serializable data (base64url strings, not ArrayBuffers)
+      // Keep challenge as base64url string
+      publicKeyOptions.challenge = optionsResponse.challenge;
 
-      // Convert allowCredentials if present
+      // Keep allowCredentials as base64url strings (not ArrayBuffers)
+      // react-native-passkeys will handle the conversion
       if (publicKeyOptions.allowCredentials) {
         publicKeyOptions.allowCredentials = publicKeyOptions.allowCredentials.map(
           (cred: any) => ({
             ...cred,
-            id: base64urlToArrayBuffer(cred.id),
+            id: cred.id, // Keep as base64url string
           })
         );
       }
