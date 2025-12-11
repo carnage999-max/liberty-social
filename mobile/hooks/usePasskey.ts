@@ -176,16 +176,35 @@ export function usePasskey() {
         );
       }
 
-      // Pass the raw backend response directly with minimal modification
-      // The backend already returns everything in the correct format
-      console.log('Passing raw options directly to Passkeys.create');
-      console.log('Raw user.name value:', publicKeyOptions.user.name);
-      console.log('Raw user.name type:', typeof publicKeyOptions.user.name);
+      // Manually serialize to JSON and parse back to see what the library will receive
+      // This helps debug if user.name is lost during serialization
+      console.log('Before JSON serialization - user.name:', publicKeyOptions.user.name);
+      
+      const jsonString = JSON.stringify(publicKeyOptions);
+      const hasNameInJson = jsonString.includes('"name"') && jsonString.includes(publicKeyOptions.user.name);
+      console.log('JSON string contains user.name:', hasNameInJson);
+      
+      // Extract just the user part from JSON to verify
+      const userMatch = jsonString.match(/"user":\s*\{[^}]*"name"[^}]*\}/);
+      if (userMatch) {
+        console.log('User object in JSON:', userMatch[0].substring(0, 150));
+      }
+      
+      const parsedOptions = JSON.parse(jsonString);
+      
+      // Verify user.name still exists after JSON round-trip
+      if (!parsedOptions.user || !parsedOptions.user.name) {
+        console.error('ERROR: user.name lost during JSON serialization!');
+        console.error('Parsed user object:', parsedOptions.user);
+        throw new Error('user.name was lost during JSON serialization');
+      }
+      
+      console.log('After JSON round-trip - user.name:', parsedOptions.user.name);
       
       // react-native-passkeys provides create method that handles base64url conversion automatically
-      // Pass the raw options directly from backend - no transformations
+      // Pass the JSON-parsed options to ensure it matches what the library will see
       const credential = await Passkeys.create({
-        publicKey: publicKeyOptions,
+        publicKey: parsedOptions,
       }) as PublicKeyCredential;
 
       if (!credential) {
