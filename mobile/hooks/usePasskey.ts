@@ -127,6 +127,13 @@ export function usePasskey() {
         throw new Error('Invalid registration options');
       }
 
+      // Log what backend returns for debugging
+      console.log('Backend options response:', JSON.stringify({
+        hasUser: !!publicKeyOptions.user,
+        userKeys: publicKeyOptions.user ? Object.keys(publicKeyOptions.user) : [],
+        user: publicKeyOptions.user,
+      }, null, 2));
+
       // Ensure user object exists with required fields
       if (!publicKeyOptions.user) {
         throw new Error('Invalid registration options: user object is missing');
@@ -141,12 +148,12 @@ export function usePasskey() {
       publicKeyOptions.challenge = optionsResponse.challenge;
       
       // CRITICAL: react-native-passkeys requires user.name to be a non-empty string
-      // The webauthn library returns user_name which becomes 'name' in JSON
-      // But we need to ensure it's explicitly set and not undefined/null
+      // Check all possible field names the backend might return
       const originalUser = publicKeyOptions.user;
       const userName = String(
         originalUser.name || 
         originalUser.user_name || 
+        originalUser.userName ||
         originalUser.displayName || 
         'User'
       ).trim();
@@ -155,14 +162,22 @@ export function usePasskey() {
         throw new Error('Invalid registration options: user.name cannot be empty');
       }
       
-      // Keep user.id as base64url string (not ArrayBuffer) - react-native-passkeys will convert it
-      // Ensure user.name and user.displayName are set
-      publicKeyOptions.user = {
-        ...originalUser, // Preserve all original fields
-        id: originalUser.id, // Keep as base64url string
+      // Reconstruct user object with explicit fields
+      // react-native-passkeys needs: id (string), name (string), displayName (string)
+      const userObj: any = {
+        id: String(originalUser.id || ''), // Ensure it's a string
         name: userName, // Must be a non-empty string
         displayName: String(originalUser.displayName || originalUser.name || userName).trim(),
       };
+      
+      // Log the final user object before sending
+      console.log('Final user object for Passkeys.create:', JSON.stringify({
+        id: userObj.id ? `${userObj.id.substring(0, 20)}...` : 'missing',
+        name: userObj.name,
+        displayName: userObj.displayName,
+      }));
+      
+      publicKeyOptions.user = userObj;
 
       // Keep excludeCredentials as base64url strings (not ArrayBuffers)
       // react-native-passkeys will handle the conversion
