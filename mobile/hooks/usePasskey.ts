@@ -143,41 +143,18 @@ export function usePasskey() {
       // The library handles ArrayBuffer conversion internally
       // So we need to keep everything as strings/base64url, not convert to ArrayBuffer
       
-      // Ensure challenge is a base64url string (not ArrayBuffer)
-      // The backend already returns it as base64url, so keep it as-is
+      // Try passing the raw backend response with minimal modifications
+      // Only update challenge to use the one from response
       publicKeyOptions.challenge = optionsResponse.challenge;
       
-      // CRITICAL: react-native-passkeys requires user.name to be a non-empty string
-      // Check all possible field names the backend might return
-      const originalUser = publicKeyOptions.user;
-      const userName = String(
-        originalUser.name || 
-        originalUser.user_name || 
-        originalUser.userName ||
-        originalUser.displayName || 
-        'User'
-      ).trim();
-      
-      if (!userName || userName.length === 0) {
-        throw new Error('Invalid registration options: user.name cannot be empty');
+      // Verify user.name exists in the raw response
+      if (!publicKeyOptions.user.name) {
+        console.error('ERROR: user.name missing in raw backend response!', publicKeyOptions.user);
+        throw new Error('Backend did not return user.name');
       }
       
-      // Reconstruct user object with explicit fields
-      // react-native-passkeys needs: id (string), name (string), displayName (string)
-      const userObj: any = {
-        id: String(originalUser.id || ''), // Ensure it's a string
-        name: userName, // Must be a non-empty string
-        displayName: String(originalUser.displayName || originalUser.name || userName).trim(),
-      };
-      
-      // Log the final user object before sending
-      console.log('Final user object for Passkeys.create:', JSON.stringify({
-        id: userObj.id ? `${userObj.id.substring(0, 20)}...` : 'missing',
-        name: userObj.name,
-        displayName: userObj.displayName,
-      }));
-      
-      publicKeyOptions.user = userObj;
+      console.log('Using raw backend response - user.name:', publicKeyOptions.user.name);
+      console.log('Raw user.name type:', typeof publicKeyOptions.user.name);
 
       // Keep excludeCredentials as base64url strings (not ArrayBuffers)
       // react-native-passkeys will handle the conversion
@@ -199,85 +176,16 @@ export function usePasskey() {
         );
       }
 
-      // react-native-passkeys serializes the options to JSON for the native module
-      // We need to create a completely fresh, plain object to ensure user.name is preserved
-      // Reconstruct the entire options object with only the fields we need
-      const optionsForNative: any = {
-        challenge: String(publicKeyOptions.challenge),
-        rp: publicKeyOptions.rp ? {
-          id: String(publicKeyOptions.rp.id || ''),
-          name: String(publicKeyOptions.rp.name || ''),
-        } : undefined,
-        user: {
-          id: String(publicKeyOptions.user.id),
-          name: String(publicKeyOptions.user.name || 'User'),
-          displayName: String(publicKeyOptions.user.displayName || publicKeyOptions.user.name || 'User'),
-        },
-        pubKeyCredParams: Array.isArray(publicKeyOptions.pubKeyCredParams) 
-          ? publicKeyOptions.pubKeyCredParams.map((param: any) => ({
-              type: param.type || 'public-key',
-              alg: param.alg || -7,
-            }))
-          : [{ type: 'public-key', alg: -7 }],
-        authenticatorSelection: publicKeyOptions.authenticatorSelection || {},
-      };
-
-      // Add optional fields only if they exist
-      if (publicKeyOptions.timeout) {
-        optionsForNative.timeout = publicKeyOptions.timeout;
-      }
-      if (publicKeyOptions.attestation) {
-        optionsForNative.attestation = publicKeyOptions.attestation;
-      }
-      if (publicKeyOptions.excludeCredentials && Array.isArray(publicKeyOptions.excludeCredentials)) {
-        optionsForNative.excludeCredentials = publicKeyOptions.excludeCredentials.map((cred: any) => ({
-          type: cred.type || 'public-key',
-          id: String(cred.id),
-          transports: cred.transports,
-        }));
-      }
-
-      // CRITICAL: Verify user.name exists and is not empty
-      if (!optionsForNative.user.name || optionsForNative.user.name.trim().length === 0) {
-        console.error('ERROR: user.name is missing or empty!', JSON.stringify(optionsForNative.user, null, 2));
-        throw new Error('user.name is required but is missing or empty');
-      }
-
-      // The library might be doing its own serialization, so ensure the object is completely plain
-      // Use Object.create(null) to create objects without prototype chain
-      // This ensures no hidden properties interfere with JSON serialization
-      const plainOptions: any = Object.create(null);
-      plainOptions.challenge = String(optionsForNative.challenge);
-      plainOptions.rp = Object.create(null);
-      plainOptions.rp.id = String(optionsForNative.rp.id);
-      plainOptions.rp.name = String(optionsForNative.rp.name);
-      plainOptions.user = Object.create(null);
-      plainOptions.user.id = String(optionsForNative.user.id);
-      plainOptions.user.name = String(optionsForNative.user.name);
-      plainOptions.user.displayName = String(optionsForNative.user.displayName);
-      plainOptions.pubKeyCredParams = optionsForNative.pubKeyCredParams;
-      plainOptions.authenticatorSelection = optionsForNative.authenticatorSelection;
-      if (optionsForNative.excludeCredentials) {
-        plainOptions.excludeCredentials = optionsForNative.excludeCredentials;
-      }
-      if (optionsForNative.timeout) {
-        plainOptions.timeout = optionsForNative.timeout;
-      }
-      if (optionsForNative.attestation) {
-        plainOptions.attestation = optionsForNative.attestation;
-      }
-
-      // Final check - ensure user.name exists
-      if (!plainOptions.user.name || plainOptions.user.name.trim().length === 0) {
-        throw new Error('user.name is missing in plainOptions');
-      }
-
-      console.log('Sending plain object - user.name:', plainOptions.user.name);
-      console.log('Plain object keys:', Object.keys(plainOptions.user));
-
+      // Pass the raw backend response directly with minimal modification
+      // The backend already returns everything in the correct format
+      console.log('Passing raw options directly to Passkeys.create');
+      console.log('Raw user.name value:', publicKeyOptions.user.name);
+      console.log('Raw user.name type:', typeof publicKeyOptions.user.name);
+      
       // react-native-passkeys provides create method that handles base64url conversion automatically
+      // Pass the raw options directly from backend - no transformations
       const credential = await Passkeys.create({
-        publicKey: plainOptions,
+        publicKey: publicKeyOptions,
       }) as PublicKeyCredential;
 
       if (!credential) {
