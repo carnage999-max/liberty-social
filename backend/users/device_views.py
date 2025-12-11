@@ -215,41 +215,106 @@ class SessionRevokeAllView(APIView):
 
     def post(self, request):
         user = request.user
-        current_token = None
+        
+        # Get current token JTI to identify the current session
+        current_token_jti = None
         auth_header = request.META.get("HTTP_AUTHORIZATION", "")
         if auth_header.startswith("Bearer "):
-            current_token = auth_header.split(" ")[1]
+            try:
+                from rest_framework_simplejwt.tokens import UntypedToken
+                from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+                
+                token_str = auth_header.split(" ")[1]
+                untyped_token = UntypedToken(token_str)
+                current_token_jti = untyped_token.get("jti")
+            except (InvalidToken, TokenError, Exception) as e:
+                logger.warning(f"Failed to decode current access token for JTI: {e}")
+        
+        # Find the current session using token_jti
+        current_session = None
+        if current_token_jti:
+            try:
+                current_session = Session.objects.filter(
+                    user=user, 
+                    token_jti=current_token_jti,
+                    revoked_at__isnull=True
+                ).first()
+            except Exception as e:
+                logger.warning(f"Failed to find current session: {e}")
+        
+        # Revoke all sessions EXCEPT the current one
+        if current_session:
+            revoked_count = Session.objects.filter(
+                user=user, 
+                revoked_at__isnull=True
+            ).exclude(id=current_session.id).update(revoked_at=timezone.now())
+        else:
+            # If we can't identify current session, revoke all (fallback)
+            revoked_count = Session.objects.filter(
+                user=user, 
+                revoked_at__isnull=True
+            ).update(revoked_at=timezone.now())
+            logger.warning(f"Could not identify current session for user {user.id}, revoked all sessions")
 
-        # Revoke all sessions (we can't reliably identify the current session from JWT token)
-        # In a production system, you might want to store session_id in the JWT token claims
-        revoked_count = Session.objects.filter(user=user, revoked_at__isnull=True).update(
-            revoked_at=timezone.now()
-        )
-
-        # Also blacklist all outstanding JWT tokens except current
+        # Blacklist all outstanding JWT refresh tokens except the current one
+        # Note: OutstandingToken tracks refresh tokens, not access tokens
+        # When a refresh token is blacklisted, users won't be able to refresh their access tokens
+        # Access tokens will still work until they expire (100 days), but users can't get new ones
         outstanding_tokens = OutstandingToken.objects.filter(user=user)
         blacklisted_count = 0
+        
+        # Get the current refresh token JTI from the session
+        current_refresh_token_jti = None
+        if current_session and current_session.refresh_token_jti:
+            current_refresh_token_jti = current_session.refresh_token_jti
+        
+        # If we don't have it in the session, try to find it using a time-based heuristic
+        if not current_refresh_token_jti and current_session and current_session.created_at:
+            from datetime import timedelta
+            time_window_start = current_session.created_at - timedelta(minutes=5)
+            time_window_end = current_session.created_at + timedelta(minutes=5)
+            
+            recent_tokens = outstanding_tokens.filter(
+                created_at__gte=time_window_start,
+                created_at__lte=time_window_end
+            )
+            
+            if recent_tokens.count() == 1:
+                current_refresh_token_jti = recent_tokens.first().jti
+        
         for token in outstanding_tokens:
-            if current_token and str(token.jti) in current_token:
-                continue  # Skip current token
-            BlacklistedToken.objects.get_or_create(token=token)
-            blacklisted_count += 1
+            # Skip the current refresh token if we identified it
+            if current_refresh_token_jti and str(token.jti) == str(current_refresh_token_jti):
+                continue  # Skip current refresh token
+            
+            # Blacklist this refresh token
+            # Users with blacklisted refresh tokens won't be able to get new access tokens
+            try:
+                BlacklistedToken.objects.get_or_create(token=token)
+                blacklisted_count += 1
+            except Exception as e:
+                logger.warning(f"Failed to blacklist token {token.jti}: {e}")
 
         # Log security event
         SecurityEvent.objects.create(
             user=user,
             event_type="session_revoked",
-            description=f"All sessions revoked (except current). {revoked_count} sessions, {blacklisted_count} tokens.",
+            description=f"All sessions revoked (except current). {revoked_count} sessions, {blacklisted_count} tokens blacklisted.",
             ip_address=get_client_ip(request),
             user_agent=get_user_agent(request),
+            metadata={
+                "revoked_sessions": revoked_count,
+                "blacklisted_tokens": blacklisted_count,
+                "current_session_id": str(current_session.id) if current_session else None,
+            },
         )
 
-        logger.info(f"All sessions revoked for user {user.id}")
+        logger.info(f"All sessions revoked for user {user.id}: {revoked_count} sessions, {blacklisted_count} tokens blacklisted")
 
         return Response(
             {
                 "success": True,
-                "message": f"Revoked {revoked_count} sessions and {blacklisted_count} tokens",
+                "message": f"Revoked {revoked_count} sessions and blacklisted {blacklisted_count} tokens",
             },
             status=status.HTTP_200_OK,
         )

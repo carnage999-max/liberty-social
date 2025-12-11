@@ -650,9 +650,9 @@ export default function ConversationDetailScreen() {
         lastMessageIdRef.current = message.id;
         // Only scroll to bottom if user is near bottom (like website)
         if (shouldAutoScrollRef.current) {
-          setTimeout(() => {
-            flatListRef.current?.scrollToEnd({ animated: true });
-          }, 100);
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
         }
         return updated;
       });
@@ -1368,28 +1368,28 @@ export default function ConversationDetailScreen() {
           content = content ? `${content} [duration:${durationStr}]` : `[duration:${durationStr}]`;
         }
         
-        const response = await apiClient.post<Message>(
-          `/conversations/${id}/messages/`,
-          {
+      const response = await apiClient.post<Message>(
+        `/conversations/${id}/messages/`,
+        {
             content: content,
             media_url: mediaUrl,
-          }
-        );
+        }
+      );
         
-        // Message will be added via WebSocket, but add it immediately for better UX
-        setMessages((prev) => {
-          // Check if message already exists (avoid duplicates from WebSocket)
-          if (prev.some((m) => m.id === response.id)) {
-            return prev;
-          }
-          return [...prev, response];
-        });
-        setMessageText('');
+      // Message will be added via WebSocket, but add it immediately for better UX
+      setMessages((prev) => {
+        // Check if message already exists (avoid duplicates from WebSocket)
+        if (prev.some((m) => m.id === response.id)) {
+          return prev;
+        }
+        return [...prev, response];
+      });
+      setMessageText('');
         removeMediaAttachment();
         setAudioUri(null);
         setAudioDuration(0);
         cancelRecording();
-        lastMessageIdRef.current = response.id;
+      lastMessageIdRef.current = response.id;
         markAsRead();
       }
       
@@ -1398,7 +1398,7 @@ export default function ConversationDetailScreen() {
       shouldAutoScrollRef.current = true;
       setTimeout(() => {
         if (shouldAutoScrollRef.current) {
-          flatListRef.current?.scrollToEnd({ animated: true });
+        flatListRef.current?.scrollToEnd({ animated: true });
         }
       }, 100);
     } catch (error) {
@@ -1490,7 +1490,7 @@ export default function ConversationDetailScreen() {
       const previousDate = new Date(previousMessage.created_at);
       
       // Check if dates are different
-      return (
+    return (
         currentDate.getDate() !== previousDate.getDate() ||
         currentDate.getMonth() !== previousDate.getMonth() ||
         currentDate.getFullYear() !== previousDate.getFullYear()
@@ -1762,7 +1762,7 @@ export default function ConversationDetailScreen() {
           <Ionicons name="chatbubbles-outline" size={64} color={colors.textSecondary} />
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
             No messages yet
-          </Text>
+            </Text>
           <Text style={[styles.emptyText, { color: colors.textSecondary, fontSize: 14 }]}>
             Start the conversation
           </Text>
@@ -1869,7 +1869,7 @@ export default function ConversationDetailScreen() {
                   <Text style={{ color: '#FFFFFF', marginTop: 4, fontSize: 11 }}>Video</Text>
                 </View>
               ) : (
-                <Image
+            <Image
                   source={{ uri: mediaAttachment.uri }}
                   style={styles.mediaPreviewImage}
                   contentFit="cover"
@@ -1900,7 +1900,7 @@ export default function ConversationDetailScreen() {
               const { height } = e.nativeEvent.layout;
               setInputContainerHeight(height);
             }}
-            style={[
+              style={[
               styles.inputContainer,
               {
                 position: 'absolute',
@@ -1918,7 +1918,7 @@ export default function ConversationDetailScreen() {
                   <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Editing message</Text>
                   <Text style={{ color: colors.text, fontSize: 14, marginTop: 4 }} numberOfLines={1}>
                     {editText}
-                  </Text>
+            </Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => {
@@ -2114,7 +2114,7 @@ export default function ConversationDetailScreen() {
                           {previewWaveformHeights.map((height, i) => (
                             <View
                               key={i}
-                              style={[
+            style={[
                                 {
                                   width: 3,
                                   height: height,
@@ -2397,7 +2397,7 @@ export default function ConversationDetailScreen() {
                     />
                     <Text style={[styles.menuItemText, { color: colors.text }]}>
                       {isArchived ? 'Unarchive' : 'Archive'}
-                    </Text>
+          </Text>
                   </TouchableOpacity>
                 );
               })()}
@@ -2421,7 +2421,7 @@ export default function ConversationDetailScreen() {
                 <Ionicons name="trash" size={20} color="#FF6B6B" />
                 <Text style={[styles.menuItemText, { color: '#FF6B6B' }]}>Clear Chat</Text>
               </TouchableOpacity>
-            </View>
+        </View>
           </TouchableOpacity>
         </Modal>
 
@@ -2465,7 +2465,7 @@ export default function ConversationDetailScreen() {
                       <Text style={styles.quickReactionEmoji}>{emoji}</Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+      </View>
 
                 <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
@@ -2654,12 +2654,12 @@ export default function ConversationDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  messagesList: {
-    paddingHorizontal: 16,
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    messagesList: {
+      paddingHorizontal: 16,
     paddingVertical: 16,
     flexGrow: 1,
   },
@@ -2675,31 +2675,31 @@ const styles = StyleSheet.create({
   dateSeparatorText: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  messageContainer: {
-    flexDirection: 'row',
+    },
+    messageContainer: {
+      flexDirection: 'row',
     marginVertical: 6,
-    alignItems: 'flex-end',
-    gap: 8,
+      alignItems: 'flex-end',
+      gap: 8,
     paddingHorizontal: 8,
-  },
-  messageContainerOwn: {
+    },
+    messageContainerOwn: {
     flexDirection: 'row-reverse',
-    justifyContent: 'flex-start',
+      justifyContent: 'flex-start',
     alignSelf: 'flex-end',
-  },
+    },
   avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
     marginBottom: 4,
-  },
+    },
   messageContent: {
-    maxWidth: '75%',
+      maxWidth: '75%',
     minWidth: 80,
   },
   messageBubble: {
-    padding: 12,
+      padding: 12,
     borderRadius: 18,
     marginBottom: 2,
     shadowColor: '#000',
@@ -2714,10 +2714,10 @@ const styles = StyleSheet.create({
   },
   messageBubbleOther: {
     borderTopLeftRadius: 6,
-  },
-  messageText: {
-    fontSize: 15,
-    lineHeight: 20,
+    },
+    messageText: {
+      fontSize: 15,
+      lineHeight: 20,
     flexShrink: 1,
   },
   messageMedia: {
@@ -2748,7 +2748,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   messageTimestamp: {
-    fontSize: 11,
+      fontSize: 11,
     marginTop: 4,
     opacity: 0.6,
   },
@@ -2766,7 +2766,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
+      borderRadius: 12,
     gap: 4,
   },
   reactionEmoji: {
@@ -2905,8 +2905,8 @@ const styles = StyleSheet.create({
   mediaPreviewName: {
     fontSize: 14,
     fontWeight: '500',
-    marginBottom: 4,
-  },
+      marginBottom: 4,
+    },
   mediaPreviewSize: {
     fontSize: 12,
     opacity: 0.6,
@@ -2917,10 +2917,10 @@ const styles = StyleSheet.create({
   typingIndicator: {
     marginBottom: 8,
   },
-  deletedMessage: {
-    fontSize: 13,
-    fontStyle: 'italic',
-    textAlign: 'center',
+    deletedMessage: {
+      fontSize: 13,
+      fontStyle: 'italic',
+      textAlign: 'center',
   },
   deletedMessageBubble: {
     opacity: 0.7,
@@ -2955,13 +2955,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   editIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 2,
-    gap: 8,
-  },
+      gap: 8,
+    },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -2986,8 +2986,8 @@ const styles = StyleSheet.create({
     padding: 8,
     paddingRight: 12,
   },
-  textInput: {
-    flex: 1,
+    textInput: {
+      flex: 1,
     minHeight: 28,
     maxHeight: 100,
     paddingHorizontal: 4,
@@ -3010,7 +3010,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 22,
-    borderWidth: 1,
+      borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.2)',
   },
   contextMenu: {
@@ -3030,7 +3030,7 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+      paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 12,
   },
@@ -3077,11 +3077,11 @@ const styles = StyleSheet.create({
     minWidth: 200,
   },
   audioPlayButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
     justifyContent: 'center',
-    alignItems: 'center',
+      alignItems: 'center',
     backgroundColor: 'rgba(200, 162, 95, 0.2)',
   },
   audioWaveform: {
@@ -3089,8 +3089,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2.5,
     height: 30,
-    justifyContent: 'center',
-  },
+      justifyContent: 'center',
+    },
   audioWaveBar: {
     width: 2.5,
     borderRadius: 1.25,
@@ -3175,7 +3175,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   input: {
-    flex: 1,
+      flex: 1,
     fontSize: 15,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -3196,7 +3196,7 @@ const styles = StyleSheet.create({
   sendButtonGradient: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+      alignItems: 'center',
     borderRadius: 22,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.2)',
@@ -3207,7 +3207,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
+      justifyContent: 'center',
     alignItems: 'center',
   },
   typingContainer: {
@@ -3342,11 +3342,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
-  },
-  emptyText: {
-    fontSize: 16,
-    textAlign: 'center',
+      padding: 32,
+    },
+    emptyText: {
+      fontSize: 16,
+      textAlign: 'center',
   },
   editIndicator: {
     flexDirection: 'row',

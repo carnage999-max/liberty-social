@@ -253,6 +253,12 @@ export default function SettingsScreen() {
         },
         {
           type: 'link',
+          label: 'Security & Sessions',
+          icon: 'shield-checkmark-outline',
+          onPress: () => router.push('/(tabs)/settings/security'),
+        },
+        {
+          type: 'link',
           label: 'Change Password',
           icon: 'key-outline',
           onPress: handleChangePassword,

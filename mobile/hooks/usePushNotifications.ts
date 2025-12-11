@@ -76,29 +76,74 @@ export function usePushNotifications() {
     });
 
     // Listen for notifications received while app is foregrounded
+    let notificationSubscription: any = null;
+    let responseSubscription: any = null;
+    
     if (Notifications) {
-      notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-        console.log('Notification received:', notification);
-      });
+      try {
+        notificationSubscription = Notifications.addNotificationReceivedListener((notification) => {
+          console.log('Notification received:', notification);
+        });
+        notificationListener.current = notificationSubscription;
+      } catch (error) {
+        console.warn('Failed to add notification received listener:', error);
+      }
 
-      // Listen for user tapping on notification
-      responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log('Notification response:', response);
-        // Handle navigation based on notification data
-        const data = response.notification.request.content.data;
-        if (data?.target_url) {
-          // Navigate to target URL if needed
-        }
-      });
+      try {
+        responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+          console.log('Notification response:', response);
+          // Handle navigation based on notification data
+          const data = response.notification.request.content.data;
+          if (data?.target_url) {
+            // Navigate to target URL if needed
+          }
+        });
+        responseListener.current = responseSubscription;
+      } catch (error) {
+        console.warn('Failed to add notification response listener:', error);
+      }
     }
 
     return () => {
-      if (Notifications && notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+      // Clean up notification listeners
+      // Try multiple cleanup methods for compatibility
+      try {
+        const notificationSub = notificationListener.current;
+        if (notificationSub) {
+          if (typeof notificationSub.remove === 'function') {
+            notificationSub.remove();
+          } else if (typeof notificationSub === 'function') {
+            // Some versions return a cleanup function directly
+            notificationSub();
+          } else if (Notifications && typeof Notifications.removeNotificationSubscription === 'function') {
+            // Fallback to static method if available
+            Notifications.removeNotificationSubscription(notificationSub);
+          }
+        }
+      } catch (error) {
+        console.warn('Error removing notification listener:', error);
       }
-      if (Notifications && responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+      
+      try {
+        const responseSub = responseListener.current;
+        if (responseSub) {
+          if (typeof responseSub.remove === 'function') {
+            responseSub.remove();
+          } else if (typeof responseSub === 'function') {
+            // Some versions return a cleanup function directly
+            responseSub();
+          } else if (Notifications && typeof Notifications.removeNotificationSubscription === 'function') {
+            // Fallback to static method if available
+            Notifications.removeNotificationSubscription(responseSub);
+          }
+        }
+      } catch (error) {
+        console.warn('Error removing notification response listener:', error);
       }
+      
+      // Clear refs
+      notificationListener.current = null;
+      responseListener.current = null;
     };
   }, [user, accessToken]);
 }

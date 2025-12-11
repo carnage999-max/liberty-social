@@ -17,6 +17,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.libertysocial.app",
+      "associatedDomains": [
+        "webcredentials:mylibertysocial.com"
+      ],
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to upload images and videos.",
         "NSPhotoLibraryAddUsageDescription": "This app needs permission to save images to your photo library.",
@@ -69,7 +72,18 @@
           "sounds": []
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          },
+          "android": {
+            "compileSdkVersion": 34
+          }
+        }
+      ]
     ],
     "notification": {
       "icon": "./assets/icon.png",

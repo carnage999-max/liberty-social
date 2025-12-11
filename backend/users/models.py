@@ -389,7 +389,15 @@ class Session(models.Model):
         blank=True,
         null=True,
         db_index=True,
-        help_text="JWT token ID (jti) to identify the session",
+        help_text="JWT access token ID (jti) to identify the session",
+    )
+    refresh_token_jti = models.CharField(
+        _("Refresh Token JTI"),
+        max_length=255,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="JWT refresh token ID (jti) to blacklist tokens when revoking sessions",
     )
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     last_activity = models.DateTimeField(

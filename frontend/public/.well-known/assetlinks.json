@@ -1,0 +1,14 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.libertysocial.app",
+      "sha256_cert_fingerprints": [
+        "3cb9413023304415d2971d3c7c359f04a3e7bc32",
+        "PRODUCTION_FINGERPRINT_HERE"
+      ]
+    }
+  }
+]
+

@@ -19,6 +19,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
 import { LoginRequest, RegisterRequest, AuthTokens } from '../../types';
+import { usePasskey } from '../../hooks/usePasskey';
 import { Ionicons } from '@expo/vector-icons';
 import AppNavbar from '../../components/layout/AppNavbar';
 
@@ -36,6 +37,10 @@ export default function AuthScreen() {
   const { login } = useAuth();
   const { showError, showSuccess } = useToast();
   const router = useRouter();
+  
+  // Passkey authentication
+  const { authenticate: authenticatePasskey, isAvailable: isPasskeyAvailable, loading: passkeyLoading } = usePasskey();
+  const [authenticatingPasskey, setAuthenticatingPasskey] = useState(false);
   const params = useLocalSearchParams();
   const initialMode = (params.mode === 'register' ? 'register' : 'login') as AuthMode;
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -120,6 +125,24 @@ export default function AuthScreen() {
       showError(error.response?.data?.detail || 'Invalid credentials. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasskeyLogin = async () => {
+    if (!isPasskeyAvailable) {
+      showError('Passkeys are not available on this device');
+      return;
+    }
+
+    setAuthenticatingPasskey(true);
+    try {
+      const tokens = await authenticatePasskey();
+      await login(tokens);
+      router.replace('/(tabs)/feed');
+    } catch (error: any) {
+      showError(error?.message || 'Failed to authenticate with passkey. Please try again.');
+    } finally {
+      setAuthenticatingPasskey(false);
     }
   };
 
@@ -310,6 +333,12 @@ export default function AuthScreen() {
       shadowOpacity: 0.2,
       shadowRadius: 4,
       elevation: 3,
+      flexDirection: 'row',
+      justifyContent: 'center',
+    },
+    buttonPasskey: {
+      backgroundColor: COLOR_GOLD,
+      marginTop: 12,
     },
     buttonText: {
       color: '#FFFFFF',
@@ -519,6 +548,20 @@ export default function AuthScreen() {
         >
           <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign in'}</Text>
         </TouchableOpacity>
+
+        {/* Passkey login button */}
+        {isPasskeyAvailable && (
+          <TouchableOpacity
+            style={[styles.button, styles.buttonPasskey, (authenticatingPasskey || passkeyLoading) && styles.buttonDisabled]}
+            onPress={handlePasskeyLogin}
+            disabled={authenticatingPasskey || passkeyLoading}
+          >
+            <Ionicons name="finger-print" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.buttonText}>
+              {authenticatingPasskey || passkeyLoading ? 'Authenticating...' : 'Sign in with Passkey'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Social buttons */}
         <View style={styles.socialSection}>

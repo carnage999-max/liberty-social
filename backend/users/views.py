@@ -76,15 +76,22 @@ class LoginUserview(ModelViewSet):
             refresh_token = RefreshToken.for_user(user)
             access_token = refresh_token.access_token
             
-            # Extract token JTI for session tracking
+            # Extract token JTIs for session tracking
             from rest_framework_simplejwt.tokens import UntypedToken
             from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
             token_jti = None
+            refresh_token_jti = None
             try:
                 untyped_token = UntypedToken(str(access_token))
                 token_jti = untyped_token.get("jti")
             except (InvalidToken, TokenError, KeyError):
                 pass  # If we can't get jti, continue without it
+            
+            try:
+                untyped_refresh_token = UntypedToken(str(refresh_token))
+                refresh_token_jti = untyped_refresh_token.get("jti")
+            except (InvalidToken, TokenError, KeyError):
+                pass  # If we can't get refresh token jti, continue without it
             
             # Create session
             from .models import Session, SessionHistory, SecurityEvent
@@ -95,6 +102,7 @@ class LoginUserview(ModelViewSet):
                 location=location,
                 user_agent=user_agent,
                 token_jti=token_jti,
+                refresh_token_jti=refresh_token_jti,
             )
 
             # Create session history entry
