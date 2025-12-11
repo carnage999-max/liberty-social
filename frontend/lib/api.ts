@@ -18,6 +18,7 @@ type Options = {
   next?: RequestInit["next"];
   cache?: RequestInit["cache"];
   signal?: AbortSignal;
+  skip401Redirect?: boolean; // Skip automatic 401 redirect (e.g., for revoke-all operations)
 };
 
 export type PaginatedResponse<T> = {
@@ -92,7 +93,7 @@ export async function apiPost<T = any>(path: string, body?: unknown, opts: Optio
     cache: opts.cache,
     signal: opts.signal,
   });
-  if (!res.ok) throw await toApiError(res);
+  if (!res.ok) throw await toApiError(res, opts.skip401Redirect);
   return safeJson<T>(res);
 }
 
@@ -108,7 +109,7 @@ export async function apiGet<T = any>(
     cache: opts.cache,
     signal: opts.signal,
   });
-  if (!res.ok) throw await toApiError(res);
+  if (!res.ok) throw await toApiError(res, opts.skip401Redirect);
   return safeJson<T>(res);
 }
 
@@ -139,7 +140,7 @@ export async function apiGetUrl<T = any>(
     cache: opts.cache,
     signal: opts.signal,
   });
-  if (!res.ok) throw await toApiError(res);
+  if (!res.ok) throw await toApiError(res, opts.skip401Redirect);
   return safeJson<T>(res);
 }
 
@@ -155,7 +156,7 @@ export async function apiDelete(
     cache: opts.cache,
     signal: opts.signal,
   });
-  if (!res.ok) throw await toApiError(res);
+  if (!res.ok) throw await toApiError(res, opts.skip401Redirect);
 }
 
 export async function apiPatch<T = any>(
@@ -172,7 +173,7 @@ export async function apiPatch<T = any>(
     cache: opts.cache,
     signal: opts.signal,
   });
-  if (!res.ok) throw await toApiError(res);
+  if (!res.ok) throw await toApiError(res, opts.skip401Redirect);
   return safeJson<T>(res);
 }
 
@@ -184,7 +185,7 @@ async function safeJson<T = any>(res: Response): Promise<T> {
   }
 }
 
-async function toApiError(res: Response) {
+async function toApiError(res: Response, skip401Redirect = false) {
   let payload: unknown = null;
   try {
     payload = await res.json();
@@ -200,7 +201,7 @@ async function toApiError(res: Response) {
       : "We couldn't process your request. Please check your input and try again.");
 
   // Handle 401 Unauthorized - token is invalid/blacklisted
-  if (res.status === 401 && typeof window !== "undefined") {
+  if (res.status === 401 && typeof window !== "undefined" && !skip401Redirect) {
     // Don't redirect if we're already on the auth page
     const currentPath = window.location.pathname;
     if (currentPath.startsWith("/auth")) {

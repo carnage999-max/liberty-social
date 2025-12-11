@@ -47,11 +47,15 @@ export function useSessions() {
     if (!accessToken) throw new Error("Not authenticated");
 
     try {
+      // Skip 401 redirect for revoke-all operation
+      // The current session should remain valid after revoking others
       await apiPost(
         "/auth/sessions/revoke-all/",
         {},
-        { token: accessToken }
+        { token: accessToken, skip401Redirect: true }
       );
+      
+      // Refresh sessions list
       await fetchSessions();
     } catch (err: any) {
       throw new Error(err?.message || "Failed to revoke sessions");
