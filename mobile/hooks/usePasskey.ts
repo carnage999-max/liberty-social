@@ -3,7 +3,7 @@ import { apiClient } from '../utils/api';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../contexts/AuthContext';
-import * as Passkeys from 'react-native-passkeys';
+import * as Passkeys from '../modules/expo-passkeys/src/index';
 
 export type PasskeyCredential = {
   id: string;
@@ -238,20 +238,17 @@ export function usePasskey() {
         userKeys: Object.keys(finalOptions.user),
       }));
 
-      // react-native-passkeys provides create method that handles base64url conversion automatically
-      const credential = await Passkeys.create({
-        publicKey: finalOptions,
-      }) as PublicKeyCredential;
+      // Our custom module returns base64url strings directly
+      const credential = await Passkeys.create(finalOptions);
 
       if (!credential) {
         throw new Error('Failed to create passkey');
       }
 
-      // Step 3: Convert credential to base64url for backend
-      const credentialId = arrayBufferToBase64url(credential.rawId);
-      const response = credential.response as AuthenticatorAttestationResponse;
-      const clientDataJSON = arrayBufferToBase64url(response.clientDataJSON);
-      const attestationObject = arrayBufferToBase64url(response.attestationObject);
+      // Step 3: Extract credential data (already in base64url format)
+      const credentialId = credential.id;
+      const clientDataJSON = credential.response.clientDataJSON;
+      const attestationObject = credential.response.attestationObject;
 
       // Get device info
       const deviceInfo = {
@@ -322,32 +319,27 @@ export function usePasskey() {
         );
       }
 
-      // Step 2: Get credential using react-native-passkeys
+      // Step 2: Get credential using our custom module
       if (!Passkeys || typeof Passkeys.get !== 'function') {
         throw new Error(
-          'react-native-passkeys library is not available. ' +
-          'Please ensure react-native-passkeys is installed and properly configured.'
+          'ExpoPasskeys module is not available. ' +
+          'Please ensure the module is properly configured.'
         );
       }
 
-      // react-native-passkeys provides get method that handles base64url conversion automatically
-      const credential = await Passkeys.get({
-        publicKey: publicKeyOptions,
-      }) as PublicKeyCredential;
+      // Our custom module returns base64url strings directly
+      const credential = await Passkeys.get(publicKeyOptions);
 
       if (!credential) {
         throw new Error('Failed to authenticate with passkey');
       }
 
-      // Step 3: Convert credential to base64url for backend
-      const credentialId = arrayBufferToBase64url(credential.rawId);
-      const response = credential.response as AuthenticatorAssertionResponse;
-      const clientDataJSON = arrayBufferToBase64url(response.clientDataJSON);
-      const authenticatorData = arrayBufferToBase64url(response.authenticatorData);
-      const signature = arrayBufferToBase64url(response.signature);
-      const userHandle = response.userHandle
-        ? arrayBufferToBase64url(response.userHandle)
-        : null;
+      // Step 3: Extract credential data (already in base64url format)
+      const credentialId = credential.id;
+      const clientDataJSON = credential.response.clientDataJSON;
+      const authenticatorData = credential.response.authenticatorData;
+      const signature = credential.response.signature;
+      const userHandle = credential.response.userHandle || null;
 
       // Get device info
       const deviceInfo = {

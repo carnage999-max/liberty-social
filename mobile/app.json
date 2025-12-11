@@ -83,7 +83,8 @@
             "compileSdkVersion": 34
           }
         }
-      ]
+      ],
+      "./modules/expo-passkeys"
     ],
     "notification": {
       "icon": "./assets/icon.png",

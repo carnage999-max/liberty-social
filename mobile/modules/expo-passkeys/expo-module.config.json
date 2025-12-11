@@ -1,0 +1,10 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["ExpoPasskeysModule"]
+  },
+  "android": {
+    "modules": ["com.libertysocial.expo.passkeys.ExpoPasskeysModule"]
+  }
+}
+
