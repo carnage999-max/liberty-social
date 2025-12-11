@@ -1,48 +1,27 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../utils/api';
 
-// Check if we're in Expo Go (push notifications not supported)
-const isExpoGo = Constants.executionEnvironment === 'storeClient';
-
-// Only import Notifications if not in Expo Go
-let Notifications: typeof import('expo-notifications') | null = null;
-
-if (!isExpoGo) {
-  try {
-    Notifications = require('expo-notifications');
-    // Configure notification handler - matches Expo documentation
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-      }),
-    });
-  } catch (error) {
-    console.warn('expo-notifications not available:', error);
-  }
-}
+// Configure notification handler - matches Expo documentation exactly
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export function usePushNotifications() {
   const { user, accessToken } = useAuth();
-  const notificationListener = useRef<any>();
-  const responseListener = useRef<any>();
+  const notificationListener = useRef<Notifications.Subscription | null>(null);
+  const responseListener = useRef<Notifications.Subscription | null>(null);
 
   useEffect(() => {
     if (!user || !accessToken) {
       console.log('Push notifications: Waiting for user/auth...');
-      return;
-    }
-    
-    // Skip push notifications in Expo Go
-    if (isExpoGo || !Notifications) {
-      console.log('Push notifications not available in Expo Go. Use a development build for push notifications.');
-      console.log('Execution environment:', Constants.executionEnvironment);
-      console.log('Notifications available:', !!Notifications);
       return;
     }
     
@@ -76,83 +55,35 @@ export function usePushNotifications() {
     });
 
     // Listen for notifications received while app is foregrounded
-    let notificationSubscription: any = null;
-    let responseSubscription: any = null;
-    
-    if (Notifications) {
-      try {
-        notificationSubscription = Notifications.addNotificationReceivedListener((notification) => {
-          console.log('Notification received:', notification);
-        });
-        notificationListener.current = notificationSubscription;
-      } catch (error) {
-        console.warn('Failed to add notification received listener:', error);
-      }
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+      console.log('Notification received:', notification);
+    });
 
-      try {
-        responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-          console.log('Notification response:', response);
-          // Handle navigation based on notification data
-          const data = response.notification.request.content.data;
-          if (data?.target_url) {
-            // Navigate to target URL if needed
-          }
-        });
-        responseListener.current = responseSubscription;
-      } catch (error) {
-        console.warn('Failed to add notification response listener:', error);
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      console.log('Notification response:', response);
+      // Handle navigation based on notification data
+      const data = response.notification.request.content.data;
+      if (data?.target_url) {
+        // Navigate to target URL if needed
       }
-    }
+    });
 
     return () => {
       // Clean up notification listeners
-      // Try multiple cleanup methods for compatibility
-      try {
-        const notificationSub = notificationListener.current;
-        if (notificationSub) {
-          if (typeof notificationSub.remove === 'function') {
-            notificationSub.remove();
-          } else if (typeof notificationSub === 'function') {
-            // Some versions return a cleanup function directly
-            notificationSub();
-          } else if (Notifications && typeof Notifications.removeNotificationSubscription === 'function') {
-            // Fallback to static method if available
-            Notifications.removeNotificationSubscription(notificationSub);
-          }
-        }
-      } catch (error) {
-        console.warn('Error removing notification listener:', error);
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+        notificationListener.current = null;
       }
       
-      try {
-        const responseSub = responseListener.current;
-        if (responseSub) {
-          if (typeof responseSub.remove === 'function') {
-            responseSub.remove();
-          } else if (typeof responseSub === 'function') {
-            // Some versions return a cleanup function directly
-            responseSub();
-          } else if (Notifications && typeof Notifications.removeNotificationSubscription === 'function') {
-            // Fallback to static method if available
-            Notifications.removeNotificationSubscription(responseSub);
-          }
-        }
-      } catch (error) {
-        console.warn('Error removing notification response listener:', error);
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current = null;
       }
-      
-      // Clear refs
-      notificationListener.current = null;
-      responseListener.current = null;
     };
   }, [user, accessToken]);
 }
 
 async function registerForPushNotificationsAsync(): Promise<string | null> {
-  if (!Notifications) {
-    return null;
-  }
-
   let token: string | null = null;
 
   if (Platform.OS === 'android') {
@@ -174,41 +105,28 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 
   if (finalStatus !== 'granted') {
     console.warn('Failed to get push token for push notification! Permission status:', finalStatus);
-    console.warn('Permission details:', await Notifications.getPermissionsAsync());
     return null;
   }
   
   console.log('Notification permissions granted:', finalStatus);
 
   try {
-    // Get project ID from Constants
+    // Get project ID from Constants - required for EAS builds
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     
     if (projectId) {
       console.log('Getting Expo push token with projectId:', projectId);
       token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-      console.log('Expo push token obtained successfully, length:', token?.length);
+      console.log('Expo push token obtained successfully');
     } else {
-      // Try without projectId (works in managed workflow with Expo Go)
-      // For production builds, projectId is required
-      try {
-        token = (await Notifications.getExpoPushTokenAsync()).data;
-      } catch (err: any) {
-        if (err?.message?.includes('projectId')) {
-          console.warn(
-            'Push notifications require a projectId. Add it to app.json:\n' +
-            '  "extra": { "eas": { "projectId": "your-project-id" } }'
-          );
-          throw err;
-        }
-        throw err;
-      }
+      // Fallback: try without projectId (may work in some cases)
+      console.warn('No projectId found in app.json. Push notifications may not work.');
+      token = (await Notifications.getExpoPushTokenAsync()).data;
     }
   } catch (error: any) {
     console.error('Error getting push token:', error);
-    // If projectId is missing, log helpful message
     if (error?.message?.includes('projectId')) {
-      console.warn(
+      console.error(
         'Push notifications require a projectId. Add it to app.json:\n' +
         '  "extra": { "eas": { "projectId": "your-project-id" } }'
       );

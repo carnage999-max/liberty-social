@@ -108,15 +108,19 @@ export function usePasskey() {
       throw new Error('WebAuthn is not available on this device');
     }
 
+    if (!isAuthenticated || !accessToken) {
+      throw new Error('You must be logged in to register a passkey');
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      // Step 1: Get registration options from backend
+      // Step 1: Get registration options from backend (requires authentication)
       const optionsResponse = await apiClient.post<{
         options: any;
         challenge: string;
-      }>('/auth/passkey/register/begin/');
+      }>('/auth/passkey/register/begin/', {});
 
       const publicKeyOptions = optionsResponse.options;
       if (!publicKeyOptions) {
@@ -286,10 +290,11 @@ export function usePasskey() {
         device_info: deviceInfo,
       });
 
-      // Refresh status
-      await fetchStatus();
-
-      return result;
+      return {
+        access_token: result.access_token,
+        refresh_token: result.refresh_token,
+        user_id: result.user_id || '',
+      };
     } catch (err: any) {
       const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to authenticate with passkey';
       setError(errorMessage);
