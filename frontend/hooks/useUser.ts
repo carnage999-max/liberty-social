@@ -36,8 +36,12 @@ export function useUser(id?: string | null) {
         });
         setData(res);
       } catch (e: any) {
-        if (e?.status === 401) clearAuth();
-        else setError(e?.message || "Failed to load user.");
+        if (e?.status === 401) {
+          // API handler will clear auth and redirect, just clear local state
+          clearAuth();
+        } else {
+          setError(e?.message || "Failed to load user.");
+        }
       } finally {
         setLoading(false);
       }

@@ -39,7 +39,10 @@ export function useUserSettings() {
         });
         setState({ data: res, loading: false, error: null });
       } catch (e: any) {
-        if (e?.status === 401) clearAuth();
+        if (e?.status === 401) {
+          // API handler will clear auth and redirect, just clear local state
+          clearAuth();
+        }
         setState({
           data: null,
           loading: false,
@@ -71,7 +74,10 @@ export function useUserSettings() {
         setState({ data: res, loading: false, error: null });
         return res;
       } catch (e: any) {
-        if (e?.status === 401) clearAuth();
+        if (e?.status === 401) {
+          // API handler will clear auth and redirect, just clear local state
+          clearAuth();
+        }
         setState((prev) => ({
           ...prev,
           error: e?.message || "Unable to update settings.",

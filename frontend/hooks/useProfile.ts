@@ -43,6 +43,7 @@ export function useProfile() {
         }
         const err = e as { status?: number; message?: string };
         if (err?.status === 401) {
+          // API handler will clear auth and redirect, just clear local state
           clearAuth();
         } else {
           setError(err?.message || "Failed to load profile.");

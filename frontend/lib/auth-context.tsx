@@ -130,9 +130,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           user: data[0] || data,
         })
       );
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching user:", err);
-      logout(); // fallback if token invalid
+      // If 401, clear auth and redirect (logout will handle redirect)
+      if (err?.status === 401) {
+        clearAuth(true);
+      } else {
+        logout(); // fallback if token invalid
+      }
     }
   };
 
@@ -240,18 +245,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.warn("Logout API failed:", err);
     } finally {
       clearAuth();
+      // Redirect to login page
+      if (typeof window !== "undefined") {
+        const currentPath = window.location.pathname + window.location.search;
+        const nextParam = encodeURIComponent(currentPath);
+        window.location.href = `/auth?next=${nextParam}`;
+      }
     }
   };
 
   /* -----------------------------
      🧹 Clear All
   ----------------------------- */
-  const clearAuth = () => {
+  const clearAuth = (redirectToLogin = false) => {
     localStorage.removeItem(STORAGE_KEY);
     setUser(null);
     setAccessToken(null);
     setRefreshToken(null);
     setRawUser(null);
+    
+    // Optionally redirect to login (used when tokens are invalid/blacklisted)
+    if (redirectToLogin && typeof window !== "undefined") {
+      const currentPath = window.location.pathname + window.location.search;
+      const nextParam = encodeURIComponent(currentPath);
+      window.location.href = `/auth?next=${nextParam}`;
+    }
   };
 
   /* -----------------------------

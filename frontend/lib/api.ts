@@ -199,6 +199,35 @@ async function toApiError(res: Response) {
       ? "Something went wrong on our side. Please try again later."
       : "We couldn't process your request. Please check your input and try again.");
 
+  // Handle 401 Unauthorized - token is invalid/blacklisted
+  if (res.status === 401 && typeof window !== "undefined") {
+    // Don't redirect if we're already on the auth page
+    const currentPath = window.location.pathname;
+    if (currentPath.startsWith("/auth")) {
+      // Just clear auth, don't redirect
+      try {
+        localStorage.removeItem("liberty_auth_v1");
+      } catch (e) {
+        console.warn("Failed to clear auth from localStorage:", e);
+      }
+    } else {
+      // Clear auth state from localStorage
+      try {
+        localStorage.removeItem("liberty_auth_v1");
+      } catch (e) {
+        console.warn("Failed to clear auth from localStorage:", e);
+      }
+
+      // Redirect to login page with current path as next parameter
+      const fullPath = currentPath + window.location.search;
+      const nextParam = encodeURIComponent(fullPath);
+      // Use setTimeout to ensure the error is thrown first, then redirect
+      setTimeout(() => {
+        window.location.href = `/auth?next=${nextParam}`;
+      }, 0);
+    }
+  }
+
   return new ApiError({
     message: fallbackMessage,
     status: res.status,
