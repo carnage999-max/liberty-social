@@ -200,26 +200,32 @@ export function usePasskey() {
       }
 
       // Ensure the entire options object is JSON-serializable
-      // Create a fresh object to avoid any reference issues
-      const cleanOptions = JSON.parse(JSON.stringify({
+      // Create a fresh, clean copy to avoid any reference or serialization issues
+      // This ensures user.name is definitely present when the library serializes it
+      const cleanPublicKeyOptions = {
         ...publicKeyOptions,
         user: {
-          id: publicKeyOptions.user.id,
-          name: publicKeyOptions.user.name,
-          displayName: publicKeyOptions.user.displayName,
+          id: String(publicKeyOptions.user.id),
+          name: String(publicKeyOptions.user.name),
+          displayName: String(publicKeyOptions.user.displayName),
         },
-      }));
+      };
+
+      // Verify it's JSON-serializable and user.name exists
+      const serialized = JSON.stringify(cleanPublicKeyOptions);
+      const deserialized = JSON.parse(serialized);
+      
+      if (!deserialized.user || !deserialized.user.name) {
+        throw new Error('Failed to serialize user.name - this should not happen');
+      }
 
       // Log what we're actually sending
-      console.log('Sending to Passkeys.create:', JSON.stringify({
-        hasPublicKey: !!cleanOptions.publicKey,
-        user: cleanOptions.user,
-      }, null, 2));
+      console.log('Sending to Passkeys.create - user.name:', deserialized.user.name);
 
       // react-native-passkeys provides create method that handles base64url conversion automatically
       // It accepts the same options as navigator.credentials.create but handles conversions
       const credential = await Passkeys.create({
-        publicKey: cleanOptions,
+        publicKey: deserialized,
       }) as PublicKeyCredential;
 
       if (!credential) {
