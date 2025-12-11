@@ -132,19 +132,18 @@ export function usePasskey() {
         throw new Error('Invalid registration options: user object is missing');
       }
 
-      // Convert challenge and user ID from base64url to ArrayBuffer
-      publicKeyOptions.challenge = base64urlToArrayBuffer(optionsResponse.challenge);
+      // react-native-passkeys expects JSON-serializable data (base64url strings, not ArrayBuffers)
+      // The library handles ArrayBuffer conversion internally
+      // So we need to keep everything as strings/base64url, not convert to ArrayBuffer
       
-      // Convert user.id to ArrayBuffer while preserving all other user fields
-      // react-native-passkeys requires user.name to be explicitly set as a string
-      const originalUser = publicKeyOptions.user;
-      const convertedUserId = originalUser.id 
-        ? base64urlToArrayBuffer(originalUser.id as unknown as string)
-        : null;
+      // Ensure challenge is a base64url string (not ArrayBuffer)
+      // The backend already returns it as base64url, so keep it as-is
+      publicKeyOptions.challenge = optionsResponse.challenge;
       
       // CRITICAL: react-native-passkeys requires user.name to be a non-empty string
       // The webauthn library returns user_name which becomes 'name' in JSON
       // But we need to ensure it's explicitly set and not undefined/null
+      const originalUser = publicKeyOptions.user;
       const userName = String(
         originalUser.name || 
         originalUser.user_name || 
@@ -156,20 +155,23 @@ export function usePasskey() {
         throw new Error('Invalid registration options: user.name cannot be empty');
       }
       
-      // Reconstruct user object with all required fields
-      // This ensures react-native-passkeys receives properly formatted data
+      // Keep user.id as base64url string (not ArrayBuffer) - react-native-passkeys will convert it
+      // Ensure user.name and user.displayName are set
       publicKeyOptions.user = {
-        id: convertedUserId!,
+        ...originalUser, // Preserve all original fields
+        id: originalUser.id, // Keep as base64url string
         name: userName, // Must be a non-empty string
         displayName: String(originalUser.displayName || originalUser.name || userName).trim(),
       };
 
-      // Convert excludeCredentials if present
+      // Keep excludeCredentials as base64url strings (not ArrayBuffers)
+      // react-native-passkeys will handle the conversion
       if (publicKeyOptions.excludeCredentials) {
+        // Keep them as-is (base64url strings)
         publicKeyOptions.excludeCredentials = publicKeyOptions.excludeCredentials.map(
           (cred: any) => ({
             ...cred,
-            id: base64urlToArrayBuffer(cred.id),
+            id: cred.id, // Keep as base64url string
           })
         );
       }
