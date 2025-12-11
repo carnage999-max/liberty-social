@@ -199,33 +199,63 @@ export function usePasskey() {
         );
       }
 
-      // Ensure the entire options object is JSON-serializable
-      // Create a fresh, clean copy to avoid any reference or serialization issues
-      // This ensures user.name is definitely present when the library serializes it
-      const cleanPublicKeyOptions = {
-        ...publicKeyOptions,
+      // react-native-passkeys serializes the options to JSON for the native module
+      // We need to create a completely fresh, plain object to ensure user.name is preserved
+      // Reconstruct the entire options object with only the fields we need
+      const optionsForNative: any = {
+        challenge: String(publicKeyOptions.challenge),
+        rp: publicKeyOptions.rp ? {
+          id: String(publicKeyOptions.rp.id || ''),
+          name: String(publicKeyOptions.rp.name || ''),
+        } : undefined,
         user: {
           id: String(publicKeyOptions.user.id),
-          name: String(publicKeyOptions.user.name),
-          displayName: String(publicKeyOptions.user.displayName),
+          name: String(publicKeyOptions.user.name || 'User'),
+          displayName: String(publicKeyOptions.user.displayName || publicKeyOptions.user.name || 'User'),
         },
+        pubKeyCredParams: Array.isArray(publicKeyOptions.pubKeyCredParams) 
+          ? publicKeyOptions.pubKeyCredParams.map((param: any) => ({
+              type: param.type || 'public-key',
+              alg: param.alg || -7,
+            }))
+          : [{ type: 'public-key', alg: -7 }],
+        authenticatorSelection: publicKeyOptions.authenticatorSelection || {},
       };
 
-      // Verify it's JSON-serializable and user.name exists
-      const serialized = JSON.stringify(cleanPublicKeyOptions);
-      const deserialized = JSON.parse(serialized);
-      
-      if (!deserialized.user || !deserialized.user.name) {
-        throw new Error('Failed to serialize user.name - this should not happen');
+      // Add optional fields only if they exist
+      if (publicKeyOptions.timeout) {
+        optionsForNative.timeout = publicKeyOptions.timeout;
+      }
+      if (publicKeyOptions.attestation) {
+        optionsForNative.attestation = publicKeyOptions.attestation;
+      }
+      if (publicKeyOptions.excludeCredentials && Array.isArray(publicKeyOptions.excludeCredentials)) {
+        optionsForNative.excludeCredentials = publicKeyOptions.excludeCredentials.map((cred: any) => ({
+          type: cred.type || 'public-key',
+          id: String(cred.id),
+          transports: cred.transports,
+        }));
       }
 
-      // Log what we're actually sending
-      console.log('Sending to Passkeys.create - user.name:', deserialized.user.name);
+      // CRITICAL: Verify user.name exists and is not empty
+      if (!optionsForNative.user.name || optionsForNative.user.name.trim().length === 0) {
+        console.error('ERROR: user.name is missing or empty!', JSON.stringify(optionsForNative.user, null, 2));
+        throw new Error('user.name is required but is missing or empty');
+      }
+
+      // Final verification - serialize and deserialize to ensure it works
+      const testSerialized = JSON.stringify(optionsForNative);
+      const testDeserialized = JSON.parse(testSerialized);
+      if (!testDeserialized.user || !testDeserialized.user.name) {
+        console.error('ERROR: user.name lost during serialization!', testSerialized);
+        throw new Error('user.name is lost during JSON serialization');
+      }
+
+      console.log('Final verified options - user.name:', testDeserialized.user.name);
 
       // react-native-passkeys provides create method that handles base64url conversion automatically
-      // It accepts the same options as navigator.credentials.create but handles conversions
       const credential = await Passkeys.create({
-        publicKey: deserialized,
+        publicKey: testDeserialized,
       }) as PublicKeyCredential;
 
       if (!credential) {
