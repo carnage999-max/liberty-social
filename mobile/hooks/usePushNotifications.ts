@@ -114,18 +114,30 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
     // Get project ID from Constants - required for EAS builds
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     
-    if (projectId) {
-      console.log('Getting Expo push token with projectId:', projectId);
-      token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-      console.log('Expo push token obtained successfully');
-    } else {
-      // Fallback: try without projectId (may work in some cases)
-      console.warn('No projectId found in app.json. Push notifications may not work.');
-      token = (await Notifications.getExpoPushTokenAsync()).data;
+    if (!projectId) {
+      console.error('No projectId found in app.json. Push notifications require a projectId.');
+      console.error('Add it to app.json: "extra": { "eas": { "projectId": "your-project-id" } }');
+      return null;
     }
+    
+    console.log('Getting Expo push token with projectId:', projectId);
+    
+    // Add a small delay to ensure Firebase is fully initialized
+    // This is a workaround for timing issues
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    console.log('Expo push token obtained successfully, length:', token?.length);
   } catch (error: any) {
     console.error('Error getting push token:', error);
-    if (error?.message?.includes('projectId')) {
+    console.error('Error message:', error?.message);
+    console.error('Error code:', error?.code);
+    
+    if (error?.message?.includes('FirebaseApp') || error?.message?.includes('Firebase')) {
+      console.error('Firebase initialization error detected.');
+      console.error('This usually means Firebase is not properly initialized.');
+      console.error('Check that google-services.json is present and valid.');
+    } else if (error?.message?.includes('projectId')) {
       console.error(
         'Push notifications require a projectId. Add it to app.json:\n' +
         '  "extra": { "eas": { "projectId": "your-project-id" } }'
