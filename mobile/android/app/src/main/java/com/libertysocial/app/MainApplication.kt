@@ -16,9 +16,6 @@ import com.facebook.react.defaults.DefaultReactNativeHost
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
 
-// Firebase initialization for push notifications
-import com.google.firebase.FirebaseApp
-
 class MainApplication : Application(), ReactApplication {
 
   override val reactNativeHost: ReactNativeHost = ReactNativeHostWrapper(
@@ -46,14 +43,19 @@ class MainApplication : Application(), ReactApplication {
     
     // Initialize Firebase if not already initialized
     // This is required for Expo push notifications on Android
+    // Use reflection to avoid compile-time dependency if Firebase isn't available
     try {
-      if (FirebaseApp.getApps(this).isEmpty()) {
-        FirebaseApp.initializeApp(this)
+      val firebaseAppClass = Class.forName("com.google.firebase.FirebaseApp")
+      val getAppsMethod = firebaseAppClass.getMethod("getApps", android.content.Context::class.java)
+      val apps = getAppsMethod.invoke(null, this) as? Collection<*>
+      if (apps.isNullOrEmpty()) {
+        val initializeAppMethod = firebaseAppClass.getMethod("initializeApp", android.content.Context::class.java)
+        initializeAppMethod.invoke(null, this)
       }
     } catch (e: Exception) {
       // Firebase might not be available if google-services.json is missing
       // This is okay - push notifications will fail gracefully
-      android.util.Log.w("MainApplication", "Firebase initialization failed: ${e.message}")
+      android.util.Log.w("MainApplication", "Firebase initialization skipped: ${e.message}")
     }
     
     DefaultNewArchitectureEntryPoint.releaseLevel = try {
