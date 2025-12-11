@@ -16,6 +16,9 @@ import { useEffect, useState } from "react";
 import { PasswordField } from "@/components/forms/PasswordField";
 import FeedPreferencesSection from "@/components/FeedPreferencesSection";
 import { usePasskey } from "@/hooks/usePasskey";
+import { useDevices } from "@/hooks/useDevices";
+import { useSessions } from "@/hooks/useSessions";
+import { useActivityLog } from "@/hooks/useActivityLog";
 
 type ProfileForm = {
   first_name: string;
@@ -134,6 +137,16 @@ export default function SettingsPage() {
   const [registeringPasskey, setRegisteringPasskey] = useState(false);
   const [removingPasskeyId, setRemovingPasskeyId] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState("");
+  
+  // Phase 2: Device and Session Management
+  const { devices, loading: devicesLoading, renameDevice, removeDevice, refetch: refetchDevices } = useDevices();
+  const { sessions, loading: sessionsLoading, revokeAll, refetch: refetchSessions } = useSessions();
+  const { activity, loading: activityLoading, refetch: refetchActivity } = useActivityLog();
+  
+  const [renamingDeviceId, setRenamingDeviceId] = useState<string | null>(null);
+  const [removingDeviceId, setRemovingDeviceId] = useState<string | null>(null);
+  const [revokingSessions, setRevokingSessions] = useState(false);
+  const [deviceRenameValue, setDeviceRenameValue] = useState<Record<string, string>>({});
 
   // Auto-detect and set device name on mount
   useEffect(() => {
@@ -530,6 +543,239 @@ export default function SettingsPage() {
                         You can use any of your registered passkeys to sign in without a password.
                       </p>
                     )}
+                  </div>
+                </details>
+              </section>
+
+              {/* Phase 2: Security & Sessions */}
+              <section className="rounded-[18px] border border-(--color-gold) bg-white/95 p-6 shadow-metallic backdrop-blur-sm">
+                <details className="group">
+                  <summary className="flex cursor-pointer items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">Security & Sessions</h2>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Manage your devices, active sessions, and view your login activity.
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-(--color-deep-navy)/5 p-2 text-(--color-deep-navy) transition group-open:rotate-180">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                  </summary>
+
+                  <div className="mt-6 space-y-6">
+                    {/* Devices Section */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3">Your Devices</h3>
+                      {devicesLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Spinner />
+                        </div>
+                      ) : devices.length === 0 ? (
+                        <p className="text-sm text-gray-500 py-4">No devices registered yet.</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {devices.map((device) => (
+                            <li
+                              key={device.id}
+                              className="rounded-lg border border-gray-200 bg-white p-4"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    {renamingDeviceId === device.id ? (
+                                      <input
+                                        type="text"
+                                        value={deviceRenameValue[device.id] || device.device_name}
+                                        onChange={(e) =>
+                                          setDeviceRenameValue({ ...deviceRenameValue, [device.id]: e.target.value })
+                                        }
+                                        onBlur={async () => {
+                                          const newName = deviceRenameValue[device.id]?.trim();
+                                          if (newName && newName !== device.device_name) {
+                                            try {
+                                              await renameDevice(device.id, newName);
+                                              toast.show("Device renamed");
+                                            } catch (err: any) {
+                                              toast.show(err?.message || "Failed to rename device", "error");
+                                            }
+                                          }
+                                          setRenamingDeviceId(null);
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.currentTarget.blur();
+                                          } else if (e.key === "Escape") {
+                                            setRenamingDeviceId(null);
+                                            setDeviceRenameValue({ ...deviceRenameValue, [device.id]: device.device_name });
+                                          }
+                                        }}
+                                        autoFocus
+                                        className="text-sm font-medium text-gray-900 border border-gray-300 rounded px-2 py-1"
+                                      />
+                                    ) : (
+                                      <>
+                                        <p className="text-sm font-medium text-gray-900">
+                                          {device.device_name || "Unknown Device"}
+                                        </p>
+                                        <button
+                                          onClick={() => {
+                                            setRenamingDeviceId(device.id);
+                                            setDeviceRenameValue({ ...deviceRenameValue, [device.id]: device.device_name });
+                                          }}
+                                          className="text-xs text-gray-500 hover:text-gray-700"
+                                        >
+                                          Rename
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-500 space-y-0.5">
+                                    {device.location && <p>📍 {device.location}</p>}
+                                    {device.last_seen_location && device.last_seen_location !== device.location && (
+                                      <p>Last seen: {device.last_seen_location}</p>
+                                    )}
+                                    <p>
+                                      Added {new Date(device.created_at).toLocaleDateString()}
+                                      {device.last_used_at && (
+                                        <> • Last used {new Date(device.last_used_at).toLocaleDateString()}</>
+                                      )}
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={async () => {
+                                    if (
+                                      confirm(
+                                        `Are you sure you want to remove this device? You won't be able to use it to sign in anymore.`
+                                      )
+                                    ) {
+                                      try {
+                                        setRemovingDeviceId(device.id);
+                                        await removeDevice(device.id);
+                                        toast.show("Device removed successfully");
+                                        await refetchDevices();
+                                      } catch (err: any) {
+                                        toast.show(err?.message || "Failed to remove device", "error");
+                                      } finally {
+                                        setRemovingDeviceId(null);
+                                      }
+                                    }
+                                  }}
+                                  disabled={removingDeviceId === device.id}
+                                  className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {removingDeviceId === device.id ? "Removing..." : "Remove"}
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    {/* Active Sessions Section */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-semibold text-gray-900">Active Sessions</h3>
+                        {sessions.length > 0 && (
+                          <button
+                            onClick={async () => {
+                              if (
+                                confirm(
+                                  "Are you sure you want to sign out of all other devices? You'll remain signed in on this device."
+                                )
+                              ) {
+                                try {
+                                  setRevokingSessions(true);
+                                  await revokeAll();
+                                  toast.show("All other sessions revoked");
+                                  await refetchSessions();
+                                } catch (err: any) {
+                                  toast.show(err?.message || "Failed to revoke sessions", "error");
+                                } finally {
+                                  setRevokingSessions(false);
+                                }
+                              }
+                            }}
+                            disabled={revokingSessions}
+                            className="text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-60"
+                          >
+                            {revokingSessions ? "Revoking..." : "Sign out of all other devices"}
+                          </button>
+                        )}
+                      </div>
+                      {sessionsLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Spinner />
+                        </div>
+                      ) : sessions.length === 0 ? (
+                        <p className="text-sm text-gray-500 py-4">No active sessions.</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {sessions.map((session) => (
+                            <li
+                              key={session.id}
+                              className="rounded-lg border border-gray-200 bg-white p-3"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {session.device_name || "Unknown Device"}
+                                    {session.is_current && (
+                                      <span className="ml-2 text-xs text-green-600 font-normal">(Current)</span>
+                                    )}
+                                  </p>
+                                  <div className="text-xs text-gray-500 space-y-0.5 mt-1">
+                                    {session.location && <p>📍 {session.location}</p>}
+                                    <p>Last activity: {new Date(session.last_activity).toLocaleString()}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    {/* Activity Log Section */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-3">Recent Login Activity</h3>
+                      {activityLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Spinner />
+                        </div>
+                      ) : activity.length === 0 ? (
+                        <p className="text-sm text-gray-500 py-4">No activity recorded.</p>
+                      ) : (
+                        <ul className="space-y-2 max-h-96 overflow-y-auto">
+                          {activity.map((entry) => (
+                            <li
+                              key={entry.id}
+                              className="rounded-lg border border-gray-200 bg-white p-3"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                                      {entry.authentication_method === "passkey" ? "🔐 Passkey" : "🔑 Password"}
+                                    </span>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {entry.device_name || "Unknown Device"}
+                                    </p>
+                                  </div>
+                                  <div className="text-xs text-gray-500 space-y-0.5">
+                                    {entry.location && <p>📍 {entry.location}</p>}
+                                    <p>{new Date(entry.created_at).toLocaleString()}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
                 </details>
               </section>
