@@ -4,6 +4,7 @@
     "namespace": "android_app",
     "package_name": "com.libertysocial.app",
     "sha256_cert_fingerprints": [
+      "FAC61745DC0903786FB9EDE62A962B399F7348F0BB6F899B8332667591033B9C",
       "816A6DAC3AB5275074DD75CA00533C22D864E5FC89DB3FD7A4EE9E72A21D38D4"
     ]
   }
@@ -13,6 +14,7 @@
     "namespace": "android_app",
     "package_name": "com.libertysocial.app",
     "sha256_cert_fingerprints": [
+      "FAC61745DC0903786FB9EDE62A962B399F7348F0BB6F899B8332667591033B9C",
       "816A6DAC3AB5275074DD75CA00533C22D864E5FC89DB3FD7A4EE9E72A21D38D4"
     ]
   }
