@@ -11,6 +11,7 @@ from .views import (
     BookmarkViewSet,
     DeviceTokenViewSet,
     ConversationViewSet,
+    CallViewSet,
     PageViewSet,
     PageAdminInviteViewSet,
     PageInviteViewSet,
@@ -49,6 +50,7 @@ router.register("notifications", NotificationViewSet, basename="notifications")
 router.register("bookmarks", BookmarkViewSet, basename="bookmarks")
 router.register("device-tokens", DeviceTokenViewSet, basename="device-tokens")
 router.register("conversations", ConversationViewSet, basename="conversations")
+router.register("calls", CallViewSet, basename="calls")
 router.register("pages", PageViewSet, basename="pages")
 router.register("admin-invites", PageAdminInviteViewSet, basename="admin-invites")
 router.register("page-invites", PageInviteViewSet, basename="page-invites")

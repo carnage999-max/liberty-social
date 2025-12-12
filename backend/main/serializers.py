@@ -16,6 +16,7 @@ from .models import (
     Conversation,
     ConversationParticipant,
     Message,
+    Call,
     Page,
     PageAdmin,
     PageAdminInvite,
@@ -1144,3 +1145,57 @@ class UserFeedPreferenceSerializer(serializers.ModelSerializer):
     def get_category_choices(self, obj):
         """Return all available page categories"""
         return Page.CATEGORY_CHOICES
+
+
+class CallSerializer(serializers.ModelSerializer):
+    """Serializer for voice and video calls."""
+    caller = UserSerializer(read_only=True)
+    receiver = UserSerializer(read_only=True)
+    caller_id = serializers.PrimaryKeyRelatedField(
+        queryset=get_user_model().objects.all(),
+        source="caller",
+        write_only=True,
+        required=False,
+    )
+    receiver_id = serializers.PrimaryKeyRelatedField(
+        queryset=get_user_model().objects.all(),
+        source="receiver",
+        write_only=True,
+    )
+
+    class Meta:
+        model = Call
+        fields = [
+            "id",
+            "conversation",
+            "caller",
+            "caller_id",
+            "receiver",
+            "receiver_id",
+            "call_type",
+            "status",
+            "started_at",
+            "answered_at",
+            "ended_at",
+            "duration_seconds",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "caller",
+            "receiver",
+            "status",
+            "started_at",
+            "answered_at",
+            "ended_at",
+            "duration_seconds",
+            "created_at",
+            "updated_at",
+        ]
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        if request and getattr(request, "user", None):
+            validated_data["caller"] = request.user
+        return super().create(validated_data)

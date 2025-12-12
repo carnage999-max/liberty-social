@@ -282,6 +282,72 @@ class Message(models.Model):
         return f"Message {self.id} in {self.conversation_id}"
 
 
+class Call(models.Model):
+    """Voice and video calls between users."""
+
+    CALL_TYPE_CHOICES = (
+        ("voice", "Voice"),
+        ("video", "Video"),
+    )
+
+    STATUS_CHOICES = (
+        ("initiating", "Initiating"),
+        ("ringing", "Ringing"),
+        ("active", "Active"),
+        ("ended", "Ended"),
+        ("missed", "Missed"),
+        ("rejected", "Rejected"),
+        ("cancelled", "Cancelled"),
+    )
+
+    id = models.BigAutoField(primary_key=True)
+    conversation = models.ForeignKey(
+        Conversation,
+        related_name="calls",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        help_text="Optional: Link call to a conversation",
+    )
+    caller = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="calls_initiated",
+        on_delete=models.CASCADE,
+    )
+    receiver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="calls_received",
+        on_delete=models.CASCADE,
+    )
+    call_type = models.CharField(max_length=10, choices=CALL_TYPE_CHOICES, default="voice")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="initiating")
+    started_at = models.DateTimeField(auto_now_add=True)
+    answered_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.PositiveIntegerField(default=0, help_text="Call duration in seconds")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-started_at"]
+        indexes = [
+            models.Index(fields=["caller", "-started_at"]),
+            models.Index(fields=["receiver", "-started_at"]),
+            models.Index(fields=["status", "-started_at"]),
+        ]
+
+    def __str__(self):
+        return f"Call {self.id}: {self.caller.username} -> {self.receiver.username} ({self.call_type})"
+
+    def end_call(self, duration_seconds=0):
+        """Mark call as ended and set duration."""
+        from django.utils import timezone
+        self.status = "ended"
+        self.ended_at = timezone.now()
+        self.duration_seconds = duration_seconds
+        self.save()
+
+
 class Page(models.Model):
     CATEGORY_CHOICES = (
         ("business", "Business"),

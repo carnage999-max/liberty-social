@@ -30,6 +30,7 @@ from .models import (
     Conversation,
     ConversationParticipant,
     Message,
+    Call,
     Page,
     PageAdmin,
     PageAdminInvite,
@@ -48,6 +49,7 @@ from .serializers import (
     DeviceTokenSerializer,
     ConversationSerializer,
     MessageSerializer,
+    CallSerializer,
     PageSerializer,
     PageAdminSerializer,
     PageAdminInviteSerializer,
@@ -1432,4 +1434,179 @@ class UserReactionPreferenceViewSet(ModelViewSet):
         preferences.toggle_favorite_emoji(emoji)
 
         serializer = self.get_serializer(preferences)
+        return Response(serializer.data)
+
+
+class CallViewSet(ModelViewSet):
+    """ViewSet for managing voice and video calls."""
+    serializer_class = CallSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Return calls where user is caller or receiver."""
+        user = self.request.user
+        return Call.objects.filter(
+            Q(caller=user) | Q(receiver=user)
+        ).select_related("caller", "receiver", "conversation").order_by("-started_at")
+
+    @action(detail=False, methods=["post"])
+    def initiate(self, request):
+        """Initiate a new call."""
+        receiver_id = request.data.get("receiver_id")
+        call_type = request.data.get("call_type", "voice")  # "voice" or "video"
+        conversation_id = request.data.get("conversation_id")
+
+        if not receiver_id:
+            return Response(
+                {"detail": "receiver_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if call_type not in ["voice", "video"]:
+            return Response(
+                {"detail": "call_type must be 'voice' or 'video'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            receiver = get_user_model().objects.get(id=receiver_id)
+        except get_user_model().DoesNotExist:
+            return Response(
+                {"detail": "Receiver not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        conversation = None
+        if conversation_id:
+            try:
+                conversation = Conversation.objects.get(id=conversation_id)
+                # Verify user is participant
+                if not ConversationParticipant.objects.filter(
+                    conversation=conversation, user=request.user
+                ).exists():
+                    return Response(
+                        {"detail": "You are not a participant in this conversation."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+            except Conversation.DoesNotExist:
+                return Response(
+                    {"detail": "Conversation not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        call = Call.objects.create(
+            caller=request.user,
+            receiver=receiver,
+            call_type=call_type,
+            status="ringing",
+            conversation=conversation,
+        )
+
+        # Send WebSocket notification to receiver
+        layer = get_channel_layer()
+        if layer:
+            try:
+                async_to_sync(layer.group_send)(
+                    conversation_group_name(str(conversation.id)) if conversation else f"user_{receiver.id}",
+                    {
+                        "type": "call.incoming",
+                        "call_id": str(call.id),
+                        "caller_id": str(request.user.id),
+                        "caller_username": request.user.username,
+                        "call_type": call_type,
+                    },
+                )
+            except Exception as e:
+                logging.error(f"Error sending call notification: {e}")
+
+        serializer = self.get_serializer(call)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def accept(self, request, pk=None):
+        """Accept an incoming call."""
+        call = self.get_object()
+
+        if call.receiver != request.user:
+            return Response(
+                {"detail": "You can only accept calls where you are the receiver."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if call.status != "ringing":
+            return Response(
+                {"detail": f"Call is already {call.status}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        call.status = "active"
+        call.answered_at = timezone.now()
+        call.save()
+
+        # Notify caller via WebSocket
+        layer = get_channel_layer()
+        if layer and call.conversation:
+            try:
+                async_to_sync(layer.group_send)(
+                    conversation_group_name(str(call.conversation.id)),
+                    {
+                        "type": "call.accepted",
+                        "call_id": str(call.id),
+                        "receiver_id": str(request.user.id),
+                    },
+                )
+            except Exception as e:
+                logging.error(f"Error sending call accepted notification: {e}")
+
+        serializer = self.get_serializer(call)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        """Reject an incoming call."""
+        call = self.get_object()
+
+        if call.receiver != request.user:
+            return Response(
+                {"detail": "You can only reject calls where you are the receiver."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        call.status = "rejected"
+        call.ended_at = timezone.now()
+        call.save()
+
+        serializer = self.get_serializer(call)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"])
+    def end(self, request, pk=None):
+        """End an active call."""
+        call = self.get_object()
+
+        if call.caller != request.user and call.receiver != request.user:
+            return Response(
+                {"detail": "You can only end calls where you are a participant."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        duration_seconds = request.data.get("duration_seconds", 0)
+        call.end_call(duration_seconds)
+
+        # Notify other participant via WebSocket
+        layer = get_channel_layer()
+        if layer and call.conversation:
+            try:
+                async_to_sync(layer.group_send)(
+                    conversation_group_name(str(call.conversation.id)),
+                    {
+                        "type": "call.ended",
+                        "call_id": str(call.id),
+                        "ended_by": str(request.user.id),
+                    },
+                )
+            except Exception as e:
+                logging.error(f"Error sending call ended notification: {e}")
+
+        serializer = self.get_serializer(call)
         return Response(serializer.data)

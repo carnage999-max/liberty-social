@@ -100,6 +100,14 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await self._handle_typing_start()
         elif message_type == "typing.stop":
             await self._handle_typing_stop()
+        elif message_type == "call.offer":
+            await self._handle_call_offer(content)
+        elif message_type == "call.answer":
+            await self._handle_call_answer(content)
+        elif message_type == "call.ice-candidate":
+            await self._handle_call_ice_candidate(content)
+        elif message_type == "call.end":
+            await self._handle_call_end(content)
 
     async def _handle_typing_start(self):
         """Handle user starting to type - broadcast to other participants."""
@@ -172,6 +180,148 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 "type": "typing.stopped",
                 "user_id": event.get("user_id"),
                 "username": event.get("username"),
+            }
+        )
+
+    async def _handle_call_offer(self, content):
+        """Handle WebRTC offer from caller."""
+        user = self.scope.get("user")
+        if not user:
+            return
+
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "call.offer",
+                "caller_id": str(user.id),
+                "caller_username": user.username,
+                "call_id": content.get("call_id"),
+                "call_type": content.get("call_type", "voice"),
+                "offer": content.get("offer"),
+            },
+        )
+
+    async def _handle_call_answer(self, content):
+        """Handle WebRTC answer from receiver."""
+        user = self.scope.get("user")
+        if not user:
+            return
+
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "call.answer",
+                "receiver_id": str(user.id),
+                "call_id": content.get("call_id"),
+                "answer": content.get("answer"),
+            },
+        )
+
+    async def _handle_call_ice_candidate(self, content):
+        """Handle ICE candidate exchange."""
+        user = self.scope.get("user")
+        if not user:
+            return
+
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "call.ice-candidate",
+                "user_id": str(user.id),
+                "call_id": content.get("call_id"),
+                "candidate": content.get("candidate"),
+            },
+        )
+
+    async def _handle_call_end(self, content):
+        """Handle call end."""
+        user = self.scope.get("user")
+        if not user:
+            return
+
+        await self.channel_layer.group_send(
+            self.group_name,
+            {
+                "type": "call.end",
+                "user_id": str(user.id),
+                "call_id": content.get("call_id"),
+            },
+        )
+
+    async def call_offer(self, event):
+        """Broadcast call offer to other participants."""
+        await self.send_json(
+            {
+                "type": "call.offer",
+                "caller_id": event.get("caller_id"),
+                "caller_username": event.get("caller_username"),
+                "call_id": event.get("call_id"),
+                "call_type": event.get("call_type"),
+                "offer": event.get("offer"),
+            }
+        )
+
+    async def call_answer(self, event):
+        """Broadcast call answer."""
+        await self.send_json(
+            {
+                "type": "call.answer",
+                "receiver_id": event.get("receiver_id"),
+                "call_id": event.get("call_id"),
+                "answer": event.get("answer"),
+            }
+        )
+
+    async def call_ice_candidate(self, event):
+        """Broadcast ICE candidate."""
+        await self.send_json(
+            {
+                "type": "call.ice-candidate",
+                "user_id": event.get("user_id"),
+                "call_id": event.get("call_id"),
+                "candidate": event.get("candidate"),
+            }
+        )
+
+    async def call_end(self, event):
+        """Broadcast call end."""
+        await self.send_json(
+            {
+                "type": "call.end",
+                "user_id": event.get("user_id"),
+                "call_id": event.get("call_id"),
+            }
+        )
+
+    async def call_incoming(self, event):
+        """Broadcast incoming call notification from server."""
+        await self.send_json(
+            {
+                "type": "call.offer",
+                "call_id": event.get("call_id"),
+                "caller_id": event.get("caller_id"),
+                "caller_username": event.get("caller_username"),
+                "call_type": event.get("call_type"),
+            }
+        )
+
+    async def call_accepted(self, event):
+        """Broadcast call accepted notification."""
+        await self.send_json(
+            {
+                "type": "call.answer",
+                "call_id": event.get("call_id"),
+                "receiver_id": event.get("receiver_id"),
+            }
+        )
+
+    async def call_ended(self, event):
+        """Broadcast call ended notification."""
+        await self.send_json(
+            {
+                "type": "call.end",
+                "call_id": event.get("call_id"),
+                "ended_by": event.get("ended_by"),
             }
         )
 
