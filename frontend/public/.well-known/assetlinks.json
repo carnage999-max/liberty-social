@@ -1,15 +1,10 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "com.libertysocial.app",
-      "sha256_cert_fingerprints": [
-        "3cb9413023304415d2971d3c7c359f04a3e7bc32",
-        "2c82c6e08fe8630188cae8a4425a77534c55a3b2",
-        "PRODUCTION_FINGERPRINT_HERE"
-      ]
-    }
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.libertysocial.app",
+    "sha256_cert_fingerprints": [
+      "FAC61745DC0903786FB9EDE62A962B399F7348F0BB6F899B8332667591033B9C"
+    ]
   }
-]
-
+}]
