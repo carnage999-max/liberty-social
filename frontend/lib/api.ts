@@ -2,6 +2,8 @@
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "";
 
+export const DEFAULT_AVATAR = "/images/default-avatar.png";
+
 export function resolveRemoteUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith("http://") || url.startsWith("https://")) {

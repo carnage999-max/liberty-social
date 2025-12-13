@@ -1506,8 +1506,11 @@ class CallViewSet(ModelViewSet):
         layer = get_channel_layer()
         if layer:
             try:
+                group_name = conversation_group_name(str(conversation.id)) if conversation else f"user_{receiver.id}"
+                logging.info(f"Sending call.incoming to group: {group_name}, call_id={call.id}, caller_id={request.user.id}, receiver_id={receiver.id}")
+                print(f"[CALL] Sending call.incoming to group: {group_name}, call_id={call.id}, caller_id={request.user.id}, receiver_id={receiver.id}", flush=True)
                 async_to_sync(layer.group_send)(
-                    conversation_group_name(str(conversation.id)) if conversation else f"user_{receiver.id}",
+                    group_name,
                     {
                         "type": "call.incoming",
                         "call_id": str(call.id),
@@ -1516,8 +1519,10 @@ class CallViewSet(ModelViewSet):
                         "call_type": call_type,
                     },
                 )
+                print(f"[CALL] call.incoming message sent to group: {group_name}", flush=True)
             except Exception as e:
                 logging.error(f"Error sending call notification: {e}")
+                print(f"[CALL] ERROR sending call notification: {e}", flush=True)
 
         serializer = self.get_serializer(call)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

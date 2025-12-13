@@ -2,6 +2,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
+    namespace 'com.libertysocial.expo.passkeys'
     compileSdkVersion 34
 
     defaultConfig {
@@ -29,10 +30,17 @@ dependencies {
     implementation 'com.facebook.react:react-native:+'
     implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.0'
     
+    // Expo modules core - required for Expo module API
+    implementation project(':expo-modules-core')
+    
+    // Kotlin coroutines
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    
     // Android Credential Manager for passkeys
     implementation 'androidx.credentials:credentials:1.2.2'
     implementation 'androidx.credentials:credentials-play-services-auth:1.2.2'
     implementation 'com.google.android.gms:play-services-auth:20.7.0'
+    implementation 'com.google.android.gms:play-services-base:18.2.0'
     
     // JSON parsing
     implementation 'com.google.code.gson:gson:2.10.1'

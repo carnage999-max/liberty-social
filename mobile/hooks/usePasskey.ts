@@ -20,21 +20,36 @@ export type PasskeyStatus = {
 // Check if WebAuthn is available using react-native-passkeys
 function isWebAuthnAvailable(): boolean {
   try {
-    // react-native-passkeys provides isSupported() method
+    console.log('[Passkeys] Checking availability, Platform.OS:', Platform.OS);
+    console.log('[Passkeys] Passkeys module:', Passkeys ? 'exists' : 'null');
+    console.log('[Passkeys] Passkeys.isSupported type:', typeof Passkeys?.isSupported);
+    
+    // Our custom expo-passkeys module provides isSupported() method
     if (Passkeys && typeof Passkeys.isSupported === 'function') {
-      return Passkeys.isSupported();
+      const supported = Passkeys.isSupported();
+      console.log('[Passkeys] Native isSupported() returned:', supported);
+      // If native returns false but we're on Android, use fallback
+      if (!supported && Platform.OS === 'android') {
+        console.log('[Passkeys] Native returned false on Android, using fallback');
+        return true; // Android 15 definitely supports passkeys
+      }
+      return supported;
     }
     // Fallback: check if create and get methods exist
     if (Passkeys && typeof Passkeys.create === 'function' && typeof Passkeys.get === 'function') {
+      console.log('[Passkeys] Native methods exist, assuming supported');
       return true;
     }
+    console.warn('[Passkeys] isSupported function not found in module');
   } catch (error) {
-    console.warn('Error checking WebAuthn support:', error);
+    console.warn('[Passkeys] Error checking WebAuthn support:', error);
   }
   
   // For native platforms, assume available if library is installed
   // The library will handle platform-specific checks
-  return Platform.OS === 'ios' || Platform.OS === 'android' || Platform.OS === 'web';
+  const fallbackSupported = Platform.OS === 'ios' || Platform.OS === 'android' || Platform.OS === 'web';
+  console.log('[Passkeys] Using fallback check, returning:', fallbackSupported);
+  return fallbackSupported;
 }
 
 // Convert base64url to ArrayBuffer

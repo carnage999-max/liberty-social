@@ -14,6 +14,10 @@ interface UseChatWebSocketOptions {
   onDisconnect?: () => void;
   onTypingStart?: (userId: string, username: string) => void;
   onTypingStop?: (userId: string, username: string) => void;
+  onCallOffer?: (data: any) => void;
+  onCallAnswer?: (data: any) => void;
+  onCallIceCandidate?: (data: any) => void;
+  onCallEnd?: (data: any) => void;
 }
 
 export function useChatWebSocket({
@@ -25,6 +29,10 @@ export function useChatWebSocket({
   onDisconnect,
   onTypingStart,
   onTypingStop,
+  onCallOffer,
+  onCallAnswer,
+  onCallIceCandidate,
+  onCallEnd,
 }: UseChatWebSocketOptions) {
   const { accessToken } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
@@ -92,6 +100,22 @@ export function useChatWebSocket({
             onTypingStart?.(data.user_id, data.username);
           } else if (data.type === "typing.stopped") {
             onTypingStop?.(data.user_id, data.username);
+          } else if (data.type === "call.offer") {
+            console.log("[WebSocket] ✅ Received call.offer message:", data);
+            console.log("[WebSocket] call.offer details:", {
+              call_id: data.call_id,
+              caller_id: data.caller_id,
+              caller_username: data.caller_username,
+              call_type: data.call_type,
+              has_offer: !!data.offer,
+            });
+            onCallOffer?.(data);
+          } else if (data.type === "call.answer") {
+            onCallAnswer?.(data);
+          } else if (data.type === "call.ice-candidate") {
+            onCallIceCandidate?.(data);
+          } else if (data.type === "call.end") {
+            onCallEnd?.(data);
           } else if (data.type === "pong") {
             // Heartbeat response
           }
@@ -228,12 +252,20 @@ export function useChatWebSocket({
     };
   }, [enabled, conversationId, accessToken]);
 
+  const sendCallSignal = useCallback((data: any) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(data));
+    }
+  }, []);
+
   return {
     isConnected,
     connect,
     disconnect,
     startTyping,
     stopTyping,
+    sendCallSignal,
+    wsRef,
   };
 }
 

@@ -295,6 +295,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     async def call_incoming(self, event):
         """Broadcast incoming call notification from server."""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"call_incoming: Broadcasting call notification - call_id={event.get('call_id')}, caller_id={event.get('caller_id')}, receiver should be in group {self.group_name}")
+        print(f"[CHATWS] call_incoming: Broadcasting to {self.group_name} - call_id={event.get('call_id')}, caller_id={event.get('caller_id')}", flush=True)
         await self.send_json(
             {
                 "type": "call.offer",
@@ -304,6 +308,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 "call_type": event.get("call_type"),
             }
         )
+        print(f"[CHATWS] call_incoming: Message sent to client", flush=True)
 
     async def call_accepted(self, event):
         """Broadcast call accepted notification."""

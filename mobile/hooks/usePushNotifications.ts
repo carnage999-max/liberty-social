@@ -44,8 +44,20 @@ export function usePushNotifications() {
           );
           console.log('Device token registered successfully:', response.data);
         } catch (error: any) {
-          console.error('Failed to register device token:', error);
-          console.error('Error details:', error?.response?.data || error?.message);
+          // Check if the error is because the token already exists (400 with specific message)
+          const errorData = error?.response?.data;
+          const isTokenExistsError = error?.response?.status === 400 && 
+            (errorData?.token?.some((msg: string) => msg.includes('already exists')) ||
+             errorData?.detail?.includes('already exists'));
+          
+          if (isTokenExistsError) {
+            // Token already registered - this is fine, just log it
+            console.log('Device token already registered - skipping');
+          } else {
+            // Actual error - log it
+            console.error('Failed to register device token:', error);
+            console.error('Error details:', errorData || error?.message);
+          }
         }
       } else {
         console.warn('No Expo push token obtained - push notifications will not work');

@@ -1,10 +1,24 @@
-import { NativeModulesProxy } from 'expo-modules-core';
+import { requireNativeModule, Platform } from 'expo-modules-core';
 
 // Import the native module. On web, it will use ExpoPasskeysModule.ts
 // On native platforms, it will use the native module
-const ExpoPasskeysModule = 
-  NativeModulesProxy.ExpoPasskeys || 
-  require('./ExpoPasskeysModule').default;
+let ExpoPasskeysModule: any;
+
+if (Platform.OS === 'web') {
+  ExpoPasskeysModule = require('./ExpoPasskeysModule').default;
+} else {
+  // On native platforms, try to get the native module using requireNativeModule
+  try {
+    console.log('[Passkeys] Attempting to load native module using requireNativeModule...');
+    ExpoPasskeysModule = requireNativeModule('ExpoPasskeys');
+    console.log('[Passkeys] Native module ExpoPasskeys loaded successfully');
+    console.log('[Passkeys] Module methods:', Object.keys(ExpoPasskeysModule || {}));
+  } catch (error) {
+    console.warn('[Passkeys] Failed to load native module:', error);
+    console.warn('[Passkeys] Falling back to web implementation (will throw error on native)');
+    ExpoPasskeysModule = require('./ExpoPasskeysModule').default;
+  }
+}
 
 export interface PublicKeyCredentialCreationOptions {
   challenge: string;
@@ -62,7 +76,17 @@ export interface PublicKeyCredential {
 }
 
 export function isSupported(): boolean {
-  return ExpoPasskeysModule?.isSupported() ?? false;
+  if (!ExpoPasskeysModule) {
+    console.warn('[Passkeys] ExpoPasskeysModule is null/undefined');
+    return false;
+  }
+  if (typeof ExpoPasskeysModule.isSupported !== 'function') {
+    console.warn('[Passkeys] ExpoPasskeysModule.isSupported is not a function');
+    return false;
+  }
+  const result = ExpoPasskeysModule.isSupported();
+  console.log('[Passkeys] ExpoPasskeysModule.isSupported() returned:', result);
+  return result;
 }
 
 export async function create(

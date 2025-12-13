@@ -1,6 +1,13 @@
 // Fallback implementation for web
+import { Platform } from 'react-native';
+
 export default {
   isSupported(): boolean {
+    // On native platforms, this shouldn't be called, but if it is, return false
+    if (Platform.OS !== 'web') {
+      console.warn('[Passkeys] Web fallback isSupported() called on native platform');
+      return false;
+    }
     // Check if WebAuthn is available
     return typeof navigator !== 'undefined' &&
            typeof navigator.credentials !== 'undefined' &&
@@ -8,6 +15,9 @@ export default {
   },
 
   async create(options: any): Promise<any> {
+    if (Platform.OS !== 'web') {
+      throw new Error('Native ExpoPasskeys module is not available. Please rebuild the app.');
+    }
     if (!this.isSupported()) {
       throw new Error('WebAuthn is not supported on this platform');
     }
@@ -45,6 +55,9 @@ export default {
   },
 
   async get(options: any): Promise<any> {
+    if (Platform.OS !== 'web') {
+      throw new Error('Native ExpoPasskeys module is not available. Please rebuild the app.');
+    }
     if (!this.isSupported()) {
       throw new Error('WebAuthn is not supported on this platform');
     }
