@@ -107,10 +107,21 @@ function getEnvFirebaseWebConfig(): FirebaseWebConfig | null {
 export function getFirebaseVapidKey(): string | null {
   const key = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
   if (!key || !key.trim()) {
-    console.warn("[push] Missing NEXT_PUBLIC_FIREBASE_VAPID_KEY");
+    // This is not an error - we can get the key from backend
     return null;
   }
-  return key.trim();
+  const trimmedKey = key.trim();
+
+  // Validate VAPID key format (should be base64url-encoded, typically starts with B)
+  if (!trimmedKey.startsWith('B') || trimmedKey.length < 80) {
+    console.error("[push] Invalid VAPID key format in NEXT_PUBLIC_FIREBASE_VAPID_KEY");
+    console.error("[push] Key should be base64url-encoded and start with 'B'");
+    console.error("[push] Key length:", trimmedKey.length, "(expected ~87-88 characters)");
+    console.error("[push] Key preview:", trimmedKey.substring(0, 10) + "...");
+    return null;
+  }
+
+  return trimmedKey;
 }
 
 export async function ensureFirebaseMessaging(
@@ -210,11 +221,11 @@ export async function resolveFirebaseClientConfig(): Promise<{
 } | null> {
   const envConfig = getEnvFirebaseWebConfig();
   const envVapid = getFirebaseVapidKey();
-  
+
   // Debug: Log what we have from environment
   console.log('[push] Environment config available:', !!envConfig);
   console.log('[push] Environment VAPID available:', !!envVapid);
-  
+
   if (envConfig && envVapid) {
     console.log('[push] Using environment Firebase config');
     return { config: envConfig, vapidKey: envVapid };
@@ -234,8 +245,32 @@ export async function resolveFirebaseClientConfig(): Promise<{
 
   const finalConfig = envConfig ?? remote.config;
   const finalVapid = envVapid ?? remote.vapidKey ?? null;
-  
+
+  // Validate remote VAPID key if using it
+  if (!envVapid && remote.vapidKey) {
+    const remoteKey = remote.vapidKey.trim();
+    console.log('[push] Backend VAPID key received, length:', remoteKey.length);
+    console.log('[push] Backend VAPID key preview:', remoteKey.substring(0, 20) + '...');
+
+    // Basic validation - VAPID keys should be base64url-encoded and typically 87-88 chars
+    if (remoteKey.length < 80) {
+      console.error('[push] Backend returned VAPID key that is too short');
+      console.error('[push] VAPID key length:', remoteKey.length, '(expected ~87-88 characters)');
+      console.error('[push] Make sure the FIREBASE_WEB_VAPID_KEY environment variable is set correctly in AWS');
+      console.error('[push] Get the key from Firebase Console > Project Settings > Cloud Messaging > Web Push certificates');
+      return null;
+    }
+
+    // Warning if it doesn't start with 'B' but continue anyway
+    if (!remoteKey.startsWith('B')) {
+      console.warn('[push] VAPID key does not start with "B" - this may indicate an incorrect key');
+      console.warn('[push] Most Firebase VAPID keys start with "B". Please verify the key is correct.');
+    }
+  }
+
   console.log('[push] Using merged config - env:', !!envConfig, 'remote:', !!remote.config);
+  console.log('[push] Final VAPID source:', envVapid ? 'environment' : (remote.vapidKey ? 'backend' : 'none'));
+
   return {
     config: finalConfig,
     vapidKey: finalVapid,

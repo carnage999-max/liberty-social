@@ -2,6 +2,9 @@
 
 import { useRef, useEffect, useState } from "react";
 import { PhoneOff, Video, VideoOff, Mic, MicOff } from "lucide-react";
+import Image from "next/image";
+import { DEFAULT_AVATAR } from "@/lib/api";
+import type { BackgroundType } from "@/hooks/useFeedBackground";
 
 interface ActiveCallModalProps {
   call: any;
@@ -17,6 +20,8 @@ interface ActiveCallModalProps {
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
   endCall: () => Promise<void>;
+  chatBackground?: BackgroundType;
+  onCallEnded?: (durationSeconds: number) => void;
 }
 
 export default function ActiveCallModal({
@@ -29,10 +34,30 @@ export default function ActiveCallModal({
   localStream,
   remoteStream,
   endCall,
+  chatBackground = "default",
+  onCallEnded,
 }: ActiveCallModalProps) {
 
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(isVideoCall);
+  const [callDuration, setCallDuration] = useState(0);
+  const callStartTimeRef = useRef<number>(Date.now());
+
+  // Call duration counter
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCallDuration(Math.floor((Date.now() - callStartTimeRef.current) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Format call duration as MM:SS
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const toggleMute = () => {
     if (localStream) {
@@ -53,12 +78,108 @@ export default function ActiveCallModal({
   };
 
   const handleEndCall = async () => {
+    const duration = Math.floor((Date.now() - callStartTimeRef.current) / 1000);
     await endCall();
     onEndCall();
+    // Notify parent with call duration
+    if (onCallEnded) {
+      onCallEnded(duration);
+    }
+  };
+
+  // Background helper functions (same as chat page)
+  const getBackgroundColors = (): [string, string, string] => {
+    switch (chatBackground) {
+      case "clouds":
+        return ["#E3F2FD", "#BBDEFB", "#90CAF9"];
+      case "nature":
+        return ["#F1F8E9", "#DCEDC8", "#C5E1A5"];
+      case "space":
+        return ["#1A1A2E", "#0F3460", "#16213E"];
+      case "ocean":
+        return ["#006994", "#0085C7", "#00A8E8"];
+      case "forest":
+        return ["#2D4A2B", "#3F5F3D", "#567D4F"];
+      case "stars":
+        return ["#0F0F23", "#1A1A3E", "#252550"];
+      default:
+        return ["#1F2937", "#111827", "#0F172A"];
+    }
+  };
+
+  const hasAnimatedBackground = [
+    "american",
+    "christmas",
+    "halloween",
+    "clouds",
+    "nature",
+    "space",
+    "ocean",
+    "forest",
+    "stars",
+    "butterflies",
+    "dragons",
+    "christmas-trees",
+    "music-notes",
+    "pixel-hearts",
+  ].includes(chatBackground);
+
+  const isImageBackground = typeof chatBackground === "string" &&
+    (chatBackground.startsWith("/backgrounds/") || chatBackground.startsWith("http"));
+
+  const getBackgroundClass = (): string => {
+    if (isImageBackground) return "";
+    if (chatBackground === "default") return "";
+    const themeMap: Record<string, string> = {
+      american: "feed-bg-american",
+      christmas: "feed-bg-christmas",
+      halloween: "feed-bg-halloween",
+      clouds: "feed-bg-clouds",
+      nature: "feed-bg-nature",
+      space: "feed-bg-space",
+      ocean: "feed-bg-ocean",
+      forest: "feed-bg-forest",
+      stars: "feed-bg-stars",
+      butterflies: "feed-bg-butterflies",
+      dragons: "feed-bg-dragons",
+      "christmas-trees": "feed-bg-christmas-trees",
+      "music-notes": "feed-bg-music-notes",
+      "pixel-hearts": "feed-bg-pixel-hearts",
+    };
+    return themeMap[chatBackground] || "";
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black">
+    <div
+      className={`fixed inset-0 z-50 ${!isVideoCall ? getBackgroundClass() : ""}`}
+      style={{
+        backgroundColor: !isVideoCall && chatBackground !== "default" && !hasAnimatedBackground && !isImageBackground ? "transparent" : "#000000",
+        backgroundImage: !isVideoCall && isImageBackground ? `url(${chatBackground})` : undefined,
+        backgroundSize: !isVideoCall && isImageBackground ? "cover" : undefined,
+        backgroundPosition: !isVideoCall && isImageBackground ? "center" : undefined,
+        backgroundRepeat: !isVideoCall && isImageBackground ? "no-repeat" : undefined,
+      }}
+    >
+      {/* Background gradient layer for voice calls with non-animated themes */}
+      {!isVideoCall && !hasAnimatedBackground && !isImageBackground && chatBackground !== "default" && (
+        <div
+          className="absolute inset-0 -z-10"
+          style={{
+            background: `linear-gradient(135deg, ${getBackgroundColors().join(", ")})`,
+          }}
+        />
+      )}
+
+      {/* Dark overlay for voice calls with backgrounds */}
+      {!isVideoCall && chatBackground !== "default" && (
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.3) 50%, rgba(0, 0, 0, 0.5) 100%)",
+          }}
+        />
+      )}
+
       {/* Remote video (full screen) */}
       {isVideoCall && (
         <div className="absolute inset-0">
@@ -87,14 +208,25 @@ export default function ActiveCallModal({
       {/* Call info overlay (for voice calls) */}
       {!isVideoCall && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center text-white">
-            <div className="w-24 h-24 rounded-full bg-gray-700 mb-4 mx-auto flex items-center justify-center">
-              <span className="text-3xl font-bold">
-                {otherUser.username.charAt(0).toUpperCase()}
-              </span>
+          <div className="text-center text-white relative z-10">
+            {/* Avatar */}
+            <div className="relative w-32 h-32 rounded-full mx-auto mb-6 border-4 border-white/20 shadow-2xl overflow-hidden">
+              <Image
+                src={otherUser.avatar || DEFAULT_AVATAR}
+                alt={otherUser.username}
+                fill
+                className="object-cover"
+              />
             </div>
-            <h2 className="text-2xl font-bold mb-2">{otherUser.username}</h2>
-            <p className="text-gray-300">Voice Call</p>
+
+            {/* User info */}
+            <h2 className="text-3xl font-bold mb-2 drop-shadow-lg">{otherUser.username}</h2>
+            <p className="text-gray-200 text-lg mb-4 drop-shadow-md">Voice Call</p>
+
+            {/* Call duration */}
+            <div className="text-2xl font-mono text-white/90 drop-shadow-md">
+              {formatDuration(callDuration)}
+            </div>
           </div>
         </div>
       )}

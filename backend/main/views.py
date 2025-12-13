@@ -1445,9 +1445,18 @@ class CallViewSet(ModelViewSet):
     def get_queryset(self):
         """Return calls where user is caller or receiver."""
         user = self.request.user
-        return Call.objects.filter(
+        queryset = Call.objects.filter(
             Q(caller=user) | Q(receiver=user)
-        ).select_related("caller", "receiver", "conversation").order_by("-started_at")
+        ).select_related("caller", "receiver", "conversation")
+
+        # Filter by specific user if user_id parameter is provided
+        user_id = self.request.query_params.get("user_id")
+        if user_id:
+            queryset = queryset.filter(
+                Q(caller_id=user_id) | Q(receiver_id=user_id)
+            )
+
+        return queryset.order_by("-started_at")
 
     @action(detail=False, methods=["post"])
     def initiate(self, request):
@@ -1502,27 +1511,62 @@ class CallViewSet(ModelViewSet):
             conversation=conversation,
         )
 
-        # Send WebSocket notification to receiver
+        # Send WebSocket notification to receiver via both conversation and notification channels
         layer = get_channel_layer()
         if layer:
             try:
-                group_name = conversation_group_name(str(conversation.id)) if conversation else f"user_{receiver.id}"
-                logging.info(f"Sending call.incoming to group: {group_name}, call_id={call.id}, caller_id={request.user.id}, receiver_id={receiver.id}")
-                print(f"[CALL] Sending call.incoming to group: {group_name}, call_id={call.id}, caller_id={request.user.id}, receiver_id={receiver.id}", flush=True)
+                # Send to conversation group if exists (for users currently in the chat)
+                if conversation:
+                    conv_group_name = conversation_group_name(str(conversation.id))
+                    logging.info(f"Sending call.incoming to conversation group: {conv_group_name}, call_id={call.id}")
+                    print(f"[CALL] Sending call.incoming to conversation group: {conv_group_name}", flush=True)
+                    async_to_sync(layer.group_send)(
+                        conv_group_name,
+                        {
+                            "type": "call.incoming",
+                            "call_id": str(call.id),
+                            "caller_id": str(request.user.id),
+                            "caller_username": request.user.username,
+                            "call_type": call_type,
+                            "conversation_id": str(conversation.id),
+                        },
+                    )
+
+                # Also send to receiver's notification group (for global call notifications)
+                notification_group = notification_group_name(str(receiver.id))
+                logging.info(f"Sending call.incoming to notification group: {notification_group}, call_id={call.id}")
+                print(f"[CALL] Sending call.incoming to notification group: {notification_group}", flush=True)
                 async_to_sync(layer.group_send)(
-                    group_name,
+                    notification_group,
                     {
                         "type": "call.incoming",
                         "call_id": str(call.id),
                         "caller_id": str(request.user.id),
                         "caller_username": request.user.username,
                         "call_type": call_type,
+                        "conversation_id": str(conversation.id) if conversation else None,
                     },
                 )
-                print(f"[CALL] call.incoming message sent to group: {group_name}", flush=True)
+                print(f"[CALL] call.incoming message sent to both groups", flush=True)
             except Exception as e:
                 logging.error(f"Error sending call notification: {e}")
                 print(f"[CALL] ERROR sending call notification: {e}", flush=True)
+
+        # Create a notification for the incoming call (for push notifications)
+        try:
+            from django.contrib.contenttypes.models import ContentType
+            call_content_type = ContentType.objects.get_for_model(Call)
+            notification = Notification.objects.create(
+                recipient=receiver,
+                actor=request.user,
+                verb=f"incoming_{call_type}_call",
+                content_type=call_content_type,
+                object_id=call.id,
+            )
+            print(f"[CALL] Notification created: {notification.id} for call {call.id}", flush=True)
+        except Exception as e:
+            logging.error(f"Error creating call notification: {e}")
+            print(f"[CALL] ERROR creating notification: {e}", flush=True)
 
         serializer = self.get_serializer(call)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

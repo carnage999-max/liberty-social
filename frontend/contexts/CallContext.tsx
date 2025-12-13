@@ -3,10 +3,13 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useWebRTC } from "@/hooks/useWebRTC";
+import { useGlobalNotificationWebSocket } from "@/hooks/useGlobalNotificationWebSocket";
 import IncomingCallModal from "@/components/calls/IncomingCallModal";
 import OutgoingCallModal from "@/components/calls/OutgoingCallModal";
 import ActiveCallModal from "@/components/calls/ActiveCallModal";
 import { apiGet } from "@/lib/api";
+import { useToast } from "@/components/Toast";
+import { useFeedBackground } from "@/hooks/useFeedBackground";
 
 interface CallContextType {
   incomingCall: any | null;
@@ -25,6 +28,8 @@ const CallContext = createContext<CallContextType | undefined>(undefined);
 
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { user, accessToken } = useAuth();
+  const toast = useToast();
+  const { theme: chatBackground } = useFeedBackground();
   const [incomingCall, setIncomingCall] = useState<any | null>(null);
   const [activeCall, setActiveCall] = useState<any | null>(null);
   const [outgoingCall, setOutgoingCall] = useState<any | null>(null);
@@ -32,6 +37,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const wsRef = useRef<WebSocket | null>(null);
   const conversationRef = useRef<any | null>(null);
   const conversationIdRef = useRef<string | null>(null);
+
+  // Connect to global notification WebSocket for incoming calls
+  useGlobalNotificationWebSocket({
+    onCallIncoming: (data) => {
+      console.log("[CallContext] 📞 Global incoming call notification:", data);
+      // Dispatch as a custom event so existing handlers can process it
+      window.dispatchEvent(new CustomEvent("call.message", { detail: data }));
+    },
+  });
 
   // Initialize WebRTC hook
   const webrtc = useWebRTC({
@@ -326,6 +340,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       {activeCall && (() => {
         const otherParticipant = getOtherParticipant();
         if (!otherParticipant) return null;
+
+        const handleCallEnded = (durationSeconds: number) => {
+          const mins = Math.floor(durationSeconds / 60);
+          const secs = durationSeconds % 60;
+          const durationText = mins > 0
+            ? `${mins} minute${mins > 1 ? 's' : ''} ${secs} second${secs !== 1 ? 's' : ''}`
+            : `${secs} second${secs !== 1 ? 's' : ''}`;
+
+          toast.show(`Call ended. Duration: ${durationText}`, "success", 5000);
+        };
+
         return (
           <ActiveCallModal
             call={activeCall}
@@ -341,6 +366,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             localStream={webrtc.localStream}
             remoteStream={webrtc.remoteStream}
             endCall={endCall}
+            chatBackground={chatBackground}
+            onCallEnded={handleCallEnded}
           />
         );
       })()}

@@ -20,6 +20,7 @@ import ImageGallery from "@/components/ImageGallery";
 import { useFeedBackground } from "@/hooks/useFeedBackground";
 import FeedBackgroundModal from "@/components/modals/FeedBackgroundModal";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
+import CallHistoryModal from "@/components/calls/CallHistoryModal";
 // Call modals are now handled globally in CallContext
 import { Phone, Video } from "lucide-react";
 
@@ -141,7 +142,8 @@ export default function ConversationDetailPage() {
   // Chat background state
   const [backgroundModalOpen, setBackgroundModalOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
-  
+  const [showCallHistory, setShowCallHistory] = useState(false);
+
   // Confirmation dialogs
   const [showDeleteMessageConfirm, setShowDeleteMessageConfirm] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<number | null>(null);
@@ -1280,6 +1282,16 @@ export default function ConversationDetailPage() {
                         <button
                           onClick={() => {
                             setHeaderMenuOpen(false);
+                            setShowCallHistory(true);
+                          }}
+                          className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700 flex items-center gap-3"
+                        >
+                          <Phone className="w-[18px] h-[18px]" />
+                          View Call History
+                        </button>
+                        <button
+                          onClick={() => {
+                            setHeaderMenuOpen(false);
                             setUserToBlock({
                               id: otherParticipant.user.id,
                               name: otherParticipant.user.first_name || otherParticipant.user.username || 'this user'
@@ -2298,6 +2310,24 @@ export default function ConversationDetailPage() {
       />
 
       {/* Call modals are now handled globally in CallContext */}
+
+      {/* Call History Modal */}
+      {conversation && !conversation.is_group && (() => {
+        const otherParticipant = conversation.participants.find((p) => p.user.id !== user?.id);
+        if (!otherParticipant) return null;
+        const otherUserName = (otherParticipant.user.first_name && otherParticipant.user.last_name
+          ? `${otherParticipant.user.first_name} ${otherParticipant.user.last_name}`
+          : otherParticipant.user.username) || "User";
+
+        return (
+          <CallHistoryModal
+            isOpen={showCallHistory}
+            onClose={() => setShowCallHistory(false)}
+            otherUserId={otherParticipant.user.id.toString()}
+            otherUserName={otherUserName}
+          />
+        );
+      })()}
     </>
   );
 }

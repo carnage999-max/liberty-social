@@ -370,6 +370,19 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             }
         )
 
+    async def call_incoming(self, event):
+        """Handle incoming call notifications."""
+        await self.send_json(
+            {
+                "type": "call.incoming",
+                "call_id": event.get("call_id"),
+                "caller_id": event.get("caller_id"),
+                "caller_username": event.get("caller_username"),
+                "call_type": event.get("call_type"),
+                "conversation_id": event.get("conversation_id"),
+            }
+        )
+
 
 class UserStatusConsumer(AsyncJsonWebsocketConsumer):
     """Tracks and broadcasts user online/offline status in real-time."""

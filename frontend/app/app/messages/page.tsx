@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { resolveRemoteUrl } from "@/lib/api";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
+import CallHistoryModal from "@/components/calls/CallHistoryModal";
 
 export default function MessagesPage() {
   const { accessToken, user } = useAuth();
@@ -31,6 +32,7 @@ export default function MessagesPage() {
   const [creatingConversation, setCreatingConversation] = useState(false);
   const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
   const [showArchivedModal, setShowArchivedModal] = useState(false);
+  const [showCallHistoryModal, setShowCallHistoryModal] = useState(false);
   const [selectedConversations, setSelectedConversations] = useState<Set<number>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedArchivedConversations, setSelectedArchivedConversations] = useState<Set<number>>(new Set());
@@ -547,6 +549,22 @@ export default function MessagesPage() {
             {archivedConversations.length}
           </span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-400">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+      )}
+
+      {/* Call History Row */}
+      {!isSelectionMode && (
+        <button
+          onClick={() => setShowCallHistoryModal(true)}
+          className="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors border border-gray-700"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-green-500">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+          </svg>
+          <span className="text-gray-300 font-medium">Call History</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="ml-auto text-gray-400">
             <path d="M9 18l6-6-6-6" />
           </svg>
         </button>
@@ -1086,6 +1104,12 @@ export default function MessagesPage() {
           handleClearArchivedChats();
         }}
         onCancel={() => setShowClearArchivedConfirm(false)}
+      />
+
+      {/* Call History Modal */}
+      <CallHistoryModal
+        isOpen={showCallHistoryModal}
+        onClose={() => setShowCallHistoryModal(false)}
       />
     </div>
   );

@@ -45,11 +45,9 @@ export function useUserStatus(onStatusChange?: StatusChangeCallback) {
     }
 
     try {
-      // Use API_BASE to construct WebSocket URL (same as chat WebSocket)
-      // Convert https:// to wss:// and http:// to ws://
-      let wsBase = API_BASE.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://");
-      // Remove trailing /api if present
-      wsBase = wsBase.replace(/\/api\/?$/, "");
+      // Use dedicated WebSocket base URL
+      const wsBase = process.env.NEXT_PUBLIC_WS_BASE_URL ||
+        API_BASE.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://").replace(/\/api\/?$/, "");
       const wsUrl = `${wsBase}/ws/user-status/?token=${accessToken}`;
 
       console.log('[UserStatus] Connecting to WebSocket:', wsUrl.replace(/token=[^&]+/, 'token=***'));
