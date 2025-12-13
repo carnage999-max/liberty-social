@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, apiPatch, apiDelete, API_BASE, resolveRemoteUrl } from "@/lib/api";
 import { useChatWebSocket } from "@/hooks/useChatWebSocket";
-import { useWebRTC } from "@/hooks/useWebRTC";
+import { useCall } from "@/contexts/CallContext";
 import { useToast } from "@/components/Toast";
 import { TypingIndicator } from "@/components/TypingIndicator";
 import type { Conversation, Message } from "@/lib/types";
@@ -20,9 +20,7 @@ import ImageGallery from "@/components/ImageGallery";
 import { useFeedBackground } from "@/hooks/useFeedBackground";
 import FeedBackgroundModal from "@/components/modals/FeedBackgroundModal";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
-import IncomingCallModal from "@/components/calls/IncomingCallModal";
-import ActiveCallModal from "@/components/calls/ActiveCallModal";
-import OutgoingCallModal from "@/components/calls/OutgoingCallModal";
+// Call modals are now handled globally in CallContext
 import { Phone, Video } from "lucide-react";
 
 // Map old text reaction types to emojis for backward compatibility
@@ -151,11 +149,19 @@ export default function ConversationDetailPage() {
   const [userToBlock, setUserToBlock] = useState<{ id: string; name: string } | null>(null);
   const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
 
-  // Call state
-  const [incomingCall, setIncomingCall] = useState<any>(null);
-  const [activeCall, setActiveCall] = useState<any>(null);
-  const [outgoingCall, setOutgoingCall] = useState<any>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  // Global call context
+  const {
+    incomingCall,
+    activeCall,
+    outgoingCall,
+    initiateCall,
+    answerCall: answerCallGlobal,
+    rejectCall,
+    endCall,
+    webrtc,
+    setWebSocket,
+    setConversation: setGlobalConversation,
+  } = useCall();
 
   const loadConversation = async () => {
     if (!accessToken || !conversationId) return;
@@ -166,6 +172,8 @@ export default function ConversationDetailPage() {
         cache: "no-store",
       });
       setConversation(data);
+      // Also set in global call context for participant info
+      setGlobalConversation(data);
     } catch (error) {
       toast.show("Failed to load conversation", "error");
       router.back();
@@ -321,22 +329,7 @@ export default function ConversationDetailPage() {
     }
   };
 
-  // WebRTC hook for calls
-  const webrtc = useWebRTC({
-    conversationId,
-    onCallIncoming: (call) => {
-      setIncomingCall(call);
-    },
-    onCallAccepted: (call) => {
-      setIncomingCall(null);
-      setOutgoingCall(null);
-      setActiveCall(call);
-    },
-    onCallEnded: () => {
-      setActiveCall(null);
-      setOutgoingCall(null);
-    },
-  });
+  // Call context is now global - no local WebRTC hook needed
 
   // WebSocket connection
   const { isConnected, startTyping, stopTyping, wsRef: chatWsRef } = useChatWebSocket({
@@ -367,14 +360,14 @@ export default function ConversationDetailPage() {
     onConnect: () => {
       console.log("[WebSocket] Connected, setting polling to false.");
       setPollingEnabled(false);
-      // CRITICAL: Pass the WebSocket instance to the WebRTC hook immediately upon connection
+      // CRITICAL: Pass the WebSocket instance to the global call context
       if (chatWsRef.current) {
-        console.log("[WebSocket] ✅ Passing WebSocket instance to WebRTC hook.");
+        console.log("[WebSocket] ✅ Passing WebSocket instance to global call context.");
         console.log("[WebSocket] WebSocket readyState:", chatWsRef.current.readyState);
-        webrtc.setWebSocket(chatWsRef.current);
-        console.log("[WebSocket] ✅ WebSocket passed to WebRTC hook");
+        setWebSocket(chatWsRef.current);
+        console.log("[WebSocket] ✅ WebSocket passed to global call context");
       } else {
-        console.error("[WebSocket] ❌ chatWsRef.current is null when trying to pass to WebRTC!");
+        console.error("[WebSocket] ❌ chatWsRef.current is null when trying to pass to call context!");
       }
     },
     onDisconnect: () => {
@@ -390,76 +383,39 @@ export default function ConversationDetailPage() {
     onTypingStop: (userId: string) => {
       setTypingUsers((prev) => prev.filter((u) => u.userId !== userId));
     },
+    onCallIncoming: (data) => {
+      // Dispatch to global call context
+      console.log("[Call] Received call.incoming, dispatching to global context:", data);
+      window.dispatchEvent(new CustomEvent("call.message", { detail: data }));
+    },
     onCallOffer: (data) => {
-      // Handle incoming call offer
-      console.log("[Call] Received call offer:", data);
-      console.log("[Call] Current user ID:", user?.id?.toString());
-      console.log("[Call] Caller ID:", data.caller_id);
-      console.log("[Call] Has offer SDP:", !!data.offer);
-      
-      // If this message has an offer SDP, notify WebRTC hook immediately
-      if (data.offer) {
-        console.log("[Call] ✅ Offer SDP present, notifying WebRTC hook");
-        webrtc.receiveOfferSDP(data.offer);
-      }
-      
-      // Only show incoming call if it's from someone else
-      if (data.caller_id && data.caller_id !== user?.id?.toString()) {
-        // If we already have an incoming call, update it with the offer SDP
-        setIncomingCall((prev: any) => {
-          if (prev && prev.id === data.call_id) {
-            console.log("[Call] Updating existing incoming call with offer SDP");
-            return {
-              ...prev,
-              offer: data.offer || prev.offer, // Update offer if provided
-            };
-          } else if (!prev) {
-            // New incoming call
-            console.log("[Call] Setting incoming call state");
-            return {
-              id: data.call_id,
-              caller_id: data.caller_id,
-              caller_username: data.caller_username || "Unknown",
-              call_type: data.call_type || "voice",
-              offer: data.offer, // May be undefined initially, will be set when caller sends offer
-            };
-          }
-          return prev;
-        });
-      } else if (data.caller_id === user?.id?.toString()) {
-        // This is our own call being echoed back - ignore
-        console.log("[Call] Ignoring own call offer echo");
-      } else {
-        console.log("[Call] Call offer ignored - no caller_id or unknown reason");
-      }
+      // Dispatch to global call context via custom event
+      // CallContext will handle the offer SDP processing
+      console.log("[Call] Received call offer, dispatching to global context:", data);
+      window.dispatchEvent(new CustomEvent("call.message", { detail: data }));
     },
     onCallAnswer: (data) => {
-      // Handle call answer - transition from outgoing to active
-      console.log("[Call] Received call answer:", data);
-      if (outgoingCall && data.call_id === outgoingCall.id.toString()) {
-        setOutgoingCall(null);
-        setActiveCall(outgoingCall);
-      }
+      // Dispatch to global call context
+      console.log("[Call] Received call answer, dispatching to global context:", data);
+      window.dispatchEvent(new CustomEvent("call.message", { detail: data }));
     },
     onCallIceCandidate: (data) => {
       // Handle ICE candidate - will be processed by WebRTC hook
+      // Could also dispatch if needed
     },
     onCallEnd: (data) => {
-      // Handle call end
-      console.log("[Call] Call ended:", data);
-      setActiveCall(null);
-      setIncomingCall(null);
-      setOutgoingCall(null);
-      webrtc.endCall();
+      // Dispatch to global call context
+      console.log("[Call] Call ended, dispatching to global context:", data);
+      window.dispatchEvent(new CustomEvent("call.message", { detail: data }));
     },
   });
 
-  // Connect WebSocket to WebRTC for call signaling (only when connected)
+  // Connect WebSocket to global call context (only when connected)
   useEffect(() => {
     if (isConnected && chatWsRef?.current && chatWsRef.current.readyState === WebSocket.OPEN) {
-      webrtc.setWebSocket(chatWsRef.current);
+      setWebSocket(chatWsRef.current);
     }
-  }, [isConnected, chatWsRef, webrtc]);
+  }, [isConnected, chatWsRef, setWebSocket]);
 
   // Debug: Log outgoingCall changes
   useEffect(() => {
@@ -1252,39 +1208,12 @@ export default function ConversationDetailPage() {
               <div className="flex gap-2 mr-2">
                 <button
                   onClick={async () => {
-                    console.log("[Call] Voice call button clicked");
-                    // Set outgoing call immediately to show UI
-                    const outgoingCallData = {
-                      id: "pending",
-                      receiver_id: otherParticipant.user.id.toString(),
-                      receiver_username: otherParticipant.user.username || otherParticipant.user.first_name || "User",
-                      call_type: "voice" as const,
-                    };
-                    console.log("[Call] Setting outgoing call immediately:", outgoingCallData);
-                    setOutgoingCall(outgoingCallData);
-                    
                     try {
-                      console.log("[Call] Initiating voice call to:", otherParticipant.user.id);
-                      console.log("[Call] webrtc object:", webrtc);
-                      console.log("[Call] Calling initiateCall...");
-                      const call = await webrtc.initiateCall(otherParticipant.user.id.toString(), "voice");
-                      console.log("[Call] ✅ Call initiated successfully, response:", call);
-                      // Update with real call data
-                      const updatedCallData = {
-                        ...call,
-                        receiver_id: otherParticipant.user.id.toString(),
-                        receiver_username: otherParticipant.user.username || otherParticipant.user.first_name || "User",
-                      };
-                      console.log("[Call] Updating outgoing call with real data:", updatedCallData);
-                      setOutgoingCall(updatedCallData);
-                      console.log("[Call] ✅ Outgoing call state updated");
+                      console.log("[Call] Voice call button clicked");
+                      await initiateCall(otherParticipant.user.id.toString(), "voice", conversationId);
                     } catch (error: any) {
                       console.error("[Call] ❌ Error initiating call:", error);
-                      console.error("[Call] Error type:", error?.constructor?.name);
-                      console.error("[Call] Error message:", error?.message);
-                      console.error("[Call] Error stack:", error?.stack);
                       toast.show(error?.message || "Failed to start voice call", "error");
-                      setOutgoingCall(null);
                     }
                   }}
                   className="text-gray-300 hover:text-white p-2 transition rounded-lg hover:bg-gray-700"
@@ -1295,34 +1224,12 @@ export default function ConversationDetailPage() {
                 </button>
                 <button
                   onClick={async () => {
-                    console.log("[Call] Video call button clicked");
-                    // Set outgoing call immediately to show UI
-                    const outgoingCallData = {
-                      id: "pending",
-                      receiver_id: otherParticipant.user.id.toString(),
-                      receiver_username: otherParticipant.user.username || otherParticipant.user.first_name || "User",
-                      call_type: "video" as const,
-                    };
-                    console.log("[Call] Setting outgoing call immediately:", outgoingCallData);
-                    setOutgoingCall(outgoingCallData);
-                    
                     try {
-                      console.log("[Call] Initiating video call to:", otherParticipant.user.id);
-                      const call = await webrtc.initiateCall(otherParticipant.user.id.toString(), "video");
-                      console.log("[Call] ✅ Call initiated successfully, response:", call);
-                      // Update with real call data
-                      const updatedCallData = {
-                        ...call,
-                        receiver_id: otherParticipant.user.id.toString(),
-                        receiver_username: otherParticipant.user.username || otherParticipant.user.first_name || "User",
-                      };
-                      console.log("[Call] Updating outgoing call with real data:", updatedCallData);
-                      setOutgoingCall(updatedCallData);
-                      console.log("[Call] ✅ Outgoing call state updated");
+                      console.log("[Call] Video call button clicked");
+                      await initiateCall(otherParticipant.user.id.toString(), "video", conversationId);
                     } catch (error: any) {
                       console.error("[Call] ❌ Error initiating call:", error);
                       toast.show(error?.message || "Failed to start video call", "error");
-                      setOutgoingCall(null);
                     }
                   }}
                   className="text-gray-300 hover:text-white p-2 transition rounded-lg hover:bg-gray-700"
@@ -2390,105 +2297,7 @@ export default function ConversationDetailPage() {
         onCancel={() => setShowClearChatConfirm(false)}
       />
 
-      {/* Incoming Call Modal */}
-      {incomingCall && conversation && (() => {
-        const callerParticipant = conversation.participants.find(
-          (p) => p.user.id.toString() === incomingCall.caller_id
-        );
-        if (!callerParticipant) return null;
-        return (
-          <IncomingCallModal
-            call={incomingCall}
-            onAccept={async () => {
-              // Prevent double-clicking
-              if (webrtc.isCallActive || activeCall) {
-                console.log("[Call] Call already active, ignoring accept");
-                return;
-              }
-              
-              try {
-                const callToAnswer = { ...incomingCall };
-                console.log("[Call] Answering call with:", callToAnswer);
-                await webrtc.answerCall(callToAnswer, incomingCall.call_type);
-              } catch (error: any) {
-                console.error("[Call] Error answering call:", error);
-                toast.show(error?.message || "Failed to answer call", "error");
-                setIncomingCall(null);
-              }
-            }}
-            onReject={async () => {
-              try {
-                await webrtc.rejectCall(incomingCall.id);
-              } catch (error) {
-                console.error("Error rejecting call:", error);
-              }
-              setIncomingCall(null);
-            }}
-            callerAvatar={callerParticipant.user.profile_image_url || undefined}
-          />
-        );
-      })()}
-
-      {/* Outgoing Call Modal */}
-      {outgoingCall && conversation && (() => {
-        console.log("[Call] Rendering outgoing call modal, outgoingCall:", outgoingCall);
-        const receiverParticipant = conversation.participants.find(
-          (p) => p.user.id.toString() === outgoingCall.receiver_id
-        );
-        console.log("[Call] Receiver participant:", receiverParticipant);
-        if (!receiverParticipant) {
-          console.warn("[Call] Receiver participant not found!");
-          return null;
-        }
-        return (
-          <OutgoingCallModal
-            call={{
-              id: outgoingCall.id?.toString() || "",
-              receiver_id: outgoingCall.receiver_id,
-              receiver_username: outgoingCall.receiver_username,
-              call_type: outgoingCall.call_type || "voice",
-            }}
-            onCancel={async () => {
-              try {
-                if (outgoingCall.id) {
-                  await webrtc.endCall();
-                }
-              } catch (error) {
-                console.error("Error canceling call:", error);
-              }
-              setOutgoingCall(null);
-            }}
-            receiverAvatar={receiverParticipant.user.profile_image_url || undefined}
-          />
-        );
-      })()}
-
-      {/* Active Call Modal */}
-      {activeCall && conversation && (() => {
-        const otherParticipant = conversation.participants.find(
-          (p) => p.user.id !== user?.id
-        );
-        if (!otherParticipant) return null;
-        return (
-          <ActiveCallModal
-            call={activeCall}
-            otherUser={{
-              id: otherParticipant.user.id.toString(),
-              username: otherParticipant.user.username || otherParticipant.user.first_name || "User",
-              avatar: otherParticipant.user.profile_image_url || undefined,
-            }}
-            onEndCall={() => {
-              setActiveCall(null);
-            }}
-            isVideoCall={activeCall.call_type === "video"}
-            localVideoRef={webrtc.localVideoRef as React.RefObject<HTMLVideoElement>}
-            remoteVideoRef={webrtc.remoteVideoRef as React.RefObject<HTMLVideoElement>}
-            localStream={webrtc.localStream}
-            remoteStream={webrtc.remoteStream}
-            endCall={webrtc.endCall}
-          />
-        );
-      })()}
+      {/* Call modals are now handled globally in CallContext */}
     </>
   );
 }

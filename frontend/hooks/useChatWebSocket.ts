@@ -14,6 +14,7 @@ interface UseChatWebSocketOptions {
   onDisconnect?: () => void;
   onTypingStart?: (userId: string, username: string) => void;
   onTypingStop?: (userId: string, username: string) => void;
+  onCallIncoming?: (data: any) => void;
   onCallOffer?: (data: any) => void;
   onCallAnswer?: (data: any) => void;
   onCallIceCandidate?: (data: any) => void;
@@ -29,6 +30,7 @@ export function useChatWebSocket({
   onDisconnect,
   onTypingStart,
   onTypingStop,
+  onCallIncoming,
   onCallOffer,
   onCallAnswer,
   onCallIceCandidate,
@@ -100,6 +102,9 @@ export function useChatWebSocket({
             onTypingStart?.(data.user_id, data.username);
           } else if (data.type === "typing.stopped") {
             onTypingStop?.(data.user_id, data.username);
+          } else if (data.type === "call.incoming") {
+            console.log("[WebSocket] ✅ Received call.incoming message:", data);
+            onCallIncoming?.(data);
           } else if (data.type === "call.offer") {
             console.log("[WebSocket] ✅ Received call.offer message:", data);
             console.log("[WebSocket] call.offer details:", {

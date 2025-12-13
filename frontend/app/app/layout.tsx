@@ -2,11 +2,14 @@
 
 import RequireAuth from "@/components/auth/RequireAuth";
 import AppShell from "@/components/layout/AppShell";
+import { CallProvider } from "@/contexts/CallContext";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <RequireAuth>
-      <AppShell>{children}</AppShell>
+      <CallProvider>
+        <AppShell>{children}</AppShell>
+      </CallProvider>
     </RequireAuth>
   );
 }
