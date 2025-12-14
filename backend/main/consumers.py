@@ -207,7 +207,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         # Determine receiver by fetching the call
         try:
             from .models import Call
-            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+
+            # Use select_related to fetch caller and receiver in the same query
+            call = await sync_to_async(
+                lambda: Call.objects.select_related('caller', 'receiver').get(id=content.get("call_id"))
+            )()
+
             receiver_id = call.receiver.id if call.caller.id == user.id else call.caller.id
 
             receiver_notification_group = notification_group_name(str(receiver_id))
@@ -248,7 +253,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         # ALSO send to caller's global notification WebSocket
         try:
             from .models import Call
-            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+
+            # Use select_related to fetch caller in the same query
+            call = await sync_to_async(
+                lambda: Call.objects.select_related('caller').get(id=content.get("call_id"))
+            )()
+
             caller_id = call.caller.id
 
             caller_notification_group = notification_group_name(str(caller_id))
@@ -301,7 +311,11 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         # ALSO send to other participant's global notification WebSocket
         try:
             from .models import Call
-            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+
+            # Use select_related to fetch caller and receiver in the same query
+            call = await sync_to_async(
+                lambda: Call.objects.select_related('caller', 'receiver').get(id=content.get("call_id"))
+            )()
 
             # Determine the other participant
             other_user_id = call.receiver.id if call.caller.id == user.id else call.caller.id
@@ -446,7 +460,11 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
         # Route to the other participant's notification group
         try:
             from .models import Call
-            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+
+            # Use select_related to fetch caller and receiver in the same query
+            call = await sync_to_async(
+                lambda: Call.objects.select_related('caller', 'receiver').get(id=content.get("call_id"))
+            )()
 
             # Determine receiver
             receiver_id = call.receiver.id if call.caller.id == self.user.id else call.caller.id
@@ -474,7 +492,11 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
         # Route to the caller's notification group
         try:
             from .models import Call
-            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+
+            # Use select_related to fetch caller in the same query
+            call = await sync_to_async(
+                lambda: Call.objects.select_related('caller').get(id=content.get("call_id"))
+            )()
 
             caller_id = call.caller.id
             caller_notification_group = notification_group_name(str(caller_id))
@@ -498,7 +520,11 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
         # Route to the other participant's notification group
         try:
             from .models import Call
-            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+
+            # Use select_related to fetch caller and receiver in the same query
+            call = await sync_to_async(
+                lambda: Call.objects.select_related('caller', 'receiver').get(id=content.get("call_id"))
+            )()
 
             # Determine other participant
             other_user_id = call.receiver.id if call.caller.id == self.user.id else call.caller.id
