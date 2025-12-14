@@ -112,6 +112,33 @@ export function useGlobalNotificationWebSocket(
           }
         } else if (data.type === "notification.created") {
           console.log("[GlobalNotificationWS] 🔔 New notification");
+          console.log("[GlobalNotificationWS] Notification payload:", data.payload);
+
+          // Check if this notification is actually a call notification
+          const isCallNotification =
+            data.payload?.verb === "incoming_voice_call" ||
+            data.payload?.verb === "incoming_video_call" ||
+            data.payload?.notification_type === "call" ||
+            data.payload?.type === "call";
+
+          if (isCallNotification) {
+            console.log("[GlobalNotificationWS] 📞 Detected call notification, dispatching as call.incoming");
+
+            // Extract call type from verb
+            const callType = data.payload.verb === "incoming_video_call" ? "video" : "voice";
+
+            window.dispatchEvent(new CustomEvent("call.message", {
+              detail: {
+                type: "call.incoming",
+                call_id: data.payload.object_id?.toString() || data.payload.call_id || data.payload.data?.call_id,
+                caller_id: data.payload.actor?.id?.toString() || data.payload.sender_id || data.payload.data?.caller_id,
+                caller_username: data.payload.actor?.username || data.payload.sender?.username || data.payload.data?.caller_username,
+                call_type: callType,
+                conversation_id: data.payload.data?.conversation_id || data.payload.conversation_id,
+              }
+            }));
+          }
+
           onNotificationCreatedRef.current?.(data.payload);
         } else if (data.type === "connection.ack") {
           console.log("[GlobalNotificationWS] Connection acknowledged");

@@ -189,6 +189,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         if not user:
             return
 
+        # Send to conversation group (existing behavior)
         await self.channel_layer.group_send(
             self.group_name,
             {
@@ -198,8 +199,34 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 "call_id": content.get("call_id"),
                 "call_type": content.get("call_type", "voice"),
                 "offer": content.get("offer"),
+                "conversation_id": str(self.conversation_id),
             },
         )
+
+        # ALSO send to receiver's global notification WebSocket
+        # Determine receiver by fetching the call
+        try:
+            from .models import Call
+            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+            receiver_id = call.receiver.id if call.caller.id == user.id else call.caller.id
+
+            receiver_notification_group = notification_group_name(str(receiver_id))
+            print(f"[CHATWS] Routing call.offer to receiver's global notification group: {receiver_notification_group}", flush=True)
+
+            await self.channel_layer.group_send(
+                receiver_notification_group,
+                {
+                    "type": "call_offer",  # Use underscore for channel layer routing
+                    "caller_id": str(user.id),
+                    "caller_username": user.username,
+                    "call_id": content.get("call_id"),
+                    "call_type": content.get("call_type", "voice"),
+                    "offer": content.get("offer"),
+                    "conversation_id": str(self.conversation_id),
+                },
+            )
+        except Exception as e:
+            print(f"[CHATWS] Error routing call.offer to global notification: {e}", flush=True)
 
     async def _handle_call_answer(self, content):
         """Handle WebRTC answer from receiver."""
@@ -207,6 +234,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         if not user:
             return
 
+        # Send to conversation group (existing behavior)
         await self.channel_layer.group_send(
             self.group_name,
             {
@@ -216,6 +244,27 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 "answer": content.get("answer"),
             },
         )
+
+        # ALSO send to caller's global notification WebSocket
+        try:
+            from .models import Call
+            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+            caller_id = call.caller.id
+
+            caller_notification_group = notification_group_name(str(caller_id))
+            print(f"[CHATWS] Routing call.answer to caller's global notification group: {caller_notification_group}", flush=True)
+
+            await self.channel_layer.group_send(
+                caller_notification_group,
+                {
+                    "type": "call_answer",  # Use underscore for channel layer routing
+                    "receiver_id": str(user.id),
+                    "call_id": content.get("call_id"),
+                    "answer": content.get("answer"),
+                },
+            )
+        except Exception as e:
+            print(f"[CHATWS] Error routing call.answer to global notification: {e}", flush=True)
 
     async def _handle_call_ice_candidate(self, content):
         """Handle ICE candidate exchange."""
@@ -239,6 +288,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         if not user:
             return
 
+        # Send to conversation group (existing behavior)
         await self.channel_layer.group_send(
             self.group_name,
             {
@@ -247,6 +297,28 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 "call_id": content.get("call_id"),
             },
         )
+
+        # ALSO send to other participant's global notification WebSocket
+        try:
+            from .models import Call
+            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+
+            # Determine the other participant
+            other_user_id = call.receiver.id if call.caller.id == user.id else call.caller.id
+
+            other_notification_group = notification_group_name(str(other_user_id))
+            print(f"[CHATWS] Routing call.end to other user's global notification group: {other_notification_group}", flush=True)
+
+            await self.channel_layer.group_send(
+                other_notification_group,
+                {
+                    "type": "call_end",  # Use underscore for channel layer routing
+                    "user_id": str(user.id),
+                    "call_id": content.get("call_id"),
+                },
+            )
+        except Exception as e:
+            print(f"[CHATWS] Error routing call.end to global notification: {e}", flush=True)
 
     async def call_offer(self, event):
         """Broadcast call offer to other participants."""
@@ -347,6 +419,7 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             return
 
         self.user_id = str(user.id)
+        self.user = user
         self.group_name = notification_group_name(self.user_id)
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
@@ -361,6 +434,88 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
         message_type = content.get("type")
         if message_type == "ping":
             await self.send_json({"type": "pong"})
+        elif message_type == "call.offer":
+            await self._handle_call_offer_from_client(content)
+        elif message_type == "call.answer":
+            await self._handle_call_answer_from_client(content)
+        elif message_type == "call.end":
+            await self._handle_call_end_from_client(content)
+
+    async def _handle_call_offer_from_client(self, content):
+        """Handle call.offer sent from client through global WebSocket."""
+        # Route to the other participant's notification group
+        try:
+            from .models import Call
+            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+
+            # Determine receiver
+            receiver_id = call.receiver.id if call.caller.id == self.user.id else call.caller.id
+            receiver_notification_group = notification_group_name(str(receiver_id))
+
+            print(f"[NotificationWS] Routing call.offer to receiver's notification group: {receiver_notification_group}", flush=True)
+
+            await self.channel_layer.group_send(
+                receiver_notification_group,
+                {
+                    "type": "call_offer",
+                    "caller_id": str(self.user.id),
+                    "caller_username": self.user.username,
+                    "call_id": content.get("call_id"),
+                    "call_type": content.get("call_type", "voice"),
+                    "offer": content.get("offer"),
+                    "conversation_id": content.get("conversation_id"),
+                },
+            )
+        except Exception as e:
+            print(f"[NotificationWS] Error routing call.offer: {e}", flush=True)
+
+    async def _handle_call_answer_from_client(self, content):
+        """Handle call.answer sent from client through global WebSocket."""
+        # Route to the caller's notification group
+        try:
+            from .models import Call
+            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+
+            caller_id = call.caller.id
+            caller_notification_group = notification_group_name(str(caller_id))
+
+            print(f"[NotificationWS] Routing call.answer to caller's notification group: {caller_notification_group}", flush=True)
+
+            await self.channel_layer.group_send(
+                caller_notification_group,
+                {
+                    "type": "call_answer",
+                    "receiver_id": str(self.user.id),
+                    "call_id": content.get("call_id"),
+                    "answer": content.get("answer"),
+                },
+            )
+        except Exception as e:
+            print(f"[NotificationWS] Error routing call.answer: {e}", flush=True)
+
+    async def _handle_call_end_from_client(self, content):
+        """Handle call.end sent from client through global WebSocket."""
+        # Route to the other participant's notification group
+        try:
+            from .models import Call
+            call = await sync_to_async(Call.objects.get)(id=content.get("call_id"))
+
+            # Determine other participant
+            other_user_id = call.receiver.id if call.caller.id == self.user.id else call.caller.id
+            other_notification_group = notification_group_name(str(other_user_id))
+
+            print(f"[NotificationWS] Routing call.end to other user's notification group: {other_notification_group}", flush=True)
+
+            await self.channel_layer.group_send(
+                other_notification_group,
+                {
+                    "type": "call_end",
+                    "user_id": str(self.user.id),
+                    "call_id": content.get("call_id"),
+                },
+            )
+        except Exception as e:
+            print(f"[NotificationWS] Error routing call.end: {e}", flush=True)
 
     async def notification_created(self, event):
         await self.send_json(
@@ -380,6 +535,44 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
                 "caller_username": event.get("caller_username"),
                 "call_type": event.get("call_type"),
                 "conversation_id": event.get("conversation_id"),
+            }
+        )
+
+    async def call_offer(self, event):
+        """Handle call offer routed from chat or notification consumer."""
+        print(f"[NotificationWS] Sending call.offer to client - call_id={event.get('call_id')}", flush=True)
+        await self.send_json(
+            {
+                "type": "call.offer",
+                "call_id": event.get("call_id"),
+                "caller_id": event.get("caller_id"),
+                "caller_username": event.get("caller_username"),
+                "call_type": event.get("call_type"),
+                "offer": event.get("offer"),
+                "conversation_id": event.get("conversation_id"),
+            }
+        )
+
+    async def call_answer(self, event):
+        """Handle call answer routed from chat or notification consumer."""
+        print(f"[NotificationWS] Sending call.answer to client - call_id={event.get('call_id')}", flush=True)
+        await self.send_json(
+            {
+                "type": "call.answer",
+                "call_id": event.get("call_id"),
+                "answer": event.get("answer"),
+                "receiver_id": event.get("receiver_id"),
+            }
+        )
+
+    async def call_end(self, event):
+        """Handle call end routed from chat or notification consumer."""
+        print(f"[NotificationWS] Sending call.end to client - call_id={event.get('call_id')}", flush=True)
+        await self.send_json(
+            {
+                "type": "call.end",
+                "call_id": event.get("call_id"),
+                "user_id": event.get("user_id"),
             }
         )
 

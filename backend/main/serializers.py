@@ -498,6 +498,7 @@ class NotificationSerializer(serializers.ModelSerializer):
     target_post_preview = serializers.SerializerMethodField()
     target_comment_preview = serializers.SerializerMethodField()
     target_url = serializers.SerializerMethodField()
+    data = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
@@ -513,6 +514,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             "target_post_preview",
             "target_comment_preview",
             "target_url",
+            "data",
         ]
         read_only_fields = [
             "id",
@@ -525,6 +527,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             "target_post_preview",
             "target_comment_preview",
             "target_url",
+            "data",
         ]
 
     def get_target_post_id(self, obj):
@@ -662,6 +665,21 @@ class NotificationSerializer(serializers.ModelSerializer):
         
         # Default to notifications page
         return "/app/notifications"
+
+    def get_data(self, obj):
+        """Get additional data for specific notification types"""
+        try:
+            # For call notifications, include conversation_id
+            if obj.verb in ["incoming_voice_call", "incoming_video_call"]:
+                if obj.content_type and obj.content_type.model == "call":
+                    from .models import Call
+                    call = Call.objects.get(id=obj.object_id)
+                    return {
+                        "conversation_id": str(call.conversation.id) if call.conversation else None,
+                    }
+        except Exception:
+            pass
+        return None
 
 
 class BookmarkSerializer(serializers.ModelSerializer):
