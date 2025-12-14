@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 interface UseGlobalNotificationWebSocketOptions {
   onCallIncoming?: (data: any) => void;
   onNotificationCreated?: (data: any) => void;
+  onWebSocketReady?: (ws: WebSocket) => void;
 }
 
 // Singleton WebSocket instance to prevent multiple connections
@@ -20,27 +21,40 @@ export function useGlobalNotificationWebSocket(
   options: UseGlobalNotificationWebSocketOptions = {}
 ) {
   const { accessToken } = useAuth();
-  const { onCallIncoming, onNotificationCreated } = options;
+  const { onCallIncoming, onNotificationCreated, onWebSocketReady } = options;
   const wsRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const isMountedRef = useRef(true);
 
+  // Use refs to store callbacks to avoid recreating connect() on every render
+  const onCallIncomingRef = useRef(onCallIncoming);
+  const onNotificationCreatedRef = useRef(onNotificationCreated);
+  const onWebSocketReadyRef = useRef(onWebSocketReady);
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onCallIncomingRef.current = onCallIncoming;
+    onNotificationCreatedRef.current = onNotificationCreated;
+    onWebSocketReadyRef.current = onWebSocketReady;
+  }, [onCallIncoming, onNotificationCreated, onWebSocketReady]);
+
   const connect = useCallback(() => {
     if (!accessToken) return;
-
-    // Increment reference count
-    refCount++;
 
     // If we already have a connection with the same token, reuse it
     if (globalWsInstance && globalWsToken === accessToken) {
       const state = globalWsInstance.readyState;
       if (state === WebSocket.CONNECTING || state === WebSocket.OPEN) {
-        console.log("[GlobalNotificationWS] Reusing existing connection");
+        console.log("[GlobalNotificationWS] Reusing existing connection, refCount:", refCount);
         wsRef.current = globalWsInstance;
         setIsConnected(state === WebSocket.OPEN);
         return;
       }
     }
+
+    // Increment reference count only when creating a new connection
+    refCount++;
+    console.log("[GlobalNotificationWS] Incrementing refCount to:", refCount);
 
     // Close any existing connection if token changed
     if (globalWsInstance && globalWsToken !== accessToken) {
@@ -74,6 +88,11 @@ export function useGlobalNotificationWebSocket(
         setIsConnected(true);
       }
       reconnectAttempts = 0;
+
+      // Notify callback that WebSocket is ready
+      if (onWebSocketReadyRef.current) {
+        onWebSocketReadyRef.current(ws);
+      }
     };
 
     ws.onmessage = (event) => {
@@ -81,12 +100,19 @@ export function useGlobalNotificationWebSocket(
         const data = JSON.parse(event.data);
         console.log("[GlobalNotificationWS] Received:", data.type);
 
-        if (data.type === "call.incoming") {
-          console.log("[GlobalNotificationWS] 📞 Incoming call:", data);
-          onCallIncoming?.(data);
+        // Handle all call-related messages
+        if (data.type?.startsWith("call.")) {
+          console.log("[GlobalNotificationWS] 📞 Call message:", data.type, data);
+          // Dispatch as custom event for CallContext to handle
+          window.dispatchEvent(new CustomEvent("call.message", { detail: data }));
+
+          // Also trigger the callback for backward compatibility
+          if (data.type === "call.incoming") {
+            onCallIncomingRef.current?.(data);
+          }
         } else if (data.type === "notification.created") {
           console.log("[GlobalNotificationWS] 🔔 New notification");
-          onNotificationCreated?.(data.payload);
+          onNotificationCreatedRef.current?.(data.payload);
         } else if (data.type === "connection.ack") {
           console.log("[GlobalNotificationWS] Connection acknowledged");
         } else if (data.type === "pong") {
@@ -140,7 +166,7 @@ export function useGlobalNotificationWebSocket(
     return () => {
       clearInterval(heartbeat);
     };
-  }, [accessToken, onCallIncoming, onNotificationCreated]);
+  }, [accessToken]); // Removed callback dependencies since we use refs now
 
   useEffect(() => {
     if (!accessToken) {

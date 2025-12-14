@@ -38,16 +38,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const conversationRef = useRef<any | null>(null);
   const conversationIdRef = useRef<string | null>(null);
 
-  // Connect to global notification WebSocket for incoming calls
-  useGlobalNotificationWebSocket({
-    onCallIncoming: (data) => {
-      console.log("[CallContext] 📞 Global incoming call notification:", data);
-      // Dispatch as a custom event so existing handlers can process it
-      window.dispatchEvent(new CustomEvent("call.message", { detail: data }));
-    },
-  });
-
-  // Initialize WebRTC hook
+  // Initialize WebRTC hook (must come before using it)
   const webrtc = useWebRTC({
     onCallIncoming: (call) => {
       console.log("[CallContext] onCallIncoming:", call);
@@ -67,11 +58,36 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     },
   });
 
-  // Set WebSocket reference
+  // Connect to global notification WebSocket for incoming calls
+  const globalWsRef = useRef<WebSocket | null>(null);
+
+  useGlobalNotificationWebSocket({
+    onCallIncoming: (data) => {
+      console.log("[CallContext] 📞 Global incoming call notification:", data);
+      // Dispatch as a custom event so existing handlers can process it
+      window.dispatchEvent(new CustomEvent("call.message", { detail: data }));
+    },
+    onWebSocketReady: (ws) => {
+      console.log("[CallContext] Global notification WebSocket ready, setting as fallback for WebRTC");
+      globalWsRef.current = ws;
+      // If no chat WebSocket is set, use the global WebSocket for signaling
+      if (!wsRef.current) {
+        console.log("[CallContext] No chat WebSocket, using global WebSocket for call signaling");
+        webrtc.setWebSocket(ws);
+      }
+    },
+  });
+
+  // Set WebSocket reference (for chat WebSocket)
   const setWebSocket = useCallback((ws: WebSocket | null) => {
+    console.log("[CallContext] Setting chat WebSocket for call signaling");
     wsRef.current = ws;
     if (ws) {
       webrtc.setWebSocket(ws);
+    } else if (globalWsRef.current) {
+      // If chat WebSocket is removed, fall back to global WebSocket
+      console.log("[CallContext] Chat WebSocket removed, falling back to global WebSocket");
+      webrtc.setWebSocket(globalWsRef.current);
     }
   }, [webrtc]);
 
