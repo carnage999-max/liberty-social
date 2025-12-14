@@ -68,27 +68,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       window.dispatchEvent(new CustomEvent("call.message", { detail: data }));
     },
     onWebSocketReady: (ws) => {
-      console.log("[CallContext] Global notification WebSocket ready, setting as fallback for WebRTC");
+      console.log("[CallContext] Global notification WebSocket ready, using for call signaling");
       globalWsRef.current = ws;
-      // If no chat WebSocket is set, use the global WebSocket for signaling
-      if (!wsRef.current) {
-        console.log("[CallContext] No chat WebSocket, using global WebSocket for call signaling");
-        webrtc.setWebSocket(ws);
-      }
+      // ALWAYS use global WebSocket for call signaling (more stable than chat WebSocket)
+      webrtc.setWebSocket(ws);
     },
   });
 
   // Set WebSocket reference (for chat WebSocket)
+  // Note: We keep this for compatibility, but we always prefer global WebSocket for calls
   const setWebSocket = useCallback((ws: WebSocket | null) => {
-    console.log("[CallContext] Setting chat WebSocket for call signaling");
+    console.log("[CallContext] Chat WebSocket updated, but keeping global WebSocket for call signaling");
     wsRef.current = ws;
-    if (ws) {
-      webrtc.setWebSocket(ws);
-    } else if (globalWsRef.current) {
-      // If chat WebSocket is removed, fall back to global WebSocket
-      console.log("[CallContext] Chat WebSocket removed, falling back to global WebSocket");
-      webrtc.setWebSocket(globalWsRef.current);
-    }
+    // Don't switch to chat WebSocket - global WebSocket is more stable for calls
+    // Chat WebSocket can disconnect unexpectedly during calls
   }, [webrtc]);
 
   // Set conversation
@@ -286,9 +279,35 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getOtherParticipant = () => {
+    if (!activeCall) return null;
+
+    // Try to get from conversation if available
     const conv = conversationRef.current || conversation;
-    if (!conv || !activeCall) return null;
-    return conv.participants.find((p: any) => p.user.id !== user?.id);
+    if (conv) {
+      return conv.participants.find((p: any) => p.user.id !== user?.id);
+    }
+
+    // Fallback: construct from call data if conversation not available
+    // This happens when receiver is not on the chat page
+    if (activeCall.caller && activeCall.caller.id !== user?.id) {
+      return {
+        user: {
+          id: activeCall.caller.id,
+          username: activeCall.caller.username || activeCall.caller_username,
+          profile_image_url: activeCall.caller.profile_image_url || null,
+        }
+      };
+    } else if (activeCall.receiver && activeCall.receiver.id !== user?.id) {
+      return {
+        user: {
+          id: activeCall.receiver.id,
+          username: activeCall.receiver.username || activeCall.receiver_username,
+          profile_image_url: activeCall.receiver.profile_image_url || null,
+        }
+      };
+    }
+
+    return null;
   };
 
   return (

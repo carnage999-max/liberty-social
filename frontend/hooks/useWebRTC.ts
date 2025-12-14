@@ -69,7 +69,22 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
 
       console.log("[WebRTC] Requesting media with constraints:", constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log("[WebRTC] ✅ Stream obtained, tracks:", stream.getTracks().map(t => `${t.kind}: ${t.label}`));
+      const tracks = stream.getTracks();
+      console.log("[WebRTC] ✅ Stream obtained, tracks:", tracks.map(t => `${t.kind}: ${t.label}`));
+
+      // Detailed track info
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length > 0) {
+        console.log(`[WebRTC] ✅ ${audioTracks.length} local audio track(s)`);
+        audioTracks.forEach((track, i) => {
+          console.log(`[WebRTC] Local audio track ${i}:`, {
+            label: track.label,
+            enabled: track.enabled,
+            muted: track.muted,
+            readyState: track.readyState
+          });
+        });
+      }
 
       setLocalStream(stream);
 
@@ -146,30 +161,44 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
         const stream = await getLocalStream(type);
         
         // Create peer as initiator
+        // Use trickle: true to send offer immediately without waiting for ICE gathering
         const peer = new SimplePeer({
           initiator: true,
-          trickle: false,
+          trickle: true,
           stream: stream,
           config: iceServers,
         });
 
         peerRef.current = peer;
 
-        // Handle signal data (offer)
+        // Handle signal data (offer and ICE candidates)
         peer.on("signal", (data: SimplePeerType.SignalData) => {
-          console.log("[WebRTC] Signal data (offer) generated");
+          console.log("[WebRTC] Signal data generated:", data.type || "candidate");
           if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
+            // Check if this is an offer or ICE candidate
+            if (data.type === "offer") {
+              // Send SDP offer
+              const offerMessage = {
                 type: "call.offer",
                 call_id: call.id.toString(),
                 call_type: type,
                 caller_id: call.caller?.id?.toString() || call.caller_id?.toString(),
                 caller_username: call.caller?.username || call.caller_username,
                 offer: data,
-              })
-            );
-            console.log("[WebRTC] ✅ Offer sent via WebSocket");
+                conversation_id: call.conversation?.id?.toString() || call.conversation_id?.toString() || callConversationId || conversationId,
+              };
+              console.log("[WebRTC] Sending call.offer with conversation_id:", offerMessage.conversation_id);
+              wsRef.current.send(JSON.stringify(offerMessage));
+              console.log("[WebRTC] ✅ Offer sent via WebSocket");
+            } else if ((data as any).candidate) {
+              // Send ICE candidate
+              wsRef.current.send(JSON.stringify({
+                type: "call.ice-candidate",
+                call_id: call.id.toString(),
+                candidate: data,
+              }));
+              console.log("[WebRTC] ✅ ICE candidate sent via WebSocket");
+            }
           } else {
             console.error("[WebRTC] ❌ WebSocket not connected");
           }
@@ -178,7 +207,26 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
         // Handle remote stream
         peer.on("stream", (stream: MediaStream) => {
           console.log("[WebRTC] ✅ Remote stream received (initiator)");
-          console.log("[WebRTC] Remote stream tracks:", stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
+          const tracks = stream.getTracks();
+          console.log("[WebRTC] Remote stream tracks:", tracks.map(t => ({
+            kind: t.kind,
+            enabled: t.enabled,
+            muted: t.muted,
+            readyState: t.readyState,
+            label: t.label
+          })));
+
+          // Verify audio tracks
+          const audioTracks = stream.getAudioTracks();
+          if (audioTracks.length > 0) {
+            console.log(`[WebRTC] ✅ ${audioTracks.length} audio track(s) in remote stream`);
+            audioTracks.forEach((track, i) => {
+              console.log(`[WebRTC] Audio track ${i}: ${track.label}, enabled: ${track.enabled}, readyState: ${track.readyState}`);
+            });
+          } else {
+            console.warn("[WebRTC] ⚠️ No audio tracks in remote stream!");
+          }
+
           setRemoteStream(stream);
 
           // For video calls, use video element
@@ -197,14 +245,23 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
             if (!remoteAudioRef.current) {
               const audio = document.createElement("audio");
               audio.autoplay = true;
+              audio.volume = 1.0; // Ensure volume is at maximum
               document.body.appendChild(audio);
               remoteAudioRef.current = audio;
+              console.log("[WebRTC] Created new remote audio element");
             }
             remoteAudioRef.current.srcObject = stream;
-            remoteAudioRef.current.play().catch((err) => {
-              console.error("[WebRTC] Error playing remote audio:", err);
+            remoteAudioRef.current.play().then(() => {
+              console.log("[WebRTC] ✅ Remote audio element playing successfully");
+              console.log("[WebRTC] Audio element state:", {
+                paused: remoteAudioRef.current?.paused,
+                volume: remoteAudioRef.current?.volume,
+                muted: remoteAudioRef.current?.muted,
+                readyState: remoteAudioRef.current?.readyState
+              });
+            }).catch((err) => {
+              console.error("[WebRTC] ❌ Error playing remote audio:", err);
             });
-            console.log("[WebRTC] ✅ Remote audio element set and playing (initiator)");
           }
         });
 
@@ -263,15 +320,11 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
         // Get local media
         const stream = await getLocalStream(type);
 
-        // Accept call via API
-        await apiPost(`/calls/${call.id}/accept/`, {});
-        console.log("[WebRTC] ✅ Call accepted via API");
-
-        // Wait for offer if we don't have it yet (with timeout)
+        // Wait for offer BEFORE accepting the call
         if (!pendingOfferRef.current && !call.offer) {
-          console.log("[WebRTC] No offer yet, waiting up to 5 seconds...");
+          console.log("[WebRTC] No offer yet, waiting up to 10 seconds...");
           let waitTime = 0;
-          const maxWait = 5000;
+          const maxWait = 10000; // Increased timeout
           const checkInterval = 100;
 
           while (!pendingOfferRef.current && waitTime < maxWait) {
@@ -294,34 +347,66 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
         console.log("[WebRTC] Has pending offer:", hasPendingOffer);
 
         // Create peer as receiver (not initiator)
+        // Use trickle: true to handle offer/answer immediately
         const peer = new SimplePeer({
           initiator: false,
-          trickle: false,
+          trickle: true,
           stream: stream,
           config: iceServers,
         });
 
         peerRef.current = peer;
 
-        // Handle signal data (answer)
+        // Handle signal data (answer and ICE candidates)
         peer.on("signal", (data: SimplePeerType.SignalData) => {
-          console.log("[WebRTC] Signal data (answer) generated");
+          console.log("[WebRTC] Signal data generated:", data.type || "candidate");
           if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            wsRef.current.send(
-              JSON.stringify({
-                type: "call.answer",
+            // Check if this is an answer or ICE candidate
+            if (data.type === "answer") {
+              // Send SDP answer
+              wsRef.current.send(
+                JSON.stringify({
+                  type: "call.answer",
+                  call_id: call.id.toString(),
+                  answer: data,
+                })
+              );
+              console.log("[WebRTC] ✅ Answer sent via WebSocket");
+            } else if ((data as any).candidate) {
+              // Send ICE candidate
+              wsRef.current.send(JSON.stringify({
+                type: "call.ice-candidate",
                 call_id: call.id.toString(),
-                answer: data,
-              })
-            );
-            console.log("[WebRTC] ✅ Answer sent via WebSocket");
+                candidate: data,
+              }));
+              console.log("[WebRTC] ✅ ICE candidate sent via WebSocket");
+            }
           }
         });
 
         // Handle remote stream
         peer.on("stream", (stream: MediaStream) => {
           console.log("[WebRTC] ✅ Remote stream received (receiver)");
-          console.log("[WebRTC] Remote stream tracks:", stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
+          const tracks = stream.getTracks();
+          console.log("[WebRTC] Remote stream tracks:", tracks.map(t => ({
+            kind: t.kind,
+            enabled: t.enabled,
+            muted: t.muted,
+            readyState: t.readyState,
+            label: t.label
+          })));
+
+          // Verify audio tracks
+          const audioTracks = stream.getAudioTracks();
+          if (audioTracks.length > 0) {
+            console.log(`[WebRTC] ✅ ${audioTracks.length} audio track(s) in remote stream`);
+            audioTracks.forEach((track, i) => {
+              console.log(`[WebRTC] Audio track ${i}: ${track.label}, enabled: ${track.enabled}, readyState: ${track.readyState}`);
+            });
+          } else {
+            console.warn("[WebRTC] ⚠️ No audio tracks in remote stream!");
+          }
+
           setRemoteStream(stream);
 
           // For video calls, use video element
@@ -340,14 +425,23 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
             if (!remoteAudioRef.current) {
               const audio = document.createElement("audio");
               audio.autoplay = true;
+              audio.volume = 1.0; // Ensure volume is at maximum
               document.body.appendChild(audio);
               remoteAudioRef.current = audio;
+              console.log("[WebRTC] Created new remote audio element");
             }
             remoteAudioRef.current.srcObject = stream;
-            remoteAudioRef.current.play().catch((err) => {
-              console.error("[WebRTC] Error playing remote audio:", err);
+            remoteAudioRef.current.play().then(() => {
+              console.log("[WebRTC] ✅ Remote audio element playing successfully");
+              console.log("[WebRTC] Audio element state:", {
+                paused: remoteAudioRef.current?.paused,
+                volume: remoteAudioRef.current?.volume,
+                muted: remoteAudioRef.current?.muted,
+                readyState: remoteAudioRef.current?.readyState
+              });
+            }).catch((err) => {
+              console.error("[WebRTC] ❌ Error playing remote audio:", err);
             });
-            console.log("[WebRTC] ✅ Remote audio element set and playing (receiver)");
           }
         });
 
@@ -449,10 +543,16 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
   }, []);
 
   const receiveIceCandidate = useCallback((candidate: any) => {
-    console.log("[WebRTC] receiveIceCandidate called");
+    console.log("[WebRTC] receiveIceCandidate called with candidate:", candidate);
     if (peerRef.current && !peerRef.current.destroyed) {
-      // simple-peer handles ICE candidates internally when trickle is false
-      // If you need trickle ICE, you'd handle it here
+      try {
+        peerRef.current.signal(candidate);
+        console.log("[WebRTC] ✅ ICE candidate signaled to peer");
+      } catch (error) {
+        console.error("[WebRTC] ❌ Error signaling ICE candidate:", error);
+      }
+    } else {
+      console.warn("[WebRTC] No peer connection to signal ICE candidate");
     }
   }, []);
 
@@ -510,6 +610,19 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
           remoteAudioRef.current.parentNode.removeChild(remoteAudioRef.current);
         }
         remoteAudioRef.current = null;
+      }
+
+      // Send call.end message via WebSocket to notify the other participant
+      if (currentCall && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        try {
+          wsRef.current.send(JSON.stringify({
+            type: "call.end",
+            call_id: currentCall.id.toString(),
+          }));
+          console.log("[WebRTC] ✅ Call end message sent via WebSocket");
+        } catch (error) {
+          console.warn("[WebRTC] Error sending call.end via WebSocket:", error);
+        }
       }
 
       // Try to end call via API (but don't fail if it errors)
