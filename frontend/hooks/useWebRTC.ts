@@ -74,7 +74,12 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
       setLocalStream(stream);
 
       if (localVideoRef.current && type === "video") {
+        console.log("[WebRTC] Setting local video srcObject and playing");
         localVideoRef.current.srcObject = stream;
+        // Ensure local video plays
+        localVideoRef.current.play().catch((err) => {
+          console.error("[WebRTC] Error playing local video:", err);
+        });
       }
 
       return stream;

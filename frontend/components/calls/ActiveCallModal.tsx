@@ -43,6 +43,28 @@ export default function ActiveCallModal({
   const [callDuration, setCallDuration] = useState(0);
   const callStartTimeRef = useRef<number>(Date.now());
 
+  // Ensure local video stream is connected when available
+  useEffect(() => {
+    if (isVideoCall && localStream && localVideoRef.current) {
+      console.log("[ActiveCallModal] Setting local video stream");
+      localVideoRef.current.srcObject = localStream;
+      localVideoRef.current.play().catch((err) => {
+        console.error("[ActiveCallModal] Error playing local video:", err);
+      });
+    }
+  }, [localStream, isVideoCall, localVideoRef]);
+
+  // Ensure remote video stream is connected when available
+  useEffect(() => {
+    if (isVideoCall && remoteStream && remoteVideoRef.current) {
+      console.log("[ActiveCallModal] Setting remote video stream");
+      remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch((err) => {
+        console.error("[ActiveCallModal] Error playing remote video:", err);
+      });
+    }
+  }, [remoteStream, isVideoCall, remoteVideoRef]);
+
   // Call duration counter
   useEffect(() => {
     const interval = setInterval(() => {
