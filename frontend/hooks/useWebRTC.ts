@@ -46,17 +46,33 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
 
   const getLocalStream = useCallback(async (type: "voice" | "video") => {
     console.log("[WebRTC] getLocalStream called with type:", type);
+
+    // First, stop any existing stream to release the camera/mic
+    if (localStream) {
+      console.log("[WebRTC] Stopping existing stream before requesting new one");
+      localStream.getTracks().forEach((track) => {
+        console.log(`[WebRTC] Stopping track: ${track.kind} (${track.label})`);
+        track.stop();
+      });
+      setLocalStream(null);
+    }
+
     try {
       const constraints: MediaStreamConstraints = {
         audio: true,
-        video: type === "video",
+        video: type === "video" ? {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: "user"
+        } : false,
       };
-      
+
+      console.log("[WebRTC] Requesting media with constraints:", constraints);
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log("[WebRTC] ✅ Stream obtained");
-      
+      console.log("[WebRTC] ✅ Stream obtained, tracks:", stream.getTracks().map(t => `${t.kind}: ${t.label}`));
+
       setLocalStream(stream);
-      
+
       if (localVideoRef.current && type === "video") {
         localVideoRef.current.srcObject = stream;
       }
@@ -64,13 +80,29 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
       return stream;
     } catch (error: any) {
       console.error("[WebRTC] ❌ Error getting local stream:", error);
+      console.error("[WebRTC] Error name:", error.name);
+      console.error("[WebRTC] Error message:", error.message);
+
+      // Provide user-friendly error messages
+      if (error.name === "NotReadableError") {
+        throw new Error("Camera is already in use by another application or tab. Please close other applications using your camera and try again.");
+      } else if (error.name === "NotAllowedError") {
+        throw new Error("Camera/microphone permission denied. Please allow access in your browser settings.");
+      } else if (error.name === "NotFoundError") {
+        throw new Error("No camera/microphone found. Please connect a camera and try again.");
+      }
+
       throw error;
     }
-  }, []);
+  }, [localStream]);
 
   const stopLocalStream = useCallback(() => {
     if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop());
+      console.log("[WebRTC] stopLocalStream: Stopping all tracks");
+      localStream.getTracks().forEach((track) => {
+        console.log(`[WebRTC] Stopping track: ${track.kind} (${track.label})`);
+        track.stop();
+      });
       setLocalStream(null);
     }
     if (localVideoRef.current) {
@@ -140,10 +172,34 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
 
         // Handle remote stream
         peer.on("stream", (stream: MediaStream) => {
-          console.log("[WebRTC] ✅ Remote stream received");
+          console.log("[WebRTC] ✅ Remote stream received (initiator)");
+          console.log("[WebRTC] Remote stream tracks:", stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
           setRemoteStream(stream);
-          if (remoteVideoRef.current) {
+
+          // For video calls, use video element
+          if (remoteVideoRef.current && type === "video") {
             remoteVideoRef.current.srcObject = stream;
+            // Ensure video plays (especially important for audio in video element)
+            remoteVideoRef.current.play().catch((err) => {
+              console.error("[WebRTC] Error playing remote video:", err);
+            });
+            console.log("[WebRTC] ✅ Remote video element set and playing (initiator)");
+          }
+
+          // For voice calls, create/use audio element
+          if (type === "voice") {
+            // Create audio element if it doesn't exist
+            if (!remoteAudioRef.current) {
+              const audio = document.createElement("audio");
+              audio.autoplay = true;
+              document.body.appendChild(audio);
+              remoteAudioRef.current = audio;
+            }
+            remoteAudioRef.current.srcObject = stream;
+            remoteAudioRef.current.play().catch((err) => {
+              console.error("[WebRTC] Error playing remote audio:", err);
+            });
+            console.log("[WebRTC] ✅ Remote audio element set and playing (initiator)");
           }
         });
 
@@ -259,15 +315,20 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
 
         // Handle remote stream
         peer.on("stream", (stream: MediaStream) => {
-          console.log("[WebRTC] ✅ Remote stream received");
+          console.log("[WebRTC] ✅ Remote stream received (receiver)");
           console.log("[WebRTC] Remote stream tracks:", stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
           setRemoteStream(stream);
-          
+
           // For video calls, use video element
           if (remoteVideoRef.current && type === "video") {
             remoteVideoRef.current.srcObject = stream;
+            // Ensure video plays (especially important for audio in video element)
+            remoteVideoRef.current.play().catch((err) => {
+              console.error("[WebRTC] Error playing remote video:", err);
+            });
+            console.log("[WebRTC] ✅ Remote video element set and playing (receiver)");
           }
-          
+
           // For voice calls, create/use audio element
           if (type === "voice") {
             // Create audio element if it doesn't exist
@@ -281,7 +342,7 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
             remoteAudioRef.current.play().catch((err) => {
               console.error("[WebRTC] Error playing remote audio:", err);
             });
-            console.log("[WebRTC] ✅ Remote audio element set and playing");
+            console.log("[WebRTC] ✅ Remote audio element set and playing (receiver)");
           }
         });
 
@@ -392,8 +453,11 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
 
   const endCall = useCallback(async () => {
     try {
+      console.log("[WebRTC] endCall called, cleaning up resources");
+
       // Destroy peer connection first
       if (peerRef.current && !peerRef.current.destroyed) {
+        console.log("[WebRTC] Destroying peer connection");
         peerRef.current.destroy();
         peerRef.current = null;
       }
@@ -403,16 +467,38 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
       offerSignaledRef.current = false;
 
       // Stop local stream
-      stopLocalStream();
+      console.log("[WebRTC] Stopping local stream");
+      if (localStream) {
+        localStream.getTracks().forEach((track) => {
+          console.log(`[WebRTC] Stopping local track: ${track.kind} (${track.label})`);
+          track.stop();
+        });
+        setLocalStream(null);
+      }
+
+      // Clear local video element
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
 
       // Stop remote stream
       if (remoteStream) {
-        remoteStream.getTracks().forEach((track) => track.stop());
+        console.log("[WebRTC] Stopping remote stream");
+        remoteStream.getTracks().forEach((track) => {
+          console.log(`[WebRTC] Stopping remote track: ${track.kind}`);
+          track.stop();
+        });
         setRemoteStream(null);
       }
-      
+
+      // Clear remote video element
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
+
       // Clean up audio element
       if (remoteAudioRef.current) {
+        console.log("[WebRTC] Cleaning up remote audio element");
         remoteAudioRef.current.srcObject = null;
         remoteAudioRef.current.pause();
         if (remoteAudioRef.current.parentNode) {
@@ -430,6 +516,7 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
           await apiPost(`/calls/${currentCall.id}/end/`, {
             duration_seconds: duration,
           });
+          console.log("[WebRTC] ✅ Call ended via API");
         } catch (error) {
           console.warn("[WebRTC] Error ending call via API (non-fatal):", error);
         }
@@ -438,11 +525,12 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
       setIsCallActive(false);
       const callToNotify = currentCall;
       setCurrentCall(null);
+      console.log("[WebRTC] ✅ Call cleanup complete");
       onCallEnded?.(callToNotify);
     } catch (error) {
-      console.error("Error ending call:", error);
+      console.error("[WebRTC] Error ending call:", error);
     }
-  }, [currentCall, remoteStream, onCallEnded, stopLocalStream]);
+  }, [currentCall, localStream, remoteStream, onCallEnded]);
 
   const rejectCall = useCallback(async (callId: string) => {
     try {
