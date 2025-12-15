@@ -246,11 +246,25 @@ export async function resolveFirebaseClientConfig(): Promise<{
   const finalConfig = envConfig ?? remote.config;
   const finalVapid = envVapid ?? remote.vapidKey ?? null;
 
-  // Validate remote VAPID key if using it
+  // Validate and fix remote VAPID key if using it
   if (!envVapid && remote.vapidKey) {
-    const remoteKey = remote.vapidKey.trim();
+    let remoteKey = remote.vapidKey.trim();
     console.log('[push] Backend VAPID key received, length:', remoteKey.length);
     console.log('[push] Backend VAPID key preview:', remoteKey.substring(0, 20) + '...');
+
+    // Check if key is doubled (common mistake - 174 chars instead of 87)
+    if (remoteKey.length > 100 && remoteKey.length % 2 === 0) {
+      const half = remoteKey.length / 2;
+      const firstHalf = remoteKey.substring(0, half);
+      const secondHalf = remoteKey.substring(half);
+
+      if (firstHalf === secondHalf) {
+        console.warn('[push] ⚠️ VAPID key appears to be duplicated, using first half only');
+        remoteKey = firstHalf;
+        remote.vapidKey = remoteKey;
+        console.log('[push] Fixed VAPID key length:', remoteKey.length);
+      }
+    }
 
     // Basic validation - VAPID keys should be base64url-encoded and typically 87-88 chars
     if (remoteKey.length < 80) {

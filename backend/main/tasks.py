@@ -135,8 +135,16 @@ def deliver_push_notification(self, notification_id: int):
 
     payload = NotificationSerializer(notification).data
 
-    message_title = "Liberty Social"
-    message_body = f"{actor_label} {verb}"
+    # Format message based on verb type
+    if verb == "incoming_voice_call":
+        message_title = f"📞 Incoming Call"
+        message_body = f"{actor_label} is calling you"
+    elif verb == "incoming_video_call":
+        message_title = f"📹 Incoming Video Call"
+        message_body = f"{actor_label} is calling you"
+    else:
+        message_title = "Liberty Social"
+        message_body = f"{actor_label} {verb}"
 
     # Build notification data
     notification_data = {
@@ -314,9 +322,31 @@ def _send_fcm_notifications(
     try:
         from firebase_admin import messaging
 
+        # Check if this is a call notification (requires special handling)
+        is_call_notification = "📞" in message_title or "📹" in message_title
+
         # Create message for each FCM token
         for token, platform in fcm_tokens:
             try:
+                # Build webpush notification options
+                webpush_notification_options = {
+                    "title": message_title,
+                    "body": message_body,
+                    "icon": "/icon.png",
+                }
+
+                # For call notifications, add special attributes
+                if is_call_notification:
+                    webpush_notification_options.update({
+                        "requireInteraction": True,  # Keep notification visible until user interacts
+                        "tag": "incoming-call",  # Replace previous call notifications
+                        "vibrate": [200, 100, 200],  # Vibration pattern
+                        "actions": [
+                            {"action": "answer", "title": "Answer"},
+                            {"action": "reject", "title": "Decline"},
+                        ],
+                    })
+
                 message = messaging.Message(
                     token=token,
                     notification=messaging.Notification(
@@ -328,9 +358,7 @@ def _send_fcm_notifications(
                     },
                     webpush=messaging.WebpushConfig(
                         notification=messaging.WebpushNotification(
-                            title=message_title,
-                            body=message_body,
-                            icon="/icon.png",
+                            **webpush_notification_options
                         ),
                         fcm_options=messaging.WebpushFCMOptions(
                             link=notification_data.get("target_url", "/app/notifications"),

@@ -90,6 +90,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     setConversationState(conv);
   }, []);
 
+
   // Handle WebSocket messages for calls - listen to global events
   useEffect(() => {
     if (!user) return;
@@ -249,6 +250,58 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     },
     [webrtc]
   );
+
+  // Handle service worker notification actions (Answer/Decline from push notification)
+  useEffect(() => {
+    if (!user) return;
+
+    const handleNotificationAction = (event: MessageEvent) => {
+      if (event.data?.type === "notification.action") {
+        const { action, data } = event.data;
+        console.log("[CallContext] Notification action received:", action, data);
+
+        // Extract call information from notification data
+        const notificationPayload = data?.raw?.notification;
+        if (notificationPayload) {
+          const callId = notificationPayload.object_id;
+          const verb = notificationPayload.verb;
+
+          if (verb === "incoming_voice_call" || verb === "incoming_video_call") {
+            const callType = verb === "incoming_video_call" ? "video" : "voice";
+
+            if (action === "answer") {
+              console.log("[CallContext] User clicked Answer on notification, answering call:", callId);
+              // Find the incoming call or construct it from notification data
+              const call = incomingCall || {
+                id: callId,
+                caller_id: notificationPayload.actor?.id,
+                caller_username: notificationPayload.actor?.username,
+                call_type: callType,
+              };
+              answerCall(call).catch((err) => {
+                console.error("[CallContext] Error answering call from notification:", err);
+              });
+            } else if (action === "reject") {
+              console.log("[CallContext] User clicked Decline on notification, rejecting call:", callId);
+              rejectCall(callId).catch((err) => {
+                console.error("[CallContext] Error rejecting call from notification:", err);
+              });
+            }
+          }
+        }
+      }
+    };
+
+    if (typeof window !== "undefined" && navigator?.serviceWorker) {
+      navigator.serviceWorker.addEventListener("message", handleNotificationAction);
+    }
+
+    return () => {
+      if (navigator?.serviceWorker) {
+        navigator.serviceWorker.removeEventListener("message", handleNotificationAction);
+      }
+    };
+  }, [user, incomingCall, answerCall, rejectCall]);
 
   const endCall = useCallback(async () => {
     try {

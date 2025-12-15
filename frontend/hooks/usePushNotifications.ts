@@ -47,13 +47,27 @@ async function registerServiceWorker(config: FirebaseWebConfig) {
 
   try {
     const src = buildFirebaseServiceWorkerSrc(config);
+    console.log("[push] Registering service worker:", src);
+
+    // Check if already registered
+    const existing = await navigator.serviceWorker.getRegistration("/");
+    if (existing) {
+      console.log("[push] ✅ Service worker already registered:", existing.scope);
+      await navigator.serviceWorker.ready;
+      return existing;
+    }
+
     const registration = await navigator.serviceWorker.register(src, {
       scope: "/",
     });
+    console.log("[push] ✅ Service worker registered successfully");
     await navigator.serviceWorker.ready;
+    console.log("[push] ✅ Service worker is ready");
     return registration;
-  } catch (err) {
-    console.error("[push] Failed to register Firebase service worker", err);
+  } catch (err: any) {
+    console.error("[push] ❌ Failed to register Firebase service worker:", err);
+    console.error("[push] Error name:", err.name);
+    console.error("[push] Error message:", err.message);
     return null;
   }
 }
@@ -84,47 +98,83 @@ export function usePushNotifications() {
     let cancelled = false;
 
     async function enablePush() {
+      console.log("[push] 🚀 Starting push notification enablement for user:", userId);
+
       const resolved = await resolveFirebaseClientConfig();
       if (!resolved) {
-        console.warn("[push] Firebase configuration unavailable");
+        console.warn("[push] ❌ Firebase configuration unavailable");
         return;
       }
       const { config, vapidKey } = resolved;
+
+      console.log("[push] ✅ Firebase config resolved:", {
+        projectId: config.projectId,
+        hasVapidKey: !!vapidKey,
+        vapidKeyLength: vapidKey?.length || 0,
+      });
+
       if (!vapidKey) {
-        console.warn("[push] Missing Firebase VAPID key");
+        console.warn("[push] ❌ Missing Firebase VAPID key");
         return;
       }
 
       const permissionGranted = await requestNotificationPermission();
-      if (!permissionGranted || cancelled) return;
+      if (!permissionGranted || cancelled) {
+        console.log("[push] ⚠️ Permission not granted or cancelled. Permission:", Notification?.permission);
+        return;
+      }
+      console.log("[push] ✅ Notification permission granted");
 
       const registration = await registerServiceWorker(config);
-      if (!registration || cancelled) return;
+      if (!registration || cancelled) {
+        console.error("[push] ❌ Service worker registration failed or cancelled");
+        return;
+      }
+      console.log("[push] ✅ Service worker registered");
 
       const messaging = await ensureFirebaseMessaging(config);
-      if (!messaging || cancelled) return;
+      if (!messaging || cancelled) {
+        console.error("[push] ❌ Firebase messaging initialization failed or cancelled");
+        return;
+      }
+      console.log("[push] ✅ Firebase messaging initialized");
 
       try {
+        console.log("[push] 📲 Requesting FCM token...");
         const token: string | null = await messaging.getToken({
           vapidKey,
           serviceWorkerRegistration: registration,
         });
-        if (!token || cancelled) return;
 
-        const stored = readStoredToken();
-        if (stored?.token === token && stored?.userId === userId) {
+        if (!token || cancelled) {
+          console.warn("[push] ⚠️ No FCM token obtained or cancelled");
           return;
         }
 
+        console.log("[push] ✅ FCM token obtained:", token.substring(0, 30) + "...");
+
+        const stored = readStoredToken();
+        if (stored?.token === token && stored?.userId === userId) {
+          console.log("[push] ℹ️ Token already registered for this user, skipping API call");
+          return;
+        }
+
+        console.log("[push] 📤 Sending token to backend...");
         await apiPost(
           "/device-tokens/",
           { token, platform: "web" },
           { token: accessToken, cache: "no-store" }
         );
 
+        console.log("[push] ✅ Token successfully registered with backend");
         writeStoredToken({ token, userId });
-      } catch (err) {
-        console.error("[push] Failed to register device token", err);
+      } catch (err: any) {
+        console.error("[push] ❌ Failed to register device token:", err);
+        console.error("[push] Error name:", err.name);
+        console.error("[push] Error message:", err.message);
+        if (err.code) {
+          console.error("[push] Error code:", err.code);
+        }
       }
     }
 
