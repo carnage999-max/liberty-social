@@ -161,44 +161,32 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
         const stream = await getLocalStream(type);
         
         // Create peer as initiator
-        // Use trickle: true to send offer immediately without waiting for ICE gathering
+        // Use trickle: false to bundle all ICE candidates with the offer
         const peer = new SimplePeer({
           initiator: true,
-          trickle: true,
+          trickle: false,
           stream: stream,
           config: iceServers,
         });
 
         peerRef.current = peer;
 
-        // Handle signal data (offer and ICE candidates)
+        // Handle signal data (offer with bundled ICE candidates)
         peer.on("signal", (data: SimplePeerType.SignalData) => {
-          console.log("[WebRTC] Signal data generated:", data.type || "candidate");
+          console.log("[WebRTC] Signal data (offer) generated");
           if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            // Check if this is an offer or ICE candidate
-            if (data.type === "offer") {
-              // Send SDP offer
-              const offerMessage = {
-                type: "call.offer",
-                call_id: call.id.toString(),
-                call_type: type,
-                caller_id: call.caller?.id?.toString() || call.caller_id?.toString(),
-                caller_username: call.caller?.username || call.caller_username,
-                offer: data,
-                conversation_id: call.conversation?.id?.toString() || call.conversation_id?.toString() || callConversationId || conversationId,
-              };
-              console.log("[WebRTC] Sending call.offer with conversation_id:", offerMessage.conversation_id);
-              wsRef.current.send(JSON.stringify(offerMessage));
-              console.log("[WebRTC] ✅ Offer sent via WebSocket");
-            } else if ((data as any).candidate) {
-              // Send ICE candidate
-              wsRef.current.send(JSON.stringify({
-                type: "call.ice-candidate",
-                call_id: call.id.toString(),
-                candidate: data,
-              }));
-              console.log("[WebRTC] ✅ ICE candidate sent via WebSocket");
-            }
+            const offerMessage = {
+              type: "call.offer",
+              call_id: call.id.toString(),
+              call_type: type,
+              caller_id: call.caller?.id?.toString() || call.caller_id?.toString(),
+              caller_username: call.caller?.username || call.caller_username,
+              offer: data,
+              conversation_id: call.conversation?.id?.toString() || call.conversation_id?.toString() || callConversationId || conversationId,
+            };
+            console.log("[WebRTC] Sending call.offer with conversation_id:", offerMessage.conversation_id);
+            wsRef.current.send(JSON.stringify(offerMessage));
+            console.log("[WebRTC] ✅ Offer sent via WebSocket");
           } else {
             console.error("[WebRTC] ❌ WebSocket not connected");
           }
@@ -347,40 +335,28 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
         console.log("[WebRTC] Has pending offer:", hasPendingOffer);
 
         // Create peer as receiver (not initiator)
-        // Use trickle: true to handle offer/answer immediately
+        // Use trickle: false to bundle all ICE candidates with the answer
         const peer = new SimplePeer({
           initiator: false,
-          trickle: true,
+          trickle: false,
           stream: stream,
           config: iceServers,
         });
 
         peerRef.current = peer;
 
-        // Handle signal data (answer and ICE candidates)
+        // Handle signal data (answer with bundled ICE candidates)
         peer.on("signal", (data: SimplePeerType.SignalData) => {
-          console.log("[WebRTC] Signal data generated:", data.type || "candidate");
+          console.log("[WebRTC] Signal data (answer) generated");
           if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            // Check if this is an answer or ICE candidate
-            if (data.type === "answer") {
-              // Send SDP answer
-              wsRef.current.send(
-                JSON.stringify({
-                  type: "call.answer",
-                  call_id: call.id.toString(),
-                  answer: data,
-                })
-              );
-              console.log("[WebRTC] ✅ Answer sent via WebSocket");
-            } else if ((data as any).candidate) {
-              // Send ICE candidate
-              wsRef.current.send(JSON.stringify({
-                type: "call.ice-candidate",
+            wsRef.current.send(
+              JSON.stringify({
+                type: "call.answer",
                 call_id: call.id.toString(),
-                candidate: data,
-              }));
-              console.log("[WebRTC] ✅ ICE candidate sent via WebSocket");
-            }
+                answer: data,
+              })
+            );
+            console.log("[WebRTC] ✅ Answer sent via WebSocket");
           }
         });
 
@@ -542,20 +518,6 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
     }
   }, []);
 
-  const receiveIceCandidate = useCallback((candidate: any) => {
-    console.log("[WebRTC] receiveIceCandidate called with candidate:", candidate);
-    if (peerRef.current && !peerRef.current.destroyed) {
-      try {
-        peerRef.current.signal(candidate);
-        console.log("[WebRTC] ✅ ICE candidate signaled to peer");
-      } catch (error) {
-        console.error("[WebRTC] ❌ Error signaling ICE candidate:", error);
-      }
-    } else {
-      console.warn("[WebRTC] No peer connection to signal ICE candidate");
-    }
-  }, []);
-
   const endCall = useCallback(async () => {
     try {
       console.log("[WebRTC] endCall called, cleaning up resources");
@@ -676,12 +638,6 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
               console.warn("[WebRTC] ⚠️ call.answer message received but no answer SDP");
             }
             break;
-
-          case "call.ice-candidate":
-            if (data.candidate) {
-              receiveIceCandidate(data.candidate);
-            }
-            break;
         }
       } catch (error) {
         console.error("Error handling WebSocket message:", error);
@@ -695,7 +651,7 @@ export function useWebRTC(options: UseWebRTCOptions = {}) {
         wsRef.current.removeEventListener("message", handleMessage);
       }
     };
-  }, [receiveAnswerSDP, receiveIceCandidate]);
+  }, [receiveAnswerSDP]);
 
   // Cleanup on unmount
   useEffect(() => {
