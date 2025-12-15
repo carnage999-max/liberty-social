@@ -153,15 +153,28 @@ export default function NotificationDebugPage() {
 
     addLog("📨 Sending test notification...");
     try {
-      const notif = new Notification("Test Notification", {
-        body: "This is a test notification from Liberty Social",
-        icon: "/icon.png",
-      });
-      addLog("✅ Test notification sent");
+      // On mobile, we need to use Service Worker API
+      if (swRegistration) {
+        addLog("Using Service Worker to show notification (mobile compatible)");
+        await swRegistration.showNotification("Test Notification", {
+          body: "This is a test notification from Liberty Social",
+          icon: "/icon.png",
+          tag: "test-notification",
+        });
+        addLog("✅ Test notification sent via Service Worker");
+      } else {
+        // Desktop fallback
+        addLog("Using direct Notification API (desktop)");
+        const notif = new Notification("Test Notification", {
+          body: "This is a test notification from Liberty Social",
+          icon: "/icon.png",
+        });
+        addLog("✅ Test notification sent");
 
-      notif.onclick = () => {
-        addLog("🖱️ Test notification clicked");
-      };
+        notif.onclick = () => {
+          addLog("🖱️ Test notification clicked");
+        };
+      }
     } catch (error: any) {
       addLog(`❌ Error sending test notification: ${error.message}`);
     }
@@ -191,6 +204,36 @@ export default function NotificationDebugPage() {
       addLog(`\n✅ Current controller: ${controller.scriptURL}`);
     } else {
       addLog("\n⚠️ No active service worker controller");
+    }
+  };
+
+  const checkDeviceToken = async () => {
+    if (!user || !accessToken) {
+      addLog("❌ Must be logged in to check device token");
+      return;
+    }
+
+    addLog("🔍 Checking device token registration...");
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/api/device-tokens/`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const tokens = await response.json();
+        addLog(`✅ Found ${tokens.length} registered device token(s):`);
+        tokens.forEach((token: any, i: number) => {
+          addLog(`  ${i + 1}. Platform: ${token.platform}, Token: ${token.token.substring(0, 30)}...`);
+          addLog(`     Created: ${new Date(token.created_at).toLocaleString()}`);
+          addLog(`     Last seen: ${new Date(token.last_seen_at).toLocaleString()}`);
+        });
+      } else {
+        addLog(`❌ Failed to fetch device tokens: ${response.status}`);
+      }
+    } catch (error: any) {
+      addLog(`❌ Error checking device tokens: ${error.message}`);
     }
   };
 
@@ -282,6 +325,13 @@ export default function NotificationDebugPage() {
             className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
           >
             Check Service Worker
+          </button>
+          <button
+            onClick={checkDeviceToken}
+            className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+            disabled={!user}
+          >
+            Check Device Tokens
           </button>
         </div>
       </div>
