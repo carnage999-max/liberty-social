@@ -217,17 +217,37 @@ export default function NotificationDebugPage() {
     try {
       // Use the API helper which already includes the base URL
       const { apiGet } = await import("@/lib/api");
-      const tokens = await apiGet("/device-tokens/");
+      const response = await apiGet("/device-tokens/");
 
-      if (Array.isArray(tokens)) {
+      addLog(`Response type: ${typeof response}`);
+      addLog(`Response: ${JSON.stringify(response).substring(0, 200)}...`);
+
+      // Handle both paginated and non-paginated responses
+      let tokens = [];
+      if (Array.isArray(response)) {
+        tokens = response;
+      } else if (response && typeof response === 'object') {
+        // Paginated response
+        if ('results' in response) {
+          tokens = response.results;
+          addLog(`Total count: ${response.count || 'unknown'}`);
+        } else {
+          addLog(`❌ Unexpected response format - not an array or paginated object`);
+          return;
+        }
+      }
+
+      if (tokens.length === 0) {
+        addLog(`⚠️ No device tokens registered for this user`);
+        addLog(`   This means push notifications won't be delivered!`);
+        addLog(`   Make sure notification permission is granted and page is reloaded.`);
+      } else {
         addLog(`✅ Found ${tokens.length} registered device token(s):`);
         tokens.forEach((token: any, i: number) => {
           addLog(`  ${i + 1}. Platform: ${token.platform}, Token: ${token.token.substring(0, 30)}...`);
           addLog(`     Created: ${new Date(token.created_at).toLocaleString()}`);
           addLog(`     Last seen: ${new Date(token.last_seen_at).toLocaleString()}`);
         });
-      } else {
-        addLog(`❌ Unexpected response format`);
       }
     } catch (error: any) {
       addLog(`❌ Error checking device tokens: ${error.message}`);
