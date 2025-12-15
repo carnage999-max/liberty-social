@@ -1556,12 +1556,20 @@ class CallViewSet(ModelViewSet):
         try:
             from django.contrib.contenttypes.models import ContentType
             call_content_type = ContentType.objects.get_for_model(Call)
+
+            # Set target_url based on whether this is a conversation call or direct call
+            if conversation:
+                target_url = f"/app/messages/{conversation.id}?call={call.id}"
+            else:
+                target_url = f"/app/messages?call={call.id}"
+
             notification = Notification.objects.create(
                 recipient=receiver,
                 actor=request.user,
                 verb=f"incoming_{call_type}_call",
                 content_type=call_content_type,
                 object_id=call.id,
+                target_url=target_url,
             )
             print(f"[CALL] Notification created: {notification.id} for call {call.id}", flush=True)
         except Exception as e:
@@ -1624,6 +1632,36 @@ class CallViewSet(ModelViewSet):
         call.status = "rejected"
         call.ended_at = timezone.now()
         call.save()
+
+        # Notify caller via WebSocket that call was rejected
+        layer = get_channel_layer()
+        if layer:
+            try:
+                # Send to caller's personal channel
+                async_to_sync(layer.group_send)(
+                    user_group_name(str(call.caller.id)),
+                    {
+                        "type": "call.rejected",
+                        "call_id": str(call.id),
+                        "rejected_by": str(request.user.id),
+                        "rejected_by_username": request.user.username,
+                    },
+                )
+                # Also send to conversation group if it exists
+                if call.conversation:
+                    async_to_sync(layer.group_send)(
+                        conversation_group_name(str(call.conversation.id)),
+                        {
+                            "type": "call.rejected",
+                            "call_id": str(call.id),
+                            "rejected_by": str(request.user.id),
+                            "rejected_by_username": request.user.username,
+                        },
+                    )
+                print(f"[CALL] call.rejected message sent for call {call.id}", flush=True)
+            except Exception as e:
+                logging.error(f"Error sending call rejected notification: {e}")
+                print(f"[CALL] ERROR sending call rejected notification: {e}", flush=True)
 
         serializer = self.get_serializer(call)
         return Response(serializer.data)

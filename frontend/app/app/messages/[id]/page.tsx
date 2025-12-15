@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { apiGet, apiPost, apiPatch, apiDelete, API_BASE, resolveRemoteUrl } from "@/lib/api";
 import { useChatWebSocket } from "@/hooks/useChatWebSocket";
@@ -68,9 +68,11 @@ type MediaAttachment = {
 export default function ConversationDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { accessToken, user } = useAuth();
   const toast = useToast();
   const conversationId = params.id as string;
+  const callIdFromUrl = searchParams?.get("call");
   const { theme: chatBackgroundTheme, changeTheme, mounted: backgroundMounted } = useFeedBackground();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -490,6 +492,57 @@ export default function ConversationDetailPage() {
       }, 200);
     }
   }, [conversationId, accessToken]);
+
+  // Handle incoming call from notification click
+  useEffect(() => {
+    if (!callIdFromUrl || !accessToken || !user) return;
+
+    const handleCallFromNotification = async () => {
+      try {
+        console.log("[Call] Fetching call from URL parameter:", callIdFromUrl);
+        const call = await apiGet<any>(`/calls/${callIdFromUrl}/`, {
+          token: accessToken,
+          cache: "no-store",
+        });
+
+        console.log("[Call] Fetched call:", call);
+
+        // Only answer if:
+        // 1. Call is still active/pending
+        // 2. Current user is the receiver
+        // 3. We don't already have an active call
+        if (
+          call.status === "pending" &&
+          call.receiver_id.toString() === user.id.toString() &&
+          !activeCall &&
+          !incomingCall
+        ) {
+          console.log("[Call] Auto-answering call from notification");
+          await answerCallGlobal(call);
+        } else {
+          console.log("[Call] Cannot auto-answer call:", {
+            status: call.status,
+            isReceiver: call.receiver_id.toString() === user.id.toString(),
+            hasActiveCall: !!activeCall,
+            hasIncomingCall: !!incomingCall,
+          });
+        }
+
+        // Remove the call parameter from URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete("call");
+        router.replace(url.pathname + url.search, { scroll: false });
+      } catch (error: any) {
+        console.error("[Call] Error fetching call from notification:", error);
+        // Remove the call parameter even if there's an error
+        const url = new URL(window.location.href);
+        url.searchParams.delete("call");
+        router.replace(url.pathname + url.search, { scroll: false });
+      }
+    };
+
+    handleCallFromNotification();
+  }, [callIdFromUrl, accessToken, user, activeCall, incomingCall, answerCallGlobal, router]);
 
   // Mark as read when page is visible
   useEffect(() => {

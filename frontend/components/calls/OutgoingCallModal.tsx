@@ -11,6 +11,7 @@ interface OutgoingCallModalProps {
     receiver_id: string;
     receiver_username: string;
     call_type: "voice" | "video";
+    status?: "pending" | "rejected";
   };
   onCancel: () => void;
   receiverAvatar?: string;
@@ -22,6 +23,8 @@ export default function OutgoingCallModal({
   receiverAvatar,
 }: OutgoingCallModalProps) {
   console.log("[OutgoingCallModal] Rendering modal with call:", call);
+  const isRejected = call.status === "rejected";
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
@@ -38,20 +41,24 @@ export default function OutgoingCallModal({
           </div>
 
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Calling {call.receiver_username}
+            {isRejected ? "Call Declined" : `Calling ${call.receiver_username}`}
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-            {call.call_type === "video" ? "Video" : "Voice"} Call
+            {isRejected
+              ? `${call.receiver_username} declined the call`
+              : `${call.call_type === "video" ? "Video" : "Voice"} Call`}
           </p>
 
-          <div className="flex items-center justify-center">
-            <button
-              onClick={onCancel}
-              className="flex items-center justify-center w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
-            >
-              <PhoneOff className="w-6 h-6" />
-            </button>
-          </div>
+          {!isRejected && (
+            <div className="flex items-center justify-center">
+              <button
+                onClick={onCancel}
+                className="flex items-center justify-center w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+              >
+                <PhoneOff className="w-6 h-6" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

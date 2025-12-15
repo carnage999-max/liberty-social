@@ -167,6 +167,24 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
           }
           break;
 
+        case "call.rejected":
+          console.log("[CallContext] Call rejected notification:", data);
+          if (outgoingCall && data.call_id === outgoingCall.id.toString()) {
+            // Mark the outgoing call as rejected
+            setOutgoingCall({ ...outgoingCall, status: "rejected" });
+            // Clear it after showing "Call Declined" message
+            setTimeout(() => {
+              setOutgoingCall(null);
+              // Clean up WebRTC resources
+              if (webrtc.isCallActive) {
+                webrtc.endCall().catch((err) => {
+                  console.error("[CallContext] Error ending call:", err);
+                });
+              }
+            }, 2000); // Show "Call Declined" for 2 seconds
+          }
+          break;
+
         case "call.ended":
         case "call.end":
           console.log("[CallContext] Call ended notification:", data);
