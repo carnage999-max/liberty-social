@@ -215,14 +215,11 @@ export default function NotificationDebugPage() {
 
     addLog("🔍 Checking device token registration...");
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/api/device-tokens/`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
+      // Use the API helper which already includes the base URL
+      const { apiGet } = await import("@/lib/api");
+      const tokens = await apiGet("/device-tokens/");
 
-      if (response.ok) {
-        const tokens = await response.json();
+      if (Array.isArray(tokens)) {
         addLog(`✅ Found ${tokens.length} registered device token(s):`);
         tokens.forEach((token: any, i: number) => {
           addLog(`  ${i + 1}. Platform: ${token.platform}, Token: ${token.token.substring(0, 30)}...`);
@@ -230,7 +227,7 @@ export default function NotificationDebugPage() {
           addLog(`     Last seen: ${new Date(token.last_seen_at).toLocaleString()}`);
         });
       } else {
-        addLog(`❌ Failed to fetch device tokens: ${response.status}`);
+        addLog(`❌ Unexpected response format`);
       }
     } catch (error: any) {
       addLog(`❌ Error checking device tokens: ${error.message}`);
