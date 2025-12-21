@@ -6,6 +6,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/Toast";
 import { UserStatusProvider } from "@/lib/user-status-provider";
 import { PushNotificationInitializer } from "@/components/PushNotificationInitializer";
+import { LocationTracker } from "@/components/LocationTracker";
 
 
 export const metadata: Metadata = {
@@ -92,6 +93,7 @@ export default function RootLayout({
         <AuthProvider>
           <UserStatusProvider>
             <PushNotificationInitializer />
+            <LocationTracker />
           <ToastProvider>
             <Navbar />
             <main className="pb-20">

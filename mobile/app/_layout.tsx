@@ -8,6 +8,7 @@ import { MessageBadgeProvider } from '../contexts/MessageBadgeContext';
 import { TypingStatusProvider } from '../contexts/TypingStatusContext';
 import { StatusBar } from 'expo-status-bar';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useLocationTracking } from '../hooks/useLocationTracking';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 
@@ -19,6 +20,7 @@ function RootLayoutNav() {
   const { isLoading } = useAuth();
   const [appIsReady, setAppIsReady] = useState(false);
   usePushNotifications();
+  useLocationTracking(); // Track user location on app startup
 
   useEffect(() => {
     async function prepare() {

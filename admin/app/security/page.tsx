@@ -31,7 +31,7 @@ export default function SecurityAdminPage() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null as string | null);
   const [actioning, setActioning] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "devices" | "activity">("overview");
+  const [activeTab, setActiveTab] = useState("overview" as "overview" | "devices" | "activity");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -213,7 +213,7 @@ export default function SecurityAdminPage() {
                 className="input"
                 placeholder="Search by username, email, or name..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               />
               {searching && (
                 <div className="text-xs text-gray-600 mt-2">Searching…</div>
@@ -221,7 +221,7 @@ export default function SecurityAdminPage() {
             </div>
             {searchResults.length > 0 && (
               <div className="mt-4 space-y-2">
-                {searchResults.map((user) => (
+                {searchResults.map((user: UserSearchResult) => (
                   <button
                     key={user.id}
                     className="w-full p-4 border rounded-lg text-left hover:bg-gray-50 flex items-center gap-3"
@@ -232,7 +232,7 @@ export default function SecurityAdminPage() {
                         src={user.image}
                         alt={user.title}
                         className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                        onError={(e) => {
+                        onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
                           (e.target as HTMLImageElement).style.display = 'none';
                         }}
                       />
@@ -328,7 +328,7 @@ export default function SecurityAdminPage() {
                         <div className="mt-6">
                           <h3 className="text-lg font-semibold mb-4">Recent Security Events</h3>
                           <div className="space-y-2">
-                            {securityStatus.recent_events.map((event, idx) => (
+                            {securityStatus.recent_events.map((event: any, idx: number) => (
                               <div key={idx} className="p-3 border rounded-lg">
                                 <div className="text-sm font-semibold">{event.event_type}</div>
                                 <div className="text-xs text-gray-600 mt-1">{event.description}</div>
@@ -352,7 +352,7 @@ export default function SecurityAdminPage() {
                         <div className="text-gray-600">No devices registered.</div>
                       ) : (
                         <div className="space-y-3">
-                          {devices.map((device) => (
+                          {devices.map((device: UserDevice) => (
                             <div key={device.id} className="p-4 border rounded-lg">
                               <div className="text-sm font-semibold mb-2">{device.device_name}</div>
                               <div className="text-xs text-gray-600 space-y-1">
@@ -386,7 +386,7 @@ export default function SecurityAdminPage() {
                         <div className="text-gray-600">No activity recorded.</div>
                       ) : (
                         <div className="space-y-3">
-                          {activity.map((entry) => (
+                          {activity.map((entry: UserActivityEntry) => (
                             <div key={entry.id} className="p-4 border rounded-lg">
                               <div className="flex items-center justify-between mb-2">
                                 <div className="text-sm font-semibold">

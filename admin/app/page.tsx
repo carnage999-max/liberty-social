@@ -208,6 +208,9 @@ export default function AdminDashboardPage() {
             ) : null}
           </div>
           <div className="dashboard-actions">
+            <a href="/analytics" className="btn btn--outline">
+              Analytics
+            </a>
             <button
               type="button"
               onClick={() => token && loadMetrics(token)}

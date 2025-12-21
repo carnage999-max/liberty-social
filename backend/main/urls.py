@@ -2,6 +2,15 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .feedback_view import FeedbackView
+from users.analytics_views import (
+    analytics_overview,
+    analytics_by_country,
+    analytics_by_state,
+    analytics_by_age,
+    analytics_by_gender,
+    analytics_micro_segmentation,
+    analytics_top_countries,
+)
 from .views import (
     PostViewSet,
     CommentViewSet,
@@ -96,10 +105,39 @@ router.register(
 router.register("animals/media", AnimalListingMediaViewSet, basename="animal-media")
 router.register("animals/reviews", SellerReviewViewSet, basename="animal-reviews")
 router.register("animals/breeders", BreederDirectoryViewSet, basename="animal-breeders")
-router.register("admin/action-logs", AdminActionLogViewSet, basename="admin-action-logs")
+router.register(
+    "admin/action-logs", AdminActionLogViewSet, basename="admin-action-logs"
+)
 
 urlpatterns = [
     path("", include(router.urls)),
+    path(
+        "users/admin/analytics/overview/", analytics_overview, name="analytics-overview"
+    ),
+    path(
+        "users/admin/analytics/by-country/",
+        analytics_by_country,
+        name="analytics-by-country",
+    ),
+    path(
+        "users/admin/analytics/by-state/", analytics_by_state, name="analytics-by-state"
+    ),
+    path("users/admin/analytics/by-age/", analytics_by_age, name="analytics-by-age"),
+    path(
+        "users/admin/analytics/by-gender/",
+        analytics_by_gender,
+        name="analytics-by-gender",
+    ),
+    path(
+        "users/admin/analytics/micro-segmentation/",
+        analytics_micro_segmentation,
+        name="analytics-micro-segmentation",
+    ),
+    path(
+        "users/admin/analytics/top-countries/",
+        analytics_top_countries,
+        name="analytics-top-countries",
+    ),
     path("feed/", NewsFeedView.as_view(), name="newsfeed"),
     path("feedback/", FeedbackView.as_view(), name="feedback"),
     path("uploads/images/", UploadImageView.as_view(), name="upload-image"),

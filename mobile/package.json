@@ -1,6 +1,6 @@
 {
   "name": "liberty-social-mobile",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -32,7 +32,9 @@
     "expo-image-picker": "~17.0.9",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.10",
+    "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.14",
+    "expo-passkeys": "file:./modules/expo-passkeys",
     "expo-router": "~6.0.17",
     "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.12",
@@ -44,7 +46,6 @@
     "react-native": "0.81.5",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-masked-view": "^0.2.0",
-    "expo-passkeys": "file:./modules/expo-passkeys",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",

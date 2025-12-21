@@ -58,6 +58,12 @@ class User(AbstractUser):
     bio = models.TextField(_("Bio"), null=True, blank=True)
     gender = models.CharField(_("Gender"), max_length=50, default="Not specified")
 
+    # Location and demographic data
+    age = models.IntegerField(_("Age"), null=True, blank=True)
+    country = models.CharField(_("Country"), max_length=100, null=True, blank=True)
+    state = models.CharField(_("State/Province"), max_length=100, null=True, blank=True)
+    city = models.CharField(_("City"), max_length=100, null=True, blank=True)
+
     # Online status tracking
     is_online = models.BooleanField(_("Is Online"), default=False)
     last_seen = models.DateTimeField(
@@ -69,7 +75,9 @@ class User(AbstractUser):
 
     # Passkey support
     has_passkey = models.BooleanField(
-        _("Has Passkey"), default=False, help_text="Whether user has registered a passkey"
+        _("Has Passkey"),
+        default=False,
+        help_text="Whether user has registered a passkey",
     )
 
     # Account lock (Phase 3)
@@ -316,7 +324,10 @@ class PasskeyCredential(models.Model):
     )
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     last_used_at = models.DateTimeField(
-        _("Last Used At"), null=True, blank=True, help_text="When this passkey was last used"
+        _("Last Used At"),
+        null=True,
+        blank=True,
+        help_text="When this passkey was last used",
     )
     device_removed_at = models.DateTimeField(
         _("Device Removed At"),

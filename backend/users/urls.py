@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .password_reset_view import PasswordResetView, PasswordResetConfirmView
 from .password_change_request_view import RequestPasswordChangeView
+from .location_views import update_user_location, get_user_location
 from .views import (
     BlockedUsersViewset,
     ChangePasswordView,
@@ -20,6 +21,15 @@ from .views import (
     UserMetricsView,
     OnlineUsersView,
     AccountDeletionRequestView,
+)
+from .analytics_views import (
+    analytics_overview,
+    analytics_by_country,
+    analytics_by_state,
+    analytics_by_age,
+    analytics_by_gender,
+    analytics_micro_segmentation,
+    analytics_top_countries,
 )
 from .passkey_views import (
     PasskeyRegisterBeginView,
@@ -81,6 +91,8 @@ urlpatterns = [
         name="request-password-change",
     ),
     path("settings/", UserSettingsView.as_view(), name="user-settings"),
+    path("update-location/", update_user_location, name="update-location"),
+    path("get-location/", get_user_location, name="get-location"),
     path(
         "user/<uuid:user_id>/overview/",
         UserOverviewView.as_view(),
@@ -175,5 +187,41 @@ urlpatterns = [
         "admin/users/<uuid:user_id>/unlock/",
         UserUnlockView.as_view(),
         name="admin-user-unlock",
+    ),
+    # Admin Analytics Endpoints
+    path(
+        "admin/analytics/overview/",
+        analytics_overview,
+        name="analytics-overview",
+    ),
+    path(
+        "admin/analytics/by-country/",
+        analytics_by_country,
+        name="analytics-by-country",
+    ),
+    path(
+        "admin/analytics/by-state/",
+        analytics_by_state,
+        name="analytics-by-state",
+    ),
+    path(
+        "admin/analytics/by-age/",
+        analytics_by_age,
+        name="analytics-by-age",
+    ),
+    path(
+        "admin/analytics/by-gender/",
+        analytics_by_gender,
+        name="analytics-by-gender",
+    ),
+    path(
+        "admin/analytics/micro-segmentation/",
+        analytics_micro_segmentation,
+        name="analytics-micro-segmentation",
+    ),
+    path(
+        "admin/analytics/top-countries/",
+        analytics_top_countries,
+        name="analytics-top-countries",
     ),
 ]
