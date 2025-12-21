@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AnalyticsFilter, AnalyticsFilters } from '@/components/AnalyticsFilter';
 import { MetricCard } from '@/components/MetricCard';
+import { CountryHeatmap } from '@/components/CountryHeatmap';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
@@ -169,13 +170,15 @@ export default function AnalyticsDashboard() {
             marginBottom: '2rem'
           }}>
             <MetricCard title="Total Users" value={summary.total.toString()} />
-            <MetricCard title="Active Users" value={summary.active.toString()} />
             <MetricCard title="Male" value={summary.male.toString()} />
             <MetricCard title="Female" value={summary.female.toString()} />
             {summary.average_age && (
               <MetricCard title="Average Age" value={summary.average_age.toFixed(1)} />
             )}
           </div>
+
+          {/* Country Heatmap */}
+          <CountryHeatmap data={topCountries} />
 
           <div style={{
             display: 'grid',

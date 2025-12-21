@@ -57,3 +57,8 @@ eas.json.local
 *.tmp
 *.temp
 google-services.json
+
+*_*_*.md
+*_*.md
+README-*.md
+SETUP.md
