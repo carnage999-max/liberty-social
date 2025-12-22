@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { Plus } from 'lucide-react';
 
 interface YardSaleListing {
   id: number;
@@ -167,12 +168,16 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
               cursor: 'pointer',
               fontWeight: 'bold',
               fontSize: '0.875rem',
-              transition: 'background-color 0.2s'
+              transition: 'background-color 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
             }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4CAF50'}
             >
-              ➕ Post Yard Sale
+              <Plus size={18} />
+              Post Yard Sale
             </button>
           </Link>
         </div>
@@ -306,13 +311,14 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
           boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
           zIndex: 500,
           fontSize: '0.875rem',
-          minWidth: '200px'
+          minWidth: '200px',
+          color: '#333'
         }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '0.75rem', fontSize: '0.95rem', color: '#333' }}>
             📋 Legend
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#333' }}>
               <div style={{
                 width: '24px',
                 height: '24px',
@@ -329,7 +335,7 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
               </div>
               <span>Multi-day sale</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#333' }}>
               <div style={{
                 width: '24px',
                 height: '24px',
@@ -346,7 +352,7 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
               </div>
               <span>Today only</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#333' }}>
               <div style={{
                 width: '24px',
                 height: '24px',
@@ -363,7 +369,7 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
               </div>
               <span>Starting soon</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem', color: '#333' }}>
               <div style={{
                 width: '24px',
                 height: '24px',

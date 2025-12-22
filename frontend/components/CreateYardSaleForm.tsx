@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 
 interface CreateYardSaleFormProps {
   onSuccess?: () => void;
 }
 
 export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSuccess }) => {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -114,7 +117,27 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
       borderRadius: '8px',
       boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
     }}>
-      <h1 style={{ marginBottom: '0.5rem' }}>Post a Yard Sale</h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+        <button
+          onClick={() => router.push('/app/yard-sales')}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0.5rem',
+            color: '#666',
+            display: 'flex',
+            alignItems: 'center',
+            transition: 'color 0.2s'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = '#333'}
+          onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+          title="Back to yard sales"
+        >
+          <ArrowLeft size={24} />
+        </button>
+        <h1 style={{ margin: 0 }}>Post a Yard Sale</h1>
+      </div>
       <p style={{ color: '#999', marginBottom: '2rem' }}>
         Step {step} of 3 - $0.99 listing fee
       </p>
@@ -154,7 +177,8 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
                   border: '1px solid #ccc',
                   borderRadius: '4px',
                   fontSize: '1rem',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  color: '#333'
                 }}
                 required
               />
@@ -176,7 +200,8 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
                   border: '1px solid #ccc',
                   borderRadius: '4px',
                   fontSize: '1rem',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  color: '#333'
                 }}
                 required
               />
@@ -198,6 +223,7 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
                     border: '1px solid #ccc',
                     borderRadius: '4px',
                     fontSize: '1rem',
+                    color: '#333',
                     boxSizing: 'border-box'
                   }}
                   required
@@ -218,7 +244,8 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
                     border: '1px solid #ccc',
                     borderRadius: '4px',
                     fontSize: '1rem',
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
+                    color: '#333'
                   }}
                   required
                 />
@@ -241,7 +268,8 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
                   border: '1px solid #ccc',
                   borderRadius: '4px',
                   fontSize: '1rem',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  color: '#333'
                 }}
               />
             </div>
@@ -263,7 +291,8 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
                   borderRadius: '4px',
                   fontSize: '1rem',
                   boxSizing: 'border-box',
-                  fontFamily: 'inherit'
+                  fontFamily: 'inherit',
+                  color: '#333'
                 }}
               />
             </div>
@@ -284,7 +313,8 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
                   border: '1px solid #ccc',
                   borderRadius: '4px',
                   fontSize: '1rem',
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
+                  color: '#333'
                 }}
               />
             </div>
