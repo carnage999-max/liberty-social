@@ -818,6 +818,179 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
           `}</style>
         </div>
       )}
+
+      {/* Listings List Below Map */}
+      <div style={{
+        backgroundColor: '#fff',
+        borderTop: '2px solid #C8A25F',
+        maxHeight: '350px',
+        overflowY: 'auto',
+        padding: '1.5rem 2rem'
+      }}>
+        <h2 style={{
+          fontSize: '1.25rem',
+          fontWeight: '700',
+          color: '#1D2B4F',
+          marginBottom: '1rem',
+          margin: 0
+        }}>
+          Available Listings ({listings.length})
+        </h2>
+
+        {listings.length === 0 ? (
+          <p style={{
+            color: '#718096',
+            fontSize: '0.95rem',
+            fontStyle: 'italic'
+          }}>
+            No yard sales found in this radius. Try expanding your search distance.
+          </p>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: '1rem'
+          }}>
+            {listings.map((listing) => (
+              <div
+                key={listing.id}
+                onClick={() => setSelectedListing(listing)}
+                style={{
+                  padding: '1rem',
+                  backgroundColor: selectedListing?.id === listing.id ? '#f0f7ff' : '#f9f9f9',
+                  border: selectedListing?.id === listing.id ? '2px solid #2196F3' : '1px solid #e0e0e0',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: selectedListing?.id === listing.id ? '0 4px 12px rgba(33, 150, 243, 0.2)' : '0 2px 4px rgba(0,0,0,0.05)'
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedListing?.id !== listing.id) {
+                    e.currentTarget.style.backgroundColor = '#f5f5f5';
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedListing?.id !== listing.id) {
+                    e.currentTarget.style.backgroundColor = '#f9f9f9';
+                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                  }
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                  <h3 style={{
+                    margin: 0,
+                    fontSize: '0.95rem',
+                    fontWeight: '700',
+                    color: '#1D2B4F',
+                    flex: 1
+                  }}>
+                    {listing.title}
+                  </h3>
+                  {listing.distance_miles && (
+                    <span style={{
+                      backgroundColor: '#2196F3',
+                      color: '#fff',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      whiteSpace: 'nowrap',
+                      marginLeft: '0.5rem'
+                    }}>
+                      {listing.distance_miles}mi
+                    </span>
+                  )}
+                </div>
+
+                <p style={{
+                  margin: '0.5rem 0',
+                  fontSize: '0.85rem',
+                  color: '#666'
+                }}>
+                  📍 {listing.address}
+                </p>
+
+                <p style={{
+                  margin: '0.5rem 0',
+                  fontSize: '0.85rem',
+                  color: '#666'
+                }}>
+                  📅 {listing.start_date} to {listing.end_date}
+                </p>
+
+                <p style={{
+                  margin: '0.5rem 0',
+                  fontSize: '0.85rem',
+                  color: '#666'
+                }}>
+                  🕐 {listing.hours}
+                </p>
+
+                <div style={{
+                  display: 'inline-block',
+                  padding: '0.25rem 0.75rem',
+                  backgroundColor: listing.is_today_only ? '#e3f2fd' : '#f3e5f5',
+                  borderRadius: '4px',
+                  fontSize: '0.7rem',
+                  fontWeight: '600',
+                  color: listing.is_today_only ? '#1976d2' : '#7b1fa2',
+                  marginTop: '0.5rem'
+                }}>
+                  {listing.is_today_only ? '⭐ TODAY ONLY' : '🏠 MULTI-DAY'}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDirections(
+                        parseFloat(listing.latitude.toString()),
+                        parseFloat(listing.longitude.toString()),
+                        listing.address
+                      );
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '0.5rem',
+                      backgroundColor: '#2196F3',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.7rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    📍 Map
+                  </button>
+                  {listing.phone && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCall(listing.phone!);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem',
+                        backgroundColor: '#4CAF50',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.7rem',
+                        fontWeight: '600'
+                      }}
+                    >
+                      📞 Call
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
