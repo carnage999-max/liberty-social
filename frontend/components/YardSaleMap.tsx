@@ -125,7 +125,7 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
     setLoading(true);
     try {
       const response = await fetch(
-        `${API_BASE}/api/yard-sales/search/?latitude=${lat}&longitude=${lon}&radius=${radiusValue}`
+        `${API_BASE}/yard-sales/search/?latitude=${lat}&longitude=${lon}&radius=${radiusValue}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -324,7 +324,7 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
             <input
               type="range"
               min="5"
-              max="50"
+              max="100"
               step="5"
               value={radius}
               onChange={(e) => setRadius(parseInt(e.target.value))}

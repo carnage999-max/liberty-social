@@ -48,7 +48,7 @@ def yard_sales_search(request):
     Query Parameters:
     - latitude: user's latitude (required)
     - longitude: user's longitude (required)
-    - radius: search radius in miles (default: 25, max: 50)
+    - radius: search radius in miles (default: 25, max: 100)
     - start_date: filter by start date (optional)
     - end_date: filter by end date (optional)
     """
@@ -65,9 +65,9 @@ def yard_sales_search(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if radius < 1 or radius > 50:
+        if radius < 1 or radius > 100:
             return Response(
-                {"error": "Radius must be between 1 and 50 miles"},
+                {"error": "Radius must be between 1 and 100 miles"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

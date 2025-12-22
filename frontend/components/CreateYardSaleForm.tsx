@@ -73,7 +73,8 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
           setError('Please fill in all required fields');
           return;
         }
-        if (!formData.latitude || !formData.longitude) {
+        // Check if coordinates are still at default (0,0)
+        if (formData.latitude === 0 && formData.longitude === 0) {
           await geocodeAddress();
           return;
         }
@@ -85,25 +86,55 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
     // Submit to backend
     setLoading(true);
     try {
-      const token = localStorage.getItem('liberty-social-access-token');
+      // Get token from auth context storage
+      let token = null;
+      try {
+        const raw = localStorage.getItem('liberty_auth_v1');
+        if (raw) {
+          const data = JSON.parse(raw);
+          token = data.accessToken;
+        }
+      } catch (e) {
+        console.error('Failed to retrieve token:', e);
+      }
 
-      const response = await fetch(`${API_BASE}/api/yard-sales/create/`, {
+      if (!token) {
+        setError('Authentication failed. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
+      // Prepare data for submission - only include non-empty phone and round coordinates to 6 decimal places
+      const submitData = {
+        ...formData,
+        phone: formData.phone || null,
+        latitude: Math.round(parseFloat(formData.latitude.toString()) * 1000000) / 1000000,
+        longitude: Math.round(parseFloat(formData.longitude.toString()) * 1000000) / 1000000,
+      };
+
+      console.log('Submitting yard sale:', submitData);
+
+      const response = await fetch(`${API_BASE}/yard-sales/create/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token && { 'Authorization': `Bearer ${token}` }),
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create listing');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Server error response:', errorData);
+        throw new Error(JSON.stringify(errorData) || 'Failed to create listing');
       }
 
       setError(null);
       if (onSuccess) onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
+      console.error('Form submission error:', errorMessage);
     } finally {
       setLoading(false);
     }
