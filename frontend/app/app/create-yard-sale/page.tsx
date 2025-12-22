@@ -11,7 +11,7 @@ export default function CreateYardSalePage() {
   const handleSuccess = () => {
     setShowSuccess(true);
     setTimeout(() => {
-      router.push('/yard-sales');
+      router.push('/app/yard-sales');
     }, 2000);
   };
 
