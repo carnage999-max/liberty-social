@@ -649,3 +649,9 @@ from .animal_models import (
     SuspiciousActivityLog,
     BreederDirectory,
 )
+
+# Import yard sale models
+from .yard_sale_models import (
+    YardSaleListing,
+    YardSaleReport,
+)

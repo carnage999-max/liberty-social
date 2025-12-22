@@ -1,0 +1,166 @@
+Below is a clean, build-ready functional spec your developers can execute without interpretation. This is intentionally simple, modular, and scalable.
+
+⸻
+
+Liberty Social — Yard Sale Map Module (YSM)
+
+Purpose: Replace ineffective classifieds and scattered social posts with a dedicated, map-based yard sale discovery system.
+
+⸻
+
+1. Core Concept (Non-Negotiable)
+	•	Map-first experience
+	•	Radius-based discovery
+	•	Yard-sale-only listings
+	•	$0.99 paid listing
+	•	One-tap navigation + contact
+
+This is not Facebook Marketplace.
+This is time-bound, location-specific, hyper-local commerce.
+
+⸻
+
+2. User Flows
+
+A. Buyer / Browser Flow
+	1.	User opens Yard Sales section
+	2.	Map loads centered on:
+	•	GPS location (mobile)
+	•	Saved location or IP fallback (web)
+	3.	User adjusts search radius slider
+	•	Presets: 5 / 10 / 25 / 35 / 50 miles
+	4.	Map dynamically updates pins
+	5.	User taps a pin → Listing Card
+	6.	From card:
+	•	Tap Directions → native maps
+	•	Tap Call Seller
+	•	View hours, dates, items, notes
+
+⸻
+
+B. Seller / Lister Flow
+	1.	User taps “Post Yard Sale”
+	2.	Simple 1-page form:
+	•	Address (auto-geocode)
+	•	Sale title
+	•	Start date & end date
+	•	Daily hours
+	•	Description / items
+	•	Phone number (optional)
+	3.	Pin preview appears on map
+	4.	User pays $0.99
+	5.	Listing goes live immediately
+	6.	Listing auto-expires after end date
+
+⸻
+
+3. Map Behavior (Critical)
+
+Map Engine
+	•	Google Maps, Mapbox, or OpenStreetMap (dev choice)
+	•	Pins clustered when zoomed out
+	•	Pins expand when zoomed in
+
+Radius Logic
+	•	Slider dynamically redraws bounding circle
+	•	Backend query uses:
+	•	Center lat/lng
+	•	Radius in miles
+	•	Only active listings returned
+
+⸻
+
+4. Listing Data Model (Minimum Viable)
+
+{
+  "listing_id": "uuid",
+  "user_id": "uuid",
+  "title": "Multi-Family Yard Sale",
+  "description": "Tools, furniture, kids clothes",
+  "address": "123 Main St, Bangor ME",
+  "lat": 44.8012,
+  "lng": -68.7778,
+  "start_date": "2026-06-14",
+  "end_date": "2026-06-15",
+  "hours": "8am – 2pm",
+  "phone": "207-555-1234",
+  "price_paid": 0.99,
+  "status": "active | expired",
+  "created_at": "timestamp"
+}
+
+
+⸻
+
+5. Payment Logic
+	•	Flat fee: $0.99 per listing
+	•	Stripe or existing Liberty Social payment stack
+	•	No subscriptions
+	•	No renewals
+	•	No free posts
+
+This keeps spam out and signal high.
+
+⸻
+
+6. UI Requirements (Keep It Dumb-Simple)
+
+Map View
+	•	Full-screen map
+	•	Floating radius slider
+	•	Floating “Post Yard Sale” button
+	•	Pin colors:
+	•	Active = red
+	•	Today-only = blue
+	•	Multi-day = orange
+
+Listing Card
+	•	Title
+	•	Address
+	•	Dates & hours
+	•	Call button
+	•	Directions button
+
+No chat. No comments. No likes.
+
+⸻
+
+7. Moderation & Safety
+	•	Phone number optional (seller choice)
+	•	Auto-expire listings
+	•	Report listing button
+	•	Rate limiting on posts per user/day
+
+⸻
+
+8. Why This Works (Strategically)
+	•	Yard sales are time-critical
+	•	Maps beat feeds
+	•	People want directions, not comments
+	•	$0.99 is friction that filters junk
+	•	Hyper-local = high retention
+
+This becomes a seasonal traffic magnet and a local habit-builder for Liberty Social.
+
+⸻
+
+9. Build Order (Suggested)
+	1.	Backend listing model + geo-queries
+	2.	Map UI + radius filtering
+	3.	Listing creation flow
+	4.	Payments
+	5.	Auto-expiration job
+	6.	Web + mobile parity
+
+⸻
+
+10. Expansion Hooks (Future, Not MVP)
+	•	Estate sales
+	•	Community tag days
+	•	“This Weekend” toggle
+	•	Print-friendly flyer export
+	•	Featured pins ($1.99 boost)
+
+⸻
+
+This spec is intentionally executable without meetings, debates, or redesign cycles.

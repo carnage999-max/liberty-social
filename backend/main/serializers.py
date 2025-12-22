@@ -24,6 +24,8 @@ from .models import (
     PageInvite,
     UserFeedPreference,
     UserReactionPreference,
+    YardSaleListing,
+    YardSaleReport,
 )
 from users.serializers import UserSerializer
 
@@ -1217,3 +1219,89 @@ class CallSerializer(serializers.ModelSerializer):
         if request and getattr(request, "user", None):
             validated_data["caller"] = request.user
         return super().create(validated_data)
+
+# ===== Yard Sale Serializers =====
+
+class YardSaleListingSerializer(serializers.ModelSerializer):
+    """Serialize yard sale listings with user information."""
+    user = UserSerializer(read_only=True)
+    is_active = serializers.SerializerMethodField()
+    pin_color = serializers.SerializerMethodField()
+    is_today_only = serializers.SerializerMethodField()
+    is_multi_day = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = YardSaleListing
+        fields = [
+            'id',
+            'user',
+            'title',
+            'description',
+            'address',
+            'latitude',
+            'longitude',
+            'start_date',
+            'end_date',
+            'hours',
+            'phone',
+            'status',
+            'price_paid',
+            'view_count',
+            'contact_count',
+            'created_at',
+            'updated_at',
+            'is_active',
+            'pin_color',
+            'is_today_only',
+            'is_multi_day',
+        ]
+        read_only_fields = [
+            'id',
+            'user',
+            'price_paid',
+            'view_count',
+            'contact_count',
+            'created_at',
+            'updated_at',
+            'status',
+        ]
+    
+    def get_is_active(self, obj):
+        return obj.is_active()
+    
+    def get_pin_color(self, obj):
+        return obj.pin_color()
+    
+    def get_is_today_only(self, obj):
+        return obj.is_today_only()
+    
+    def get_is_multi_day(self, obj):
+        return obj.is_multi_day()
+
+
+class YardSaleReportSerializer(serializers.ModelSerializer):
+    """Serialize yard sale reports for moderation."""
+    reported_by = UserSerializer(read_only=True)
+    reviewed_by = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = YardSaleReport
+        fields = [
+            'id',
+            'listing',
+            'reported_by',
+            'reason',
+            'description',
+            'created_at',
+            'reviewed_at',
+            'reviewed_by',
+            'action_taken',
+        ]
+        read_only_fields = [
+            'id',
+            'reported_by',
+            'created_at',
+            'reviewed_at',
+            'reviewed_by',
+            'action_taken',
+        ]
