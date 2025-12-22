@@ -152,11 +152,19 @@ urlpatterns = [
     path("yard-sales/search/", yard_sales_search, name="yard-sales-search"),
     path("yard-sales/<int:listing_id>/", yard_sale_detail, name="yard-sale-detail"),
     path("yard-sales/create/", create_yard_sale, name="yard-sale-create"),
-    path("yard-sales/<int:listing_id>/update/", update_yard_sale, name="yard-sale-update"),
-    path("yard-sales/<int:listing_id>/delete/", delete_yard_sale, name="yard-sale-delete"),
+    path(
+        "yard-sales/<int:listing_id>/update/", update_yard_sale, name="yard-sale-update"
+    ),
+    path(
+        "yard-sales/<int:listing_id>/delete/", delete_yard_sale, name="yard-sale-delete"
+    ),
     path("yard-sales/my-listings/", my_yard_sales, name="yard-sales-my-listings"),
-    path("yard-sales/<int:listing_id>/report/", report_yard_sale, name="yard-sale-report"),
-    path("yard-sales/<int:listing_id>/contact/", contact_seller, name="yard-sale-contact"),
+    path(
+        "yard-sales/<int:listing_id>/report/", report_yard_sale, name="yard-sale-report"
+    ),
+    path(
+        "yard-sales/<int:listing_id>/contact/", contact_seller, name="yard-sale-contact"
+    ),
     path("feed/", NewsFeedView.as_view(), name="newsfeed"),
     path("feedback/", FeedbackView.as_view(), name="feedback"),
     path("uploads/images/", UploadImageView.as_view(), name="upload-image"),

@@ -627,7 +627,10 @@ class NotificationSerializer(serializers.ModelSerializer):
                 elif obj.content_type.model == "marketplaceoffer":
                     try:
                         from .marketplace_models import MarketplaceOffer
-                        offer = MarketplaceOffer.objects.select_related('listing').get(id=obj.object_id)
+
+                        offer = MarketplaceOffer.objects.select_related("listing").get(
+                            id=obj.object_id
+                        )
                         if offer and offer.listing:
                             return f"/app/marketplace/{offer.listing.id}"
                     except:
@@ -644,7 +647,7 @@ class NotificationSerializer(serializers.ModelSerializer):
                             return "/app/invites"
         except Exception:
             pass
-        
+
         # Handle verb-based routing for cases where content_type might not be set
         if obj.verb:
             verb = obj.verb.lower()
@@ -652,19 +655,25 @@ class NotificationSerializer(serializers.ModelSerializer):
                 # For messages, try to get conversation from message
                 try:
                     from .models import Message
+
                     message = Message.objects.get(id=obj.object_id)
                     if message.conversation:
                         return f"/app/messages/{message.conversation.id}"
                 except:
                     pass
-            elif verb in ["marketplace_offer_received", "marketplace_offer_accepted", "marketplace_offer_declined"]:
+            elif verb in [
+                "marketplace_offer_received",
+                "marketplace_offer_accepted",
+                "marketplace_offer_declined",
+            ]:
                 try:
                     from .marketplace_models import MarketplaceOffer
+
                     offer = MarketplaceOffer.objects.get(id=obj.object_id)
                     return f"/app/marketplace/{offer.listing.id}"
                 except:
                     pass
-        
+
         # Default to notifications page
         return "/app/notifications"
 
@@ -675,9 +684,12 @@ class NotificationSerializer(serializers.ModelSerializer):
             if obj.verb in ["incoming_voice_call", "incoming_video_call"]:
                 if obj.content_type and obj.content_type.model == "call":
                     from .models import Call
+
                     call = Call.objects.get(id=obj.object_id)
                     return {
-                        "conversation_id": str(call.conversation.id) if call.conversation else None,
+                        "conversation_id": (
+                            str(call.conversation.id) if call.conversation else None
+                        ),
                     }
         except Exception:
             pass
@@ -1169,6 +1181,7 @@ class UserFeedPreferenceSerializer(serializers.ModelSerializer):
 
 class CallSerializer(serializers.ModelSerializer):
     """Serializer for voice and video calls."""
+
     caller = UserSerializer(read_only=True)
     receiver = UserSerializer(read_only=True)
     caller_id = serializers.PrimaryKeyRelatedField(
@@ -1220,88 +1233,92 @@ class CallSerializer(serializers.ModelSerializer):
             validated_data["caller"] = request.user
         return super().create(validated_data)
 
+
 # ===== Yard Sale Serializers =====
+
 
 class YardSaleListingSerializer(serializers.ModelSerializer):
     """Serialize yard sale listings with user information."""
+
     user = UserSerializer(read_only=True)
     is_active = serializers.SerializerMethodField()
     pin_color = serializers.SerializerMethodField()
     is_today_only = serializers.SerializerMethodField()
     is_multi_day = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = YardSaleListing
         fields = [
-            'id',
-            'user',
-            'title',
-            'description',
-            'address',
-            'latitude',
-            'longitude',
-            'start_date',
-            'end_date',
-            'hours',
-            'phone',
-            'status',
-            'price_paid',
-            'view_count',
-            'contact_count',
-            'created_at',
-            'updated_at',
-            'is_active',
-            'pin_color',
-            'is_today_only',
-            'is_multi_day',
+            "id",
+            "user",
+            "title",
+            "description",
+            "address",
+            "latitude",
+            "longitude",
+            "start_date",
+            "end_date",
+            "hours",
+            "phone",
+            "status",
+            "price_paid",
+            "view_count",
+            "contact_count",
+            "created_at",
+            "updated_at",
+            "is_active",
+            "pin_color",
+            "is_today_only",
+            "is_multi_day",
         ]
         read_only_fields = [
-            'id',
-            'user',
-            'price_paid',
-            'view_count',
-            'contact_count',
-            'created_at',
-            'updated_at',
-            'status',
+            "id",
+            "user",
+            "price_paid",
+            "view_count",
+            "contact_count",
+            "created_at",
+            "updated_at",
+            "status",
         ]
-    
+
     def get_is_active(self, obj):
         return obj.is_active()
-    
+
     def get_pin_color(self, obj):
         return obj.pin_color()
-    
+
     def get_is_today_only(self, obj):
         return obj.is_today_only()
-    
+
     def get_is_multi_day(self, obj):
         return obj.is_multi_day()
 
 
 class YardSaleReportSerializer(serializers.ModelSerializer):
     """Serialize yard sale reports for moderation."""
+
     reported_by = UserSerializer(read_only=True)
     reviewed_by = UserSerializer(read_only=True)
-    
+
     class Meta:
         model = YardSaleReport
         fields = [
-            'id',
-            'listing',
-            'reported_by',
-            'reason',
-            'description',
-            'created_at',
-            'reviewed_at',
-            'reviewed_by',
-            'action_taken',
+            "id",
+            "listing",
+            "reported_by",
+            "reason",
+            "description",
+            "created_at",
+            "reviewed_at",
+            "reviewed_by",
+            "action_taken",
         ]
         read_only_fields = [
-            'id',
-            'reported_by',
-            'created_at',
-            'reviewed_at',
-            'reviewed_by',
-            'action_taken',
+            "id",
+            "reported_by",
+            "created_at",
+            "reviewed_at",
+            "reviewed_by",
+            "action_taken",
         ]

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { color } from 'framer-motion';
 
 interface CreateYardSaleFormProps {
   onSuccess?: () => void;
@@ -136,7 +137,7 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
         >
           <ArrowLeft size={24} />
         </button>
-        <h1 style={{ margin: 0 }}>Post a Yard Sale</h1>
+        <h1 style={{ margin: 0, color: 'gray'}}>Post a Yard Sale</h1>
       </div>
       <p style={{ color: '#999', marginBottom: '2rem' }}>
         Step {step} of 3 - $0.99 listing fee
@@ -158,7 +159,7 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
 
       <form onSubmit={handleSubmit}>
         {step === 1 && (
-          <div>
+          <div className='text-(--color-text-dark)'>
             <h2 style={{ fontSize: '1.125rem', marginBottom: '1.5rem' }}>Sale Details</h2>
 
             <div style={{ marginBottom: '1.5rem' }}>
@@ -323,13 +324,14 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
 
         {step === 2 && (
           <div>
-            <h2 style={{ fontSize: '1.125rem', marginBottom: '1.5rem' }}>Review Your Listing</h2>
+            <h2 style={{ fontSize: '1.125rem', marginBottom: '1.5rem', color: '#2B2B2B' }}>Review Your Listing</h2>
 
             <div style={{
               padding: '1.5rem',
               backgroundColor: '#f9f9f9',
               borderRadius: '6px',
-              marginBottom: '1.5rem'
+              marginBottom: '1.5rem',
+              color: '#333'
             }}>
               <div style={{ marginBottom: '1rem' }}>
                 <div style={{ color: '#999', fontSize: '0.875rem' }}>Title</div>
@@ -377,7 +379,7 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
         )}
 
         {step === 3 && (
-          <div>
+          <div style={{ color: '#333' }}>
             <h2 style={{ fontSize: '1.125rem', marginBottom: '1.5rem' }}>Payment</h2>
 
             <div style={{
@@ -438,7 +440,7 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
             style={{
               flex: 1,
               padding: '0.75rem 1.5rem',
-              backgroundColor: loading ? '#ccc' : step === 3 ? '#4CAF50' : '#2196F3',
+              backgroundColor: loading ? 'var(--color-deep-navy)' : step === 3 ? '#1D2B4F' : '#1D2B4F',
               color: '#fff',
               border: 'none',
               borderRadius: '4px',
@@ -446,6 +448,7 @@ export const CreateYardSaleForm: React.FC<CreateYardSaleFormProps> = ({ onSucces
               fontWeight: 'bold',
               fontSize: '1rem'
             }}
+            className='btn btn--primary'
           >
             {loading ? 'Processing...' : step === 3 ? 'Pay $0.99' : 'Continue'}
           </button>

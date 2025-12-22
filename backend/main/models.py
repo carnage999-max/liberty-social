@@ -319,12 +319,18 @@ class Call(models.Model):
         related_name="calls_received",
         on_delete=models.CASCADE,
     )
-    call_type = models.CharField(max_length=10, choices=CALL_TYPE_CHOICES, default="voice")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="initiating")
+    call_type = models.CharField(
+        max_length=10, choices=CALL_TYPE_CHOICES, default="voice"
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="initiating"
+    )
     started_at = models.DateTimeField(auto_now_add=True)
     answered_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
-    duration_seconds = models.PositiveIntegerField(default=0, help_text="Call duration in seconds")
+    duration_seconds = models.PositiveIntegerField(
+        default=0, help_text="Call duration in seconds"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -342,6 +348,7 @@ class Call(models.Model):
     def end_call(self, duration_seconds=0):
         """Mark call as ended and set duration."""
         from django.utils import timezone
+
         self.status = "ended"
         self.ended_at = timezone.now()
         self.duration_seconds = duration_seconds

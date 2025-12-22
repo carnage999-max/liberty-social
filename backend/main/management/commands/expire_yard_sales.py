@@ -11,27 +11,22 @@ from main.models import YardSaleListing
 
 
 class Command(BaseCommand):
-    help = 'Expire yard sale listings that have passed their end date'
+    help = "Expire yard sale listings that have passed their end date"
 
     def handle(self, *args, **options):
         today = timezone.now().date()
 
         # Find all active listings that have expired
         expired_listings = YardSaleListing.objects.filter(
-            status='active',
-            end_date__lt=today
+            status="active", end_date__lt=today
         )
 
         count = expired_listings.count()
 
         if count > 0:
-            expired_listings.update(status='expired')
+            expired_listings.update(status="expired")
             self.stdout.write(
-                self.style.SUCCESS(
-                    f'Successfully expired {count} yard sale listing(s)'
-                )
+                self.style.SUCCESS(f"Successfully expired {count} yard sale listing(s)")
             )
         else:
-            self.stdout.write(
-                self.style.WARNING('No listings to expire')
-            )
+            self.stdout.write(self.style.WARNING("No listings to expire"))

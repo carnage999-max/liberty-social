@@ -907,3 +907,43 @@
     }
   }
 }
+
+/* Leaflet map styles */
+.leaflet-container {
+  background: #fff;
+  z-index: 1;
+}
+
+.leaflet-tile-pane {
+  z-index: 2;
+}
+
+.leaflet-overlay-pane {
+  z-index: 4;
+}
+
+.leaflet-shadow-pane {
+  z-index: 5;
+}
+
+.leaflet-marker-pane {
+  z-index: 6;
+}
+
+.leaflet-popup-pane {
+  z-index: 7;
+}
+
+.leaflet-popup {
+  background-color: #fff;
+  color: #333;
+}
+
+.leaflet-popup-content {
+  color: #333;
+}
+
+.leaflet-popup-tip-container {
+  display: none;
+}
+
