@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import dynamic from 'next/dynamic';
 
 interface YardSaleListing {
   id: number;
@@ -22,6 +24,28 @@ interface YardSaleMapProps {
   center?: { latitude: number; longitude: number };
 }
 
+// Dynamically import to avoid SSR issues with Leaflet
+const MapContainer = dynamic(
+  () => import('react-leaflet').then(mod => mod.MapContainer),
+  { ssr: false }
+);
+const TileLayer = dynamic(
+  () => import('react-leaflet').then(mod => mod.TileLayer),
+  { ssr: false }
+);
+const Marker = dynamic(
+  () => import('react-leaflet').then(mod => mod.Marker),
+  { ssr: false }
+);
+const Popup = dynamic(
+  () => import('react-leaflet').then(mod => mod.Popup),
+  { ssr: false }
+);
+const Circle = dynamic(
+  () => import('react-leaflet').then(mod => mod.Circle),
+  { ssr: false }
+);
+
 export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
   const [listings, setListings] = useState<YardSaleListing[]>([]);
   const [loading, setLoading] = useState(false);
@@ -30,7 +54,8 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
     center || { latitude: 40.7128, longitude: -74.006 }
   );
   const [selectedListing, setSelectedListing] = useState<YardSaleListing | null>(null);
-  const mapRef = useRef<HTMLDivElement>(null);
+  const [showLegend, setShowLegend] = useState(true);
+  const leafletRef = useRef(null);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
@@ -68,6 +93,8 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
           }
         }
       );
+    } else if (center) {
+      fetchListings(center.latitude, center.longitude, radius);
     }
   }, []);
 
@@ -76,13 +103,13 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
     fetchListings(userLocation.latitude, userLocation.longitude, radius);
   }, [radius]);
 
-  const getColorStyle = (color: string): string => {
-    const colors: Record<string, string> = {
-      red: '#d32f2f',
-      blue: '#2196F3',
-      orange: '#FF9800',
+  const getMarkerColor = (color: string) => {
+    const colors: Record<string, { bg: string; icon: string }> = {
+      red: { bg: '#d32f2f', icon: '🏠' },
+      blue: { bg: '#2196F3', icon: '⭐' },
+      orange: { bg: '#FF9800', icon: '🔄' },
     };
-    return colors[color] || '#d32f2f';
+    return colors[color] || colors.red;
   };
 
   const handleDirections = (lat: number, lon: number, address: string) => {
@@ -94,8 +121,33 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
     window.location.href = `tel:${phone}`;
   };
 
+  const MapContent = () => {
+    if (!listings.length && !loading) {
+      return (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          padding: '2rem',
+          borderRadius: '8px',
+          textAlign: 'center',
+          zIndex: 400,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+        }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📍</div>
+          <p>No yard sales found in this radius</p>
+          <p style={{ fontSize: '0.875rem', color: '#666' }}>Try expanding the search radius</p>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
-    <div style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
+    <div style={{ display: 'flex', height: 'calc(100vh - 70px)', flexDirection: 'column', backgroundColor: '#f5f5f5' }}>
       {/* Header */}
       <div style={{
         padding: '1.5rem',
@@ -103,12 +155,34 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
         borderBottom: '1px solid #e0e0e0',
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}>
-        <h1 style={{ margin: '0 0 1rem 0', fontSize: '1.75rem' }}>Yard Sales Near You</h1>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h1 style={{ margin: 0, fontSize: '1.75rem' }}>🏪 Yard Sales Near You</h1>
+          <Link href="/app/create-yard-sale">
+            <button style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: '#4CAF50',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '0.875rem',
+              transition: 'background-color 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#4CAF50'}
+            >
+              ➕ Post Yard Sale
+            </button>
+          </Link>
+        </div>
+
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.875rem', color: '#666' }}>
             {listings.length} sales found within {radius} miles
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <label style={{ fontSize: '0.875rem', color: '#666' }}>Radius:</label>
             <input
               type="range"
               min="5"
@@ -118,117 +192,223 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
               onChange={(e) => setRadius(parseInt(e.target.value))}
               style={{ width: '150px' }}
             />
-            <span style={{ minWidth: '50px', fontWeight: 'bold' }}>{radius} mi</span>
+            <span style={{ minWidth: '50px', fontWeight: 'bold', color: '#2196F3' }}>{radius} mi</span>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Map Container */}
-        <div
-          ref={mapRef}
-          style={{
-            flex: 1,
-            backgroundColor: '#f0f0f0',
-            position: 'relative',
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          {loading ? (
-            <div style={{ textAlign: 'center' }}>
-              <div>Loading yard sales...</div>
-            </div>
-          ) : (
-            <svg
-              width="100%"
-              height="100%"
-              viewBox="0 0 800 600"
-              style={{ backgroundColor: '#e8f4f8' }}
+      {/* Map Section */}
+      <div style={{ flex: 1, display: 'flex', position: 'relative', overflow: 'hidden' }}>
+        {typeof window !== 'undefined' && (
+          <MapContainer
+            center={[userLocation.latitude, userLocation.longitude]}
+            zoom={12}
+            style={{ width: '100%', height: '100%' }}
+            ref={leafletRef}
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; OpenStreetMap contributors'
+            />
+
+            {/* User location marker */}
+            <Marker
+              position={[userLocation.latitude, userLocation.longitude]}
+              title="Your Location"
             >
-              {/* User location marker */}
-              <circle
-                cx="400"
-                cy="300"
-                r="8"
-                fill="#4CAF50"
-                stroke="#fff"
-                strokeWidth="2"
-              />
+              <Popup>📍 Your Location</Popup>
+            </Marker>
 
-              {/* Radius circle */}
-              <circle
-                cx="400"
-                cy="300"
-                r="150"
-                fill="none"
-                stroke="#2196F3"
-                strokeWidth="1"
-                strokeDasharray="5,5"
-                opacity="0.3"
-              />
+            {/* Radius circle */}
+            <Circle
+              center={[userLocation.latitude, userLocation.longitude]}
+              radius={radius * 1609.34} // Convert miles to meters
+              fillColor="#2196F3"
+              color="#2196F3"
+              weight={1}
+              opacity={0.15}
+              fillOpacity={0.05}
+            />
 
-              {/* Yard sale pins */}
-              {listings.map((listing) => {
-                // Simple projection for demo (would use actual map library in production)
-                const offsetX = (parseFloat(listing.longitude.toString()) - userLocation.longitude) * 1000;
-                const offsetY = (userLocation.latitude - parseFloat(listing.latitude.toString())) * 1000;
-                const x = 400 + offsetX;
-                const y = 300 + offsetY;
-
-                const isSelected = selectedListing?.id === listing.id;
-
-                return (
-                  <g
-                    key={listing.id}
-                    onClick={() => setSelectedListing(listing)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {/* Pin marker */}
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={isSelected ? 12 : 8}
-                      fill={getColorStyle(listing.pin_color)}
-                      stroke="#fff"
-                      strokeWidth={isSelected ? 3 : 2}
-                      style={{
-                        transition: 'all 0.2s ease',
-                        filter: isSelected ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' : 'none'
-                      }}
-                    />
-                    {/* Label */}
-                    {isSelected && (
-                      <text
-                        x={x}
-                        y={y - 15}
-                        textAnchor="middle"
-                        fontSize="12"
-                        fontWeight="bold"
-                        fill="#333"
+            {/* Yard sale markers */}
+            {listings.map((listing) => (
+              <Marker
+                key={listing.id}
+                position={[parseFloat(listing.latitude.toString()), parseFloat(listing.longitude.toString())]}
+                title={listing.title}
+              >
+                <Popup>
+                  <div style={{ minWidth: '250px' }}>
+                    <h3 style={{ margin: '0 0 0.5rem 0' }}>{listing.title}</h3>
+                    <div style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+                      <strong>{listing.address}</strong>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#666', marginBottom: '0.75rem' }}>
+                      {listing.start_date} to {listing.end_date} | {listing.hours}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => handleDirections(
+                          parseFloat(listing.latitude.toString()),
+                          parseFloat(listing.longitude.toString()),
+                          listing.address
+                        )}
+                        style={{
+                          flex: 1,
+                          padding: '0.5rem',
+                          backgroundColor: '#2196F3',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold'
+                        }}
                       >
-                        {listing.title.substring(0, 20)}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
-          )}
+                        📍 Map
+                      </button>
+                      {listing.phone && (
+                        <button
+                          onClick={() => handleCall(listing.phone!)}
+                          style={{
+                            flex: 1,
+                            padding: '0.5rem',
+                            backgroundColor: '#4CAF50',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          📞 Call
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+
+            <MapContent />
+          </MapContainer>
+        )}
+
+        {/* Legend - Always Visible */}
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '20px',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          padding: '1rem',
+          borderRadius: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          zIndex: 500,
+          fontSize: '0.875rem',
+          minWidth: '200px'
+        }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '0.75rem', fontSize: '0.95rem' }}>
+            📋 Legend
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{
+                width: '24px',
+                height: '24px',
+                backgroundColor: '#d32f2f',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: '0.75rem',
+                fontWeight: 'bold'
+              }}>
+                🏠
+              </div>
+              <span>Multi-day sale</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{
+                width: '24px',
+                height: '24px',
+                backgroundColor: '#2196F3',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: '0.75rem',
+                fontWeight: 'bold'
+              }}>
+                ⭐
+              </div>
+              <span>Today only</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{
+                width: '24px',
+                height: '24px',
+                backgroundColor: '#FF9800',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: '0.75rem',
+                fontWeight: 'bold'
+              }}>
+                🔄
+              </div>
+              <span>Starting soon</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <div style={{
+                width: '24px',
+                height: '24px',
+                backgroundColor: '#4CAF50',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontSize: '0.75rem',
+                fontWeight: 'bold'
+              }}>
+                📍
+              </div>
+              <span>Your location</span>
+            </div>
+          </div>
         </div>
 
-        {/* Listings Sidebar */}
-        <div style={{
-          width: '350px',
-          backgroundColor: '#fff',
-          borderLeft: '1px solid #e0e0e0',
-          overflowY: 'auto',
-          boxShadow: '-2px 0 4px rgba(0,0,0,0.05)'
-        }}>
-          {selectedListing ? (
+        {/* Sidebar - Listing Details */}
+        {selectedListing && (
+          <div style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: '350px',
+            backgroundColor: '#fff',
+            borderLeft: '1px solid #e0e0e0',
+            overflowY: 'auto',
+            boxShadow: '-2px 0 4px rgba(0,0,0,0.05)',
+            zIndex: 600,
+            animation: 'slideIn 0.3s ease-out'
+          }}>
+            <style>{`
+              @keyframes slideIn {
+                from {
+                  transform: translateX(100%);
+                }
+                to {
+                  transform: translateX(0);
+                }
+              }
+            `}</style>
+
             <div style={{ padding: '1.5rem' }}>
               {/* Close button */}
               <button
@@ -239,7 +419,13 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
                   border: 'none',
                   fontSize: '1.5rem',
                   cursor: 'pointer',
-                  color: '#999'
+                  color: '#999',
+                  padding: '0.25rem',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
               >
                 ✕
@@ -253,14 +439,14 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
               <div style={{
                 display: 'inline-block',
                 padding: '0.25rem 0.75rem',
-                backgroundColor: '#e8f5e9',
+                backgroundColor: selectedListing.is_today_only ? '#e3f2fd' : '#f3e5f5',
                 borderRadius: '4px',
                 fontSize: '0.75rem',
                 fontWeight: 'bold',
-                color: '#2e7d32',
+                color: selectedListing.is_today_only ? '#1976d2' : '#7b1fa2',
                 marginBottom: '1rem'
               }}>
-                {selectedListing.is_today_only ? 'TODAY ONLY' : 'MULTI-DAY'}
+                {selectedListing.is_today_only ? '⭐ TODAY ONLY' : '🏠 MULTI-DAY'}
               </div>
 
               <div style={{ marginBottom: '1rem', fontSize: '0.875rem', color: '#666' }}>
@@ -282,10 +468,10 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
                 fontSize: '0.875rem'
               }}>
                 <div style={{ marginBottom: '0.5rem' }}>
-                  <strong>Dates:</strong> {selectedListing.start_date} to {selectedListing.end_date}
+                  <strong>📅 Dates:</strong> {selectedListing.start_date} to {selectedListing.end_date}
                 </div>
                 <div>
-                  <strong>Hours:</strong> {selectedListing.hours}
+                  <strong>🕐 Hours:</strong> {selectedListing.hours}
                 </div>
               </div>
 
@@ -331,62 +517,28 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
                 )}
               </div>
             </div>
-          ) : (
-            <div style={{ padding: '1.5rem', textAlign: 'center', color: '#999' }}>
-              {listings.length === 0 ? (
-                <div>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📍</div>
-                  <p>No yard sales found in this radius</p>
-                  <p style={{ fontSize: '0.875rem' }}>Try expanding the search radius</p>
-                </div>
-              ) : (
-                <div>
-                  <p>Click on a pin to see details</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Legend */}
-      <div style={{
-        padding: '1rem',
-        backgroundColor: '#f9f9f9',
-        borderTop: '1px solid #e0e0e0',
-        fontSize: '0.875rem',
-        display: 'flex',
-        gap: '2rem',
-        justifyContent: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{
-            width: '12px',
-            height: '12px',
-            borderRadius: '50%',
-            backgroundColor: '#d32f2f'
-          }} />
-          <span>Multi-day</span>
+      {/* Loading indicator */}
+      {loading && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          color: '#fff',
+          padding: '2rem',
+          borderRadius: '8px',
+          zIndex: 999,
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>⏳</div>
+          <div>Finding yard sales...</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{
-            width: '12px',
-            height: '12px',
-            borderRadius: '50%',
-            backgroundColor: '#2196F3'
-          }} />
-          <span>Today only</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div style={{
-            width: '12px',
-            height: '12px',
-            borderRadius: '50%',
-            backgroundColor: '#FF9800'
-          }} />
-          <span>Starting soon</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

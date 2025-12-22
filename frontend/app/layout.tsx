@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Image from "next/image";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 import Navbar from "../components/navbar";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/Toast";

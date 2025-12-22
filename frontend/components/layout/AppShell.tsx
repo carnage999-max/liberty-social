@@ -157,6 +157,21 @@ const NAV_LINKS = [
     ),
   },
   {
+    label: "Yard Sales",
+    href: "/app/yard-sales",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M6 9l6-7 6 7M6 9l1 11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-11M6 9h12M9 5v4M15 5v4M9 13h6"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ),
+  },
+  {
     label: "Animals",
     href: "/app/animals",
     icon: (
