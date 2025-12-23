@@ -946,8 +946,7 @@ export const YardSaleMap: React.FC<YardSaleMapProps> = ({ center }) => {
                       e.stopPropagation();
                       handleDirections(
                         parseFloat(listing.latitude.toString()),
-                        parseFloat(listing.longitude.toString()),
-                        listing.address
+                        parseFloat(listing.longitude.toString())
                       );
                     }}
                     style={{
