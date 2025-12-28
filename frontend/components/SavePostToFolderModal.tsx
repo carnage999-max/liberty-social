@@ -181,7 +181,7 @@ export function SavePostToFolderModal({
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
                 placeholder="Folder name (leave empty for 'Unnamed Folder')..."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-500 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     createFolder();
@@ -202,7 +202,7 @@ export function SavePostToFolderModal({
                 type="button"
                 onClick={createFolder}
                 disabled={creatingFolder}
-                className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex-1 rounded-lg btn-primary px-3 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {creatingFolder ? "Creating..." : "Create"}
               </button>

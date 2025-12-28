@@ -25,6 +25,7 @@ export default function BookmarksPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [folders, setFolders] = useState<SaveFolder[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [removingPostId, setRemovingPostId] = useState<number | null>(null);
 
@@ -280,23 +281,57 @@ export default function BookmarksPage() {
           </div>
 
           {viewMode === "folder" && (
-            <div className="flex gap-2 overflow-x-auto pb-2">
+            <div className="space-y-2">
               {loadingFolders ? (
                 <Spinner />
+              ) : folders.length === 0 ? (
+                <p className="text-sm text-gray-500">No folders yet. Create one to get started.</p>
               ) : (
                 folders.map((folder) => (
-                  <button
-                    key={folder.id}
-                    onClick={() => setSelectedFolderId(folder.id)}
-                    className={`flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      selectedFolderId === folder.id
-                        ? "bg-[var(--color-primary)] text-white"
-                        : "border border-gray-300 text-gray-700 hover:bg-gray-100"
-                    }`}
-                  >
-                    {folder.name}
-                    <span className="ml-2 text-xs opacity-75">({folder.item_count})</span>
-                  </button>
+                  <div key={folder.id} className="rounded-lg border border-gray-200 bg-white/90">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExpandedFolders((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(folder.id)) next.delete(folder.id);
+                          else next.add(folder.id);
+                          return next;
+                        });
+                        setSelectedFolderId(folder.id);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <p className="text-sm font-medium text-gray-900 truncate">{folder.name}</p>
+                        <p className="text-xs text-gray-500">({folder.item_count})</p>
+                      </div>
+                      <svg
+                        className={`h-4 w-4 text-gray-500 transition-transform ${expandedFolders.has(folder.id) ? "rotate-180" : "rotate-0"}`}
+                        viewBox="0 0 20 20"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+
+                    {expandedFolders.has(folder.id) && (
+                      <div className="px-4 pb-3">
+                        {folder.items && folder.items.length > 0 ? (
+                          <ul className="space-y-3">
+                            {folder.items.map((item) => (
+                              <li key={item.id}>
+                                <PostCard item={item} isFolder={true} />
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-gray-500">No posts in this folder.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 ))
               )}
             </div>
