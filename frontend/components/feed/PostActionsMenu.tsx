@@ -5,6 +5,7 @@ import { apiDelete, apiPatch, apiPost } from "@/lib/api";
 import type { Post } from "@/lib/types";
 import { useToast } from "@/components/Toast";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
+import { SavePostToFolderModal } from "@/components/SavePostToFolderModal";
 
 interface PostActionsMenuProps {
   post: Post;
@@ -27,6 +28,7 @@ export function PostActionsMenu({
   const [pending, setPending] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const isOwner = useMemo(() => {
@@ -48,7 +50,7 @@ export function PostActionsMenu({
 
   const toggleBookmark = useCallback(async () => {
     if (!accessToken) {
-      toast.show("Please sign in to bookmark posts.", "error");
+      toast.show("Please sign in to save posts.", "error");
       setMenuOpen(false);
       return;
     }
@@ -60,19 +62,13 @@ export function PostActionsMenu({
           cache: "no-store",
         });
         onUpdated({ ...post, bookmarked: false, bookmark_id: null });
-        toast.show("Bookmark removed.");
+        toast.show("Post removed from saves.");
       } else {
-        const created = await apiPost(`/bookmarks/`, { post: post.id }, {
-          token: accessToken,
-          cache: "no-store",
-        });
-        const newBookmarkId = (created as { id?: number }).id ?? null;
-        onUpdated({ ...post, bookmarked: true, bookmark_id: newBookmarkId });
-        toast.show("Post bookmarked.");
+        setShowSaveModal(true);
       }
     } catch (err) {
       console.error(err);
-      toast.show("Unable to update bookmark right now.", "error");
+      toast.show("Unable to update save right now.", "error");
     } finally {
       setPending(false);
       setMenuOpen(false);
@@ -128,6 +124,15 @@ export function PostActionsMenu({
     }
   }, [accessToken, editContent, onUpdated, post, toast]);
 
+  const handleSaveToFolder = useCallback(() => {
+    if (!accessToken) {
+      toast.show("Please sign in to save posts.", "error");
+      return;
+    }
+    setShowSaveModal(true);
+    setMenuOpen(false);
+  }, [accessToken, toast]);
+
   return (
     <div className="relative" ref={containerRef}>
       <button
@@ -153,7 +158,7 @@ export function PostActionsMenu({
         >
           <button
             type="button"
-            onClick={toggleBookmark}
+            onClick={handleSaveToFolder}
             disabled={pending}
             className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -166,7 +171,7 @@ export function PostActionsMenu({
                 strokeLinejoin="round"
               />
             </svg>
-            {post.bookmarked ? "Remove bookmark" : "Bookmark post"}
+            {post.bookmarked ? "Manage saved folders" : "Save post"}
           </button>
 
           {isOwner && (
@@ -266,6 +271,16 @@ export function PostActionsMenu({
           </div>
         </div>
       )}
+      <SavePostToFolderModal
+        open={showSaveModal}
+        postId={post.id}
+        accessToken={accessToken}
+        onClose={() => setShowSaveModal(false)}
+        onSaved={() => {
+          onUpdated({ ...post, bookmarked: true, bookmark_id: post.id });
+          toast.show("Post saved to folder.");
+        }}
+      />
       <ConfirmationDialog
         isOpen={showDeleteConfirm}
         title="Delete Post"

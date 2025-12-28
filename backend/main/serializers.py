@@ -26,6 +26,8 @@ from .models import (
     UserReactionPreference,
     YardSaleListing,
     YardSaleReport,
+    SaveFolder,
+    SaveFolderItem,
 )
 from users.serializers import UserSerializer
 
@@ -703,6 +705,71 @@ class BookmarkSerializer(serializers.ModelSerializer):
         model = __import__("main.models", fromlist=["Bookmark"]).Bookmark
         fields = ["id", "user", "post", "created_at"]
         read_only_fields = ["id", "user", "created_at"]
+
+
+class SaveFolderItemSerializer(serializers.ModelSerializer):
+    post = PostSerializer(read_only=True)
+
+    class Meta:
+        model = SaveFolderItem
+        fields = ["id", "folder", "post", "created_at"]
+        read_only_fields = ["id", "folder", "created_at"]
+
+
+class SaveFolderSerializer(serializers.ModelSerializer):
+    items = SaveFolderItemSerializer(many=True, read_only=True)
+    item_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SaveFolder
+        fields = ["id", "name", "created_at", "updated_at", "items", "item_count"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_item_count(self, obj):
+        return obj.items.count()
+
+    def validate_name(self, value):
+        """Ensure folder name is not empty."""
+        if not value or not value.strip():
+            raise serializers.ValidationError("Folder name cannot be empty.")
+        return value.strip()
+
+    def create(self, validated_data):
+        """Create a folder with auto-incrementing unnamed folders."""
+        request = self.context.get("request")
+        user = request.user if request and hasattr(request, "user") else None
+        
+        if not user:
+            raise serializers.ValidationError("User is required to create a folder.")
+        
+        name = validated_data.get("name", "").strip()
+        
+        # If no name or the default unnamed folder name pattern
+        if not name:
+            # Auto-increment unnamed folders
+            base_name = "Unnamed Folder"
+            count = SaveFolder.objects.filter(
+                user=user, 
+                name__startswith=base_name
+            ).count()
+            
+            if count == 0:
+                name = base_name
+            else:
+                name = f"{base_name} {count}"
+        else:
+            # Check if folder with this name already exists and auto-increment
+            existing_count = SaveFolder.objects.filter(
+                user=user,
+                name=name
+            ).count()
+            
+            if existing_count > 0:
+                # Auto-increment by appending a number
+                name = f"{name} {existing_count + 1}"
+        
+        validated_data["name"] = name
+        return super().create(validated_data)
 
 
 class DeviceTokenSerializer(serializers.ModelSerializer):

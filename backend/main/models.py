@@ -108,6 +108,41 @@ class Bookmark(models.Model):
         return f"{self.user} bookmarked {self.post_id}"
 
 
+class SaveFolder(models.Model):
+    """Folders for organizing saved posts."""
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="save_folders"
+    )
+    name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (("user", "name"),)
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"{self.user} - {self.name}"
+
+
+class SaveFolderItem(models.Model):
+    """Items (posts) saved in a folder."""
+    folder = models.ForeignKey(
+        SaveFolder, on_delete=models.CASCADE, related_name="items"
+    )
+    post = models.ForeignKey(
+        "main.Post", on_delete=models.CASCADE, related_name="save_folder_items"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = (("folder", "post"),)
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.folder.name} - {self.post_id}"
+
+
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 

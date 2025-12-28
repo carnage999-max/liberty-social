@@ -28,6 +28,8 @@ from .views import (
     NewsFeedView,
     NotificationViewSet,
     BookmarkViewSet,
+    SaveFolderViewSet,
+    SaveFolderItemViewSet,
     DeviceTokenViewSet,
     ConversationViewSet,
     CallViewSet,
@@ -67,6 +69,8 @@ router.register("comments", CommentViewSet, basename="comments")
 router.register("reactions", ReactionViewSet, basename="reactions")
 router.register("notifications", NotificationViewSet, basename="notifications")
 router.register("bookmarks", BookmarkViewSet, basename="bookmarks")
+router.register("save-folders", SaveFolderViewSet, basename="save-folders")
+router.register("save-folder-items", SaveFolderItemViewSet, basename="save-folder-items")
 router.register("device-tokens", DeviceTokenViewSet, basename="device-tokens")
 router.register("conversations", ConversationViewSet, basename="conversations")
 router.register("calls", CallViewSet, basename="calls")

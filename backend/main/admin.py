@@ -6,6 +6,8 @@ from .models import (
     Notification,
     PostMedia,
     Bookmark,
+    SaveFolder,
+    SaveFolderItem,
     CommentMedia,
     DeviceToken,
     Conversation,
@@ -68,6 +70,19 @@ class CommentMediaAdmin(admin.ModelAdmin):
 @admin.register(Bookmark)
 class BookmarkAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "post", "created_at")
+
+
+@admin.register(SaveFolder)
+class SaveFolderAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "name", "created_at")
+    search_fields = ("user__username", "user__email", "name")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(SaveFolderItem)
+class SaveFolderItemAdmin(admin.ModelAdmin):
+    list_display = ("id", "folder", "post", "created_at")
+    search_fields = ("folder__name", "folder__user__username", "post__id")
 
 
 @admin.register(DeviceToken)

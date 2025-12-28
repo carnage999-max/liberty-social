@@ -286,6 +286,26 @@ export interface Bookmark {
 }
 
 // ----------------------
+// SAVE FOLDERS
+// ----------------------
+
+export interface SaveFolderItem {
+  id: number;
+  folder: number;
+  post: Post;
+  created_at: string;
+}
+
+export interface SaveFolder {
+  id: number;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  items: SaveFolderItem[];
+  item_count: number;
+}
+
+// ----------------------
 // 📸 UPLOADS
 // ----------------------
 

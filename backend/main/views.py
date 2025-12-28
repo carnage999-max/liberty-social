@@ -25,6 +25,8 @@ from .models import (
     Comment,
     Reaction,
     Bookmark,
+    SaveFolder,
+    SaveFolderItem,
     Notification,
     DeviceToken,
     Conversation,
@@ -46,6 +48,8 @@ from .serializers import (
     ReactionSerializer,
     NotificationSerializer,
     BookmarkSerializer,
+    SaveFolderSerializer,
+    SaveFolderItemSerializer,
     DeviceTokenSerializer,
     ConversationSerializer,
     MessageSerializer,
@@ -274,6 +278,129 @@ class BookmarkViewSet(ModelViewSet):
         if instance.user != request.user:
             return Response(status=status.HTTP_403_FORBIDDEN)
         instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SaveFolderViewSet(ModelViewSet):
+    queryset = SaveFolder.objects.all()
+    serializer_class = SaveFolderSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post", "put", "patch", "delete"]
+
+    def get_queryset(self):
+        return SaveFolder.objects.filter(user=self.request.user).prefetch_related("items")
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        if instance.user != self.request.user:
+            raise PermissionDenied()
+        serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.user != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
+    def add_post(self, request, pk=None):
+        """Add a post to this folder."""
+        folder = self.get_object()
+        if folder.user != request.user:
+            raise PermissionDenied()
+        
+        post_id = request.data.get("post")
+        if not post_id:
+            return Response(
+                {"error": "post_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {"error": "Post not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        item, created = SaveFolderItem.objects.get_or_create(
+            folder=folder,
+            post=post
+        )
+        
+        folder.updated_at = timezone.now()
+        folder.save()
+        
+        serializer = SaveFolderSerializer(folder)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
+    def remove_post(self, request, pk=None):
+        """Remove a post from this folder."""
+        folder = self.get_object()
+        if folder.user != request.user:
+            raise PermissionDenied()
+        
+        post_id = request.data.get("post")
+        if not post_id:
+            return Response(
+                {"error": "post_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        SaveFolderItem.objects.filter(folder=folder, post_id=post_id).delete()
+        
+        folder.updated_at = timezone.now()
+        folder.save()
+        
+        serializer = SaveFolderSerializer(folder)
+        return Response(serializer.data)
+
+
+class SaveFolderItemViewSet(ModelViewSet):
+    serializer_class = SaveFolderItemSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post", "delete"]
+
+    def get_queryset(self):
+        return SaveFolderItem.objects.filter(
+            folder__user=self.request.user
+        ).select_related("post")
+
+    def perform_create(self, serializer):
+        folder_id = self.request.data.get("folder")
+        if not folder_id:
+            return Response(
+                {"error": "folder is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            folder = SaveFolder.objects.get(id=folder_id, user=self.request.user)
+        except SaveFolder.DoesNotExist:
+            raise PermissionDenied()
+        
+        serializer.save(folder=folder)
+        
+        folder.updated_at = timezone.now()
+        folder.save()
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.folder.user != request.user:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        
+        folder = instance.folder
+        instance.delete()
+        
+        folder.updated_at = timezone.now()
+        folder.save()
+        
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
