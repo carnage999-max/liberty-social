@@ -138,7 +138,19 @@ export default function MarketplacePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-(--color-gold)">Marketplace</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-(--color-gold)">Marketplace</h1>
+            {/* Mobile-only Yard Sale button, aligns with header on small screens */}
+            <Link
+              href="/app/yard-sales"
+              className="sm:hidden inline-flex items-center gap-2 rounded-lg btn-primary px-3 py-1.5 text-sm font-semibold text-white shadow-metallic transition hover:opacity-95 border border-(--color-gold)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 7h18v4H3V7zm0 6h18v6H3v-6z" />
+              </svg>
+              Yard Sale
+            </Link>
+          </div>
           <p className="text-sm text-gray-400 mt-1">
             {pagination.count === 0
               ? "No listings available"
@@ -166,12 +178,21 @@ export default function MarketplacePage() {
           </Link>
           <Link
             href="/app/marketplace/create"
-            className="inline-flex items-center gap-2 rounded-full bg-(--color-deep-navy) px-4 py-2 text-sm font-semibold text-white transition hover:bg-(--color-deeper-navy) border border-gray-300 hover:border-(--color-gold)"
+            className="inline-flex items-center gap-2 rounded-lg btn-primary px-4 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-95 border border-(--color-gold)"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 5v14m-7-7h14" />
             </svg>
             List Item
+          </Link>
+          <Link
+            href="/app/yard-sales"
+            className="inline-flex items-center gap-2 rounded-lg btn-primary px-4 py-2 text-sm font-semibold text-white shadow-metallic transition hover:opacity-95 border border-(--color-gold)"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 7h18v4H3V7zm0 6h18v6H3v-6z" />
+            </svg>
+            Yard Sale
           </Link>
         </div>
       </div>
