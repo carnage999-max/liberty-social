@@ -94,7 +94,7 @@ const NAV_LINKS = [
     ),
   },
   {
-    label: "Bookmarks",
+    label: "Saved Posts",
     href: "/app/bookmarks",
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1014,7 +1014,7 @@ export default function AppShell({ children }: AppShellProps) {
                   : "text-white hover:bg-white/10"
               }`}
             >
-              <span className={`inline-flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-sm transition ${
+              <span className={`relative inline-flex h-9 w-9 items-center justify-center rounded-full border-2 shadow-sm transition ${
                 pathname?.startsWith("/app/notifications")
                   ? "bg-(--color-gold) border-(--color-gold) text-[var(--color-deeper-navy)]"
                   : "bg-white/10 border-white/20 text-white"
@@ -1022,13 +1022,13 @@ export default function AppShell({ children }: AppShellProps) {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
+                {notificationUnreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
+                    {notificationBadgeLabel}
+                  </span>
+                )}
               </span>
               <span className="text-xs font-semibold">Notifications</span>
-              {notificationUnreadCount > 0 && (
-                <span className="absolute top-0 right-0 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-semibold text-white">
-                  {notificationBadgeLabel}
-                </span>
-              )}
             </button>
           </div>
         </div>
