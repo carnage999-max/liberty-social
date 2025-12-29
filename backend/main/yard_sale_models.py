@@ -67,6 +67,9 @@ class YardSaleListing(models.Model):
         default=0.99,
         help_text="Listing fee paid by seller",
     )
+    stripe_payment_intent = models.CharField(
+        max_length=255, blank=True, null=True, help_text="Stripe PaymentIntent ID (optional)"
+    )
 
     # Tracking
     created_at = models.DateTimeField(auto_now_add=True)

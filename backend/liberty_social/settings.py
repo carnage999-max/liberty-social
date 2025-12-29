@@ -267,6 +267,9 @@ RESEND_API_KEY = config("RESEND_API_KEY")
 if RESEND_API_KEY:
     EMAIL_BACKEND = "liberty_social.email_backends.ResendEmailBackend"
 
+# Stripe configuration
+STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="")
+STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET", default="")
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"

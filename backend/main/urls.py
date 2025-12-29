@@ -15,6 +15,7 @@ from .yard_sale_views import (
     yard_sales_search,
     yard_sale_detail,
     create_yard_sale,
+    create_yard_sale_payment_intent,
     update_yard_sale,
     delete_yard_sale,
     my_yard_sales,
@@ -156,6 +157,9 @@ urlpatterns = [
     path("yard-sales/search/", yard_sales_search, name="yard-sales-search"),
     path("yard-sales/<int:listing_id>/", yard_sale_detail, name="yard-sale-detail"),
     path("yard-sales/create/", create_yard_sale, name="yard-sale-create"),
+    path("yard-sales/create-payment-intent/", create_yard_sale_payment_intent, name="yard-sale-create-payment-intent"),
+    path("yard-sales/confirm-payment/", confirm_yard_sale_payment, name="yard-sale-confirm-payment"),
+    path("yard-sales/stripe-webhook/", stripe_webhook, name="yard-sale-stripe-webhook"),
     path(
         "yard-sales/<int:listing_id>/update/", update_yard_sale, name="yard-sale-update"
     ),

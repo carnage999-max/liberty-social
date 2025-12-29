@@ -12,6 +12,8 @@ from django.db.models import Q
 from math import radians, sin, cos, sqrt, atan2
 from decimal import Decimal
 import logging
+import stripe
+from django.conf import settings
 
 from main.models import YardSaleListing, YardSaleReport
 from main.serializers import YardSaleListingSerializer, YardSaleReportSerializer
@@ -155,6 +157,140 @@ def create_yard_sale(request):
     return Response(
         YardSaleListingSerializer(listing).data, status=status.HTTP_201_CREATED
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_yard_sale_payment_intent(request):
+    """
+    Create a Stripe PaymentIntent for $0.99 to reserve a yard sale listing.
+    Returns client_secret and intent id for client-side checkout.
+    """
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    try:
+        amount_cents = 99
+        # Allow attaching optional metadata from client (e.g., title) under 'metadata'
+        metadata = {
+            "user_id": str(request.user.id),
+            "email": request.user.email or "",
+            "purpose": "yard_sale_listing",
+            **(request.data.get("metadata") or {}),
+        }
+
+        intent = stripe.PaymentIntent.create(
+            amount=amount_cents,
+            currency="usd",
+            metadata=metadata,
+            automatic_payment_methods={"enabled": True},
+        )
+
+        return Response({"client_secret": intent.client_secret, "intent_id": intent.id})
+    except Exception as e:
+        logger.exception("Stripe PaymentIntent creation failed")
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def confirm_yard_sale_payment(request):
+    """
+    Confirm a Stripe PaymentIntent and create the yard sale listing.
+    Expects JSON body: { payment_intent_id: str, payload: { ...listing fields... } }
+    """
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    payment_intent_id = request.data.get("payment_intent_id")
+    payload = request.data.get("payload") or {}
+
+    if not payment_intent_id:
+        return Response({"error": "payment_intent_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+
+        # Check that the payment succeeded
+        if intent.status != "succeeded":
+            return Response({"error": "Payment not completed"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create listing using payload, ensuring authenticated user
+        serializer = YardSaleListingSerializer(data=payload)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        listing = serializer.save(user=request.user)
+
+        # Optionally attach stripe metadata to listing
+        listing.stripe_payment_intent = payment_intent_id
+        listing.save(update_fields=["stripe_payment_intent"]) if hasattr(listing, 'stripe_payment_intent') else None
+
+        return Response(YardSaleListingSerializer(listing).data, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        logger.exception("Error confirming payment and creating listing")
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def stripe_webhook(request):
+    """
+    Basic Stripe webhook endpoint. Validates signature when STRIPE_WEBHOOK_SECRET is configured.
+
+    - On payment_intent.succeeded: if metadata.purpose == 'yard_sale_listing' and metadata.payload exists,
+      attempts to create the yard sale listing on behalf of the user_id in metadata.
+    """
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    payload_body = request.body
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
+
+    try:
+        if settings.STRIPE_WEBHOOK_SECRET:
+            event = stripe.Webhook.construct_event(payload_body, sig_header, settings.STRIPE_WEBHOOK_SECRET)
+        else:
+            # In development without webhook secret, parse JSON directly (not verified)
+            import json
+
+            event = json.loads(payload_body)
+    except Exception as e:
+        logger.exception("Stripe webhook signature verification failed")
+        return Response({"error": "Invalid webhook payload"}, status=status.HTTP_400_BAD_REQUEST)
+
+    event_type = event.get("type") if isinstance(event, dict) else getattr(event, "type", None)
+    data_obj = None
+    if isinstance(event, dict):
+        data_obj = event.get("data", {}).get("object")
+    else:
+        data_obj = event.data.object
+
+    try:
+        if event_type == "payment_intent.succeeded":
+            metadata = data_obj.get("metadata", {}) if isinstance(data_obj, dict) else getattr(data_obj, "metadata", {})
+            if metadata.get("purpose") == "yard_sale_listing" and metadata.get("payload"):
+                import json
+                from django.contrib.auth import get_user_model
+
+                payload_json = json.loads(metadata.get("payload"))
+                user_id = metadata.get("user_id")
+                User = get_user_model()
+                user = None
+                if user_id:
+                    try:
+                        user = User.objects.get(id=int(user_id))
+                    except User.DoesNotExist:
+                        user = None
+
+                # Create listing (best-effort)
+                serializer = YardSaleListingSerializer(data=payload_json)
+                if serializer.is_valid():
+                    listing = serializer.save(user=user if user else None)
+                    if hasattr(listing, "stripe_payment_intent"):
+                        listing.stripe_payment_intent = data_obj.get("id") if isinstance(data_obj, dict) else getattr(data_obj, "id", None)
+                        listing.save(update_fields=["stripe_payment_intent"])
+
+        # Return success
+        return Response({"status": "ok"})
+    except Exception as e:
+        logger.exception("Error processing stripe webhook")
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["PUT", "PATCH"])
