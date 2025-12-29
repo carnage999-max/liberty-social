@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
@@ -14,14 +12,20 @@ export default function CreateYardSale() {
   const { showError, showSuccess } = useToast();
   const router = useRouter();
 
-  type Step = 'basic' | 'schedule' | 'location' | 'media' | 'review';
+  type Step = 'basic' | 'schedule' | 'location' | 'review';
   const steps: { id: Step; label: string; description: string }[] = [
     { id: 'basic', label: 'Basic Info', description: 'Title, description' },
     { id: 'schedule', label: 'Dates', description: 'Start / End dates, hours' },
     { id: 'location', label: 'Location', description: 'Address and map' },
-    { id: 'media', label: 'Photos', description: 'Upload images' },
     { id: 'review', label: 'Review', description: 'Preview & pay' },
   ];
+
+  const stepIcons: Record<Step, string> = {
+    basic: 'create-outline',
+    schedule: 'calendar-outline',
+    location: 'location-outline',
+    review: 'checkmark-done-outline',
+  };
 
   const [currentStep, setCurrentStep] = useState<Step>('basic');
   const [submitting, setSubmitting] = useState(false);
@@ -36,22 +40,12 @@ export default function CreateYardSale() {
     phone: '',
   });
 
-  const [selectedImages, setSelectedImages] = useState<Array<{ uri: string }>>([]);
-
 useEffect(() => {
     (global as any).hideTabBar?.();
-    requestPermissions();
     return () => {
       (global as any).showTabBar?.();
     };
   }, []);
-
-  const requestPermissions = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showError('We need permission to access photos to upload images');
-    }
-  };
 
   const canProceed = (): boolean => {
     switch (currentStep) {
@@ -90,32 +84,7 @@ useEffect(() => {
     if (idx > 0) setCurrentStep(steps[idx - 1].id as Step);
   };
 
-  const handlePickImages = async () => {
-    if (selectedImages.length >= 6) {
-      showError('You can upload up to 6 images.');
-      return;
-    }
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true,
-        quality: 0.8,
-        selectionLimit: 6 - selectedImages.length,
-      });
 
-      if (!result.canceled && result.assets) {
-        const newOnes = result.assets.slice(0, 6 - selectedImages.length).map(a => ({ uri: a.uri }));
-        setSelectedImages(prev => [...prev, ...newOnes]);
-      }
-    } catch (err) {
-      console.error('Pick images failed', err);
-      showError('Failed to pick images');
-    }
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
-  };
 
   const handleCheckout = async () => {
     if (!canProceed()) {
@@ -162,6 +131,8 @@ useEffect(() => {
             {steps.map((s, i) => {
               const isActive = i === currentIndex;
               const isCompleted = i < currentIndex;
+              const iconColor = isActive ? '#1a2335' : isCompleted ? '#fff' : colors.textSecondary;
+
               return (
                 <React.Fragment key={s.id}>
                   <TouchableOpacity
@@ -169,11 +140,13 @@ useEffect(() => {
                     onPress={() => goToStep(s.id)}
                     disabled={i > currentIndex && !canProceed()}
                   >
+                    <Ionicons name={stepIcons[s.id]} size={16} color={iconColor} style={{ marginBottom: 6 }} />
+
                     <View style={[styles.stepCircle, isActive && styles.stepCircleActive, isCompleted && styles.stepCircleCompleted]}>
                       {isCompleted ? (
                         <Ionicons name="checkmark" size={16} color="#fff" />
                       ) : (
-                        <Text style={[styles.stepNumber, isActive && styles.stepNumberActive]}>{i + 1}</Text>
+                        <Text style={[styles.stepNumber, isActive && styles.stepNumberActive, { color: isActive ? colors.text : colors.textSecondary }]}>{i + 1}</Text>
                       )}
                     </View>
                   </TouchableOpacity>
@@ -184,8 +157,8 @@ useEffect(() => {
           </View>
 
           <View style={styles.stepTitleContainer}>
-            <Text style={styles.stepTitleText}>Step {currentIndex + 1}: {currentData.label}</Text>
-            <Text style={styles.stepSubtitleText}>{currentData.description}</Text>
+            <Text style={[styles.stepTitleText, { color: colors.text }]}>Step {currentIndex + 1}: {currentData.label}</Text>
+            <Text style={[styles.stepSubtitleText, { color: colors.textSecondary }]}>{currentData.description}</Text>
           </View>
         </View>
       </View>
@@ -195,7 +168,7 @@ useEffect(() => {
   const renderBasic = () => (
     <View style={styles.stepContent}>
       <View style={styles.section}>
-        <Text style={styles.label}>Title <Text style={styles.required}>*</Text></Text>
+        <Text style={[styles.label, { color: colors.text }]}>Title <Text style={styles.required}>*</Text></Text>
         <TextInput
           style={styles.input}
           placeholder="Title"
@@ -206,7 +179,7 @@ useEffect(() => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Description</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Description</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
           placeholder="Describe your yard sale"
@@ -222,7 +195,7 @@ useEffect(() => {
   const renderSchedule = () => (
     <View style={styles.stepContent}>
       <View style={styles.section}>
-        <Text style={styles.label}>Start Date <Text style={styles.required}>*</Text></Text>
+        <Text style={[styles.label, { color: colors.text }]}>Start Date <Text style={styles.required}>*</Text></Text>
         <TextInput
           style={styles.input}
           placeholder="YYYY-MM-DD"
@@ -233,7 +206,7 @@ useEffect(() => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>End Date <Text style={styles.required}>*</Text></Text>
+        <Text style={[styles.label, { color: colors.text }]}>End Date <Text style={styles.required}>*</Text></Text>
         <TextInput
           style={styles.input}
           placeholder="YYYY-MM-DD"
@@ -244,7 +217,7 @@ useEffect(() => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Hours</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Hours</Text>
         <TextInput
           style={styles.input}
           placeholder="e.g. 9am - 4pm"
@@ -259,7 +232,7 @@ useEffect(() => {
   const renderLocation = () => (
     <View style={styles.stepContent}>
       <View style={styles.section}>
-        <Text style={styles.label}>Address <Text style={styles.required}>*</Text></Text>
+        <Text style={[styles.label, { color: colors.text }]}>Address <Text style={styles.required}>*</Text></Text>
         <TextInput
           style={styles.input}
           placeholder="Street, City, State"
@@ -267,31 +240,7 @@ useEffect(() => {
           value={form.address}
           onChangeText={(t) => setForm({ ...form, address: t })}
         />
-        <Text style={styles.hint}>We'll geocode this address when you continue to payment.</Text>
-      </View>
-    </View>
-  );
-
-  const renderMedia = () => (
-    <View style={styles.stepContent}>
-      <View style={styles.section}>
-        <Text style={styles.label}>Images</Text>
-        <View style={styles.mediaRow}>
-          {selectedImages.map((img, idx) => (
-            <View key={idx} style={styles.thumbWrap}>
-              <Image source={{ uri: img.uri }} style={styles.thumb} />
-              <TouchableOpacity style={styles.thumbRemove} onPress={() => handleRemoveImage(idx)}>
-                <Ionicons name="close-circle" size={18} color="#D7263D" />
-              </TouchableOpacity>
-            </View>
-          ))}
-
-          <TouchableOpacity style={styles.addPhoto} onPress={handlePickImages}>
-            <Ionicons name="image-outline" size={28} color={colors.textSecondary} />
-            <Text style={styles.addPhotoText}>Add</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.hint}>Optional but helpful — up to 6 images.</Text>
+        <Text style={[styles.hint, { color: colors.textSecondary }]}>We'll geocode this address when you continue to payment.</Text>
       </View>
     </View>
   );
@@ -299,7 +248,7 @@ useEffect(() => {
   const renderReview = () => (
     <View style={styles.stepContent}>
       <View style={styles.section}>
-        <Text style={styles.label}>Preview</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Preview</Text>
         <View style={[styles.previewCard, { backgroundColor: isDark ? '#0b1220' : '#fff' } as any]}>
           <Text style={{ fontWeight: '700' }}>{form.title || 'Untitled'}</Text>
           <Text style={{ color: '#666' }}>{form.address}</Text>
@@ -310,7 +259,7 @@ useEffect(() => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Listing Fee</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Listing Fee</Text>
         <Text style={{ fontWeight: '700' }}>$0.99</Text>
       </View>
 
@@ -342,13 +291,12 @@ useEffect(() => {
         {currentStep === 'basic' && renderBasic()}
         {currentStep === 'schedule' && renderSchedule()}
         {currentStep === 'location' && renderLocation()}
-        {currentStep === 'media' && renderMedia()}
         {currentStep === 'review' && renderReview()}
       </ScrollView>
 
       <View style={styles.navigationButtons}>
         <TouchableOpacity onPress={handlePrevious} disabled={steps.findIndex(s => s.id === currentStep) === 0} style={[styles.navButton, styles.navButtonSecondary]}>
-          <Text style={styles.navButtonText}>Back</Text>
+          <Text style={[styles.navButtonText, { color: colors.text }]}>Back</Text>
         </TouchableOpacity>
 
         {steps[steps.length -1].id !== currentStep ? (
