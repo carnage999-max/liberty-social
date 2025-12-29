@@ -2,8 +2,6 @@ import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCall } from '../contexts/CallContext';
 
-const WS_URL = process.env.EXPO_PUBLIC_BACKEND_WS_URL || 'ws://localhost:8000/ws/notifications/';
-
 export function useWebSocket() {
   const { accessToken, isAuthenticated } = useAuth();
   const { setWebSocket } = useCall();
@@ -17,11 +15,23 @@ export function useWebSocket() {
     let reconnectTimeout: NodeJS.Timeout | null = null;
     let shouldReconnect = true;
 
+    const getWebSocketUrl = () => {
+      // Get the backend URL from environment
+      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      // Convert http/https to ws/wss
+      const wsUrl = backendUrl
+        .replace(/^https:/, 'wss:')
+        .replace(/^http:/, 'ws:')
+        .replace(/\/$/, ''); // Remove trailing slash
+      return `${wsUrl}/ws/notifications/`;
+    };
+
     const connect = () => {
       try {
-        console.log('[WebSocket] Connecting to:', WS_URL);
+        const wsUrl = getWebSocketUrl();
+        console.log('[WebSocket] Connecting to:', wsUrl);
 
-        ws = new WebSocket(WS_URL, ['token', accessToken]);
+        ws = new WebSocket(wsUrl, ['token', accessToken]);
 
         ws.onopen = () => {
           console.log('[WebSocket] Connected');
@@ -39,29 +49,29 @@ export function useWebSocket() {
         };
 
         ws.onerror = (error) => {
-          console.error('[WebSocket] Error:', error);
+          console.warn('[WebSocket] Connection error (backend may be unavailable). Will retry in 5s...');
         };
 
         ws.onclose = () => {
           console.log('[WebSocket] Disconnected');
           setWebSocket(null);
 
-          // Attempt to reconnect after 3 seconds
+          // Attempt to reconnect after 5 seconds
           if (shouldReconnect) {
             reconnectTimeout = setTimeout(() => {
               console.log('[WebSocket] Attempting to reconnect...');
               connect();
-            }, 3000);
+            }, 5000);
           }
         };
       } catch (error) {
-        console.error('[WebSocket] Connection error:', error);
+        console.warn('[WebSocket] Connection error (backend may be unavailable). Will retry in 5s...');
 
-        // Retry connection after 3 seconds
+        // Retry connection after 5 seconds
         if (shouldReconnect) {
           reconnectTimeout = setTimeout(() => {
             connect();
-          }, 3000);
+          }, 5000);
         }
       }
     };
