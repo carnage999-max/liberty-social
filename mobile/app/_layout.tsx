@@ -8,11 +8,11 @@ import { MessageBadgeProvider } from '../contexts/MessageBadgeContext';
 import { TypingStatusProvider } from '../contexts/TypingStatusContext';
 import { CallProvider } from '../contexts/CallContext';
 import { IncomingCallModal } from '../components/calls/IncomingCallModal';
+import { OutgoingCallModal } from '../components/calls/OutgoingCallModal';
 import { ActiveCallModal } from '../components/calls/ActiveCallModal';
 import { StatusBar } from 'expo-status-bar';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useLocationTracking } from '../hooks/useLocationTracking';
-import { useWebSocket } from '../hooks/useWebSocket';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { initStripe } from '@stripe/stripe-react-native';
@@ -35,7 +35,8 @@ function RootLayoutNav() {
   const [appIsReady, setAppIsReady] = useState(false);
   usePushNotifications();
   useLocationTracking(); // Track user location on app startup
-  useWebSocket(); // Initialize WebSocket for calls and notifications
+  // NOTE: WebSocket for calls will be integrated with existing chat WebSocket
+  // For now, CallContext is available but WebSocket signaling can be added later
 
   useEffect(() => {
     async function prepare() {
@@ -90,6 +91,7 @@ export default function RootLayout() {
                   <CallProvider>
                     <RootLayoutNav />
                     <IncomingCallModal />
+                    <OutgoingCallModal />
                     <ActiveCallModal />
                   </CallProvider>
                 </TypingStatusProvider>
