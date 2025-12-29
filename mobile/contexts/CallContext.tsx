@@ -28,8 +28,7 @@ interface CallContextType {
   setIncomingCall: (call: Call | null) => void;
   setActiveCall: (call: Call | null) => void;
   setOutgoingCall: (call: Call | null) => void;
-  ws: WebSocket | null;
-  setWebSocket: (ws: WebSocket | null) => void;
+
 }
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -39,57 +38,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [outgoingCall, setOutgoingCall] = useState<Call | null>(null);
-  const [ws, setWs] = useState<WebSocket | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Setup WebSocket listener for incoming calls
-  useEffect(() => {
-    if (!ws) return;
-
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        if (data.type === 'call.incoming') {
-          console.log('[CallContext] Incoming call:', data);
-          setIncomingCall({
-            id: data.call_id,
-            caller_id: data.caller_id,
-            caller_username: data.caller_username,
-            receiver_id: user?.id || '0',
-            receiver_username: user?.username || '',
-            call_type: data.call_type,
-            status: 'ringing',
-            conversation_id: data.conversation_id,
-            started_at: new Date().toISOString(),
-          });
-        } else if (data.type === 'call.accepted') {
-          console.log('[CallContext] Call accepted:', data);
-          setOutgoingCall(null);
-          if (outgoingCall) {
-            setActiveCall({
-              ...outgoingCall,
-              status: 'active',
-              answered_at: new Date().toISOString(),
-            });
-          }
-        } else if (data.type === 'call.rejected') {
-          console.log('[CallContext] Call rejected:', data);
-          setOutgoingCall(null);
-        } else if (data.type === 'call.ended') {
-          console.log('[CallContext] Call ended:', data);
-          setActiveCall(null);
-          setIncomingCall(null);
-        }
-      } catch (error) {
-        console.error('[CallContext] Error parsing WebSocket message:', error);
-      }
-    };
-
-    ws.addEventListener('message', handleMessage);
-    return () => ws.removeEventListener('message', handleMessage);
-  }, [ws, outgoingCall, user?.id, user?.username]);
+  // TODO: Integrate with existing chat WebSocket for call signaling
+  // For now, calls can be initiated via REST API
 
   const initiateCall = useCallback(
     async (receiverId: number, callType: 'voice' | 'video', conversationId?: number) => {
@@ -150,22 +102,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         setIncomingCall(null);
         setActiveCall(response);
 
-        // Send answer via WebSocket
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: 'call.answer',
-              call_id: callId,
-              receiver_id: user?.id,
-            })
-          );
-        }
+        // TODO: Send answer via WebSocket when integrated
       } catch (error) {
         console.error('[CallContext] Error answering call:', error);
         throw error;
       }
     },
-    [ws, user?.id]
+    []
   );
 
   const rejectCall = useCallback(
@@ -201,20 +144,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setActiveCall(null);
       setIncomingCall(null);
 
-      // Send end notification via WebSocket
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(
-          JSON.stringify({
-            type: 'call.end',
-            call_id: activeCall.id,
-          })
-        );
-      }
+      // TODO: Send end notification via WebSocket when integrated
     } catch (error) {
       console.error('[CallContext] Error ending call:', error);
       throw error;
     }
-  }, [activeCall, ws]);
+  }, [activeCall]);
 
   return (
     <CallContext.Provider
@@ -229,8 +164,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         setIncomingCall,
         setActiveCall,
         setOutgoingCall,
-        ws,
-        setWebSocket: setWs,
       }}
     >
       {children}
