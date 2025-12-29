@@ -25,6 +25,7 @@ import AppNavbar from '../../../components/layout/AppNavbar';
 import { TypingIndicator } from '../../../components/TypingIndicator';
 import { resolveRemoteUrl, DEFAULT_AVATAR, resolveMediaUrls } from '../../../utils/url';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useCall } from '../../../contexts/CallContext';
 import { useChatWebSocket } from '../../../hooks/useChatWebSocket';
 import * as ImagePicker from 'expo-image-picker';
 import AdvancedEmojiPicker from '../../../components/feed/AdvancedEmojiPicker';
@@ -1554,13 +1555,68 @@ export default function ConversationDetailScreen() {
     ? editText.trim() 
     : messageText.trim() || mediaAttachment || audioUri;
 
+  // Get receiver ID for calls
+  const getReceiverId = useCallback(() => {
+    if (!conversation || conversation.is_group) return null;
+    const otherParticipant = conversation.participants.find(
+      (p) => p.user.id !== user?.id
+    );
+    return otherParticipant?.user.id || null;
+  }, [conversation, user?.id]);
+
+  // Use call context
+  const { initiateCall } = useCall();
+
+  // Handle voice call
+  const handleVoiceCall = async () => {
+    try {
+      const receiverId = getReceiverId();
+      if (!receiverId) {
+        showError('Cannot initiate call to group chat');
+        return;
+      }
+      await initiateCall(receiverId, 'voice', conversationId || undefined);
+    } catch (error) {
+      console.error('Error initiating voice call:', error);
+      showError('Failed to initiate voice call');
+    }
+  };
+
+  // Handle video call
+  const handleVideoCall = async () => {
+    try {
+      const receiverId = getReceiverId();
+      if (!receiverId) {
+        showError('Cannot initiate call to group chat');
+        return;
+      }
+      await initiateCall(receiverId, 'video', conversationId || undefined);
+    } catch (error) {
+      console.error('Error initiating video call:', error);
+      showError('Failed to initiate video call');
+    }
+  };
+
   const headerContextMenu = (
-    <TouchableOpacity
-      onPress={() => setHeaderMenuVisible(true)}
-      style={{ padding: 8 }}
-    >
-      <Ionicons name="ellipsis-vertical" size={24} color={colors.text} />
-    </TouchableOpacity>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 8 }}>
+      {/* Voice call button */}
+      <TouchableOpacity onPress={handleVoiceCall} style={{ padding: 8 }}>
+        <Ionicons name="call" size={22} color={colors.primary} />
+      </TouchableOpacity>
+      
+      {/* Video call button */}
+      <TouchableOpacity onPress={handleVideoCall} style={{ padding: 8 }}>
+        <Ionicons name="videocam" size={22} color={colors.primary} />
+      </TouchableOpacity>
+      
+      {/* Menu button */}
+      <TouchableOpacity
+        onPress={() => setHeaderMenuVisible(true)}
+        style={{ padding: 8 }}
+      >
+        <Ionicons name="ellipsis-vertical" size={24} color={colors.text} />
+      </TouchableOpacity>
+    </View>
   );
 
   // Calculate bottom position for input container

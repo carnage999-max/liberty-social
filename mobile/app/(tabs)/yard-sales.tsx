@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Platform } from 'react-native';
+import { Animated, Pressable, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Platform } from 'react-native';
 import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps';
 // Optional clustering support
 let ClusteredMapView: any = null;
@@ -229,14 +229,15 @@ const styles = StyleSheet.create({
 // Animated compact/expand post button component
 function AnimatedPostButton({ onPress, isDark, colors }: { onPress: () => void; isDark: boolean; colors: any }) {
   const [expanded, setExpanded] = useState(true);
-  const anim = useRef(new (require('react-native').Animated).Value(1)).current; // 1 = expanded, 0 = compact
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const anim = useRef(new Animated.Value(1)).current; // 1 = expanded, 0 = compact
+  const timeoutRef = useRef<any | null>(null);
+  const insets = require('react-native-safe-area-context').useSafeAreaInsets();
 
   useEffect(() => {
     // Start expanded then collapse after 3s
     timeoutRef.current = setTimeout(() => {
       setExpanded(false);
-      (require('react-native').Animated).timing(anim, { toValue: 0, duration: 300, useNativeDriver: false }).start();
+      Animated.timing(anim, { toValue: 0, duration: 300, useNativeDriver: false }).start();
     }, 3000);
     return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
   }, []);
@@ -244,30 +245,32 @@ function AnimatedPostButton({ onPress, isDark, colors }: { onPress: () => void; 
   const expand = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setExpanded(true);
-    (require('react-native').Animated).timing(anim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
+    Animated.timing(anim, { toValue: 1, duration: 200, useNativeDriver: false }).start();
   };
 
   const collapse = () => {
     // collapse after a short delay
     timeoutRef.current = setTimeout(() => {
       setExpanded(false);
-      (require('react-native').Animated).timing(anim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
+      Animated.timing(anim, { toValue: 0, duration: 200, useNativeDriver: false }).start();
     }, 200);
   };
 
   const width = anim.interpolate({ inputRange: [0, 1], outputRange: [56, 160] });
   const textOpacity = anim;
 
+  const bottomOffset = (insets && insets.bottom ? insets.bottom : 0) + 140;
+
   return (
-    <require('react-native').Pressable
+    <Pressable
       onPress={onPress}
       onPressIn={expand}
       onPressOut={collapse}
-      onMouseEnter={expand as any}
-      onMouseLeave={collapse as any}
-      style={{ position: 'absolute', right: 12, bottom: 90 }}
+      onHoverIn={expand as any}
+      onHoverOut={collapse as any}
+      style={{ position: 'absolute', right: 12, bottom: bottomOffset, zIndex: 200 }}
     >
-      <require('react-native').Animated.View style={{ width, backgroundColor: '#192A4A', paddingVertical: 10, borderRadius: 28, borderWidth: 1, borderColor: '#C8A25F', alignItems: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 12, elevation: 20, zIndex: 100 }}>
+      <Animated.View style={[{ width, backgroundColor: '#192A4A', paddingVertical: 10, borderRadius: 28, borderWidth: 1, borderColor: '#C8A25F', alignItems: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 12, elevation: 24, zIndex: 200 }]}>
         {/* Icon + small plus badge */}
         <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#1f3358', alignItems: 'center', justifyContent: 'center' }}>
           <Ionicons name="map-outline" size={16} color="#fff" />
@@ -276,10 +279,10 @@ function AnimatedPostButton({ onPress, isDark, colors }: { onPress: () => void; 
           </View>
         </View>
 
-        <require('react-native').Animated.View style={{ opacity: textOpacity, marginLeft: 8 }}>
+        <Animated.View style={{ opacity: textOpacity, marginLeft: 8 }}>
           <Text style={{ color: '#fff', fontWeight: '700' }}>Post Yard Sale</Text>
-        </require('react-native').Animated.View>
-      </require('react-native').Animated.View>
-    </require('react-native').Pressable>
+        </Animated.View>
+      </Animated.View>
+    </Pressable>
   );
 }

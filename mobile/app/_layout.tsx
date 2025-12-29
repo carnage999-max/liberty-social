@@ -6,14 +6,28 @@ import { AlertProvider } from '../contexts/AlertContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import { MessageBadgeProvider } from '../contexts/MessageBadgeContext';
 import { TypingStatusProvider } from '../contexts/TypingStatusContext';
+import { CallProvider } from '../contexts/CallContext';
+import { IncomingCallModal } from '../components/calls/IncomingCallModal';
+import { ActiveCallModal } from '../components/calls/ActiveCallModal';
 import { StatusBar } from 'expo-status-bar';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useLocationTracking } from '../hooks/useLocationTracking';
+import { useWebSocket } from '../hooks/useWebSocket';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
+import { initStripe } from '@stripe/stripe-react-native';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
+
+// Initialize Stripe with your publishable key
+const stripePublishableKey = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+
+if (stripePublishableKey) {
+  initStripe({
+    publishableKey: stripePublishableKey,
+  }).catch(err => console.warn('Stripe init error:', err));
+}
 
 function RootLayoutNav() {
   const { isDark } = useTheme();
@@ -21,6 +35,7 @@ function RootLayoutNav() {
   const [appIsReady, setAppIsReady] = useState(false);
   usePushNotifications();
   useLocationTracking(); // Track user location on app startup
+  useWebSocket(); // Initialize WebSocket for calls and notifications
 
   useEffect(() => {
     async function prepare() {
@@ -72,7 +87,11 @@ export default function RootLayout() {
             <ToastProvider>
               <MessageBadgeProvider>
                 <TypingStatusProvider>
-                  <RootLayoutNav />
+                  <CallProvider>
+                    <RootLayoutNav />
+                    <IncomingCallModal />
+                    <ActiveCallModal />
+                  </CallProvider>
                 </TypingStatusProvider>
               </MessageBadgeProvider>
             </ToastProvider>

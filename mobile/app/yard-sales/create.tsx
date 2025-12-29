@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../contexts/ToastContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { apiClient } from '../../utils/api';
 import { useRouter } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
@@ -39,6 +40,9 @@ export default function CreateYardSale() {
     address: '',
     phone: '',
   });
+
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
 useEffect(() => {
     (global as any).hideTabBar?.();
@@ -94,20 +98,51 @@ useEffect(() => {
 
     setSubmitting(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(form.address)}`);
-      const data = await res.json();
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(form.address)}`, {
+        headers: {
+          'User-Agent': 'LibertySocial/1.0 (address-search)',
+        },
+      });
+      const contentType = res.headers.get('content-type') || '';
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        console.error('Nominatim error response', res.status, txt);
+        showError('Address lookup failed. Please try again later.');
+        setSubmitting(false);
+        return;
+      }
+
+      if (!contentType.includes('application/json')) {
+        const txt = await res.text().catch(() => '');
+        console.error('Unexpected Nominatim response', txt);
+        showError('Address lookup returned an unexpected response. Please try again later or simplify the address.');
+        setSubmitting(false);
+        return;
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        console.error('Nominatim parse error', parseErr);
+        showError('Address lookup returned an invalid response. Try again later.');
+        setSubmitting(false);
+        return;
+      }
+
       if (!data || data.length === 0) {
         showError('Address not found. Please refine the address.');
         setSubmitting(false);
         return;
       }
+
       const { lat, lon } = data[0];
 
       const payload = {
         ...form,
         latitude: parseFloat(lat),
         longitude: parseFloat(lon),
-        images: selectedImages.map(i => i.uri),
       };
 
       const encoded = encodeURIComponent(JSON.stringify(payload));
@@ -115,7 +150,12 @@ useEffect(() => {
       router.push(`/yard-sales/payment?payload=${encoded}`);
     } catch (err: any) {
       console.error('Checkout error', err);
-      showError(err?.message || 'Failed to prepare payment');
+      // If it's a JSON parse error previously from fetch, show friendlier message
+      if (err?.message && err.message.toLowerCase().includes('json')) {
+        showError('Address lookup returned an invalid response. Try a simpler address or try again later.');
+      } else {
+        showError(err?.message || 'Failed to prepare payment');
+      }
       setSubmitting(false);
     }
   };
@@ -196,24 +236,56 @@ useEffect(() => {
     <View style={styles.stepContent}>
       <View style={styles.section}>
         <Text style={[styles.label, { color: colors.text }]}>Start Date <Text style={styles.required}>*</Text></Text>
-        <TextInput
-          style={styles.input}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.textSecondary}
-          value={form.start_date}
-          onChangeText={(t) => setForm({ ...form, start_date: t })}
-        />
+        <TouchableOpacity
+          style={[styles.input, { justifyContent: 'center' }]}
+          onPress={() => setShowStartPicker(true)}
+        >
+          <Text style={{ color: form.start_date ? '#000' : colors.textSecondary }}>
+            {form.start_date || 'Select start date'}
+          </Text>
+        </TouchableOpacity>
+
+        {showStartPicker && (
+          <DateTimePicker
+            value={form.start_date ? new Date(form.start_date) : new Date()}
+            mode="date"
+            display="calendar"
+            onChange={(e: any, date?: Date) => {
+              setShowStartPicker(false);
+              if (date) {
+                const iso = date.toISOString().slice(0, 10);
+                setForm({ ...form, start_date: iso });
+              }
+            }}
+          />
+        )}
       </View>
 
       <View style={styles.section}>
         <Text style={[styles.label, { color: colors.text }]}>End Date <Text style={styles.required}>*</Text></Text>
-        <TextInput
-          style={styles.input}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.textSecondary}
-          value={form.end_date}
-          onChangeText={(t) => setForm({ ...form, end_date: t })}
-        />
+        <TouchableOpacity
+          style={[styles.input, { justifyContent: 'center' }]}
+          onPress={() => setShowEndPicker(true)}
+        >
+          <Text style={{ color: form.end_date ? '#000' : colors.textSecondary }}>
+            {form.end_date || 'Select end date'}
+          </Text>
+        </TouchableOpacity>
+
+        {showEndPicker && (
+          <DateTimePicker
+            value={form.end_date ? new Date(form.end_date) : new Date()}
+            mode="date"
+            display="calendar"
+            onChange={(e: any, date?: Date) => {
+              setShowEndPicker(false);
+              if (date) {
+                const iso = date.toISOString().slice(0, 10);
+                setForm({ ...form, end_date: iso });
+              }
+            }}
+          />
+        )}
       </View>
 
       <View style={styles.section}>
@@ -251,16 +323,16 @@ useEffect(() => {
         <Text style={[styles.label, { color: colors.text }]}>Preview</Text>
         <View style={[styles.previewCard, { backgroundColor: isDark ? '#0b1220' : '#fff' } as any]}>
           <Text style={{ fontWeight: '700' }}>{form.title || 'Untitled'}</Text>
-          <Text style={{ color: '#666' }}>{form.address}</Text>
-          <Text style={{ color: '#666', marginTop: 6 }}>{form.start_date} — {form.end_date}</Text>
-          <Text style={{ color: '#666', marginTop: 6 }}>{form.hours}</Text>
-          <Text style={{ color: '#666', marginTop: 6 }}>{form.description}</Text>
+          <Text style={{ color: colors.textSecondary }}>{form.address}</Text>
+          <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{form.start_date} — {form.end_date}</Text>
+          <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{form.hours}</Text>
+          <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{form.description}</Text>
         </View>
       </View>
 
       <View style={styles.section}>
         <Text style={[styles.label, { color: colors.text }]}>Listing Fee</Text>
-        <Text style={{ fontWeight: '700' }}>$0.99</Text>
+        <Text style={{ fontWeight: '700', color: '#C8A25F' }}>$0.99</Text>
       </View>
 
       <View style={styles.section}>

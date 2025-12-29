@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { useSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { apiClient } from '../../utils/api';
 import { useTheme } from '../../../mobile/contexts/ThemeContext';
 import { useStripe } from '@stripe/stripe-react-native';
 
 export default function YardSalePayment() {
-  const { payload } = useSearchParams();
+  const { payload } = useLocalSearchParams();
   const router = useRouter();
   const { colors } = useTheme();
   const [data, setData] = useState<any>(null);
@@ -16,7 +16,8 @@ export default function YardSalePayment() {
   useEffect(() => {
     if (!payload) return;
     try {
-      setData(JSON.parse(decodeURIComponent(payload)));
+      const payloadStr = Array.isArray(payload) ? payload[0] : payload;
+      setData(JSON.parse(decodeURIComponent(payloadStr)));
     } catch (e) {
       console.error('Invalid payload', e);
     }
@@ -27,7 +28,9 @@ export default function YardSalePayment() {
     try {
       setLoading(true);
       // Create a PaymentIntent on the backend
-      const res = await apiClient.post('/yard-sales/create-payment-intent/', {
+      const res = await apiClient.post<{
+          data: { client_secret: any; intent_id: any; }; client_secret: string; intent_id: string 
+}>('/yard-sales/create-payment-intent/', {
         metadata: { payload: JSON.stringify(data) },
       });
 
@@ -93,10 +96,10 @@ export default function YardSalePayment() {
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
       <Text style={[styles.h1, { color: colors.text }]}>Pay $0.99 to Post</Text>
 
-      <View style={{ padding: 12, backgroundColor: '#fff', borderRadius: 8, marginTop: 12 }}>
-        <Text style={{ fontWeight: '700', marginBottom: 6 }}>{data.title}</Text>
-        <Text style={{ color: '#666' }}>{data.address}</Text>
-        <Text style={{ color: '#666', marginTop: 6 }}>{data.start_date} — {data.end_date}</Text>
+      <View style={{ padding: 12, backgroundColor: colors.backgroundSecondary, borderRadius: 8, marginTop: 12 }}>
+        <Text style={{ fontWeight: '700', marginBottom: 6, color: colors.text }}>{data.title}</Text>
+        <Text style={{ color: colors.textSecondary }}>{data.address}</Text>
+        <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{data.start_date} — {data.end_date}</Text>
       </View>
 
       <TouchableOpacity style={[styles.payBtn, { backgroundColor: '#192A4A', borderColor: '#C8A25F' }]} onPress={handlePay} disabled={loading}>

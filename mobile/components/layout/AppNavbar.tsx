@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import { Ionicons } from '@expo/vector-icons';
 import SearchModal from '../SearchModal';
@@ -43,6 +44,7 @@ export default function AppNavbar({
   const { user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const { unreadCount } = useMessageBadge();
 
@@ -71,11 +73,13 @@ export default function AppNavbar({
 
   const styles = StyleSheet.create({
     header: {
-      paddingTop: insets.top + 8,
+      paddingTop: Math.max(insets.top, 20) + 8,
       paddingBottom: 12,
       paddingHorizontal: 16,
       borderBottomWidth: 2,
       borderBottomColor: '#C8A25F', // Gold border
+      zIndex: 10,
+      elevation: 6,
     },
     headerContent: {
       flexDirection: 'row',
@@ -115,7 +119,7 @@ export default function AppNavbar({
     logoText: {
       fontSize: 18,
       fontWeight: '700',
-      color: '#FFFFFF',
+      color: '#fff',
       letterSpacing: -0.3,
     },
     iconButton: {
@@ -192,7 +196,7 @@ export default function AppNavbar({
               style={styles.backButton}
               onPress={onBackPress || (() => router.back())}
             >
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+              <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
           )}
           {showLogo ? (

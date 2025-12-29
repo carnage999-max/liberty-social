@@ -334,6 +334,7 @@ export default function TabsLayout() {
     { id: 'animals', label: 'Animal Marketplace', icon: 'paw-outline', route: '/(tabs)/animals' },
     { id: 'yard-sales', label: 'Yard Sales', icon: 'map-outline', route: '/(tabs)/yard-sales' },
     { id: 'pages', label: 'Pages', icon: 'business-outline', route: '/(tabs)/pages' },
+    { id: 'saved-posts', label: 'Saved Posts', icon: 'bookmark-outline', route: '/(tabs)/settings/saved-posts' },
     { id: 'page-invites', label: 'Page Invites', icon: 'mail-outline', route: '/(tabs)/page-invites' },
     { id: 'friends', label: 'Friends', icon: 'people-outline', route: '/(tabs)/friends' },
     { id: 'friend-requests', label: 'Friend Requests', icon: 'person-add-outline', route: '/(tabs)/friend-requests' },

@@ -19,6 +19,7 @@ import AppNavbar from '../../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR, resolveMediaUrls } from '../../../utils/url';
 import { Post, Bookmark, PaginatedResponse } from '../../../types';
 import { SkeletonPost } from '../../../components/common/Skeleton';
+import SavePostToFolderModal from '../../../components/SavePostToFolderModal';
 
 export default function SavedPostsScreen() {
   const { colors, isDark } = useTheme();
@@ -31,6 +32,8 @@ export default function SavedPostsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [removingId, setRemovingId] = useState<number | null>(null);
   const [next, setNext] = useState<string | null>(null);
+  const [saveModalVisible, setSaveModalVisible] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
 
   const loadBookmarks = useCallback(async (silent = false) => {
     try {
@@ -158,7 +161,10 @@ export default function SavedPostsScreen() {
           </View>
           <TouchableOpacity
             style={styles.removeButton}
-            onPress={() => handleRemove(item.id)}
+            onPress={() => {
+              setSelectedPostId(item.post);
+              setSaveModalVisible(true);
+            }}
             disabled={removingId === item.id}
           >
             {removingId === item.id ? (
@@ -335,6 +341,14 @@ export default function SavedPostsScreen() {
           contentContainerStyle={{ paddingVertical: 8, paddingBottom: 100 }}
         />
       )}
+      <SavePostToFolderModal
+        visible={saveModalVisible}
+        postId={selectedPostId || 0}
+        onClose={() => setSaveModalVisible(false)}
+        onSaved={() => {
+          showSuccess('Post saved to folder');
+        }}
+      />
     </View>
   );
 }
