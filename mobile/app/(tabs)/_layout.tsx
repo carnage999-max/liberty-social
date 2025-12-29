@@ -332,6 +332,7 @@ export default function TabsLayout() {
   const MORE_MENU_ITEMS = [
     { id: 'marketplace', label: 'Marketplace', icon: 'storefront-outline', route: '/(tabs)/marketplace' },
     { id: 'animals', label: 'Animal Marketplace', icon: 'paw-outline', route: '/(tabs)/animals' },
+    { id: 'yard-sales', label: 'Yard Sales', icon: 'map-outline', route: '/(tabs)/yard-sales' },
     { id: 'pages', label: 'Pages', icon: 'business-outline', route: '/(tabs)/pages' },
     { id: 'page-invites', label: 'Page Invites', icon: 'mail-outline', route: '/(tabs)/page-invites' },
     { id: 'friends', label: 'Friends', icon: 'people-outline', route: '/(tabs)/friends' },
