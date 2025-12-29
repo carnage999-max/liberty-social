@@ -10,7 +10,8 @@ import AppNavbar from '../../components/layout/AppNavbar';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CreateYardSale() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  const { showError, showSuccess } = useToast();
   const router = useRouter();
 
   type Step = 'basic' | 'schedule' | 'location' | 'media' | 'review';
