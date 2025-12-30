@@ -2,7 +2,22 @@ import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function YardSaleListingModal({ listing, visible, onClose }: any) {
+interface YardSaleListing {
+  id: number;
+  title: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  start_date: string;
+  end_date: string;
+  hours: string;
+  phone?: string | null;
+  pin_color?: string;
+  user?: { username: string } | null;
+  price_paid?: number | null;
+}
+
+export default function YardSaleListingModal({ listing, visible, onClose }: { listing: YardSaleListing | null; visible: boolean; onClose: () => void }) {
   if (!listing) return null;
 
   const openDirections = (lat: number, lon: number) => {
@@ -19,6 +34,9 @@ export default function YardSaleListingModal({ listing, visible, onClose }: any)
     const url = `tel:${phone}`;
     Linking.openURL(url).catch(() => null);
   };
+
+  const posterName = listing.user?.username ?? 'User';
+  const pricePaid = listing.price_paid ?? null;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -48,8 +66,8 @@ export default function YardSaleListingModal({ listing, visible, onClose }: any)
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Posted by: {listing.user?.username ?? 'User'}</Text>
-            <Text style={styles.footerText}>Price paid: ${listing.price_paid ?? '0.99'}</Text>
+            <Text style={styles.footerText}>Posted by: {posterName}</Text>
+            {pricePaid !== null && <Text style={styles.footerText}>Price paid: ${pricePaid}</Text>}
           </View>
         </View>
       </View>

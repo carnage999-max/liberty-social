@@ -18,6 +18,8 @@ import { apiClient } from '../../utils/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
+import LocationInfoModal from '../../components/LocationInfoModal';
+import YardSaleListingModal from '../../components/YardSaleListingModal';
 
 interface YardSaleListing {
   id: number;
@@ -32,7 +34,7 @@ interface YardSaleListing {
   pin_color?: string;
 }
 
-const RADIUS_PRESETS = [5, 10, 25, 35, 50];
+const RADIUS_PRESETS = [5, 10, 25, 50, 100];
 
 export default function YardSalesScreen() {
   const { colors, isDark } = useTheme();
@@ -40,11 +42,15 @@ export default function YardSalesScreen() {
   const router = useRouter();
 
   const [region, setRegion] = useState<any>(null);
+  const [userLocation, setUserLocation] = useState<any>(null);
   const [radius, setRadius] = useState<number>(25);
   const [listings, setListings] = useState<YardSaleListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [selectedListing, setSelectedListing] = useState<YardSaleListing | null>(null);
+  const [showLocationInfo, setShowLocationInfo] = useState(false);
+  const [showLegend, setShowLegend] = useState(true);
+  const mapRef = useRef<any>(null);
 
   const fetchListings = useCallback(async (lat: number, lon: number, r: number) => {
     try {
@@ -65,6 +71,7 @@ export default function YardSalesScreen() {
         setPermissionGranted(false);
         // fallback coordinates (center of US)
         const fallback = { latitude: 40.7128, longitude: -74.006, latitudeDelta: 0.0922, longitudeDelta: 0.0421 };
+        setUserLocation({ latitude: fallback.latitude, longitude: fallback.longitude });
         setRegion(fallback);
         await fetchListings(fallback.latitude, fallback.longitude, radius);
         return;
@@ -72,6 +79,8 @@ export default function YardSalesScreen() {
 
       setPermissionGranted(true);
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const userLoc = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+      setUserLocation(userLoc);
       const rgn = { latitude: loc.coords.latitude, longitude: loc.coords.longitude, latitudeDelta: 0.0922, longitudeDelta: 0.0421 };
       setRegion(rgn);
       await fetchListings(rgn.latitude, rgn.longitude, radius);
@@ -115,6 +124,7 @@ export default function YardSalesScreen() {
             onRegionChangeComplete={(r) => setRegion(r)}
             showsUserLocation
             showsMyLocationButton
+            ref={mapRef}
           >
             {/* Use cluster view when available */}
             {ClusteredMapView ? (
@@ -163,6 +173,16 @@ export default function YardSalesScreen() {
               strokeColor="rgba(33,150,243,0.5)"
               fillColor="rgba(33,150,243,0.07)"
             />
+
+            {/* User location marker - green dot that shows info on tap */}
+            {userLocation && (
+              <Marker
+                coordinate={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
+                title="Your Location"
+                pinColor="#4CAF50"
+                onPress={() => setShowLocationInfo(true)}
+              />
+            )}
           </MapView>
 
           {/* Floating controls */}
@@ -180,6 +200,74 @@ export default function YardSalesScreen() {
           </View>
 
           <AnimatedPostButton onPress={() => router.push('/yard-sales/create')} isDark={isDark} colors={colors} />
+
+          {/* Recenter Button */}
+          <TouchableOpacity
+            style={[styles.recenterBtn, { backgroundColor: isDark ? '#0f1720' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#eee' }]}
+            onPress={() => {
+              if (userLocation && mapRef.current) {
+                mapRef.current.animateToRegion({
+                  latitude: userLocation.latitude,
+                  longitude: userLocation.longitude,
+                  latitudeDelta: 0.0922,
+                  longitudeDelta: 0.0421,
+                }, 300);
+              }
+            }}
+          >
+            <Ionicons name="locate-sharp" size={18} color={colors.primary} />
+          </TouchableOpacity>
+
+          {/* Legend Panel */}
+          {showLegend && (
+            <View style={[styles.legendPanel, { backgroundColor: isDark ? '#1a2335' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#eee' }]}>
+              <View style={styles.legendHeader}>
+                <Text style={[styles.legendTitle, { color: colors.text }]}>📋 Legend</Text>
+                <TouchableOpacity onPress={() => setShowLegend(false)}>
+                  <Ionicons name="close" size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.legendItems}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#d32f2f' }]} />
+                  <Text style={[styles.legendText, { color: colors.text }]}>Multi-day</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#2196F3' }]} />
+                  <Text style={[styles.legendText, { color: colors.text }]}>Today only</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
+                  <Text style={[styles.legendText, { color: colors.text }]}>Starting soon</Text>
+                </View>
+                <View style={[styles.legendItem, { borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : '#eee', marginTop: 4, paddingTop: 8 }]}>
+                  <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
+                  <Text style={[styles.legendText, { color: colors.text, fontWeight: '600' }]}>Your location</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Toggle Legend Button */}
+          {!showLegend && (
+            <TouchableOpacity 
+              style={[styles.legendToggleBtn, { backgroundColor: isDark ? '#0f1720' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#eee' }]}
+              onPress={() => setShowLegend(true)}
+            >
+              <Text style={{ fontSize: 16 }}>📋</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Location Info Modal */}
+          {showLocationInfo && userLocation && (
+            <LocationInfoModal 
+              visible={showLocationInfo} 
+              latitude={userLocation.latitude} 
+              longitude={userLocation.longitude} 
+              onClose={() => setShowLocationInfo(false)}
+              colors={colors}
+            />
+          )}
 
           {/* Listings preview strip */}
           <View style={styles.listingStrip}>
@@ -222,7 +310,73 @@ const styles = StyleSheet.create({
   floatingButton: { position: 'absolute', right: 12, bottom: 90, backgroundColor: '#192A4A', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#C8A25F', shadowColor: '#000', shadowOpacity: 0.3, elevation: 20, zIndex: 100 },
   floatingButtonText: { color: '#fff', fontWeight: '700', marginLeft: 8 },
   listingStrip: { position: 'absolute', left: 12, right: 12, bottom: 12, backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 12, padding: 8, flexDirection: 'row', gap: 8, alignItems: 'center' },
-  listingItem: { padding: 8, borderRadius: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee', minWidth: 140 }
+  listingItem: { padding: 8, borderRadius: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee', minWidth: 140 },
+  legendPanel: {
+    position: 'absolute',
+    bottom: 100,
+    left: 12,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    elevation: 3,
+    maxWidth: 200,
+  },
+  legendHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  legendTitle: {
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  legendItems: {
+    gap: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  legendText: {
+    fontSize: 12,
+  },
+  legendToggleBtn: {
+    position: 'absolute',
+    bottom: 110,
+    left: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    elevation: 3,
+  },
+  recenterBtn: {
+    position: 'absolute',
+    bottom: 180,
+    right: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    elevation: 3,
+  },
 });
 
 

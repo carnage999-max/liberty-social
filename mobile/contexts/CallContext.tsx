@@ -1,20 +1,22 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 import { apiClient } from '../utils/api';
+import { User } from '../types';
 
 interface Call {
   id: number;
-  caller_id: string | number;
-  caller_username: string;
-  receiver_id: string | number;
-  receiver_username: string;
+  caller: User;
+  receiver: User;
   call_type: 'voice' | 'video';
   status: 'initiating' | 'ringing' | 'active' | 'ended' | 'missed' | 'rejected' | 'cancelled';
-  conversation_id?: number;
+  conversation: number;
   started_at: string;
   answered_at?: string;
   ended_at?: string;
-  duration_seconds?: number;
+  duration_seconds: number;
+  created_at: string;
+  updated_at: string;
 }
 
 interface CallContextType {
@@ -35,6 +37,7 @@ const CallContext = createContext<CallContextType | undefined>(undefined);
 
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [outgoingCall, setOutgoingCall] = useState<Call | null>(null);
@@ -48,19 +51,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('[CallContext] Initiating call:', { receiverId, callType, conversationId });
 
-        // Set outgoing call state immediately
-        setOutgoingCall({
-          id: 0,
-          caller_id: user?.id || '0',
-          caller_username: user?.username || '',
-          receiver_id: receiverId,
-          receiver_username: '',
-          call_type: callType,
-          status: 'initiating',
-          conversation_id: conversationId,
-          started_at: new Date().toISOString(),
-        });
-
         // Call backend to initiate
         const response = await apiClient.post<Call>('/calls/initiate/', {
           receiver_id: receiverId,
@@ -69,17 +59,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         });
 
         console.log('[CallContext] Call initiated:', response);
-
-        setOutgoingCall({
-          ...response,
-          caller_username: user?.username || '',
-        });
+        setOutgoingCall(response);
 
         // Set timeout for ringing (30 seconds)
         if (callTimerRef.current) clearTimeout(callTimerRef.current);
         callTimerRef.current = setTimeout(() => {
           console.log('[CallContext] Call timeout - no answer');
           setOutgoingCall(null);
+          showToast('Call ended • No answer', 'info', 3000);
         }, 30000);
       } catch (error) {
         console.error('[CallContext] Error initiating call:', error);
@@ -129,27 +116,48 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const endCall = useCallback(async () => {
     try {
-      if (!activeCall) return;
+      // Capture current call state at the time this function is called
+      const call = activeCall || outgoingCall;
+      if (!call) {
+        console.log('[CallContext] No active or outgoing call to end');
+        return;
+      }
 
-      console.log('[CallContext] Ending call:', activeCall.id);
+      console.log('[CallContext] Ending call:', call.id);
+
+      // Clear any pending timers
+      if (callTimerRef.current) {
+        clearTimeout(callTimerRef.current);
+        callTimerRef.current = null;
+      }
 
       const duration = Math.floor(
-        (Date.now() - new Date(activeCall.started_at).getTime()) / 1000
+        (Date.now() - new Date(call.started_at).getTime()) / 1000
       );
 
-      await apiClient.post(`/calls/${activeCall.id}/end/`, {
-        duration_seconds: duration,
-      });
+      try {
+        await apiClient.post(`/calls/${call.id}/end/`, {
+          duration_seconds: duration,
+        });
+      } catch (apiError) {
+        console.warn('[CallContext] API error ending call (call may not exist yet):', apiError);
+        // Continue anyway - clear local state
+      }
 
       setActiveCall(null);
+      setOutgoingCall(null);
       setIncomingCall(null);
 
       // TODO: Send end notification via WebSocket when integrated
     } catch (error) {
       console.error('[CallContext] Error ending call:', error);
+      // Still clear the call state even if there's an error
+      setActiveCall(null);
+      setOutgoingCall(null);
+      setIncomingCall(null);
       throw error;
     }
-  }, [activeCall]);
+  }, [activeCall, outgoingCall]);
 
   return (
     <CallContext.Provider

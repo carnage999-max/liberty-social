@@ -202,14 +202,19 @@ def confirm_yard_sale_payment(request):
     payload = request.data.get("payload") or {}
 
     if not payment_intent_id:
-        return Response({"error": "payment_intent_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "payment_intent_id is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     try:
         intent = stripe.PaymentIntent.retrieve(payment_intent_id)
 
         # Check that the payment succeeded
         if intent.status != "succeeded":
-            return Response({"error": "Payment not completed"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Payment not completed"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Create listing using payload, ensuring authenticated user
         serializer = YardSaleListingSerializer(data=payload)
@@ -220,9 +225,15 @@ def confirm_yard_sale_payment(request):
 
         # Optionally attach stripe metadata to listing
         listing.stripe_payment_intent = payment_intent_id
-        listing.save(update_fields=["stripe_payment_intent"]) if hasattr(listing, 'stripe_payment_intent') else None
+        (
+            listing.save(update_fields=["stripe_payment_intent"])
+            if hasattr(listing, "stripe_payment_intent")
+            else None
+        )
 
-        return Response(YardSaleListingSerializer(listing).data, status=status.HTTP_201_CREATED)
+        return Response(
+            YardSaleListingSerializer(listing).data, status=status.HTTP_201_CREATED
+        )
 
     except Exception as e:
         logger.exception("Error confirming payment and creating listing")
@@ -244,7 +255,9 @@ def stripe_webhook(request):
 
     try:
         if settings.STRIPE_WEBHOOK_SECRET:
-            event = stripe.Webhook.construct_event(payload_body, sig_header, settings.STRIPE_WEBHOOK_SECRET)
+            event = stripe.Webhook.construct_event(
+                payload_body, sig_header, settings.STRIPE_WEBHOOK_SECRET
+            )
         else:
             # In development without webhook secret, parse JSON directly (not verified)
             import json
@@ -252,9 +265,13 @@ def stripe_webhook(request):
             event = json.loads(payload_body)
     except Exception as e:
         logger.exception("Stripe webhook signature verification failed")
-        return Response({"error": "Invalid webhook payload"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Invalid webhook payload"}, status=status.HTTP_400_BAD_REQUEST
+        )
 
-    event_type = event.get("type") if isinstance(event, dict) else getattr(event, "type", None)
+    event_type = (
+        event.get("type") if isinstance(event, dict) else getattr(event, "type", None)
+    )
     data_obj = None
     if isinstance(event, dict):
         data_obj = event.get("data", {}).get("object")
@@ -263,8 +280,14 @@ def stripe_webhook(request):
 
     try:
         if event_type == "payment_intent.succeeded":
-            metadata = data_obj.get("metadata", {}) if isinstance(data_obj, dict) else getattr(data_obj, "metadata", {})
-            if metadata.get("purpose") == "yard_sale_listing" and metadata.get("payload"):
+            metadata = (
+                data_obj.get("metadata", {})
+                if isinstance(data_obj, dict)
+                else getattr(data_obj, "metadata", {})
+            )
+            if metadata.get("purpose") == "yard_sale_listing" and metadata.get(
+                "payload"
+            ):
                 import json
                 from django.contrib.auth import get_user_model
 
@@ -283,7 +306,11 @@ def stripe_webhook(request):
                 if serializer.is_valid():
                     listing = serializer.save(user=user if user else None)
                     if hasattr(listing, "stripe_payment_intent"):
-                        listing.stripe_payment_intent = data_obj.get("id") if isinstance(data_obj, dict) else getattr(data_obj, "id", None)
+                        listing.stripe_payment_intent = (
+                            data_obj.get("id")
+                            if isinstance(data_obj, dict)
+                            else getattr(data_obj, "id", None)
+                        )
                         listing.save(update_fields=["stripe_payment_intent"])
 
         # Return success

@@ -13,12 +13,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useCall } from '../../contexts/CallContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../contexts/ToastContext';
 
 const { width, height } = Dimensions.get('window');
 
 export function ActiveCallModal() {
   const { colors, isDark } = useTheme();
   const { activeCall, outgoingCall, endCall } = useCall();
+  const { user } = useAuth();
+  const { showToast } = useToast();
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
@@ -41,9 +45,16 @@ export function ActiveCallModal() {
 
   const handleEndCall = async () => {
     try {
+      const mins = Math.floor(duration / 60);
+      const secs = duration % 60;
+      const durationStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+      
       await endCall();
+      
+      showToast(`Call ended • ${durationStr}`, 'info', 3000);
     } catch (error) {
       console.error('Error ending call:', error);
+      showToast('Failed to end call', 'error');
     }
   };
 
@@ -60,11 +71,9 @@ export function ActiveCallModal() {
 
   const callType = activeCall.call_type === 'video' ? 'Video Call' : 'Voice Call';
   const otherUserName =
-    activeCall.caller_id === activeCall.receiver_id
-      ? activeCall.caller_username
-      : activeCall.caller_id !== activeCall.receiver_id
-        ? activeCall.caller_username
-        : activeCall.receiver_username;
+    user?.id === activeCall.caller.id
+      ? activeCall.receiver.username
+      : activeCall.caller.username;
 
   return (
     <Modal
@@ -100,7 +109,7 @@ export function ActiveCallModal() {
               ]}
             >
               <Text style={[styles.avatarText, { color: colors.primary }]}>
-                {otherUserName.charAt(0).toUpperCase()}
+                {(otherUserName || '?').charAt(0).toUpperCase()}
               </Text>
             </View>
             {activeCall.call_type === 'video' && (
@@ -174,7 +183,7 @@ export function ActiveCallModal() {
                 style={[styles.endCallButton, { backgroundColor: '#DC2626' }]}
                 onPress={handleEndCall}
               >
-                <Ionicons name="call" size={24} color="#fff" />
+                <Ionicons name="call-sharp" size={24} color="#fff" />
                 <Text style={styles.endCallLabel}>End Call</Text>
               </TouchableOpacity>
             </View>

@@ -62,3 +62,5 @@ google-services.json
 *_*.md
 README-*.md
 SETUP.md
+
+*.aab

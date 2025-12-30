@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiClient } from '../../utils/api';
 import { useAlert } from '../../contexts/AlertContext';
 import { useToast } from '../../contexts/ToastContext';
+import SavePostToFolderModal from '../SavePostToFolderModal';
 import type { Post } from '../../types';
 
 export interface PostActionsMenuProps<TPost extends Post> {
@@ -36,6 +37,7 @@ const PostActionsMenu = <TPost extends Post>({
   const { showSuccess } = useToast();
   const [menuVisible, setMenuVisible] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
+  const [saveFolderVisible, setSaveFolderVisible] = useState(false);
   const [pending, setPending] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
   const translateYRef = useRef(new Animated.Value(0));
@@ -235,6 +237,22 @@ const PostActionsMenu = <TPost extends Post>({
               </Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={styles.sheetAction}
+              onPress={() => {
+                toggleMenu(false);
+                setSaveFolderVisible(true);
+              }}
+              disabled={pending}
+            >
+              <Ionicons
+                name="folder-outline"
+                size={18}
+                color="#9FA8FF"
+              />
+              <Text style={styles.sheetActionText}>Save to folder</Text>
+            </TouchableOpacity>
+
             {isOwner && (
               <>
                 <TouchableOpacity
@@ -313,6 +331,16 @@ const PostActionsMenu = <TPost extends Post>({
           </View>
         </View>
       </Modal>
+
+      <SavePostToFolderModal
+        visible={saveFolderVisible}
+        postId={post.id}
+        onClose={() => setSaveFolderVisible(false)}
+        onSaved={() => {
+          setSaveFolderVisible(false);
+          showSuccess('Post saved to folder');
+        }}
+      />
     </>
   );
 };

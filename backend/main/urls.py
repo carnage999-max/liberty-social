@@ -73,7 +73,9 @@ router.register("reactions", ReactionViewSet, basename="reactions")
 router.register("notifications", NotificationViewSet, basename="notifications")
 router.register("bookmarks", BookmarkViewSet, basename="bookmarks")
 router.register("save-folders", SaveFolderViewSet, basename="save-folders")
-router.register("save-folder-items", SaveFolderItemViewSet, basename="save-folder-items")
+router.register(
+    "save-folder-items", SaveFolderItemViewSet, basename="save-folder-items"
+)
 router.register("device-tokens", DeviceTokenViewSet, basename="device-tokens")
 router.register("conversations", ConversationViewSet, basename="conversations")
 router.register("calls", CallViewSet, basename="calls")
@@ -159,8 +161,16 @@ urlpatterns = [
     path("yard-sales/search/", yard_sales_search, name="yard-sales-search"),
     path("yard-sales/<int:listing_id>/", yard_sale_detail, name="yard-sale-detail"),
     path("yard-sales/create/", create_yard_sale, name="yard-sale-create"),
-    path("yard-sales/create-payment-intent/", create_yard_sale_payment_intent, name="yard-sale-create-payment-intent"),
-    path("yard-sales/confirm-payment/", confirm_yard_sale_payment, name="yard-sale-confirm-payment"),
+    path(
+        "yard-sales/create-payment-intent/",
+        create_yard_sale_payment_intent,
+        name="yard-sale-create-payment-intent",
+    ),
+    path(
+        "yard-sales/confirm-payment/",
+        confirm_yard_sale_payment,
+        name="yard-sale-confirm-payment",
+    ),
     path("yard-sales/stripe-webhook/", stripe_webhook, name="yard-sale-stripe-webhook"),
     path(
         "yard-sales/<int:listing_id>/update/", update_yard_sale, name="yard-sale-update"

@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Linking,
   Image,
+  Platform,
+  Alert,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,7 +25,7 @@ import { apiClient } from '../../utils/api';
 import { getApiBase } from '../../constants/API';
 import { storage } from '../../utils/storage';
 import * as ImagePicker from 'expo-image-picker';
-import * as WebBrowser from 'expo-web-browser';
+import Constants from 'expo-constants';
 
 type SwitchSetting = {
   type: 'switch';
@@ -57,14 +59,44 @@ export default function SettingsScreen() {
 
   const handleOpenLink = async (url: string) => {
     try {
-      await WebBrowser.openBrowserAsync(url, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-        toolbarColor: colors.background,
-        controlsColor: colors.primary,
-      });
+      const isExpoGo = Constants.appOwnership === 'expo';
+      
+      if (isExpoGo) {
+        // In Expo Go, links don't work due to deep linking interference
+        // Show a message to build the APK for full testing
+        Alert.alert(
+          'External Links in Expo Go',
+          'External links cannot be opened in Expo Go. Please build the APK to test this feature: npx expo run:android',
+          [
+            {
+              text: 'Copy Build Command',
+              onPress: () => {
+                // Just show a toast since we can't copy to clipboard easily
+                showToastSuccess('Use: npx expo run:android');
+              },
+            },
+            { text: 'OK', onPress: () => {} },
+          ]
+        );
+        return;
+      }
+
+      console.log('🔗 Opening link:', url);
+      const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+      console.log('🔗 Full URL:', fullUrl);
+      
+      setTimeout(() => {
+        console.log('🔗 Calling Linking.openURL');
+        Linking.openURL(fullUrl).then(() => {
+          console.log('🔗 URL opened successfully');
+        }).catch((err) => {
+          console.error('🔗 Linking error:', err);
+          showToastError('Could not open link');
+        });
+      }, 100);
     } catch (error) {
+      console.error('🔗 Unexpected error:', error);
       showToastError('Could not open link');
-      console.error('Error opening link:', error);
     }
   };
 
@@ -213,6 +245,8 @@ export default function SettingsScreen() {
   };
 
   const handleOpenFAQ = () => {
+    console.log('🔗 FAQ button pressed');
+    showToastSuccess('Opening FAQ...');
     handleOpenLink('https://mylibertysocial.com/faq');
   };
 

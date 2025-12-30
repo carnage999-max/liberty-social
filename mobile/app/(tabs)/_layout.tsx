@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, Platform, StyleSheet, Image, TouchableOpacity, Modal, Animated } from 'react-native';
+import { View, Text, Platform, StyleSheet, Image, TouchableOpacity, Modal, Animated, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import type { ParamListBase } from '@react-navigation/native';
@@ -267,17 +267,20 @@ export default function TabsLayout() {
       bottom: 0,
       left: 0,
       right: 0,
+      maxHeight: '80%',
       backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      paddingBottom: bottomPadding + 70,
-      paddingTop: 20,
-      paddingHorizontal: 16,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: -2 },
       shadowOpacity: 0.1,
       shadowRadius: 8,
       elevation: 8,
+    },
+    moreMenuScrollContent: {
+      paddingTop: 20,
+      paddingHorizontal: 16,
+      paddingBottom: bottomPadding + 90,
     },
     moreMenuHeader: {
       flexDirection: 'row',
@@ -339,6 +342,7 @@ export default function TabsLayout() {
     { id: 'friends', label: 'Friends', icon: 'people-outline', route: '/(tabs)/friends' },
     { id: 'friend-requests', label: 'Friend Requests', icon: 'person-add-outline', route: '/(tabs)/friend-requests' },
     { id: 'messages', label: 'Messages', icon: 'chatbubble-outline', route: '/(tabs)/messages' },
+    { id: 'settings', label: 'Settings', icon: 'settings-outline', route: '/(tabs)/settings' },
   ];
 
   const renderTabBar = ({
@@ -736,39 +740,53 @@ export default function TabsLayout() {
                 transform: [{ translateY: slideAnim }],
               },
             ]}
+            pointerEvents="box-none"
           >
-            <View style={styles.moreMenuHeader}>
+            {/* Fixed Header with Close Button */}
+            <View style={[styles.moreMenuHeader, { paddingHorizontal: 16, paddingTop: 8, marginBottom: 8 }]}>
               <Text style={[styles.moreMenuTitle, { color: colors.text }]}>More Options</Text>
-              <TouchableOpacity onPress={() => setShowMoreMenu(false)}>
+              <TouchableOpacity 
+                onPress={() => setShowMoreMenu(false)}
+                style={{ padding: 8 }}
+              >
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            {MORE_MENU_ITEMS.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.moreMenuItem}
-                onPress={() => {
-                  setShowMoreMenu(false);
-                  router.push(item.route as any);
-                }}
-                activeOpacity={0.7}
-              >
-                <LinearGradient
-                  colors={['#a8862a', '#d7b756', '#a8862a']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.moreMenuItemIcon}
+            {/* Scrollable Content */}
+            <ScrollView 
+              style={{ flex: 1 }}
+              contentContainerStyle={styles.moreMenuScrollContent}
+              scrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+              scrollIndicatorInsets={{ right: 1 }}
+            >
+              {MORE_MENU_ITEMS.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.moreMenuItem}
+                  onPress={() => {
+                    setShowMoreMenu(false);
+                    router.push(item.route as any);
+                  }}
+                  activeOpacity={0.7}
                 >
-                  <Ionicons name={item.icon as any} size={20} color="#1a2335" />
-                </LinearGradient>
-                <Text style={[styles.moreMenuItemLabel, { color: colors.text }]}>
-                  {item.label}
-                </Text>
-                <View style={{ flex: 1 }} />
-                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            ))}
+                  <LinearGradient
+                    colors={['#a8862a', '#d7b756', '#a8862a']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.moreMenuItemIcon}
+                  >
+                    <Ionicons name={item.icon as any} size={20} color="#1a2335" />
+                  </LinearGradient>
+                  <Text style={[styles.moreMenuItemLabel, { color: colors.text }]}>
+                    {item.label}
+                  </Text>
+                  <View style={{ flex: 1 }} />
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </Animated.View>
         </TouchableOpacity>
       </Modal>

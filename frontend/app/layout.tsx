@@ -8,6 +8,8 @@ import { ToastProvider } from "@/components/Toast";
 import { UserStatusProvider } from "@/lib/user-status-provider";
 import { PushNotificationInitializer } from "@/components/PushNotificationInitializer";
 import { LocationTracker } from "@/components/LocationTracker";
+import { AppAnnouncement } from "@/components/AppAnnouncement";
+import { MobileAppSuggestion } from "@/components/MobileAppSuggestion";
 
 
 export const metadata: Metadata = {
@@ -96,13 +98,15 @@ export default function RootLayout({
             <PushNotificationInitializer />
             <LocationTracker />
           <ToastProvider>
+            <AppAnnouncement />
+            <MobileAppSuggestion />
             <Navbar />
-            <main className="pb-20">
+            <main className="pb-40 md:pb-20">
               {children}
             </main>
 
-            <footer className="border-t border-gray-200 bg-white">
-              <div className="max-w-6xl mx-auto py-4 px-6 flex flex-col md:flex-row items-center md:justify-between gap-4 text-sm text-gray-600">
+            <footer className="border-t border-gray-200 bg-white mt-8 mb-20 sm:mb-0">
+              <div className="max-w-6xl mx-auto py-6 px-6 flex flex-col md:flex-row items-center md:justify-between gap-4 text-sm text-gray-600">
                 <div className="flex items-center gap-3">
                   <Image
                     src="/images/logo.png"
@@ -120,7 +124,7 @@ export default function RootLayout({
                   </div>
                 </div>
 
-                <nav className="flex gap-4" aria-label="Footer">
+                <nav className="flex gap-4 items-center flex-wrap justify-center md:justify-start" aria-label="Footer">
                   <a
                     href="/about"
                     className="text-sm text-gray-600 gradient-underline"
@@ -134,6 +138,12 @@ export default function RootLayout({
                     FAQ
                   </a>
                   <a
+                    href="/safety"
+                    className="text-sm text-gray-600 gradient-underline"
+                  >
+                    Safety
+                  </a>
+                  <a
                     href="/privacy"
                     className="text-sm text-gray-600 gradient-underline"
                   >
@@ -144,6 +154,33 @@ export default function RootLayout({
                     className="text-sm text-gray-600 gradient-underline"
                   >
                     Terms
+                  </a>
+                  <a
+                    href="https://play.google.com/store/apps/details?id=com.libertysocial.app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-semibold px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#a8862a] via-[#d7b756] to-[#a8862a] text-[#0B3D91] hover:shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
+                    style={{
+                      boxShadow: '0 2px 8px rgba(200, 162, 95, 0.2)',
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="animate-bounce"
+                      style={{ animationDuration: '2s' }}
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    Download
                   </a>
                 </nav>
 

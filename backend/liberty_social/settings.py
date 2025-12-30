@@ -32,17 +32,17 @@ def get_redis_url_with_ssl():
     if redis_url.startswith("rediss://"):
         # Parse the URL
         parsed = urlparse(redis_url)
-        
+
         # Check if this is a cluster endpoint (contains 'cluster' in hostname)
         # Redis cluster mode doesn't support database selection, so remove /N
-        is_cluster = 'cluster' in parsed.hostname.lower() if parsed.hostname else False
-        
+        is_cluster = "cluster" in parsed.hostname.lower() if parsed.hostname else False
+
         # Remove database selector for cluster mode
-        if is_cluster and parsed.path and parsed.path != '/':
+        if is_cluster and parsed.path and parsed.path != "/":
             # Reconstruct URL without database selector
             base_url = f"{parsed.scheme}://{parsed.netloc}"
             redis_url = base_url
-        
+
         # Check if ssl_cert_reqs is already in the query string
         query_params = parse_qsl(parsed.query)
         has_ssl_cert_reqs = any(key == "ssl_cert_reqs" for key, _ in query_params)
@@ -306,12 +306,12 @@ else:
     if CELERY_BROKER_URL.startswith("rediss://"):
         parsed = urlparse(CELERY_BROKER_URL)
         # Remove database selector for Redis cluster mode
-        is_cluster = 'cluster' in parsed.hostname.lower() if parsed.hostname else False
-        if is_cluster and parsed.path and parsed.path != '/':
+        is_cluster = "cluster" in parsed.hostname.lower() if parsed.hostname else False
+        if is_cluster and parsed.path and parsed.path != "/":
             base_url = f"{parsed.scheme}://{parsed.netloc}"
             CELERY_BROKER_URL = base_url
             parsed = urlparse(CELERY_BROKER_URL)  # Re-parse after removing path
-        
+
         query_params = parse_qsl(parsed.query)
         if not any(key == "ssl_cert_reqs" for key, _ in query_params):
             separator = "&" if parsed.query else "?"
@@ -326,12 +326,12 @@ else:
     if CELERY_RESULT_BACKEND.startswith("rediss://"):
         parsed = urlparse(CELERY_RESULT_BACKEND)
         # Remove database selector for Redis cluster mode
-        is_cluster = 'cluster' in parsed.hostname.lower() if parsed.hostname else False
-        if is_cluster and parsed.path and parsed.path != '/':
+        is_cluster = "cluster" in parsed.hostname.lower() if parsed.hostname else False
+        if is_cluster and parsed.path and parsed.path != "/":
             base_url = f"{parsed.scheme}://{parsed.netloc}"
             CELERY_RESULT_BACKEND = base_url
             parsed = urlparse(CELERY_RESULT_BACKEND)  # Re-parse after removing path
-        
+
         query_params = parse_qsl(parsed.query)
         if not any(key == "ssl_cert_reqs" for key, _ in query_params):
             separator = "&" if parsed.query else "?"

@@ -18,6 +18,7 @@ import { Conversation, PaginatedResponse, Friend } from '../../types';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
+import CallHistoryModal from '../../components/calls/CallHistoryModal';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import { SkeletonFriend } from '../../components/common/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
@@ -53,6 +54,7 @@ export default function MessagesScreen() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedArchivedConversations, setSelectedArchivedConversations] = useState<Set<number>>(new Set());
   const [isArchivedSelectionMode, setIsArchivedSelectionMode] = useState(false);
+  const [showCallHistory, setShowCallHistory] = useState(false);
   const [, forceUpdate] = useState(0);
   
   // Force re-render when typing status changes for faster updates
@@ -557,6 +559,32 @@ export default function MessagesScreen() {
     } else if (lastMessage) {
       if (lastMessage.is_deleted) {
         lastMessageText = '🚫 This message was deleted';
+      } else if (/\bcall\b/i.test(lastMessage.content || '')) {
+        // Heuristic parsing for call-related system messages
+        const content = lastMessage.content || '';
+        const isVideo = /video/i.test(content) || /🎥/.test(content);
+        const isMissed = /missed|no answer|declined|rejected|cancelled/i.test(content);
+
+        // Look for duration in seconds or MM:SS inside the content
+        let durationText = '';
+        const secsMatch = content.match(/duration_seconds=?(\d+)/i);
+        const mmssMatch = content.match(/\[duration:(\d{1,2}:\d{2})\]/i) || content.match(/duration:(\d{1,2}:\d{2})/i);
+        if (secsMatch) {
+          const secs = parseInt(secsMatch[1], 10);
+          const mins = Math.floor(secs / 60);
+          const secsR = secs % 60;
+          durationText = `${mins}m ${secsR}s`;
+        } else if (mmssMatch) {
+          durationText = mmssMatch[1];
+        }
+
+        if (isMissed) {
+          lastMessageText = isVideo ? 'Missed video call' : 'Missed call';
+        } else if (durationText) {
+          lastMessageText = `${isVideo ? '📹' : '📞'} Call • ${durationText}`;
+        } else {
+          lastMessageText = isVideo ? '📹 Video call' : '📞 Voice call';
+        }
       } else if (lastMessage.media_url) {
         // Detect media type
         const mediaUrl = lastMessage.media_url;
@@ -601,6 +629,13 @@ export default function MessagesScreen() {
     }
     
     const lastMessageTime = formatTime(item.last_message_at);
+
+    // Detect if the latest activity is a call (render call badge + styling)
+    const isCallLatest = Boolean(lastMessage && /\bcall\b/i.test(lastMessage.content || ''));
+    const isVideoCallLatest = Boolean(isCallLatest && /video/i.test(lastMessage.content || ''));
+    const isMissedCallLatest = Boolean(lastMessage && /missed|no answer|declined|rejected|cancelled/i.test(lastMessage.content || ''));
+    const callIconName = isVideoCallLatest ? 'videocam' : 'call';
+    const callIconColor = isMissedCallLatest ? '#DC2626' : (lastMessage?.sender?.id === user?.id ? '#10B981' : '#3B82F6');
 
     // Use archived selection state if in archived modal
     const currentSelectionMode = isArchivedModal ? isArchivedSelectionMode : isSelectionMode;
@@ -664,6 +699,11 @@ export default function MessagesScreen() {
                 size={24}
                 color="#C8A25F"
               />
+            </View>
+          )}
+          {isCallLatest && (
+            <View style={[styles.callBadge, { backgroundColor: callIconColor, borderColor: colors.background }]}>
+              <Ionicons name={callIconName} size={12} color="#fff" />
             </View>
           )}
           {hasUnread && (
@@ -738,6 +778,17 @@ export default function MessagesScreen() {
       overflow: 'hidden',
       position: 'relative',
       backgroundColor: colors.backgroundSecondary,
+    },
+    callBadge: {
+      position: 'absolute',
+      right: -4,
+      bottom: -4,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
     },
     avatar: {
       width: '100%',
@@ -1053,7 +1104,11 @@ export default function MessagesScreen() {
             <TouchableOpacity onPress={handleClearSelection} style={{ padding: 8 }}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
-          ) : null
+          ) : (
+            <TouchableOpacity onPress={() => setShowCallHistory(true)} style={{ padding: 8 }}>
+              <Ionicons name="call" size={22} color={colors.text} />
+            </TouchableOpacity>
+          )
         }
       />
       
@@ -1293,6 +1348,8 @@ export default function MessagesScreen() {
           setSelectedUserId(null);
         }}
       />
+
+      <CallHistoryModal visible={showCallHistory} onClose={() => setShowCallHistory(false)} />
 
       {/* Archived Chats Modal */}
       <Modal

@@ -916,12 +916,12 @@ export default function AppShell({ children }: AppShellProps) {
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[var(--color-deep-navy)]/95 shadow-lg backdrop-blur-sm sm:hidden">
         <div className="mx-auto w-full max-w-6xl px-0">
-          <div className="flex items-center justify-around py-2">
+          <div className="flex items-stretch justify-between py-2 px-2">
             <button
               type="button"
               onClick={() => handleNavigate("/app/feed")}
               aria-label="View feed"
-              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition ${
+              className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 px-1 rounded-lg transition mx-1 ${
                 pathname?.startsWith("/app/feed") 
                   ? "bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)]" 
                   : "text-white hover:bg-white/10"
@@ -942,7 +942,7 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/friends")}
               aria-label="View friends"
-              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition ${
+              className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 px-1 rounded-lg transition mx-1 ${
                 pathname?.startsWith("/app/friends")
                   ? "bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)]"
                   : "text-white hover:bg-white/10"
@@ -963,7 +963,7 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/pages")}
               aria-label="View pages"
-              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition ${
+              className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 px-1 rounded-lg transition mx-1 ${
                 pathname?.startsWith("/app/pages")
                   ? "bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)]"
                   : "text-white hover:bg-white/10"
@@ -985,7 +985,7 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/marketplace")}
               aria-label="View marketplace"
-              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition ${
+              className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 px-1 rounded-lg transition mx-1 ${
                 pathname?.startsWith("/app/marketplace")
                   ? "bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)]"
                   : "text-white hover:bg-white/10"
@@ -1008,7 +1008,7 @@ export default function AppShell({ children }: AppShellProps) {
               type="button"
               onClick={() => handleNavigate("/app/notifications")}
               aria-label="View notifications"
-              className={`relative inline-flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition ${
+              className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 px-1 rounded-lg transition mx-1 ${
                 pathname?.startsWith("/app/notifications")
                   ? "bg-(--color-gold) border-2 border-(--color-gold) text-[var(--color-deeper-navy)]"
                   : "text-white hover:bg-white/10"

@@ -1,25 +1,49 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
-import * as Notifications from 'expo-notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../utils/api';
 
-// Configure notification handler - matches Expo documentation exactly
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Check if we're in a development build (not Expo Go)
+const isDevBuild = Constants.appOwnership === 'standalone' || Constants.appOwnership === 'expo';
+const isExpoGo = !Constants.expoConfig?.plugins?.some((p: any) => 
+  typeof p === 'object' && p[0] === 'expo-notifications'
+);
+
+// Only import and configure notifications if not in Expo Go
+let Notifications: any = null;
+let notificationsAvailable = false;
+
+if (!isExpoGo) {
+  try {
+    Notifications = require('expo-notifications');
+    notificationsAvailable = true;
+    
+    // Configure notification handler - matches Expo documentation exactly
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch (error) {
+    console.warn('Notifications not available in this build', error);
+    notificationsAvailable = false;
+  }
+}
 
 export function usePushNotifications() {
   const { user, accessToken } = useAuth();
-  const notificationListener = useRef<Notifications.Subscription | null>(null);
-  const responseListener = useRef<Notifications.Subscription | null>(null);
+  const notificationListener = useRef<any | null>(null);
+  const responseListener = useRef<any | null>(null);
 
   useEffect(() => {
+    if (!notificationsAvailable) {
+      console.log('Push notifications not available in Expo Go. Will work in development builds.');
+      return;
+    }
+
     if (!user || !accessToken) {
       console.log('Push notifications: Waiting for user/auth...');
       return;
@@ -67,11 +91,11 @@ export function usePushNotifications() {
     });
 
     // Listen for notifications received while app is foregrounded
-    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification: any) => {
       console.log('Notification received:', notification);
     });
 
-    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response: any) => {
       console.log('Notification response:', response);
       // Handle navigation based on notification data
       const data = response.notification.request.content.data;
@@ -81,21 +105,28 @@ export function usePushNotifications() {
     });
 
     return () => {
-      // Clean up notification listeners
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
-        notificationListener.current = null;
-      }
-      
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-        responseListener.current = null;
+      // Clean up notification listeners (only if notifications are available)
+      if (notificationsAvailable && Notifications) {
+        if (notificationListener.current) {
+          Notifications.removeNotificationSubscription(notificationListener.current);
+          notificationListener.current = null;
+        }
+        
+        if (responseListener.current) {
+          Notifications.removeNotificationSubscription(responseListener.current);
+          responseListener.current = null;
+        }
       }
     };
   }, [user, accessToken]);
 }
 
 async function registerForPushNotificationsAsync(): Promise<string | null> {
+  if (!notificationsAvailable || !Notifications) {
+    console.log('Push notifications not available in this build');
+    return null;
+  }
+
   let token: string | null = null;
 
   if (Platform.OS === 'android') {

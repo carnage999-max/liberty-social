@@ -738,36 +738,32 @@ class SaveFolderSerializer(serializers.ModelSerializer):
         """Create a folder with auto-incrementing unnamed folders."""
         request = self.context.get("request")
         user = request.user if request and hasattr(request, "user") else None
-        
+
         if not user:
             raise serializers.ValidationError("User is required to create a folder.")
-        
+
         name = validated_data.get("name", "").strip()
-        
+
         # If no name or the default unnamed folder name pattern
         if not name:
             # Auto-increment unnamed folders
             base_name = "Unnamed Folder"
             count = SaveFolder.objects.filter(
-                user=user, 
-                name__startswith=base_name
+                user=user, name__startswith=base_name
             ).count()
-            
+
             if count == 0:
                 name = base_name
             else:
                 name = f"{base_name} {count}"
         else:
             # Check if folder with this name already exists and auto-increment
-            existing_count = SaveFolder.objects.filter(
-                user=user,
-                name=name
-            ).count()
-            
+            existing_count = SaveFolder.objects.filter(user=user, name=name).count()
+
             if existing_count > 0:
                 # Auto-increment by appending a number
                 name = f"{name} {existing_count + 1}"
-        
+
         validated_data["name"] = name
         return super().create(validated_data)
 

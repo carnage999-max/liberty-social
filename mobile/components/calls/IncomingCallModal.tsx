@@ -86,11 +86,11 @@ export function IncomingCallModal() {
             ]}
           >
             <Text style={[styles.avatarText, { color: colors.primary }]}>
-              {incomingCall.caller_username.charAt(0).toUpperCase()}
+              {(incomingCall.caller.username || '?').charAt(0).toUpperCase()}
             </Text>
           </View>
           <Text style={[styles.callerName, { color: colors.text }]}>
-            {incomingCall.caller_username}
+            {incomingCall.caller.username}
           </Text>
           <Text style={[styles.callStatus, { color: colors.textSecondary }]}>
             Calling...

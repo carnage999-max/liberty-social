@@ -21,6 +21,15 @@ import { Post, Bookmark, PaginatedResponse } from '../../../types';
 import { SkeletonPost } from '../../../components/common/Skeleton';
 import SavePostToFolderModal from '../../../components/SavePostToFolderModal';
 
+type ViewMode = 'all' | 'folders';
+
+interface SaveFolder {
+  id: number;
+  name: string;
+  item_count: number;
+  items?: Array<{ id: number; post: number | Post; folder: number; created_at: string }>;
+}
+
 export default function SavedPostsScreen() {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
@@ -34,6 +43,11 @@ export default function SavedPostsScreen() {
   const [next, setNext] = useState<string | null>(null);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('all');
+  const [folders, setFolders] = useState<SaveFolder[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set());
+  const [loadingFolders, setLoadingFolders] = useState(false);
 
   const loadBookmarks = useCallback(async (silent = false) => {
     try {
@@ -71,7 +85,66 @@ export default function SavedPostsScreen() {
 
   useEffect(() => {
     loadBookmarks();
-  }, [loadBookmarks]);
+    loadFolders();
+  }, []);
+
+  const loadFolders = useCallback(async () => {
+    setLoadingFolders(true);
+    try {
+      const response = await apiClient.get<SaveFolder[] | { results: SaveFolder[] }>('/save-folders/');
+      const folderList = Array.isArray(response) ? response : response.results || [];
+      console.log('Loaded folders:', folderList);
+      setFolders(folderList);
+      if (folderList.length > 0 && !selectedFolderId) {
+        setSelectedFolderId(folderList[0].id);
+      }
+
+      // Fetch posts for folder items
+      const folderPostIds: number[] = [];
+      folderList.forEach((folder) => {
+        if (folder.items) {
+          folder.items.forEach((item) => {
+            folderPostIds.push(item.post);
+          });
+        }
+      });
+
+      const uniqueFolderPostIds = [...new Set(folderPostIds)];
+      const postPromises = uniqueFolderPostIds.map(async (postId) => {
+        try {
+          const post = await apiClient.get<Post>(`/posts/${postId}/`);
+          return { id: postId, post };
+        } catch (error) {
+          return { id: postId, post: null };
+        }
+      });
+
+      const postResults = await Promise.all(postPromises);
+      const postsMap: Record<number, Post> = {};
+      postResults.forEach(({ id, post }) => {
+        if (post) postsMap[id] = post;
+      });
+      setPosts((prev) => ({ ...prev, ...postsMap }));
+    } catch (error) {
+      console.error('Failed to load folders:', error);
+    } finally {
+      setLoadingFolders(false);
+    }
+  }, [selectedFolderId]);
+
+  const loadFolderDetails = useCallback(async (folderId: number) => {
+    try {
+      const response = await apiClient.get<SaveFolder>(`/save-folders/${folderId}/`);
+      console.log('Loaded folder details:', response);
+      
+      // Update the folder with the full details including items
+      setFolders((prev) =>
+        prev.map((f) => (f.id === folderId ? response : f))
+      );
+    } catch (error) {
+      console.error('Failed to load folder details:', error);
+    }
+  }, []);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -287,6 +360,73 @@ export default function SavedPostsScreen() {
       textAlign: 'center',
       marginTop: 16,
     },
+    tabContainer: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      paddingHorizontal: 0,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    activeTab: {
+      borderBottomWidth: 2,
+    },
+    tabText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+    },
+    tabIndicator: {
+      height: 2,
+      marginTop: 12,
+    },
+    folderContainer: {
+      marginHorizontal: 16,
+      marginVertical: 8,
+      borderWidth: 1,
+      borderRadius: 8,
+      overflow: 'hidden',
+    },
+    folderHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+    },
+    folderInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    folderName: {
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    folderCount: {
+      fontSize: 12,
+      marginTop: 4,
+    },
+    folderItems: {
+      borderTopWidth: 1,
+    },
+    folderItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderTopWidth: 1,
+    },
+    folderItemText: {
+      fontSize: 13,
+      flex: 1,
+      marginRight: 8,
+    },
   });
 
   if (loading && bookmarks.length === 0) {
@@ -311,42 +451,157 @@ export default function SavedPostsScreen() {
 
   return (
     <View style={styles.container}>
-        <AppNavbar
-          title="Saved Posts"
-          showLogo={false}
-          showProfileImage={false}
-          showBackButton={true}
-          onBackPress={() => router.push('/(tabs)/settings')}
-        />
-      {bookmarks.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="bookmark-outline" size={64} color={colors.textSecondary} />
-          <Text style={styles.emptyText}>No saved posts yet</Text>
-          <Text style={[styles.emptyText, { fontSize: 14, marginTop: 8 }]}>
-            Bookmark posts to revisit them later
+      <AppNavbar
+        title="Saved Posts"
+        showLogo={false}
+        showProfileImage={false}
+        showBackButton={true}
+        onBackPress={() => router.push('/(tabs)/settings')}
+      />
+
+      {/* Tab Navigation */}
+      <View style={[styles.tabContainer, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.tab, viewMode === 'all' && { borderBottomWidth: 2, borderBottomColor: colors.primary }]}
+          onPress={() => setViewMode('all')}
+        >
+          <Text style={[styles.tabText, viewMode === 'all' && { color: colors.primary, fontWeight: '700' }]}>
+            All Posts
           </Text>
-        </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, viewMode === 'folders' && { borderBottomWidth: 2, borderBottomColor: colors.primary }]}
+          onPress={() => setViewMode('folders')}
+        >
+          <Text style={[styles.tabText, viewMode === 'folders' && { color: colors.primary, fontWeight: '700' }]}>
+            Folders {folders.length > 0 && `(${folders.length})`}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {viewMode === 'all' ? (
+        bookmarks.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="bookmark-outline" size={64} color={colors.textSecondary} />
+            <Text style={styles.emptyText}>No saved posts yet</Text>
+            <Text style={[styles.emptyText, { fontSize: 14, marginTop: 8 }]}>
+              Bookmark posts to revisit them later
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={bookmarks}
+            renderItem={renderBookmark}
+            keyExtractor={(item) => item.id.toString()}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+              />
+            }
+            contentContainerStyle={{ paddingVertical: 8, paddingBottom: 100 }}
+          />
+        )
       ) : (
         <FlatList
-          data={bookmarks}
-          renderItem={renderBookmark}
+          data={folders}
           keyExtractor={(item) => item.id.toString()}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
+          renderItem={({ item: folder }) => {
+            const isExpanded = expandedFolders.has(folder.id);
+            return (
+              <View key={folder.id} style={[styles.folderContainer, { borderColor: colors.border }]}>
+                <TouchableOpacity
+                  style={[styles.folderHeader, { backgroundColor: isDark ? colors.backgroundSecondary : '#F9F9F9' }]}
+                  onPress={() => {
+                    const willExpand = !expandedFolders.has(folder.id);
+                    setExpandedFolders((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(folder.id)) {
+                        next.delete(folder.id);
+                      } else {
+                        next.add(folder.id);
+                      }
+                      return next;
+                    });
+                    // Load full folder details when expanding
+                    if (willExpand) {
+                      loadFolderDetails(folder.id);
+                    }
+                  }}
+                >
+                  <View style={styles.folderInfo}>
+                    <Ionicons name="folder" size={20} color={colors.primary} />
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text style={[styles.folderName, { color: colors.text }]}>{folder.name}</Text>
+                      <Text style={[styles.folderCount, { color: colors.textSecondary }]}>
+                        {folder.item_count} item{folder.item_count !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons
+                    name={isExpanded ? 'chevron-down' : 'chevron-forward'}
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+                {isExpanded && (
+                  <View style={styles.folderItems}>
+                    {folder.items && folder.items.length > 0 ? (
+                      folder.items.map((folderItem) => {
+                        // Handle both cases: post as ID (from initial load) or post as object (from API)
+                        const postData = typeof folderItem.post === 'number' 
+                          ? posts[folderItem.post]
+                          : folderItem.post as Post;
+                        
+                        if (!postData) {
+                          return (
+                            <View
+                              key={folderItem.id}
+                              style={[styles.folderItem, { borderTopColor: colors.border }]}
+                            >
+                              <Text style={[styles.folderItemText, { color: colors.textSecondary }]}>
+                                Post not available
+                              </Text>
+                            </View>
+                          );
+                        }
+                        return (
+                          <TouchableOpacity
+                            key={folderItem.id}
+                            style={[styles.folderItem, { borderTopColor: colors.border }]}
+                            onPress={() => router.push(`/(tabs)/feed/${postData.id}`)}
+                          >
+                            <Text style={[styles.folderItemText, { color: colors.text }]} numberOfLines={2}>
+                              {postData.content || 'Untitled Post'}
+                            </Text>
+                            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                        );
+                      })
+                    ) : (
+                      <View style={[styles.folderItem, { borderTopColor: colors.border }]}>
+                        <Text style={[styles.folderItemText, { color: colors.textSecondary }]}>
+                          No posts in this folder
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          }}
           contentContainerStyle={{ paddingVertical: 8, paddingBottom: 100 }}
         />
       )}
+
       <SavePostToFolderModal
         visible={saveModalVisible}
         postId={selectedPostId || 0}
         onClose={() => setSaveModalVisible(false)}
         onSaved={() => {
           showSuccess('Post saved to folder');
+          loadFolders();
         }}
       />
     </View>
