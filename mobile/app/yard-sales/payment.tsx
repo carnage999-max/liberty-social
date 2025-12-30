@@ -29,12 +29,19 @@ export default function YardSalePayment() {
       setLoading(true);
       // Create a PaymentIntent on the backend
       const res = await apiClient.post<{
-          data: { client_secret: any; intent_id: any; }; client_secret: string; intent_id: string 
-}>('/yard-sales/create-payment-intent/', {
+        client_secret: string;
+        intent_id: string;
+      }>('/yard-sales/create-payment-intent/', {
         metadata: { payload: JSON.stringify(data) },
       });
 
-      const { client_secret, intent_id } = res.data;
+      console.log('Payment intent response:', res);
+
+      const { client_secret, intent_id } = res;
+
+      if (!client_secret) {
+        throw new Error('client_secret not found in response: ' + JSON.stringify(res));
+      }
 
       const { error: initError } = await initPaymentSheet({
         paymentIntentClientSecret: client_secret,
@@ -47,7 +54,7 @@ export default function YardSalePayment() {
       return intent_id;
     } catch (err: any) {
       setLoading(false);
-      console.error('Setup PaymentSheet error', err);
+      console.error('Setup PaymentSheet error', err.response?.data || err.message || err);
       Alert.alert('Error', err?.message || 'Unable to initialize payment');
       return null;
     }
@@ -69,18 +76,22 @@ export default function YardSalePayment() {
       }
 
       // After success, confirm on backend: send payment_intent_id and payload to create listing
+      console.log('Confirming payment with intentId:', intentId);
       const confirmRes = await apiClient.post('/yard-sales/confirm-payment/', {
         payment_intent_id: intentId,
         payload: data,
       });
 
+      console.log('Payment confirmed, response:', confirmRes);
       setLoading(false);
-      Alert.alert('Success', 'Your yard sale is now live');
+      
+      // Redirect immediately, then show success alert
       router.replace('/(tabs)/yard-sales');
+      Alert.alert('Success', 'Your yard sale is now live');
     } catch (err: any) {
       setLoading(false);
-      console.error('Payment/create error', err);
-      Alert.alert('Error', err?.message || 'Payment failed');
+      console.error('Payment/create error', err.response?.data || err.message || err);
+      Alert.alert('Error', err?.response?.data?.error || err?.message || 'Payment confirmation failed');
     }
   };
 
