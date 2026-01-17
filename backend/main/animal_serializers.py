@@ -194,6 +194,7 @@ class AnimalListingDetailSerializer(serializers.ModelSerializer):
         model = AnimalListing
         fields = [
             "id",
+            "slug",
             "seller",
             "category",
             "category_name",
@@ -231,6 +232,7 @@ class AnimalListingDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "slug",
             "seller",
             "status",
             "views_count",
@@ -317,6 +319,7 @@ class AnimalListingListSerializer(serializers.ModelSerializer):
         model = AnimalListing
         fields = [
             "id",
+            "slug",
             "title",
             "breed",
             "age_years",
@@ -378,6 +381,7 @@ class BreederDirectorySerializer(serializers.ModelSerializer):
         model = BreederDirectory
         fields = [
             "id",
+            "slug",
             "seller",
             "breeder_name",
             "bio",
@@ -392,6 +396,7 @@ class BreederDirectorySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "slug",
             "seller",
             "average_rating",
             "total_reviews",

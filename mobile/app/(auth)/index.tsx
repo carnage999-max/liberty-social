@@ -487,13 +487,13 @@ export default function AuthScreen() {
         <Text style={styles.title}>Welcome Back</Text>
         <Text style={styles.subtitle}>Sign in to continue to Liberty Social</Text>
 
-        <Text style={styles.label}>Username / Email / Phone</Text>
+        <Text style={styles.label}>Email</Text>
         <TextInput
           style={[
             styles.input,
             focusedInput === 'identifier' && styles.inputFocused,
           ]}
-          placeholder="alice / alice@example.com / +123456789"
+          placeholder="your@email.com"
           placeholderTextColor="#9CA3AF"
           value={username}
           onChangeText={setUsername}

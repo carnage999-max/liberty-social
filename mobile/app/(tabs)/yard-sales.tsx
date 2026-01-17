@@ -1,16 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Animated, Pressable, View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Linking, Platform } from 'react-native';
-import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps';
-// Optional clustering support
-let ClusteredMapView: any = null;
-try {
-  // react-native-map-clustering exports default component
-  // require at runtime so app doesn't crash if dep missing
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  ClusteredMapView = require('react-native-map-clustering').default;
-} catch (e) {
-  ClusteredMapView = null;
-}
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import OpenStreetMap from '../../components/OpenStreetMap';
 import * as Location from 'expo-location';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -50,7 +41,6 @@ export default function YardSalesScreen() {
   const [selectedListing, setSelectedListing] = useState<YardSaleListing | null>(null);
   const [showLocationInfo, setShowLocationInfo] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
-  const mapRef = useRef<any>(null);
 
   const fetchListings = useCallback(async (lat: number, lon: number, r: number) => {
     try {
@@ -117,84 +107,36 @@ export default function YardSalesScreen() {
         </View>
       ) : (
         <View style={styles.mapWrap}>
-          <MapView
-            provider={PROVIDER_DEFAULT}
-            style={styles.map}
+          <OpenStreetMap
             region={region}
-            onRegionChangeComplete={(r) => setRegion(r)}
-            showsUserLocation
-            showsMyLocationButton
-            ref={mapRef}
-          >
-            {/* Use cluster view when available */}
-            {ClusteredMapView ? (
-              <ClusteredMapView
-                region={region}
-                style={{ flex: 1 }}
-                onRegionChangeComplete={(r: any) => setRegion(r)}
-                clusteringEnabled
-                clusterColor={"#C8A25F"}
-              >
-                {listings.map((l) => (
-                  <Marker
-                    key={l.id}
-                    coordinate={{ latitude: Number(l.latitude), longitude: Number(l.longitude) }}
-                    title={l.title}
-                    description={l.address}
-                    onPress={() => setSelectedListing(l)}
-                  >
-                    <View style={{ alignItems: 'center' }}>
-                      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: l.pin_color || '#d32f2f', borderWidth: 2, borderColor: '#fff' }} />
-                    </View>
-                  </Marker>
-                ))}
-              </ClusteredMapView>
-            ) : (
-              <>
-                {listings.map((l) => (
-                  <Marker
-                    key={l.id}
-                    coordinate={{ latitude: Number(l.latitude), longitude: Number(l.longitude) }}
-                    title={l.title}
-                    description={l.address}
-                    onPress={() => setSelectedListing(l)}
-                  >
-                    <View style={{ alignItems: 'center' }}>
-                      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: l.pin_color || '#d32f2f', borderWidth: 2, borderColor: '#fff' }} />
-                    </View>
-                  </Marker>
-                ))}
-              </>
-            )}
-
-            <Circle
-              center={{ latitude: region.latitude, longitude: region.longitude }}
-              radius={radius * 1609.34}
-              strokeColor="rgba(33,150,243,0.5)"
-              fillColor="rgba(33,150,243,0.07)"
-            />
-
-            {/* User location marker - green dot that shows info on tap */}
-            {userLocation && (
-              <Marker
-                coordinate={{ latitude: userLocation.latitude, longitude: userLocation.longitude }}
-                title="Your Location"
-                pinColor="#4CAF50"
-                onPress={() => setShowLocationInfo(true)}
-              />
-            )}
-          </MapView>
+            markers={listings.map((l) => ({
+              id: l.id,
+              latitude: Number(l.latitude),
+              longitude: Number(l.longitude),
+              title: l.title,
+              description: l.address,
+              pinColor: l.pin_color || '#d32f2f',
+            }))}
+            userLocation={userLocation}
+            radius={radius}
+            searchRadius={radius}
+            onRegionChangeComplete={(r: any) => setRegion(r)}
+            onMarkerPress={(marker: { id: number }) => {
+              const listing = listings.find((l) => l.id === marker.id);
+              if (listing) setSelectedListing(listing);
+            }}
+          />
 
           {/* Floating controls */}
           <View style={styles.floatingTopRight}>
             <View style={[styles.radiusPill, { backgroundColor: isDark ? '#0f1720' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.08)' }]}>
               <Text style={{ fontWeight: '700', marginRight: 8, color: colors.text }}>{radius} mi</Text>
               <View style={{ flexDirection: 'row' }}>
-                {RADIUS_PRESETS.map((p) => (
-                  <TouchableOpacity key={p} onPress={() => setRadius(p)} style={[styles.presetBtn, p === radius ? { borderColor: '#C8A25F' } : {}]}>
-                    <Text style={{ fontSize: 12, color: p === radius ? '#C8A25F' : colors.textSecondary }}>{p}</Text>
-                  </TouchableOpacity>
-                ))}
+          {RADIUS_PRESETS.map((p: number) => (
+            <TouchableOpacity key={p} onPress={() => setRadius(p)} style={[styles.presetBtn, p === radius ? { borderColor: '#C8A25F' } : {}]}>
+              <Text style={{ fontSize: 12, color: p === radius ? '#C8A25F' : colors.textSecondary }}>{p}</Text>
+            </TouchableOpacity>
+          ))}
               </View>
             </View>
           </View>
@@ -205,13 +147,18 @@ export default function YardSalesScreen() {
           <TouchableOpacity
             style={[styles.recenterBtn, { backgroundColor: isDark ? '#0f1720' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#eee' }]}
             onPress={() => {
-              if (userLocation && mapRef.current) {
-                mapRef.current.animateToRegion({
-                  latitude: userLocation.latitude,
-                  longitude: userLocation.longitude,
-                  latitudeDelta: 0.0922,
-                  longitudeDelta: 0.0421,
-                }, 300);
+              // Pan the map to user location via WebView
+              if ((global as any).mapPanToUser) {
+          (global as any).mapPanToUser();
+              }
+              // Also update the region state
+              if (userLocation) {
+          setRegion({
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          });
               }
             }}
           >
@@ -222,28 +169,28 @@ export default function YardSalesScreen() {
           {showLegend && (
             <View style={[styles.legendPanel, { backgroundColor: isDark ? '#1a2335' : '#fff', borderColor: isDark ? 'rgba(255,255,255,0.1)' : '#eee' }]}>
               <View style={styles.legendHeader}>
-                <Text style={[styles.legendTitle, { color: colors.text }]}>📋 Legend</Text>
-                <TouchableOpacity onPress={() => setShowLegend(false)}>
-                  <Ionicons name="close" size={16} color={colors.textSecondary} />
-                </TouchableOpacity>
+          <Text style={[styles.legendTitle, { color: colors.text }]}>📋 Legend</Text>
+          <TouchableOpacity onPress={() => setShowLegend(false)}>
+            <Ionicons name="close" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
               </View>
               <View style={styles.legendItems}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#d32f2f' }]} />
-                  <Text style={[styles.legendText, { color: colors.text }]}>Multi-day</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#2196F3' }]} />
-                  <Text style={[styles.legendText, { color: colors.text }]}>Today only</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
-                  <Text style={[styles.legendText, { color: colors.text }]}>Starting soon</Text>
-                </View>
-                <View style={[styles.legendItem, { borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : '#eee', marginTop: 4, paddingTop: 8 }]}>
-                  <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
-                  <Text style={[styles.legendText, { color: colors.text, fontWeight: '600' }]}>Your location</Text>
-                </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#d32f2f' }]} />
+            <Text style={[styles.legendText, { color: colors.text }]}>Multi-day</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#2196F3' }]} />
+            <Text style={[styles.legendText, { color: colors.text }]}>Today only</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#FF9800' }]} />
+            <Text style={[styles.legendText, { color: colors.text }]}>Starting soon</Text>
+          </View>
+          <View style={[styles.legendItem, { borderTopWidth: 1, borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : '#eee', marginTop: 4, paddingTop: 8 }]}>
+            <View style={[styles.legendDot, { backgroundColor: '#4CAF50' }]} />
+            <Text style={[styles.legendText, { color: colors.text, fontWeight: '600' }]}>Your location</Text>
+          </View>
               </View>
             </View>
           )}
@@ -276,11 +223,11 @@ export default function YardSalesScreen() {
             ) : listings.length === 0 ? (
               <Text style={{ color: colors.textSecondary }}>No yard sales nearby</Text>
             ) : (
-              listings.slice(0, 6).map((l) => (
-                <TouchableOpacity key={l.id} style={styles.listingItem} onPress={() => { setRegion({ ...region, latitude: Number(l.latitude), longitude: Number(l.longitude) }); setSelectedListing(l); }}>
-                  <Text style={{ fontWeight: '700' }}>{l.title}</Text>
-                  <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{l.address}</Text>
-                </TouchableOpacity>
+              listings.slice(0, 6).map((l: YardSaleListing) => (
+          <TouchableOpacity key={l.id} style={styles.listingItem} onPress={() => { setRegion({ ...region, latitude: Number(l.latitude), longitude: Number(l.longitude) }); setSelectedListing(l); }}>
+            <Text style={{ fontWeight: '700' }}>{l.title}</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{l.address}</Text>
+          </TouchableOpacity>
               ))
             )}
           </View>
@@ -365,7 +312,7 @@ const styles = StyleSheet.create({
   },
   recenterBtn: {
     position: 'absolute',
-    bottom: 180,
+    top: 0,
     right: 12,
     width: 44,
     height: 44,
@@ -384,8 +331,8 @@ const styles = StyleSheet.create({
 function AnimatedPostButton({ onPress, isDark, colors }: { onPress: () => void; isDark: boolean; colors: any }) {
   const [expanded, setExpanded] = useState(true);
   const anim = useRef(new Animated.Value(1)).current; // 1 = expanded, 0 = compact
-  const timeoutRef = useRef<any | null>(null);
-  const insets = require('react-native-safe-area-context').useSafeAreaInsets();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     // Start expanded then collapse after 3s
@@ -393,8 +340,10 @@ function AnimatedPostButton({ onPress, isDark, colors }: { onPress: () => void; 
       setExpanded(false);
       Animated.timing(anim, { toValue: 0, duration: 300, useNativeDriver: false }).start();
     }, 3000);
-    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
-  }, []);
+    return () => { 
+      if (timeoutRef.current) clearTimeout(timeoutRef.current); 
+    };
+  }, [anim]);
 
   const expand = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);

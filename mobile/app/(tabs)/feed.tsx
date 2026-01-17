@@ -784,7 +784,7 @@ export default function FeedScreen() {
 
   const handleSharePost = async (post: FeedPost) => {
     try {
-      const shareUrl = `https://mylibertysocial.com/app/feed/${post.id}`;
+      const shareUrl = `https://mylibertysocial.com/app/feed/${post.slug ?? post.id}`;
       const shareMessage = [post.content, shareUrl]
         .filter(Boolean)
         .join('\n\n');
@@ -911,7 +911,7 @@ export default function FeedScreen() {
             style={styles.postHeader}
             onPress={() => {
               if (isPagePost && (item as any).page) {
-                router.push(`/pages/${(item as any).page.id}`);
+                router.push(`/pages/${(item as any).page.slug ?? (item as any).page.id}`);
               } else {
               setSelectedUserId(item.author.id);
               setProfileBottomSheetVisible(true);
@@ -1016,7 +1016,7 @@ export default function FeedScreen() {
 
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => router.push(`/(tabs)/feed/${item.id}`)}
+            onPress={() => router.push(`/(tabs)/feed/${item.slug ?? item.id}`)}
           >
             <Ionicons name="chatbubble-outline" size={20} color={colors.textSecondary} />
             <Text style={[styles.actionText, { color: colors.textSecondary }]}>{commentCount}</Text>
@@ -1146,12 +1146,13 @@ export default function FeedScreen() {
       marginTop: 6,
     },
     listHeaderWrapper: {
-      gap: 16,
-      paddingBottom: 16,
+      gap: 12,
+      paddingBottom: 8,
+      flex: 0,
     },
     storyList: {
-      paddingVertical: 4,
-      paddingLeft: 4,
+      paddingVertical: 8,
+      paddingLeft: 12,
       paddingRight: 20,
     },
     storyItem: {
@@ -1321,7 +1322,9 @@ export default function FeedScreen() {
       textShadowRadius: 3,
     },
     suggestionsList: {
-      paddingBottom: 16,
+      paddingBottom: 8,
+      height: 'auto',
+      flexShrink: 1,
     },
     postActions: {
       flexDirection: 'row',
@@ -1368,6 +1371,7 @@ export default function FeedScreen() {
     engagementCard: {
       borderRadius: 20,
       marginHorizontal: 20,
+      marginVertical: 8,
       padding: 20,
     },
     engagementContent: {
@@ -1582,6 +1586,7 @@ export default function FeedScreen() {
       <View style={styles.suggestionsList}>
         <FlatList
           horizontal
+          scrollEnabled={true}
           data={suggestionItems}
           keyExtractor={(item, index) =>
             item.type === 'create' ? 'create-post' : `${item.user.id}-${index}`

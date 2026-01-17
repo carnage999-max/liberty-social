@@ -98,6 +98,11 @@ urlpatterns = [
         UserOverviewView.as_view(),
         name="user-overview",
     ),
+    path(
+        "user/<str:user_ref>/overview/",
+        UserOverviewView.as_view(),
+        name="user-overview-slug",
+    ),
     path("metrics/summary/", UserMetricsView.as_view(), name="user-metrics"),
     path("online/", OnlineUsersView.as_view(), name="online-users"),
     path(

@@ -21,6 +21,7 @@ import ImageGallery from '../../components/common/ImageGallery';
 
 interface BusinessPage {
   id: number;
+  slug?: string;
   name: string;
   description?: string;
   category?: string;
@@ -120,7 +121,7 @@ export default function PagesScreen() {
             borderColor: colors.border,
           },
         ]}
-        onPress={() => router.push(`/pages/${item.id}`)}
+        onPress={() => router.push(`/pages/${item.slug ?? item.id}`)}
         activeOpacity={0.7}
       >
         {/* Cover Image */}
@@ -546,4 +547,3 @@ export default function PagesScreen() {
     </View>
   );
 }
-

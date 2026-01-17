@@ -137,14 +137,14 @@ export default function AdminDashboardPage() {
           <form className="form" onSubmit={handleLogin}>
             <div className="field">
               <label htmlFor="username" className="label">
-                Email or username
+                Email
               </label>
               <input
                 id="username"
                 name="username"
-                type="text"
+                type="email"
                 required
-                autoComplete="username"
+                autoComplete="email"
                 value={form.username}
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
                   setForm((prev: { username: string; password: string }) => ({

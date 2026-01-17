@@ -265,7 +265,7 @@ export default function SavedPostsScreen() {
 
         <TouchableOpacity
           style={styles.viewPostButton}
-          onPress={() => router.push(`/(tabs)/feed/${post.id}`)}
+          onPress={() => router.push(`/(tabs)/feed/${post.slug ?? post.id}`)}
         >
           <Text style={styles.viewPostButtonText}>View Post</Text>
           <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
@@ -570,7 +570,7 @@ export default function SavedPostsScreen() {
                           <TouchableOpacity
                             key={folderItem.id}
                             style={[styles.folderItem, { borderTopColor: colors.border }]}
-                            onPress={() => router.push(`/(tabs)/feed/${postData.id}`)}
+                            onPress={() => router.push(`/(tabs)/feed/${postData.slug ?? postData.id}`)}
                           >
                             <Text style={[styles.folderItemText, { color: colors.text }]} numberOfLines={2}>
                               {postData.content || 'Untitled Post'}
@@ -607,4 +607,3 @@ export default function SavedPostsScreen() {
     </View>
   );
 }
-

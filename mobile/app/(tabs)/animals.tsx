@@ -20,6 +20,7 @@ import AnimalListingCard from '../../components/animals/AnimalListingCard';
 
 interface AnimalListing {
   id: string;
+  slug?: string;
   title: string;
   breed: string;
   category: {
@@ -212,7 +213,7 @@ export default function AnimalsScreen() {
       {...item}
       onPress={() => {
         (global as any).hideTabBar?.();
-        router.push(`/animals/${item.id}`);
+        router.push(`/animals/${item.slug ?? item.id}`);
       }}
     />
   );
@@ -484,4 +485,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

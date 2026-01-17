@@ -66,7 +66,7 @@ class UniversalSearchView(APIView):
                         else post.author.username or post.author.email
                     ),
                     "image": post.media.first().url if post.media.exists() else None,
-                    "href": f"/app/feed/{post.id}",
+                    "href": f"/app/feed/{post.slug or post.id}",
                     "relevance_score": self._calculate_relevance(post.content, query),
                 }
                 for post in posts
@@ -88,7 +88,7 @@ class UniversalSearchView(APIView):
                     "title": user.username or user.email,
                     "description": f"{user.first_name or ''} {user.last_name or ''}".strip() or None,
                     "image": user.profile_image_url,
-                    "href": f"/app/users/{user.id}",
+                    "href": f"/app/users/{user.slug or user.id}",
                     "relevance_score": self._calculate_relevance(
                         f"{user.username} {user.email} {user.first_name} {user.last_name}", query
                     ),
@@ -109,7 +109,7 @@ class UniversalSearchView(APIView):
                     "title": page.name,
                     "description": (page.description[:100] + "..." if page.description and len(page.description) > 100 else page.description) if page.description else None,
                     "image": page.profile_image_url or page.cover_image_url,
-                    "href": f"/app/pages/{page.id}",
+                    "href": f"/app/pages/{page.slug or page.id}",
                     "relevance_score": self._calculate_relevance(f"{page.name} {page.description or ''}", query),
                 }
                 for page in pages
@@ -129,7 +129,7 @@ class UniversalSearchView(APIView):
                     "title": listing.title,
                     "description": f"${listing.price} - {listing.description[:80]}" if listing.description else f"${listing.price}",
                     "image": listing.media.first().url if listing.media.exists() else None,
-                    "href": f"/app/marketplace/{listing.id}",
+                    "href": f"/app/marketplace/{listing.slug or listing.id}",
                     "relevance_score": self._calculate_relevance(f"{listing.title} {listing.description or ''}", query),
                 }
                 for listing in marketplace_listings
@@ -150,7 +150,7 @@ class UniversalSearchView(APIView):
                     "title": listing.title,
                     "description": f"{listing.breed or 'Animal'} - ${listing.price}" if listing.price > 0 else f"{listing.breed or 'Animal'} - Adoption",
                     "image": listing.media.first().url if listing.media.exists() else None,
-                    "href": f"/app/animals/{listing.id}",
+                    "href": f"/app/animals/{listing.slug or listing.id}",
                     "relevance_score": self._calculate_relevance(f"{listing.title} {listing.description or ''} {listing.breed or ''}", query),
                 }
                 for listing in animal_listings
@@ -170,7 +170,7 @@ class UniversalSearchView(APIView):
                     "title": breeder.breeder_name,
                     "description": (breeder.bio[:100] + "..." if breeder.bio and len(breeder.bio) > 100 else breeder.bio) if breeder.bio else None,
                     "image": breeder.seller.user.profile_image_url if breeder.seller and breeder.seller.user else None,
-                    "href": f"/app/breeders/{breeder.id}",
+                    "href": f"/app/breeders/{breeder.slug or breeder.id}",
                     "relevance_score": self._calculate_relevance(f"{breeder.breeder_name} {breeder.bio or ''}", query),
                 }
                 for breeder in breeders
@@ -223,4 +223,3 @@ class UniversalSearchView(APIView):
             text_words = text_lower.split()
             matches = sum(1 for qw in query_words if any(tw.startswith(qw) for tw in text_words))
             return (matches / len(query_words)) * 30.0 if query_words else 0.0
-

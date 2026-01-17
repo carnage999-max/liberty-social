@@ -3,6 +3,8 @@ from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
 from django.core.validators import MinValueValidator
 
+from .slug_utils import unique_slugify
+
 
 class MarketplaceCategory(models.Model):
     """Categories for marketplace listings."""
@@ -62,6 +64,7 @@ class MarketplaceListing(models.Model):
         on_delete=models.CASCADE,
     )
     title = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField()
     category = models.ForeignKey(
         MarketplaceCategory,
@@ -134,6 +137,11 @@ class MarketplaceListing(models.Model):
 
     def __str__(self):
         return f"{self.title} - ${self.price}"
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = unique_slugify(self.__class__, self.title, fallback="listing")
+        super().save(*args, **kwargs)
 
 
 class MarketplaceListingMedia(models.Model):

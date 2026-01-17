@@ -45,6 +45,12 @@ class RegisterUserSerializer(serializers.ModelSerializer):
         extra_kwargs = {"password": {"write_only": True}}
         read_only_fields = ["id"]
 
+    def validate_email(self, value):
+        """Normalize email to lowercase to ensure case-insensitive matching"""
+        if value:
+            value = value.strip().lower()
+        return value
+
     def create(self, validated_data):
         password = validated_data.pop("password")
         # Use the manager to create user (honors create_user logic)
@@ -60,6 +66,7 @@ class UserStatusSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id",
+            "slug",
             "username",
             "profile_image_url",
             "is_online",
@@ -68,6 +75,7 @@ class UserStatusSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "slug",
             "username",
             "profile_image_url",
             "is_online",
@@ -88,6 +96,7 @@ class UserSerializer(serializers.ModelSerializer):
         # Explicitly list common public fields instead of __all__ for safety
         fields = [
             "id",
+            "slug",
             "email",
             "first_name",
             "last_name",
@@ -100,7 +109,14 @@ class UserSerializer(serializers.ModelSerializer):
             "is_online",
             "last_seen",
         ]
-        read_only_fields = ["id", "email", "date_joined", "is_online", "last_seen"]
+        read_only_fields = [
+            "id",
+            "slug",
+            "email",
+            "date_joined",
+            "is_online",
+            "last_seen",
+        ]
 
     def validate_username(self, value):
         value = value.strip()

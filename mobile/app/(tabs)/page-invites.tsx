@@ -142,7 +142,7 @@ export default function PageInvitesScreen() {
           styles.inviteCard,
           { backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF', borderColor: colors.border },
         ]}
-        onPress={() => router.push(`/pages/${item.page.id}`)}
+        onPress={() => router.push(`/pages/${item.page.slug ?? item.page.id}`)}
         activeOpacity={0.7}
       >
         <Image source={pageAvatarSource} style={styles.pageAvatar} />
@@ -232,7 +232,7 @@ export default function PageInvitesScreen() {
           styles.inviteCard,
           { backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF', borderColor: colors.border },
         ]}
-        onPress={() => router.push(`/pages/${item.page.id}`)}
+        onPress={() => router.push(`/pages/${item.page.slug ?? item.page.id}`)}
         activeOpacity={0.7}
       >
         <Image source={pageAvatarSource} style={styles.pageAvatar} />
@@ -477,4 +477,3 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
 });
-

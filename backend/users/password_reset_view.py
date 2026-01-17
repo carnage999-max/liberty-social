@@ -20,6 +20,9 @@ class PasswordResetView(APIView):
             return Response(
                 {"detail": "Email required"}, status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Trim and normalize email
+        email = email.strip().lower()
         user = User.objects.filter(email=email).first()
         if not user:
             # don't reveal whether email exists

@@ -20,6 +20,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.conf import settings
 from .filters import PostFilterSet
+from .slug_utils import SlugOrIdLookupMixin
 from .models import (
     Post,
     Comment,
@@ -123,7 +124,7 @@ def _page_admin_entry(page: Page, user, roles=None):
     return qs.first()
 
 
-class PostViewSet(ModelViewSet):
+class PostViewSet(SlugOrIdLookupMixin, ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
     permission_classes = [IsAuthenticated]
@@ -424,7 +425,7 @@ class DeviceTokenViewSet(ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class PageViewSet(ModelViewSet):
+class PageViewSet(SlugOrIdLookupMixin, ModelViewSet):
     serializer_class = PageSerializer
     permission_classes = [IsAuthenticated]
 

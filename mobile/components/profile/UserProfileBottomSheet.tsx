@@ -971,7 +971,7 @@ export default function UserProfileBottomSheet({
                                         style={styles.seePostButton}
                                         onPress={() => {
                                           handleClose();
-                                          router.push(`/(tabs)/feed/${post.id}`);
+                                          router.push(`/(tabs)/feed/${post.slug ?? post.id}`);
                                         }}
                                       >
                                         <Text style={styles.seePostButtonText}>See post</Text>
@@ -1019,7 +1019,7 @@ export default function UserProfileBottomSheet({
                                               style={styles.seePostButton}
                                               onPress={() => {
                                                 handleClose();
-                                                router.push(`/(tabs)/feed/${post.id}`);
+                                                router.push(`/(tabs)/feed/${post.slug ?? post.id}`);
                                               }}
                                             >
                                               <Text style={styles.seePostButtonText}>See post</Text>

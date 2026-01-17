@@ -338,7 +338,7 @@ export default function PostDetailScreen() {
 
   const handleSharePost = useCallback(() => {
     if (!post) return;
-    const shareUrl = `https://mylibertysocial.com/app/feed/${post.id}`;
+    const shareUrl = `https://mylibertysocial.com/app/feed/${post.slug ?? post.id}`;
     const shareMessage = [
       post.content,
       shareUrl,
@@ -1873,7 +1873,7 @@ export default function PostDetailScreen() {
                   style={styles.postHeaderContent}
                   onPress={() => {
                     if (isPagePost && (post as any).page) {
-                      router.push(`/pages/${(post as any).page.id}`);
+                      router.push(`/pages/${(post as any).page.slug ?? (post as any).page.id}`);
                     } else {
                     setSelectedUserId(post.author.id);
                     setProfileBottomSheetVisible(true);

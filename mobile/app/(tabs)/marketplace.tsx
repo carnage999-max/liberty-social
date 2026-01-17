@@ -20,6 +20,7 @@ import { resolveRemoteUrl } from '../../utils/url';
 
 interface MarketplaceListing {
   id: number;
+  slug?: string;
   seller: {
     id: string;
     username: string;
@@ -204,7 +205,7 @@ export default function MarketplaceScreen() {
             borderColor: colors.border,
           },
         ]}
-        onPress={() => router.push(`/marketplace/${item.id}`)}
+        onPress={() => router.push(`/marketplace/${item.slug ?? item.id}`)}
         activeOpacity={0.7}
       >
         {/* Image */}
@@ -598,4 +599,3 @@ export default function MarketplaceScreen() {
     </View>
   );
 }
-

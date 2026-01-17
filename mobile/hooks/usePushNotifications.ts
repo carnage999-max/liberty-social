@@ -108,12 +108,14 @@ export function usePushNotifications() {
       // Clean up notification listeners (only if notifications are available)
       if (notificationsAvailable && Notifications) {
         if (notificationListener.current) {
-          Notifications.removeNotificationSubscription(notificationListener.current);
+          // Remove notification listener by calling .remove() on the subscription
+          notificationListener.current.remove?.();
           notificationListener.current = null;
         }
         
         if (responseListener.current) {
-          Notifications.removeNotificationSubscription(responseListener.current);
+          // Remove response listener by calling .remove() on the subscription
+          responseListener.current.remove?.();
           responseListener.current = null;
         }
       }

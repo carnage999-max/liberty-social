@@ -401,7 +401,7 @@ export default function CreateAnimalListingScreen() {
       const listing = await apiClient.post('/animals/listings/', listingData);
       
       showSuccess('Listing created successfully!');
-      router.push(`/animals/${listing.id}`);
+      router.push(`/animals/${listing.slug ?? listing.id}`);
     } catch (error: any) {
       console.error('Create listing error:', error);
       const errorMessage = error?.response?.data?.detail || 

@@ -5,6 +5,8 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.base_user import BaseUserManager
 from uuid import uuid4
 
+from main.slug_utils import unique_slugify
+
 # USER MODEL DEFINITION
 GENDER = (
     ("--Select Gender--", "--Select Gender--"),
@@ -46,6 +48,7 @@ class User(AbstractUser):
     username = models.CharField(
         _("Display Name"), unique=True, max_length=200, blank=True, null=True
     )
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     email = models.EmailField(
         _("email address"),
         unique=True,
@@ -101,6 +104,12 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return self.email
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = self.username or self.email or "user"
+            self.slug = unique_slugify(self.__class__, base, fallback="user")
+        super().save(*args, **kwargs)
 
 
 class AccountDeletionRequest(models.Model):

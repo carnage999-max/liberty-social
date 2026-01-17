@@ -43,7 +43,8 @@ def send_offer_received_email(offer):
         f"{offer.buyer.first_name} {offer.buyer.last_name}".strip()
         or offer.buyer.username
     )
-    listing_url = f"{settings.FRONTEND_URL}/app/marketplace/{offer.listing.id}"
+    listing_ref = offer.listing.slug or offer.listing.id
+    listing_url = f"{settings.FRONTEND_URL}/app/marketplace/{listing_ref}"
     offers_url = f"{settings.FRONTEND_URL}/app/marketplace/offers"
 
     context = {
@@ -72,7 +73,8 @@ def send_offer_accepted_email(offer):
         f"{offer.listing.seller.first_name} {offer.listing.seller.last_name}".strip()
         or offer.listing.seller.username
     )
-    listing_url = f"{settings.FRONTEND_URL}/app/marketplace/{offer.listing.id}"
+    listing_ref = offer.listing.slug or offer.listing.id
+    listing_url = f"{settings.FRONTEND_URL}/app/marketplace/{listing_ref}"
     offers_url = f"{settings.FRONTEND_URL}/app/marketplace/offers"
 
     context = {
@@ -99,7 +101,8 @@ def send_offer_declined_email(offer):
         f"{offer.listing.seller.first_name} {offer.listing.seller.last_name}".strip()
         or offer.listing.seller.username
     )
-    listing_url = f"{settings.FRONTEND_URL}/app/marketplace/{offer.listing.id}"
+    listing_ref = offer.listing.slug or offer.listing.id
+    listing_url = f"{settings.FRONTEND_URL}/app/marketplace/{listing_ref}"
     offers_url = f"{settings.FRONTEND_URL}/app/marketplace/offers"
 
     context = {
@@ -124,7 +127,8 @@ def send_page_invite_email(recipient, sender, page):
     """Send email to friend inviting them to follow a page."""
     accept_url = f"{settings.FRONTEND_URL}/app/invites/{page.id}/accept"
     decline_url = f"{settings.FRONTEND_URL}/app/invites/{page.id}/decline"
-    page_url = f"{settings.FRONTEND_URL}/app/pages/{page.id}"
+    page_ref = page.slug or page.id
+    page_url = f"{settings.FRONTEND_URL}/app/pages/{page_ref}"
 
     sender_name = sender.username or sender.email
     context = {

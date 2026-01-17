@@ -141,7 +141,7 @@ export default function NotificationsScreen() {
     if (verb === 'friend_request' || verb === 'sent_friend_request') {
       router.push('/(tabs)/friend-requests');
     } else if (verb === 'friend_request_accepted') {
-      router.push(`/(tabs)/users/${notification.actor.id}`);
+      router.push(`/(tabs)/users/${notification.actor.slug ?? notification.actor.id}`);
     } else if (verb === 'commented' || verb === 'reacted' || verb === 'comment_replied') {
       if (notification.target_post_id) {
         router.push(`/(tabs)/feed/${notification.target_post_id}`);

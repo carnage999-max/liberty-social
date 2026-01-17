@@ -217,7 +217,7 @@ export default function ActiveFriends({
                   if (onUserClick) {
                     onUserClick(friend);
                   } else {
-                    router.push(`/(tabs)/users/${friend.id}`);
+                    router.push(`/(tabs)/users/${friend.slug ?? friend.id}`);
                   }
                 }}
                 activeOpacity={0.7}
@@ -406,4 +406,3 @@ const styles = StyleSheet.create({
       borderRadius: 5,
     },
   });
-

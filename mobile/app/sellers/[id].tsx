@@ -31,6 +31,7 @@ interface SellerProfile {
 
 interface Listing {
   id: number;
+  slug?: string;
   title: string;
   price: string;
   condition: string;
@@ -140,7 +141,7 @@ export default function SellerDetailScreen() {
     return (
       <TouchableOpacity
         style={[styles.listingCard, { borderColor: colors.border }]}
-        onPress={() => router.push(`/marketplace/${item.id}`)}
+        onPress={() => router.push(`/marketplace/${item.slug ?? item.id}`)}
         activeOpacity={0.7}
       >
         {mainImage ? (
@@ -359,4 +360,3 @@ export default function SellerDetailScreen() {
     </View>
   );
 }
-

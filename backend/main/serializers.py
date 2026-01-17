@@ -133,6 +133,7 @@ class PageSummarySerializer(serializers.ModelSerializer):
         model = Page
         fields = [
             "id",
+            "slug",
             "name",
             "category",
             "profile_image_url",
@@ -180,6 +181,7 @@ class PageSerializer(PageSummarySerializer):
         ]
         read_only_fields = [
             "id",
+            "slug",
             "created_by",
             "created_at",
             "updated_at",
@@ -429,6 +431,7 @@ class PostSerializer(serializers.ModelSerializer):
         model = Post
         fields = [
             "id",
+            "slug",
             "author",
             "author_type",
             "page",
@@ -446,6 +449,7 @@ class PostSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "slug",
             "author",
             "author_type",
             "page",
@@ -602,18 +606,27 @@ class NotificationSerializer(serializers.ModelSerializer):
             if obj.content_type and obj.object_id:
                 # If target is a Post, link to the post
                 if obj.content_type.model == "post":
-                    return f"/app/feed/{obj.object_id}"
+                    post = obj.target if hasattr(obj, "target") else None
+                    slug = getattr(post, "slug", None)
+                    if not slug:
+                        slug = (
+                            Post.objects.filter(id=obj.object_id)
+                            .values_list("slug", flat=True)
+                            .first()
+                        )
+                    return f"/app/feed/{slug or obj.object_id}"
                 # If target is a Comment, link to the post with the comment
                 elif obj.content_type.model == "comment":
                     comment = obj.target
                     if comment and hasattr(comment, "post"):
-                        return f"/app/feed/{comment.post.id}"
+                        post_slug = getattr(comment.post, "slug", None)
+                        return f"/app/feed/{post_slug or comment.post.id}"
                 # If target is a FriendRequest, link to friend requests
                 elif obj.content_type.model == "friendrequest":
                     if obj.verb == "friend_request":
                         return "/app/friend-requests"
                     elif obj.verb == "friend_request_accepted":
-                        return f"/app/users/{obj.actor.id}"
+                        return f"/app/users/{getattr(obj.actor, 'slug', None) or obj.actor.id}"
                 # If target is a Conversation, link to the conversation
                 elif obj.content_type.model == "conversation":
                     return f"/app/messages/{obj.object_id}"
@@ -634,7 +647,8 @@ class NotificationSerializer(serializers.ModelSerializer):
                             id=obj.object_id
                         )
                         if offer and offer.listing:
-                            return f"/app/marketplace/{offer.listing.id}"
+                            listing_slug = getattr(offer.listing, "slug", None)
+                            return f"/app/marketplace/{listing_slug or offer.listing.id}"
                     except:
                         pass
                 # If target is a PageInvite, link to page invites or the page
@@ -644,7 +658,12 @@ class NotificationSerializer(serializers.ModelSerializer):
                     else:
                         try:
                             # Try to get page from object_id (might be page ID)
-                            return f"/app/pages/{obj.object_id}"
+                            page_slug = (
+                                Page.objects.filter(id=obj.object_id)
+                                .values_list("slug", flat=True)
+                                .first()
+                            )
+                            return f"/app/pages/{page_slug or obj.object_id}"
                         except:
                             return "/app/invites"
         except Exception:
@@ -672,7 +691,8 @@ class NotificationSerializer(serializers.ModelSerializer):
                     from .marketplace_models import MarketplaceOffer
 
                     offer = MarketplaceOffer.objects.get(id=obj.object_id)
-                    return f"/app/marketplace/{offer.listing.id}"
+                    listing_slug = getattr(offer.listing, "slug", None)
+                    return f"/app/marketplace/{listing_slug or offer.listing.id}"
                 except:
                     pass
 
@@ -1012,6 +1032,7 @@ class MarketplaceListingSerializer(serializers.ModelSerializer):
         ).MarketplaceListing
         fields = [
             "id",
+            "slug",
             "seller",
             "title",
             "description",
@@ -1040,6 +1061,7 @@ class MarketplaceListingSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "slug",
             "seller",
             "views_count",
             "saved_count",

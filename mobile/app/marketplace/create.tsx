@@ -257,7 +257,7 @@ export default function CreateListingScreen() {
       }
       
       showSuccess('Listing created successfully!');
-      router.push(`/marketplace/${listing.id}`);
+      router.push(`/marketplace/${listing.slug ?? listing.id}`);
     } catch (error: any) {
       console.error('Create listing error:', error);
       const errorMessage = error?.response?.data?.detail || 

@@ -64,7 +64,7 @@ export default function AppNavbar({
 
   const myProfileHref = useMemo(() => {
     if (!user?.id) return undefined;
-    return `/(tabs)/users/${user.id}`;
+    return `/(tabs)/users/${user.slug ?? user.id}`;
   }, [user?.id]);
 
   const handleNavigate = (href: string) => {

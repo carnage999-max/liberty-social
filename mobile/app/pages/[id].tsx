@@ -46,6 +46,7 @@ type TabType = 'overview' | 'about' | 'contact' | 'photos';
 
 interface BusinessPage {
   id: number;
+  slug?: string;
   name: string;
   description?: string;
   category?: string;
@@ -265,7 +266,7 @@ export default function PageDetailScreen() {
   const handleShare = async () => {
     if (!page) return;
     try {
-      const pageUrl = `https://mylibertysocial.com/app/pages/${page.id}`;
+      const pageUrl = `https://mylibertysocial.com/app/pages/${page.slug ?? page.id}`;
       await Share.share({
         message: `Check out ${page.name} on Liberty Social: ${pageUrl}`,
         title: page.name,
@@ -838,7 +839,7 @@ export default function PageDetailScreen() {
 
   const handleSharePost = async (post: Post) => {
     try {
-      const shareUrl = `https://mylibertysocial.com/app/feed/${post.id}`;
+      const shareUrl = `https://mylibertysocial.com/app/feed/${post.slug ?? post.id}`;
       const shareMessage = [post.content, shareUrl]
         .filter(Boolean)
         .join('\n\n');
@@ -931,7 +932,7 @@ export default function PageDetailScreen() {
             style={styles.postHeader}
             onPress={() => {
               if (isPagePost && (item as any).page) {
-                router.push(`/pages/${(item as any).page.id}`);
+                router.push(`/pages/${(item as any).page.slug ?? (item as any).page.id}`);
               } else {
                 setSelectedUserId(item.author.id);
                 setProfileBottomSheetVisible(true);
@@ -1035,7 +1036,7 @@ export default function PageDetailScreen() {
 
           <TouchableOpacity
             style={styles.postActionButton}
-            onPress={() => router.push(`/pages/${id}/posts/${item.id}`)}
+            onPress={() => router.push(`/pages/${id}/posts/${item.slug ?? item.id}`)}
           >
             <Ionicons name="chatbubble-outline" size={20} color={colors.textSecondary} />
             <Text style={[styles.actionText, { color: colors.textSecondary }]}>{commentCount}</Text>
@@ -2061,7 +2062,9 @@ export default function PageDetailScreen() {
                 label: 'View post',
                 onPress: () => {
                   setGalleryVisible(false);
-                  router.push(`/pages/${id}/posts/${galleryPostId}`);
+                  const galleryPostRef =
+                    posts.find((post) => post.id === galleryPostId)?.slug ?? galleryPostId;
+                  router.push(`/pages/${id}/posts/${galleryPostRef}`);
                   setGalleryPostId(null);
                   setGalleryPhotoToPostMap({});
                 },

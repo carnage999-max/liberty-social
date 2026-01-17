@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericRelation
 
+from .slug_utils import normalize_post_title, unique_slugify
 
 class Post(models.Model):
     VISIBILITY = (
@@ -17,6 +18,7 @@ class Post(models.Model):
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="posts"
     )
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     content = models.TextField()
     media_url = models.URLField(blank=True, null=True)
     edited_at = models.DateTimeField(null=True, blank=True)
@@ -44,6 +46,12 @@ class Post(models.Model):
             raise ValueError("Page-authored posts must reference a page.")
         if self.author_type == "user" and self.page_id:
             raise ValueError("User-authored posts cannot reference a page.")
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            source = normalize_post_title(self.content)
+            self.slug = unique_slugify(self.__class__, source, fallback="post")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Post {self.id} ({self.author_type})"
@@ -416,6 +424,7 @@ class Page(models.Model):
     )
 
     name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField(blank=True)
     category = models.CharField(
         max_length=50, choices=CATEGORY_CHOICES, default="other"
@@ -437,6 +446,11 @@ class Page(models.Model):
 
     class Meta:
         ordering = ["name"]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = unique_slugify(self.__class__, self.name, fallback="page")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

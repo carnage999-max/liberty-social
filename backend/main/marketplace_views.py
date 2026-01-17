@@ -32,6 +32,7 @@ from .emails import (
     send_offer_accepted_email,
     send_offer_declined_email,
 )
+from .slug_utils import SlugOrIdLookupMixin
 import logging
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ class MarketplaceCategoryViewSet(viewsets.ReadOnlyModelViewSet):
     lookup_field = "slug"
 
 
-class MarketplaceListingViewSet(viewsets.ModelViewSet):
+class MarketplaceListingViewSet(SlugOrIdLookupMixin, viewsets.ModelViewSet):
     """View and manage marketplace listings."""
 
     serializer_class = MarketplaceListingSerializer

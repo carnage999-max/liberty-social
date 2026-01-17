@@ -180,7 +180,9 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
       switch (result.type) {
         case 'user':
           // Open user profile bottom sheet
-          const userIdMatch = result.href.match(/\/users\/(\d+)/) || result.href.match(/\/app\/users\/(\d+)/);
+          const userIdMatch =
+            result.href.match(/\/users\/([^/?#]+)/) ||
+            result.href.match(/\/app\/users\/([^/?#]+)/);
           const userId = userIdMatch ? userIdMatch[1] : id.toString();
           setSelectedUserId(userId);
           setProfileBottomSheetVisible(true);
@@ -189,41 +191,46 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
           
         case 'post':
           // Extract post ID from href or use result.id
-          const postIdMatch = result.href.match(/\/feed\/(\d+)/) || 
-                             result.href.match(/\/posts\/(\d+)/) ||
-                             result.href.match(/\/app\/feed\/(\d+)/);
+          const postIdMatch =
+            result.href.match(/\/feed\/([^/?#]+)/) ||
+            result.href.match(/\/posts\/([^/?#]+)/) ||
+            result.href.match(/\/app\/feed\/([^/?#]+)/);
           const postId = postIdMatch ? postIdMatch[1] : id.toString();
           router.push(`/(tabs)/feed/${postId}` as any);
           break;
           
         case 'page':
           // Extract page ID from href or use result.id
-          const pageIdMatch = result.href.match(/\/pages\/(\d+)/) || 
-                             result.href.match(/\/app\/pages\/(\d+)/);
+          const pageIdMatch =
+            result.href.match(/\/pages\/([^/?#]+)/) ||
+            result.href.match(/\/app\/pages\/([^/?#]+)/);
           const pageId = pageIdMatch ? pageIdMatch[1] : id.toString();
           router.push(`/pages/${pageId}` as any);
           break;
           
         case 'marketplace':
           // Extract marketplace ID from href or use result.id
-          const marketplaceIdMatch = result.href.match(/\/marketplace\/(\d+)/) || 
-                                    result.href.match(/\/app\/marketplace\/(\d+)/);
+          const marketplaceIdMatch =
+            result.href.match(/\/marketplace\/([^/?#]+)/) ||
+            result.href.match(/\/app\/marketplace\/([^/?#]+)/);
           const marketplaceId = marketplaceIdMatch ? marketplaceIdMatch[1] : id.toString();
           router.push(`/marketplace/${marketplaceId}` as any);
           break;
           
         case 'animal':
           // Extract animal ID from href or use result.id
-          const animalIdMatch = result.href.match(/\/animals\/(\d+)/) || 
-                               result.href.match(/\/app\/animals\/(\d+)/);
+          const animalIdMatch =
+            result.href.match(/\/animals\/([^/?#]+)/) ||
+            result.href.match(/\/app\/animals\/([^/?#]+)/);
           const animalId = animalIdMatch ? animalIdMatch[1] : id.toString();
           router.push(`/animals/${animalId}` as any);
           break;
           
         case 'breeder':
           // Extract breeder ID from href or use result.id
-          const breederIdMatch = result.href.match(/\/breeders\/(\d+)/) || 
-                                result.href.match(/\/app\/breeders\/(\d+)/);
+          const breederIdMatch =
+            result.href.match(/\/breeders\/([^/?#]+)/) ||
+            result.href.match(/\/app\/breeders\/([^/?#]+)/);
           const breederId = breederIdMatch ? breederIdMatch[1] : id.toString();
           // Route to breeder profile (assuming it follows similar pattern to users)
           router.push(`/breeders/${breederId}` as any);
@@ -241,7 +248,7 @@ export default function SearchModal({ visible, onClose }: SearchModalProps) {
           
           // If still contains /app/, try to extract ID and route by type
           if (mobileRoute.includes('/app/')) {
-            const fallbackIdMatch = result.href.match(/\/(\d+)\/?$/);
+            const fallbackIdMatch = result.href.match(/\/([^/?#]+)\/?$/);
             if (fallbackIdMatch) {
               const fallbackId = fallbackIdMatch[1];
               switch (result.type) {
@@ -665,4 +672,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
-

@@ -339,7 +339,7 @@ export default function PagePostDetailScreen() {
 
   const handleSharePost = useCallback(() => {
     if (!post) return;
-    const shareUrl = `https://mylibertysocial.com/app/feed/${post.id}`;
+    const shareUrl = `https://mylibertysocial.com/app/feed/${post.slug ?? post.id}`;
     const shareMessage = [
       post.content,
       shareUrl,
@@ -794,7 +794,7 @@ export default function PagePostDetailScreen() {
 
   const handlePostMenuDeleted = useCallback((postId: number) => {
     setPost((prev) => (prev && prev.id === postId ? null : prev));
-    router.push(`/pages/${pageId}`);
+    router.push(`/pages/${page?.slug ?? pageId}`);
   }, [router, pageId]);
 
   const handleToggleReplies = useCallback((commentId: number) => {
@@ -1812,7 +1812,7 @@ export default function PagePostDetailScreen() {
       <View style={styles.container}>
         <AppNavbar 
         showBackButton={true} 
-        onBackPress={() => router.push(`/pages/${pageId}`)}
+        onBackPress={() => router.push(`/pages/${page?.slug ?? pageId}`)}
         showLogo={false} 
         showProfileImage={false} 
       />
@@ -1867,7 +1867,7 @@ export default function PagePostDetailScreen() {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <AppNavbar 
         showBackButton={true} 
-        onBackPress={() => router.push(`/pages/${pageId}`)}
+        onBackPress={() => router.push(`/pages/${page?.slug ?? pageId}`)}
         showLogo={false} 
         showProfileImage={false} 
       />
@@ -1904,7 +1904,7 @@ export default function PagePostDetailScreen() {
                   style={styles.postHeaderContent}
                   onPress={() => {
                     if (isPagePost && (post as any).page) {
-                      router.push(`/pages/${(post as any).page.id}`);
+                      router.push(`/pages/${(post as any).page.slug ?? (post as any).page.id}`);
                     } else {
                       setSelectedUserId(post.author.id);
                       setProfileBottomSheetVisible(true);

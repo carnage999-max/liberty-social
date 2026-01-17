@@ -12,6 +12,8 @@ from django.contrib.contenttypes.fields import GenericRelation
 from django.core.exceptions import ValidationError
 import json
 
+from .slug_utils import unique_slugify
+
 
 class AnimalCategory(models.Model):
     """Animal marketplace categories with legality rules by state."""
@@ -278,6 +280,7 @@ class AnimalListing(models.Model):
         related_name="listings",
     )
     title = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField()
     listing_type = models.CharField(
         max_length=20,
@@ -398,6 +401,11 @@ class AnimalListing(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.seller.username}"
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = unique_slugify(self.__class__, self.title, fallback="listing")
+        super().save(*args, **kwargs)
 
     def clean(self):
         """Validate listing rules."""
@@ -652,6 +660,7 @@ class BreederDirectory(models.Model):
 
     # Profile info
     breeder_name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
     bio = models.TextField(blank=True)
     website = models.URLField(blank=True, null=True)
 
@@ -690,3 +699,8 @@ class BreederDirectory(models.Model):
 
     def __str__(self):
         return f"Breeder: {self.breeder_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = unique_slugify(self.__class__, self.breeder_name, fallback="breeder")
+        super().save(*args, **kwargs)

@@ -23,6 +23,7 @@ export interface RegisterRequest {
 
 export interface User {
   id: string;
+  slug?: string | null;
   email: string;
   first_name: string;
   last_name: string;
@@ -71,6 +72,7 @@ export interface Post {
   authorAvatar: ImageSourcePropType | undefined;
   mediaUrls: any;
   id: number;
+  slug?: string;
   author: User;
   content: string;
   media?: string[] | null;
@@ -83,6 +85,7 @@ export interface Post {
   bookmark_id?: number | null;
   page?: {
     id: number;
+    slug?: string;
     name: string;
     profile_image_url?: string;
     category?: string;
@@ -154,6 +157,7 @@ export interface UserProfileRelationship {
 export interface UserProfileOverview {
   user: {
     id: string;
+    slug?: string | null;
     username?: string | null;
     first_name?: string | null;
     last_name?: string | null;

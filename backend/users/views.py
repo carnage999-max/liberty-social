@@ -38,6 +38,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from main.s3 import upload_fileobj_to_s3
 from main.models import Post, PostMedia
 from main.serializers import PostSerializer
+from main.slug_utils import SlugOrIdLookupMixin
 
 
 class LoginUserview(ModelViewSet):
@@ -45,10 +46,10 @@ class LoginUserview(ModelViewSet):
     http_method_names = ["post"]
 
     def create(self, request):
-        username = request.data.get("username")
+        email = request.data.get("username")  # Frontend still sends as 'username' field
         password = request.data.get("password")
         user = User.objects.filter(
-            Q(email=username) | Q(phone_number=username) | Q(username=username)
+            email=email
         ).first()
         
         # Get device info for logging
@@ -225,7 +226,7 @@ class RegisterUserViewSet(ModelViewSet):
         )
 
 
-class UserView(ModelViewSet):
+class UserView(SlugOrIdLookupMixin, ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = UserSerializer
     queryset = User.objects.all()
@@ -282,14 +283,18 @@ class UserView(ModelViewSet):
 class UserOverviewView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, user_id):
+    def get(self, request, user_id=None, user_ref=None):
         viewer = request.user
+        lookup = user_ref or user_id
         try:
-            target = User.objects.select_related("user_settings").get(id=user_id)
+            target = User.objects.select_related("user_settings").get(slug=lookup)
         except User.DoesNotExist:
-            return Response(
-                {"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            try:
+                target = User.objects.select_related("user_settings").get(id=lookup)
+            except User.DoesNotExist:
+                return Response(
+                    {"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND
+                )
 
         is_self = viewer == target
 
@@ -431,6 +436,7 @@ class UserOverviewView(APIView):
 
         user_data = {
             "id": str(target.id),
+            "slug": target.slug,
             "username": target.username,
             "first_name": target.first_name,
             "last_name": target.last_name,

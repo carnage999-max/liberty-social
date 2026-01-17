@@ -490,7 +490,7 @@ export default function ProfileScreen() {
           <TouchableOpacity
             key={post.id}
             style={styles.postItem}
-            onPress={() => router.push(`/(tabs)/feed/${post.id}`)}
+            onPress={() => router.push(`/(tabs)/feed/${post.slug ?? post.id}`)}
           >
             {post.media && post.media.length > 0 ? (
               <TouchableOpacity

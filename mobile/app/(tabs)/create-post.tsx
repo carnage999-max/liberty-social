@@ -153,7 +153,7 @@ export default function CreatePostScreen() {
         {
           label: 'View post',
           onPress: () => {
-            router.push(`/(tabs)/feed/${createdPost.id}`);
+            router.push(`/(tabs)/feed/${createdPost.slug ?? createdPost.id}`);
           },
         }
       );

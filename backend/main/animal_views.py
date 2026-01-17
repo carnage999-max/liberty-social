@@ -38,6 +38,7 @@ from .animal_serializers import (
     BreederDirectorySerializer,
     AdminActionLogSerializer,
 )
+from .slug_utils import SlugOrIdLookupMixin
 from .emails import send_templated_email
 from django.core.mail import send_mail
 
@@ -338,7 +339,7 @@ class AnimalSellerVerificationViewSet(viewsets.ModelViewSet):
         return Response({"message": "Verification rejected.", "status": verification.status, "reason": reason})
 
 
-class AnimalListingViewSet(viewsets.ModelViewSet):
+class AnimalListingViewSet(SlugOrIdLookupMixin, viewsets.ModelViewSet):
     """ViewSet for animal listings."""
 
     # Allow anonymous users to view listings (list/retrieve), but require
@@ -624,7 +625,7 @@ class SellerReviewViewSet(viewsets.ModelViewSet):
             listing.seller_verification.save(update_fields=["average_rating"])
 
 
-class BreederDirectoryViewSet(viewsets.ModelViewSet):
+class BreederDirectoryViewSet(SlugOrIdLookupMixin, viewsets.ModelViewSet):
     """ViewSet for premium breeder directory."""
 
     serializer_class = BreederDirectorySerializer
