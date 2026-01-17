@@ -407,7 +407,7 @@ function LoginForm({
     <form onSubmit={submit} className="space-y-4">
       <Field
         id="login-identifier"
-        label="Username / Email / Phone"
+        label="Email"
         error={touched.identifier ? errors.identifier : ""}
       >
         <input
@@ -418,7 +418,7 @@ function LoginForm({
               ? "border-red-400"
               : "border-(--color-silver-light)"
           }`}
-          placeholder="alice / alice@example.com / +123456789"
+          placeholder="alice@example.com"
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}
           onBlur={() => blurValidate("identifier")}

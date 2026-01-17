@@ -12,9 +12,11 @@ import ShareModal from "@/components/modals/ShareModal";
 import ImageGallery from "@/components/ImageGallery";
 import FeedFilterTabs from "@/components/FeedFilterTabs";
 import FeedBackgroundModal from "@/components/modals/FeedBackgroundModal";
+import LinkifiedPostContent from "@/components/LinkifiedPostContent";
 import { useFeedBackground } from "@/hooks/useFeedBackground";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 
@@ -120,6 +122,7 @@ function summariseReactions(reactions: Reaction[]): ReactionSummary {
 export default function FeedPage() {
   const { accessToken, user } = useAuth();
   const toast = useToast();
+  const router = useRouter();
   const { theme: feedBackgroundTheme, changeTheme, mounted } = useFeedBackground();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [pagination, setPagination] = useState<
@@ -308,13 +311,40 @@ export default function FeedPage() {
     }));
   }, []);
 
+  const handlePostNavigate = useCallback(
+    (post: Post) => {
+      router.push(`/app/feed/${post.slug ?? post.id}`);
+    },
+    [router]
+  );
+
+  const handlePostContentClick = useCallback(
+    (event: React.MouseEvent<HTMLElement>, post: Post) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("a")) return;
+      handlePostNavigate(post);
+    },
+    [handlePostNavigate]
+  );
+
+  const handlePostContentKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLElement>, post: Post) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        handlePostNavigate(post);
+      }
+    },
+    [handlePostNavigate]
+  );
+
   const openGallery = useCallback((postId: number, index: number) => {
     setGallery({ postId, index });
   }, []);
 
   const handleCommentsNavigate = useCallback(
-    (postId: number) => {
-      const url = new URL(`/app/feed/${postId}`, window.location.origin);
+    (post: Post) => {
+      const postRef = post.slug ?? post.id;
+      const url = new URL(`/app/feed/${postRef}`, window.location.origin);
       url.hash = "comments";
       window.location.assign(url.toString());
     },
@@ -577,8 +607,8 @@ export default function FeedPage() {
             : post.author.profile_image_url;
           
           const profileHref = isPagePost
-            ? `/app/pages/${post.page!.id}`
-            : (post.author?.id && post.author.id !== "undefined" ? `/app/users/${post.author.id}` : null);
+            ? `/app/pages/${post.page!.slug ?? post.page!.id}`
+            : (post.author?.id && post.author.id !== "undefined" ? `/app/users/${post.author.slug ?? post.author.id}` : null);
           const currentUserReaction =
             user && post.reactions
               ? post.reactions.find((reaction) => reaction.user?.id === user.id)
@@ -652,11 +682,19 @@ export default function FeedPage() {
                 />
               </header>
 
-              <Link href={`/app/feed/${post.id}`}>
-                <p className="whitespace-pre-line text-sm text-gray-800 sm:text-base">
-                  {post.content}
-                </p>
-              </Link>
+              <div
+                role="link"
+                tabIndex={0}
+                aria-label="Open post"
+                className="cursor-pointer"
+                onClick={(event) => handlePostContentClick(event, post)}
+                onKeyDown={(event) => handlePostContentKeyDown(event, post)}
+              >
+                <LinkifiedPostContent
+                  content={post.content}
+                  className="whitespace-pre-line text-sm text-gray-800 sm:text-base break-words"
+                />
+              </div>
 
               {mediaUrls.length > 0 && (
                 <div
@@ -758,7 +796,7 @@ export default function FeedPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleCommentsNavigate(post.id)}
+                  onClick={() => handleCommentsNavigate(post)}
                   className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-sm font-medium text-gray-600 transition hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]"
                   aria-label="View comments"
                 >
@@ -940,7 +978,7 @@ export default function FeedPage() {
                         className="rounded-lg border border-gray-100 bg-white/70 p-3 shadow-sm"
                       >
                         <Link
-                          href={`/app/pages/${page.id}`}
+                          href={`/app/pages/${page.slug ?? page.id}`}
                           className="flex items-center gap-2 hover:opacity-80 transition"
                         >
                           {page.profile_image_url && (
@@ -1017,7 +1055,7 @@ export default function FeedPage() {
           setShareModalOpen(false);
           setShareModalPost(null);
         }}
-        shareUrl={shareModalPost ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/feed/${shareModalPost.id}` : ''}
+        shareUrl={shareModalPost ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/feed/${shareModalPost.slug ?? shareModalPost.id}` : ''}
         title="Share Post"
         type="post"
       />
@@ -1077,4 +1115,3 @@ function AuthorMeta({
     </div>
   );
 }
-

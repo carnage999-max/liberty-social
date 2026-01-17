@@ -278,7 +278,7 @@ export default function ListingDetailPage() {
               </div>
             </div>
             <Link
-              href={`/app/users/${listing.seller.id}`}
+              href={`/app/users/${listing.seller.slug ?? listing.seller.id}`}
               className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 text-center transition hover:bg-gray-100"
             >
               View Profile
@@ -310,7 +310,7 @@ export default function ListingDetailPage() {
             {isOwner && (
               <>
                 <Link
-                  href={`/app/marketplace/${listing.id}/edit`}
+                  href={`/app/marketplace/${listing.slug ?? listing.id}/edit`}
                   className="block rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-400 text-center transition hover:bg-gray-100"
                 >
                   Edit Listing

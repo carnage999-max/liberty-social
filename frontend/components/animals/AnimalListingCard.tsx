@@ -6,6 +6,7 @@ import { useState } from "react";
 
 interface AnimalListingCardProps {
   id: string;
+  slug?: string;
   title: string;
   breed: string;
   category: {
@@ -33,6 +34,7 @@ interface AnimalListingCardProps {
 
 export default function AnimalListingCard({
   id,
+  slug,
   title,
   breed,
   category,
@@ -76,7 +78,7 @@ export default function AnimalListingCard({
   };
 
   return (
-    <Link href={`/app/animals/${id}`}>
+    <Link href={`/app/animals/${slug ?? id}`}>
       <div className="group rounded-2xl border border-gray-200 bg-white/90 shadow-sm transition hover:shadow-lg overflow-hidden h-full flex flex-col">
         {/* Image Container */}
         {imageUrl ? (

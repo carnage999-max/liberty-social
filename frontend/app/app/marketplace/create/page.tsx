@@ -194,7 +194,7 @@ export default function CreateListingPage() {
       }
 
       toast.show("Listing created successfully!", "success");
-      router.push(`/app/marketplace/${listing.id}`);
+      router.push(`/app/marketplace/${listing.slug ?? listing.id}`);
     } catch (error: any) {
       console.error("Failed to create listing:", error);
       console.error("Error details:", {

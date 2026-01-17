@@ -32,7 +32,7 @@ export default function ListingCard({ listing, onImageClick }: ListingCardProps)
   const categoryName = typeof listing.category === "object" ? listing.category.name : "Category";
 
   return (
-    <Link href={`/app/marketplace/${listing.id}`}>
+    <Link href={`/app/marketplace/${listing.slug ?? listing.id}`}>
       <div className="group rounded-2xl border border-gray-200 bg-white/90 shadow-sm transition hover:shadow-lg overflow-hidden">
         {/* Image Container */}
         {mainImage ? (

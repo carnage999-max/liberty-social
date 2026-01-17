@@ -147,7 +147,7 @@ export default function FriendChangesPage() {
           )}
           {friend.id && friend.id !== "undefined" ? (
             <Link
-              href={`/app/users/${friend.id}`}
+              href={`/app/users/${friend.slug ?? friend.id}`}
               className="rounded-lg border border-(--color-deep-navy) px-3 py-1.5 text-xs font-semibold text-(--color-deep-navy) transition hover:bg-(--color-deep-navy) hover:text-white"
             >
               View profile

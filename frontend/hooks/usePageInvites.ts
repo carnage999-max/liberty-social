@@ -10,6 +10,7 @@ interface PageInvite {
   page: {
     id: number;
     name: string;
+    slug?: string;
   };
   status: string;
 }

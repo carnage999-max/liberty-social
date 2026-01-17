@@ -13,6 +13,7 @@ import { ReactionsModal } from "@/components/feed/ReactionsModal";
 import ShareModal from "@/components/modals/ShareModal";
 import { EmojiPickerPopper } from "@/components/EmojiPickerPopper";
 import ImageGallery from "@/components/ImageGallery";
+import LinkifiedPostContent from "@/components/LinkifiedPostContent";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -1061,9 +1062,9 @@ export default function PostDetailPage() {
                         ? post.page!.profile_image_url
                         : post.author.profile_image_url;
                       const profileHref = isPagePost
-                        ? `/app/pages/${post.page!.id}`
+                        ? `/app/pages/${post.page!.slug ?? post.page!.id}`
                         : post.author?.id && post.author.id !== "undefined"
-                        ? `/app/users/${post.author.id}`
+                        ? `/app/users/${post.author.slug ?? post.author.id}`
                         : null;
 
                       return profileHref ? (
@@ -1151,9 +1152,10 @@ export default function PostDetailPage() {
                   />
                 </header>
 
-                <p className="whitespace-pre-line text-sm text-gray-800 sm:text-base">
-                  {post.content}
-                </p>
+                <LinkifiedPostContent
+                  content={post.content}
+                  className="whitespace-pre-line text-sm text-gray-800 sm:text-base break-words"
+                />
 
                 {postMedia.length > 0 && (
                   <div className={`mt-4 grid gap-2 sm:gap-3 ${postMediaGridClass}`}>
@@ -1423,7 +1425,8 @@ export default function PostDetailPage() {
                         const showContent = comment.content && !(attachments.length > 0 && comment.content === "(media attachment)");
                         const rawCommentAuthorId = comment.author?.id;
                         const hasAuthorId = Boolean(rawCommentAuthorId) && rawCommentAuthorId !== "undefined";
-                        const commentProfileHref = hasAuthorId ? `/app/users/${rawCommentAuthorId}` : null;
+                        const commentProfileRef = comment.author?.slug ?? rawCommentAuthorId;
+                        const commentProfileHref = hasAuthorId ? `/app/users/${commentProfileRef}` : null;
                         const isCommentOwner = user && hasAuthorId ? String(rawCommentAuthorId) === String(user.id) : false;
                         const commentSummary = normaliseReactionSummary(comment.reaction_summary, comment.reactions);
                         const commentLikeCount = commentSummary.total;
@@ -1708,7 +1711,8 @@ export default function PostDetailPage() {
                                   const showReplyContent = reply.content && !(replyAttachments.length > 0 && reply.content === "(media attachment)");
                                   const replyAuthorId = reply.author?.id;
                                   const hasReplyAuthorId = Boolean(replyAuthorId) && replyAuthorId !== "undefined";
-                                  const replyProfileHref = hasReplyAuthorId ? `/app/users/${replyAuthorId}` : null;
+                                  const replyProfileRef = reply.author?.slug ?? replyAuthorId;
+                                  const replyProfileHref = hasReplyAuthorId ? `/app/users/${replyProfileRef}` : null;
                                   const isReplyOwner = user && hasReplyAuthorId ? String(replyAuthorId) === String(user.id) : false;
                                   const replySummary = normaliseReactionSummary(reply.reaction_summary, reply.reactions);
                                   const replyLikeCount = replySummary.total;
@@ -2107,7 +2111,7 @@ export default function PostDetailPage() {
       <ShareModal
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
-        shareUrl={post ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/feed/${post.id}` : ''}
+        shareUrl={post ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/feed/${post.slug ?? post.id}` : ''}
         title="Share Post"
         type="post"
       />
@@ -2120,4 +2124,3 @@ export default function PostDetailPage() {
     </RequireAuth>
   );
 }
-

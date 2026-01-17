@@ -1322,7 +1322,7 @@ export default function ConversationDetailPage() {
                         <button
                           onClick={() => {
                             setHeaderMenuOpen(false);
-                            router.push(`/app/users/${otherParticipant.user.id}`);
+                            router.push(`/app/users/${otherParticipant.user.slug ?? otherParticipant.user.id}`);
                           }}
                           className="w-full px-4 py-3 text-left text-sm text-gray-200 hover:bg-gray-700 rounded-t-lg flex items-center gap-3"
                         >
@@ -1555,7 +1555,7 @@ export default function ConversationDetailPage() {
                     {!isOwn && (
                       <button
                         type="button"
-                        onClick={() => router.push(`/app/users/${message.sender.id}`)}
+                        onClick={() => router.push(`/app/users/${message.sender.slug ?? message.sender.id}`)}
                         className="relative w-8 h-8 rounded-full overflow-hidden bg-gray-700 shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
                         title={`View ${message.sender.first_name || message.sender.username || "User"}'s profile`}
                       >

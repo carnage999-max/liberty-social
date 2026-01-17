@@ -495,7 +495,7 @@ export default function MyListingsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                     {/* Image */}
                     <Link
-                      href={`/app/marketplace/${listing.id}`}
+                      href={`/app/marketplace/${listing.slug ?? listing.id}`}
                       className="sm:col-span-1 relative h-32 sm:h-40 rounded-lg overflow-hidden bg-gray-100 hover:opacity-90 transition shrink-0"
                     >
                       {mainImage ? (
@@ -528,7 +528,7 @@ export default function MyListingsPage() {
                     <div className="sm:col-span-2 flex flex-col justify-between min-h-32">
                       <div>
                         <Link
-                          href={`/app/marketplace/${listing.id}`}
+                          href={`/app/marketplace/${listing.slug ?? listing.id}`}
                           className="font-semibold text-gray-900 hover:text-blue-600 transition line-clamp-2"
                         >
                           {listing.title}
@@ -566,13 +566,13 @@ export default function MyListingsPage() {
                     {/* Actions */}
                     <div className="sm:col-span-1 flex flex-col gap-2">
                       <Link
-                        href={`/app/marketplace/${listing.id}`}
+                        href={`/app/marketplace/${listing.slug ?? listing.id}`}
                         className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
                       >
                         View
                       </Link>
                       <Link
-                        href={`/app/marketplace/${listing.id}/edit`}
+                        href={`/app/marketplace/${listing.slug ?? listing.id}/edit`}
                         className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
                       >
                         Edit

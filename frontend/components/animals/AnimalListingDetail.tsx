@@ -50,7 +50,9 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
       try {
         const listings = await getAnimalListings({ category_id: data.category, limit: 3 });
         if (!signal?.aborted) {
-          setRelatedListings(listings.filter((l: any) => l.id !== id).slice(0, 3));
+          setRelatedListings(
+            listings.filter((l: any) => (l.slug ?? l.id) !== id).slice(0, 3)
+          );
         }
       } catch (relErr) {
         // Related listings are non-fatal; log but don't spam user
@@ -397,7 +399,7 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
               <>
                 {/* Owner Actions */}
                 <Link
-                  href={`/app/animals/${id}/edit`}
+                  href={`/app/animals/${listing?.slug ?? id}/edit`}
                   className="w-full block text-center rounded-lg btn-primary px-4 py-3 font-semibold text-white transition hover:opacity-90 mb-3"
                 >
                   Edit Listing
@@ -545,7 +547,7 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
             {relatedListings.map((related) => (
               <Link
                 key={related.id}
-                href={`/app/animals/${related.id}`}
+                href={`/app/animals/${related.slug ?? related.id}`}
                 className="group rounded-2xl border border-gray-200 bg-white overflow-hidden hover:shadow-lg transition"
               >
                 {related.animal_listing_media?.[0]?.url && (
@@ -594,7 +596,7 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
       <ShareModal
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
-        shareUrl={typeof window !== "undefined" ? `${window.location.origin}/app/animals/${id}` : `/app/animals/${id}`}
+        shareUrl={typeof window !== "undefined" ? `${window.location.origin}/app/animals/${listing?.slug ?? id}` : `/app/animals/${listing?.slug ?? id}`}
         title={listing.title}
         type="post"
       />
@@ -654,7 +656,7 @@ export default function AnimalListingDetail({ id }: AnimalListingDetailProps) {
       <ShareModal
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
-        shareUrl={typeof window !== "undefined" ? `${window.location.origin}/app/animals/${id}` : `/app/animals/${id}`}
+        shareUrl={typeof window !== "undefined" ? `${window.location.origin}/app/animals/${listing?.slug ?? id}` : `/app/animals/${listing?.slug ?? id}`}
         title={listing?.title || "Listing"}
         type="post"
       />

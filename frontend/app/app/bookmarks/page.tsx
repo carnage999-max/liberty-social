@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { apiDelete, apiGet, apiPost } from "@/lib/api";
 import type { Bookmark, Post, SaveFolder, SaveFolderItem } from "@/lib/types";
 import { usePaginatedResource } from "@/hooks/usePaginatedResource";
+import LinkifiedPostContent from "@/components/LinkifiedPostContent";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -182,9 +183,11 @@ export default function BookmarksPage() {
                 <h2 className="mt-1 text-sm font-semibold text-gray-900">
                   {authorLabel}
                 </h2>
-                <p className="mt-2 line-clamp-3 text-sm text-gray-700">
-                  {post.content}
-                </p>
+                <LinkifiedPostContent
+                  content={post.content}
+                  className="mt-2 line-clamp-3 text-sm text-gray-700 break-words"
+                  showPreview={false}
+                />
                 {post.media && post.media.length > 0 && (
                   <div className="mt-3 overflow-hidden rounded-xl border border-gray-200">
                     <Image
@@ -227,7 +230,7 @@ export default function BookmarksPage() {
             </button>
             {post && (
               <Link
-                href={`/app/feed/${post.id}`}
+                href={`/app/feed/${post.slug ?? post.id}`}
                 className="rounded-lg border border-(--color-deep-navy) px-3 py-1.5 text-xs font-semibold text-(--color-deep-navy) transition hover:bg-(--color-deep-navy) hover:text-white"
               >
                 View post
@@ -420,6 +423,3 @@ export default function BookmarksPage() {
     </div>
   );
 }
-
-
-

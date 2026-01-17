@@ -207,7 +207,7 @@ export default function PagesIndexPage() {
           setShareModalOpen(false);
           setShareModalPage(null);
         }}
-        shareUrl={shareModalPage ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/pages/${shareModalPage.id}` : ''}
+        shareUrl={shareModalPage ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/pages/${shareModalPage.slug ?? shareModalPage.id}` : ''}
         title="Share Page"
         type="page"
       />
@@ -219,7 +219,7 @@ function PageCard({ page, onShare }: { page: BusinessPage; onShare: () => void }
   return (
     <div className="group flex items-center gap-4 rounded-2xl border border-(--color-border) bg-white/70 p-4 shadow-sm transition hover:shadow">
       <Link
-        href={`/app/pages/${page.id}`}
+        href={`/app/pages/${page.slug ?? page.id}`}
         className="flex flex-1 items-center gap-4 transition hover:-translate-y-0.5"
       >
         <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-(--color-soft-bg)">

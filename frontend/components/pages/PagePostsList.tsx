@@ -8,6 +8,7 @@ import Image from "next/image";
 import { useToast } from "@/components/Toast";
 import { EmojiPickerPopper } from "@/components/EmojiPickerPopper";
 import ImageGallery from "@/components/ImageGallery";
+import LinkifiedPostContent from "@/components/LinkifiedPostContent";
 import PagePostEditModal from "./PagePostEditModal";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 
@@ -214,7 +215,10 @@ export default function PagePostsList({
               </div>
 
               {/* Post content */}
-              <p className="text-gray-700 mb-4 whitespace-pre-line leading-relaxed">{post.content}</p>
+              <LinkifiedPostContent
+                content={post.content}
+                className="text-gray-700 mb-4 whitespace-pre-line leading-relaxed break-words"
+              />
 
               {/* Post media */}
               {post.media_urls && post.media_urls.length > 0 && (
@@ -281,7 +285,7 @@ export default function PagePostsList({
                   className="text-gray-600 hover:text-gray-900"
                   title="View post details"
                 >
-                  <Link href={`/app/posts/${post.id}`} className="hover:underline">
+                  <Link href={`/app/feed/${post.slug ?? post.id}`} className="hover:underline">
                     View Post
                   </Link>
                 </button>

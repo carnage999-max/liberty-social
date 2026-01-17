@@ -12,6 +12,7 @@ import ShareModal from "@/components/modals/ShareModal";
 import { useAuth } from "@/lib/auth-context";
 import ProfileImageModal from "@/components/profile/ProfileImageModal";
 import ImageGallery from "@/components/ImageGallery";
+import LinkifiedPostContent from "@/components/LinkifiedPostContent";
 import { apiDelete, apiGet, apiPost, ApiError } from "@/lib/api";
 import type { Post, UserProfileOverview } from "@/lib/types";
 import { UserActionsMenu } from "@/components/profile/UserActionsMenu";
@@ -432,7 +433,10 @@ export default function UserProfilePage() {
             <p className="text-xs text-gray-500">{createdAt}</p>
           </div>
         </header>
-        <p className="whitespace-pre-line text-sm text-gray-800">{post.content}</p>
+        <LinkifiedPostContent
+          content={post.content}
+          className="whitespace-pre-line text-sm text-gray-800 break-words"
+        />
         {mediaUrls.length > 0 && (
           <div
             className={[
@@ -469,7 +473,7 @@ export default function UserProfilePage() {
         )}
         <div className="mt-4">
           <Link
-            href={`/app/feed/${post.id}`}
+            href={`/app/feed/${post.slug ?? post.id}`}
             className="text-sm font-semibold text-(--color-deep-navy) transition hover:opacity-80"
           >
             View full post
@@ -797,7 +801,7 @@ export default function UserProfilePage() {
       <ShareModal
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
-        shareUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/app/users/${profileId}`}
+        shareUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/app/users/${overview?.user?.slug ?? profileId}`}
         title="Share Profile"
         type="profile"
       />

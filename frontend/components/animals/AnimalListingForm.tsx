@@ -321,7 +321,7 @@ export default function AnimalListingForm({ listingId }: AnimalListingFormProps)
       const message = isEditMode ? "Listing updated successfully!" : "Listing created successfully!";
       showToast(message, "success");
 
-      router.push(`/app/animals/${listing.id}`);
+      router.push(`/app/animals/${listing.slug ?? listing.id}`);
     } catch (error: any) {
       console.error("Listing operation error:", error);
       const errorMsg = error?.message || (isEditMode ? "Failed to update listing" : "Failed to create listing");

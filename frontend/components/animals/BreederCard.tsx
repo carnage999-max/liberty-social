@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 interface BreederCardProps {
   id: string;
+  slug?: string;
   business_name: string;
   years_experience: number;
   avatar?: string;
@@ -20,6 +21,7 @@ interface BreederCardProps {
 
 export default function BreederCard({
   id,
+  slug,
   business_name,
   years_experience,
   avatar,
@@ -133,7 +135,7 @@ export default function BreederCard({
 
         {/* Action Button */}
         <Link
-          href={`/app/breeders/${id}`}
+          href={`/app/breeders/${slug ?? id}`}
           className="block w-full text-center rounded-lg btn-primary px-4 py-2.5 font-medium text-white transition hover:opacity-90"
         >
           View Profile

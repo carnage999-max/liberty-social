@@ -160,6 +160,7 @@ export default function BreedersDirectorySection() {
                   <BreederCard
                     key={breeder.id}
                     id={breeder.id}
+                    slug={breeder.slug}
                     business_name={breeder.business_name}
                     years_experience={breeder.years_experience}
                     avatar={breeder.avatar}

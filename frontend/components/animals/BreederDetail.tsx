@@ -291,6 +291,7 @@ export default function BreederDetail({ id }: BreederDetailProps) {
                   <AnimalListingCard
                     key={listing.id}
                     id={listing.id}
+                    slug={listing.slug}
                     title={listing.title}
                     breed={listing.breed}
                     category={listing.category}

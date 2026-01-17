@@ -641,7 +641,7 @@ export default function PageDetail() {
       <ShareModal
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
-        shareUrl={page ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/pages/${page.id}` : ''}
+        shareUrl={page ? `${typeof window !== 'undefined' ? window.location.origin : ''}/app/pages/${page.slug ?? page.id}` : ''}
         title="Share Page"
         type="page"
       />

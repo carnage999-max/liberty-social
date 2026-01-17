@@ -55,7 +55,7 @@ export default function CreatePagePage() {
         token: accessToken,
       });
       toast.show("Page created successfully!", "success");
-      router.push(`/app/pages/${page.id}`);
+      router.push(`/app/pages/${page.slug ?? page.id}`);
     } catch (error) {
       console.error(error);
       toast.show("Failed to create page", "error");

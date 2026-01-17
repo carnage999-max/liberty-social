@@ -28,6 +28,7 @@ export interface RegisterRequest {
 
 export interface User {
   id: string;
+  slug?: string | null;
   email: string;
   first_name: string;
   last_name: string;
@@ -72,6 +73,7 @@ export interface UserProfileStats {
 export interface UserProfileOverview {
   user: {
     id: string;
+    slug?: string | null;
     username?: string | null;
     first_name?: string | null;
     last_name?: string | null;
@@ -143,6 +145,7 @@ export type Visibility = "public" | "friends" | "only_me";
 
 export interface Post {
   id: number;
+  slug?: string;
   author: User;
   author_type: "user" | "page";
   page?: PageSummary | null;
@@ -166,6 +169,7 @@ export type PageRole = "owner" | "admin" | "editor" | "moderator";
 
 export interface PageSummary {
   id: number;
+  slug?: string;
   name: string;
   category: string;
   profile_image_url?: string | null;
@@ -261,6 +265,7 @@ export interface Notification {
   object_id?: number | null;
   unread: boolean;
   created_at: string;
+  target_url?: string | null;
   target_post_id?: number | null;
   target_post_preview?: string | null;
   target_comment_preview?: string | null;
@@ -380,6 +385,7 @@ export interface MarketplaceListingMedia {
 
 export interface MarketplaceListing {
   id: number;
+  slug?: string;
   seller: User;
   title: string;
   description: string;

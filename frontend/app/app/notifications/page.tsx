@@ -98,7 +98,9 @@ export default function NotificationsPage() {
     if (notification.unread) {
       await handleMarkRead(notification.id);
     }
-    if (notification.target_post_id) {
+    if (notification.target_url) {
+      router.push(notification.target_url);
+    } else if (notification.target_post_id) {
       router.push(`/app/feed/${notification.target_post_id}`);
     }
   };

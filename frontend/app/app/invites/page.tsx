@@ -12,6 +12,7 @@ interface PageInvite {
   page: {
     id: number;
     name: string;
+    slug?: string;
     category: string;
     profile_image_url?: string;
   };
@@ -355,7 +356,7 @@ function InviteCard({
         {/* Content */}
         <div className="flex-1 min-w-0">
           <Link
-            href={`/app/pages/${invite.page.id}`}
+            href={`/app/pages/${invite.page.slug ?? invite.page.id}`}
             className="inline-block"
           >
             <h3 className="text-base font-semibold text-gray-900 hover:underline">
@@ -467,7 +468,7 @@ function SentInviteCard({
         {/* Content */}
         <div className="flex-1 min-w-0">
           <Link
-            href={`/app/pages/${invite.page.id}`}
+            href={`/app/pages/${invite.page.slug ?? invite.page.id}`}
             className="inline-block"
           >
             <h3 className="text-base font-semibold text-gray-900 hover:underline">

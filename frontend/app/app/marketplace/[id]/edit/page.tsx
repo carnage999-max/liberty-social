@@ -239,7 +239,7 @@ export default function EditListingPage() {
       }
 
       toast.show("Listing updated successfully!", "success");
-      router.push(`/app/marketplace/${listingId}`);
+      router.push(`/app/marketplace/${listing?.slug ?? listingId}`);
     } catch (error: any) {
       console.error("Failed to update listing:", error);
       const message = error?.data?.detail || error?.message || "Failed to update listing";
@@ -255,7 +255,7 @@ export default function EditListingPage() {
         {/* Header */}
         <div className="mb-8">
           <Link
-            href={`/app/marketplace/${listingId}`}
+            href={`/app/marketplace/${listing?.slug ?? listingId}`}
             className="text-sm text-blue-600 hover:text-blue-700 mb-4 inline-flex items-center gap-1"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

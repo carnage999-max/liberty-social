@@ -300,7 +300,7 @@ export default function AppShell({ children }: AppShellProps) {
           <button
             type="button"
             onClick={() => {
-              router.push(`/app/feed/${post.id}`);
+              router.push(`/app/feed/${post.slug ?? post.id}`);
             }}
             className="rounded-full border border-transparent bg-(--color-deep-navy) px-3 py-1 text-xs font-semibold text-white transition hover:bg-(--color-deeper-navy)"
           >
@@ -386,7 +386,9 @@ export default function AppShell({ children }: AppShellProps) {
   const myProfileHref = (() => {
     try {
       const uid = (user as any)?.id ?? (typeof window !== "undefined" ? localStorage.getItem("userId") : null);
-      return uid ? `/app/users/${uid}` : undefined;
+      const slug = (user as any)?.slug;
+      const ref = slug ?? uid;
+      return ref ? `/app/users/${ref}` : undefined;
     } catch {
       return undefined;
     }

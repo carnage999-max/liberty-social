@@ -135,7 +135,7 @@ export default function FriendsList() {
           {friendsItems.map((friend) => (
             <button
               key={friend.id}
-              onClick={() => router.push(`/app/users/${friend.friend.id}`)}
+              onClick={() => router.push(`/app/users/${friend.friend.slug ?? friend.friend.id}`)}
               className="group flex flex-shrink-0 flex-col items-center gap-2 transition"
             >
               <div className="relative h-14 w-14 overflow-hidden rounded-full ring-2 ring-transparent transition group-hover:ring-[var(--color-deep-navy)]">

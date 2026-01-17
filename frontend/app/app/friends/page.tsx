@@ -179,7 +179,7 @@ export default function FriendsPage() {
                   <div className="flex items-center gap-2">
                     {friend.id && friend.id !== "undefined" ? (
                       <Link
-                        href={`/app/users/${friend.id}`}
+                        href={`/app/users/${friend.slug ?? friend.id}`}
                         className="rounded-lg border border-(--color-deep-navy) px-3 py-1.5 text-xs font-semibold text-(--color-deep-navy) transition hover:bg-(--color-deep-navy) hover:text-white"
                       >
                         View profile
@@ -253,7 +253,7 @@ export default function FriendsPage() {
                   className="flex items-center justify-between gap-4 rounded-[16px] border border-gray-100 bg-white p-4 shadow-sm"
                 >
                   <button
-                    onClick={() => suggestion.id && router.push(`/app/users/${suggestion.id}`)}
+                    onClick={() => suggestion.id && router.push(`/app/users/${suggestion.slug ?? suggestion.id}`)}
                     className="flex items-center gap-3 flex-1 text-left transition hover:opacity-80"
                   >
                     <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-gray-100">
