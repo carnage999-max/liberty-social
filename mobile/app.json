@@ -2,7 +2,7 @@
   "expo": {
     "name": "Liberty Social",
     "slug": "liberty-social",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "orientation": "portrait",
     "icon": "./assets/liberty-social-white-icon-set/ios/iTunesArtwork@2x.png",
     "userInterfaceStyle": "automatic",
@@ -36,7 +36,7 @@
       },
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.libertysocial.app",
-      "versionCode": 7,
+      "versionCode": 8,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
