@@ -38,5 +38,14 @@ subprojects {
     }
 }
 
+// Ensure Kotlin and Java compile targets match (Expo SDK 54 uses Java 17)
+subprojects { project ->
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions {
+            jvmTarget = "17"
+        }
+    }
+}
+
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
