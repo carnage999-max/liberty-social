@@ -32,7 +32,7 @@ import {
   resolveRemoteUrl,
   DEFAULT_AVATAR,
 } from '../../../utils/url';
-import { API_BASE } from '../../../constants/API';
+import { getApiBase } from '../../../constants/API';
 import type { ImageSourcePropType } from 'react-native';
 import AppNavbar from '../../../components/layout/AppNavbar';
 import AdvancedEmojiPicker from '../../../components/feed/AdvancedEmojiPicker';
@@ -41,6 +41,9 @@ import type { ReactionType } from '../../../types';
 import UserProfileBottomSheet from '../../../components/profile/UserProfileBottomSheet';
 import { SkeletonPost } from '../../../components/common/Skeleton';
 import ImageGallery from '../../../components/common/ImageGallery';
+import LinkPreviewCard from '../../../components/common/LinkPreviewCard';
+import LinkifiedText from '../../../components/common/LinkifiedText';
+import { storage } from '../../../utils/storage';
 
 type NormalizedPost = Post & {
   mediaUrls: string[];
@@ -106,6 +109,52 @@ const ensureNormalizedPost = (incoming: Post | NormalizedPost): NormalizedPost =
     },
     authorAvatar,
   };
+};
+
+const uploadImages = async (images: Array<{ uri: string }>) => {
+  if (images.length === 0) {
+    return [];
+  }
+  const base = getApiBase();
+  const url = `${base.replace(/\/+$/, '')}/uploads/images/`;
+  const accessToken = await storage.getAccessToken();
+  const uploadedUrls: string[] = [];
+
+  for (const image of images) {
+    const formData = new FormData();
+    const filename = image.uri.split('/').pop() || 'image.jpg';
+    formData.append('file', {
+      uri: image.uri,
+      type: 'image/jpeg',
+      name: filename,
+    } as any);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: accessToken ? {
+        Authorization: `Bearer ${accessToken}`,
+      } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+
+    const uploadResponse = await response.json();
+    if (uploadResponse.url) {
+      uploadedUrls.push(uploadResponse.url);
+    } else if (uploadResponse.urls && Array.isArray(uploadResponse.urls) && uploadResponse.urls.length > 0) {
+      uploadedUrls.push(...uploadResponse.urls);
+    }
+  }
+
+  return uploadedUrls;
+};
+
+const getDisplayContent = (content?: string | null) => {
+  if (!content) return '';
+  return content === '(media attachment)' ? '' : content;
 };
 
 const formatSortLabel = (sort: CommentSort) => {
@@ -200,37 +249,29 @@ export default function PostDetailScreen() {
 
     setSubmitting(true);
     try {
-      const hasAttachments = commentMedias.new && commentMedias.new.length > 0;
+      const trimmedContent = commentText.trim();
       let comment: Comment;
 
+      let uploadedUrls: string[] = [];
       if (hasAttachments) {
-        // Step 1: Upload images first
-        const uploadedUrls: string[] = [];
-        for (const media of commentMedias.new) {
-          try {
-            const uploadResponse = await apiClient.postFormData('/uploads/images/', media.formData);
-            if (uploadResponse.url) {
-              uploadedUrls.push(uploadResponse.url);
-            } else if (uploadResponse.urls && Array.isArray(uploadResponse.urls) && uploadResponse.urls.length > 0) {
-              uploadedUrls.push(...uploadResponse.urls);
-            }
-          } catch (uploadError) {
-            showError('Failed to upload image. Please try again.');
-          }
+        try {
+          uploadedUrls = await uploadImages(commentMedias.new);
+        } catch (uploadError) {
+          showError('Failed to upload image. Please try again.');
+          return;
         }
-
-        // Step 2: Create comment with uploaded media URLs
-        comment = await apiClient.post<Comment>('/comments/', {
-          post: post.id,
-          content: commentText.trim() || '(media attachment)',
-          media_urls: uploadedUrls.length > 0 ? uploadedUrls : undefined,
-        });
-      } else {
-        comment = await apiClient.post<Comment>('/comments/', {
-          post: post.id,
-          content: commentText.trim(),
-        });
       }
+
+      // Step 2: Create comment with uploaded media URLs (if any)
+      const content = trimmedContent || (uploadedUrls.length > 0 ? '(media attachment)' : '');
+      if (!content) {
+        return;
+      }
+      comment = await apiClient.post<Comment>('/comments/', {
+        post: post.id,
+        content,
+        media_urls: uploadedUrls.length > 0 ? uploadedUrls : undefined,
+      });
       // Normalize media URLs for the new comment
       // If API doesn't return media yet, use the uploaded URLs
       let normalizedMedia: string[] = [];
@@ -867,39 +908,29 @@ export default function PostDetailScreen() {
       setReplySubmitting((prev) => ({ ...prev, [parentCommentId]: true }));
       try {
         let created: Comment;
-        const uploadedUrls: string[] = [];
+        let uploadedUrls: string[] = [];
 
         const attachments = commentMedias[parentCommentId] || [];
         if (attachments.length > 0) {
-          // Step 1: Upload images first
-          for (const media of attachments) {
-            try {
-              const uploadResponse = await apiClient.postFormData('/uploads/images/', media.formData);
-              if (uploadResponse.url) {
-                uploadedUrls.push(uploadResponse.url);
-              } else if (uploadResponse.urls && Array.isArray(uploadResponse.urls) && uploadResponse.urls.length > 0) {
-                uploadedUrls.push(...uploadResponse.urls);
-              }
-            } catch (uploadError) {
-              showError('Failed to upload image. Please try again.');
-            }
+          try {
+            uploadedUrls = await uploadImages(attachments);
+          } catch (uploadError) {
+            showError('Failed to upload image. Please try again.');
+            return;
           }
-
-          // Step 2: Create reply with uploaded media URLs
-          created = await apiClient.post<Comment>('/comments/', {
-            post: post.id,
-            parent: parentCommentId,
-            content: draft || '(media attachment)',
-            media_urls: uploadedUrls.length > 0 ? uploadedUrls : undefined,
-          });
-        } else {
-          created = await apiClient.post<Comment>('/comments/', {
-            post: post.id,
-            parent: parentCommentId,
-            content: draft,
-            media_urls: [],
-          });
         }
+
+        // Step 2: Create reply with uploaded media URLs (if any)
+        const content = draft || (uploadedUrls.length > 0 ? '(media attachment)' : '');
+        if (!content) {
+          return;
+        }
+        created = await apiClient.post<Comment>('/comments/', {
+          post: post.id,
+          parent: parentCommentId,
+          content,
+          media_urls: uploadedUrls.length > 0 ? uploadedUrls : undefined,
+        });
 
         // Normalize media URLs for the new reply
         // If API doesn't return media yet, use the uploaded URLs
@@ -1184,7 +1215,12 @@ export default function PostDetailScreen() {
                 }}
               />
             </View>
-            <Text style={[styles.commentText, { color: colors.text }]}>{comment.content || ''}</Text>
+            <LinkifiedText
+              text={getDisplayContent(comment.content)}
+              textStyle={[styles.commentText, { color: colors.text }]}
+              linkStyle={{ color: '#3B82F6', textDecorationLine: 'underline' }}
+            />
+            <LinkPreviewCard text={getDisplayContent(comment.content)} />
             {comment.media && comment.media.length > 0 && (
               <View style={styles.commentMediaGrid}>
                 {comment.media.map((url, index) => (
@@ -1549,6 +1585,22 @@ export default function PostDetailScreen() {
       borderRadius: 12,
       backgroundColor: colors.border,
     },
+    explicitOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    explicitOverlayText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '600',
+    },
     postActions: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1771,6 +1823,8 @@ export default function PostDetailScreen() {
       aspectRatio: 1,
       borderRadius: 8,
       backgroundColor: colors.border,
+      overflow: 'hidden',
+      position: 'relative',
     },
     mediaImageSingle: {
       width: '100%',
@@ -1898,7 +1952,14 @@ export default function PostDetailScreen() {
               </View>
 
               {post.content ? (
-                <Text style={styles.postContent}>{post.content}</Text>
+                <>
+                  <LinkifiedText
+                    text={post.content_redacted ?? post.content}
+                    textStyle={styles.postContent}
+                    linkStyle={{ color: '#3B82F6', textDecorationLine: 'underline' }}
+                  />
+                  <LinkPreviewCard text={post.content} />
+                </>
               ) : null}
 
               {mediaUrls.length > 0 && (
@@ -1934,7 +1995,14 @@ export default function PostDetailScreen() {
                         source={{ uri: url }}
                         style={styles.postMediaImage}
                         resizeMode="cover"
+                        blurRadius={post?.blur_explicit ? 18 : 0}
                       />
+                      {post?.blur_explicit ? (
+                        <View style={styles.explicitOverlay} pointerEvents="none">
+                          <Ionicons name="eye-off-outline" size={18} color="#FFFFFF" />
+                          <Text style={styles.explicitOverlayText}>Explicit content</Text>
+                        </View>
+                      ) : null}
                     </TouchableOpacity>
                   ))}
                 </View>

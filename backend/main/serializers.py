@@ -30,6 +30,9 @@ from .models import (
     SaveFolderItem,
 )
 from users.serializers import UserSerializer
+from .moderation_models import ContentClassification
+from .moderation.filtering import get_active_filter_profile
+from .moderation.redaction import redact_profanity
 
 
 class ReactionSerializer(serializers.ModelSerializer):
@@ -425,6 +428,8 @@ class PostSerializer(serializers.ModelSerializer):
     )
     bookmarked = serializers.SerializerMethodField()
     bookmark_id = serializers.SerializerMethodField()
+    blur_explicit = serializers.SerializerMethodField()
+    content_redacted = serializers.SerializerMethodField()
     url_validator = URLValidator()
 
     class Meta:
@@ -446,6 +451,8 @@ class PostSerializer(serializers.ModelSerializer):
             "reactions",
             "bookmarked",
             "bookmark_id",
+            "blur_explicit",
+            "content_redacted",
         ]
         read_only_fields = [
             "id",
@@ -460,6 +467,8 @@ class PostSerializer(serializers.ModelSerializer):
             "media",
             "bookmarked",
             "bookmark_id",
+            "blur_explicit",
+            "content_redacted",
         ]
 
     def create(self, validated_data):
@@ -498,6 +507,37 @@ class PostSerializer(serializers.ModelSerializer):
             obj.bookmarks.filter(user=request.user).values_list("id", flat=True).first()
         )
         return bookmark
+
+    def get_blur_explicit(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        profile = get_active_filter_profile(request.user)
+        if not profile or not profile.blur_explicit_thumbnails:
+            return False
+        ct = ContentType.objects.get_for_model(Post)
+        return ContentClassification.objects.filter(
+            content_type=ct,
+            object_id=str(obj.id),
+            labels__contains=["Explicit adult content"],
+        ).exists()
+
+    def get_content_redacted(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return None
+        profile = get_active_filter_profile(request.user)
+        if not profile or not profile.redact_profanity:
+            return None
+        ct = ContentType.objects.get_for_model(Post)
+        has_profanity = ContentClassification.objects.filter(
+            content_type=ct,
+            object_id=str(obj.id),
+            labels__contains=["Profanity"],
+        ).exists()
+        if not has_profanity:
+            return None
+        return redact_profanity(obj.content or "")
 
 
 class NotificationSerializer(serializers.ModelSerializer):

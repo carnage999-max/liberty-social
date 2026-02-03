@@ -39,6 +39,7 @@ from main.s3 import upload_fileobj_to_s3
 from main.models import Post, PostMedia
 from main.serializers import PostSerializer
 from main.slug_utils import SlugOrIdLookupMixin
+from main.moderation.pipeline import precheck_text_or_raise, record_text_classification
 
 
 class LoginUserview(ModelViewSet):
@@ -475,9 +476,23 @@ class UserOverviewView(APIView):
                 {"detail": "Not authorized to update this profile."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        bio = request.data.get("bio")
+        if bio is not None:
+            decision = precheck_text_or_raise(
+                text=str(bio),
+                actor=request.user,
+                context="user_profile_update",
+            )
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        user = serializer.save()
+        if bio is not None:
+            record_text_classification(
+                content_object=user,
+                actor=request.user,
+                decision=decision,
+                metadata={"context": "user_profile_update"},
+            )
         return Response(serializer.data)
 
     def update(self, request, *args, **kwargs):
@@ -487,9 +502,23 @@ class UserOverviewView(APIView):
                 {"detail": "Not authorized to update this profile."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        bio = request.data.get("bio")
+        if bio is not None:
+            decision = precheck_text_or_raise(
+                text=str(bio),
+                actor=request.user,
+                context="user_profile_update",
+            )
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        user = serializer.save()
+        if bio is not None:
+            record_text_classification(
+                content_object=user,
+                actor=request.user,
+                decision=decision,
+                metadata={"context": "user_profile_update"},
+            )
         return Response(serializer.data)
 
 

@@ -216,7 +216,7 @@ export default function PagePostsList({
 
               {/* Post content */}
               <LinkifiedPostContent
-                content={post.content}
+                content={post.content_redacted ?? post.content}
                 className="text-gray-700 mb-4 whitespace-pre-line leading-relaxed break-words"
               />
 
@@ -232,8 +232,13 @@ export default function PagePostsList({
                       <img
                         src={post.media_urls[0]}
                         alt="Post media"
-                        className="h-full w-full object-cover transition group-hover:scale-105"
+                        className={`h-full w-full object-cover transition group-hover:scale-105 ${post.blur_explicit ? "blur-sm" : ""}`}
                       />
+                      {post.blur_explicit ? (
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] font-semibold uppercase tracking-wide text-white">
+                          Explicit content
+                        </span>
+                      ) : null}
                     </button>
                   ) : (
                     <div className="grid gap-1 grid-cols-2 sm:grid-cols-3">
@@ -247,8 +252,13 @@ export default function PagePostsList({
                           <img
                             src={url}
                             alt={`Post media ${idx + 1}`}
-                            className="h-full w-full object-cover transition group-hover:scale-105"
+                            className={`h-full w-full object-cover transition group-hover:scale-105 ${post.blur_explicit ? "blur-sm" : ""}`}
                           />
+                          {post.blur_explicit ? (
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] font-semibold uppercase tracking-wide text-white">
+                              Explicit content
+                            </span>
+                          ) : null}
                           {idx === 3 && (post.media_urls?.length ?? 0) > 4 && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                               <span className="text-sm font-semibold text-white">

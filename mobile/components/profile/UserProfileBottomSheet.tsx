@@ -92,6 +92,7 @@ export default function UserProfileBottomSheet({
   const [actionLoading, setActionLoading] = useState(false);
   const [startingConversation, setStartingConversation] = useState(false);
   const [optionsMenuVisible, setOptionsMenuVisible] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const optionsMenuTranslateY = useRef(new RNAnimated.Value(0)).current;
   const [galleryVisible, setGalleryVisible] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
@@ -207,6 +208,7 @@ export default function UserProfileBottomSheet({
     if (visible && userId) {
       translateY.value = withSpring(MAX_TRANSLATE_Y, { damping: 50 });
       loadProfile();
+      loadMuteStatus();
     } else {
       translateY.value = withTiming(0);
       setActiveTab('overview');
@@ -215,6 +217,21 @@ export default function UserProfileBottomSheet({
       setPostsReachedEnd(false);
     }
   }, [visible, userId]);
+
+  const loadMuteStatus = async () => {
+    if (!userId) return;
+    try {
+      const profileId = await ensureActiveFilterProfile();
+      if (!profileId) return;
+      const profile = await apiClient.get<{ account_mutes?: string[] }>(
+        `/moderation/filter-profiles/${profileId}/`
+      );
+      const muted = (profile?.account_mutes || []).includes(String(userId));
+      setIsMuted(muted);
+    } catch (error) {
+      console.error('Failed to load mute status', error);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'posts' && profile?.can_view_posts && userPosts.length === 0 && !postsLoading) {
@@ -432,6 +449,88 @@ export default function UserProfileBottomSheet({
       'Block User',
       true // destructive action
     );
+  };
+
+  const handleMuteToggle = (nextMuted: boolean) => {
+    toggleOptionsMenu(false);
+    if (!userId) return;
+    showConfirm(
+      nextMuted ? 'Mute this user?' : 'Unmute this user?',
+      async () => {
+        try {
+          setActionLoading(true);
+          const profileId = await ensureActiveFilterProfile();
+          if (!profileId) throw new Error('No active filter profile');
+          const profile = await apiClient.get<{ account_mutes?: string[] }>(
+            `/moderation/filter-profiles/${profileId}/`
+          );
+          const current = profile?.account_mutes || [];
+          const userIdStr = String(userId);
+          const next = nextMuted
+            ? Array.from(new Set([...current, userIdStr]))
+            : current.filter((id) => id !== userIdStr);
+          await apiClient.patch(`/moderation/filter-profiles/${profileId}/`, {
+            account_mutes: next,
+          });
+          setIsMuted(nextMuted);
+          showSuccess(nextMuted ? 'User muted' : 'User unmuted');
+        } catch (error) {
+          console.error('Mute user error:', error);
+          showError('Failed to update mute status');
+        } finally {
+          setActionLoading(false);
+        }
+      },
+      undefined,
+      nextMuted ? 'Mute User' : 'Unmute User',
+      false
+    );
+  };
+
+  const ensureActiveFilterProfile = async (): Promise<number | null> => {
+    const pref = await apiClient.get<{ active_profile?: { id: number } }>(
+      '/moderation/filter-preferences/'
+    );
+    if (pref?.active_profile?.id) {
+      return pref.active_profile.id;
+    }
+
+    const profilesResponse = await apiClient.get<
+      Array<{ id: number; is_default?: boolean }> | { results?: Array<{ id: number; is_default?: boolean }> }
+    >('/moderation/filter-profiles/');
+    const profiles = Array.isArray(profilesResponse)
+      ? profilesResponse
+      : Array.isArray(profilesResponse?.results)
+      ? profilesResponse.results
+      : null;
+    if (!profiles) {
+      throw new Error('Unexpected filter profile response');
+    }
+
+    let activeId = profiles.find((p) => p.is_default)?.id ?? profiles[0]?.id ?? null;
+    if (!activeId) {
+      const created = await apiClient.post<{ id: number }>('/moderation/filter-profiles/', {
+        name: 'Default',
+        is_default: true,
+        category_toggles: {},
+        blur_thumbnails: false,
+        age_gate: false,
+        allow_explicit_content: false,
+        blur_explicit_thumbnails: false,
+        redact_profanity: false,
+        keyword_mutes: [],
+        account_mutes: [],
+      });
+      activeId = created?.id ?? null;
+    }
+
+    if (activeId) {
+      await apiClient.post('/moderation/filter-preferences/', {
+        active_profile_id: activeId,
+      });
+    }
+
+    return activeId;
   };
 
   // Prioritize first name + last name, fall back to username if unavailable
@@ -1138,6 +1237,17 @@ export default function UserProfileBottomSheet({
                   </Text>
                 </TouchableOpacity>
               )}
+
+              <TouchableOpacity
+                style={styles.optionsSheetAction}
+                onPress={() => handleMuteToggle(!isMuted)}
+                disabled={actionLoading}
+              >
+                <Ionicons name="volume-mute-outline" size={20} color={colors.secondary} />
+                <Text style={[styles.optionsSheetActionText, { color: colors.secondary }]}>
+                  {isMuted ? 'Unmute User' : 'Mute User'}
+                </Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.optionsSheetAction, styles.optionsSheetActionDestructive]}

@@ -15,6 +15,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useLocationTracking } from '../hooks/useLocationTracking';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { initStripe } from '@stripe/stripe-react-native';
 
 // Keep the splash screen visible while we fetch resources
@@ -33,6 +34,7 @@ function RootLayoutNav() {
   const { isDark } = useTheme();
   const { isLoading } = useAuth();
   const [appIsReady, setAppIsReady] = useState(false);
+  const [splashHidden, setSplashHidden] = useState(false);
   usePushNotifications();
   useLocationTracking(); // Track user location on app startup
   // NOTE: WebSocket for calls will be integrated with existing chat WebSocket
@@ -59,16 +61,15 @@ function RootLayoutNav() {
   }, [isLoading]);
 
   useEffect(() => {
-    if (appIsReady) {
-      // Hide splash screen with a fade animation
-      SplashScreen.hideAsync();
+    if (!splashHidden) {
+      SplashScreen.hideAsync()
+        .then(() => setSplashHidden(true))
+        .catch(() => setSplashHidden(true));
     }
-  }, [appIsReady]);
+  }, [splashHidden]);
 
   if (!appIsReady) {
-    // Return null to keep splash screen visible
-    // The splash screen background color matches app.json splash backgroundColor
-    return null;
+    return <CustomSplashScreen />;
   }
 
   return (
@@ -104,3 +105,45 @@ export default function RootLayout() {
   );
 }
 
+function CustomSplashScreen() {
+  return (
+    <View style={styles.splashContainer}>
+      <View style={styles.splashContent}>
+        <Image
+          source={require('../assets/splash.png')}
+          style={styles.splashImage}
+          resizeMode="contain"
+        />
+      </View>
+      <Text style={styles.splashText}>Liberty Social</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  splashContainer: {
+    flex: 1,
+    backgroundColor: '#1d3a93',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  splashContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: 32,
+  },
+  splashImage: {
+    width: '70%',
+    maxWidth: 260,
+    height: 260,
+  },
+  splashText: {
+    paddingBottom: 72,
+    fontSize: 36,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: '#FFFFFF',
+  },
+});

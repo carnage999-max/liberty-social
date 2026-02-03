@@ -4,15 +4,21 @@ import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/lib/auth-context";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
-import { apiDelete, apiPatch, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { useProfile } from "@/hooks/useProfile";
 import { usePaginatedResource } from "@/hooks/usePaginatedResource";
 import {
   useUserSettings,
   type UserSettings,
 } from "@/hooks/useUserSettings";
-import type { BlockedUser } from "@/lib/types";
+import type {
+  BlockedUser,
+  UserFilterPreference,
+  UserFilterProfile,
+  UserSearchResult,
+} from "@/lib/types";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { PasswordField } from "@/components/forms/PasswordField";
 import FeedPreferencesSection from "@/components/FeedPreferencesSection";
 import { usePasskey } from "@/hooks/usePasskey";
@@ -41,6 +47,15 @@ const PRIVACY_OPTIONS: Array<{
 const GENDER_OPTIONS = [
   { value: "male", label: "Male" },
   { value: "female", label: "Female" },
+];
+
+const SENSITIVE_CATEGORIES = [
+  "Graphic violence",
+  "Hate speech (non-violent)",
+  "Explicit adult content",
+  "Profanity",
+  "Drug usage discussion",
+  "Political extremism rhetoric",
 ];
 
 export default function SettingsPage() {
@@ -90,6 +105,33 @@ export default function SettingsPage() {
 
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPrivacy, setSavingPrivacy] = useState(false);
+  const [filterProfiles, setFilterProfiles] = useState<UserFilterProfile[]>([]);
+  const [filterPreference, setFilterPreference] = useState<UserFilterPreference | null>(null);
+  const [activeFilterProfileId, setActiveFilterProfileId] = useState<number | null>(null);
+  const [filterForm, setFilterForm] = useState<{
+    allow_explicit_content: boolean;
+    blur_explicit_thumbnails: boolean;
+    blur_thumbnails: boolean;
+    age_gate: boolean;
+    redact_profanity: boolean;
+    category_toggles: Record<string, boolean>;
+    keyword_mutes: string;
+    account_mutes: string[];
+  }>({
+    allow_explicit_content: false,
+    blur_explicit_thumbnails: false,
+    blur_thumbnails: false,
+    age_gate: false,
+    redact_profanity: false,
+    category_toggles: {},
+    keyword_mutes: "",
+    account_mutes: [],
+  });
+  const [savingFilters, setSavingFilters] = useState(false);
+  const [filtersError, setFiltersError] = useState<string | null>(null);
+  const [accountSearch, setAccountSearch] = useState("");
+  const [accountResults, setAccountResults] = useState<UserSearchResult[]>([]);
+  const [accountSearching, setAccountSearching] = useState(false);
   const [unblockingId, setUnblockingId] = useState<number | null>(null);
   const [blockToUnblock, setBlockToUnblock] = useState<BlockedUser | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -207,6 +249,188 @@ export default function SettingsPage() {
       gender: profile.gender ?? "",
     });
   }, [profile]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    loadModerationFilters();
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!activeFilterProfileId) return;
+    const active = filterProfiles.find((p) => p.id === activeFilterProfileId);
+    if (!active) return;
+    setFilterForm({
+      allow_explicit_content: active.allow_explicit_content,
+      blur_explicit_thumbnails: active.blur_explicit_thumbnails,
+      blur_thumbnails: active.blur_thumbnails,
+      age_gate: active.age_gate,
+      redact_profanity: active.redact_profanity ?? false,
+      category_toggles: active.category_toggles || {},
+      keyword_mutes: (active.keyword_mutes || []).join(", "),
+      account_mutes: active.account_mutes || [],
+    });
+  }, [activeFilterProfileId, filterProfiles]);
+
+  const loadModerationFilters = async () => {
+    if (!accessToken) return;
+    setFiltersError(null);
+    try {
+      const [profilesResponse, preferenceResponse] = await Promise.all([
+        apiGet<UserFilterProfile[]>("/moderation/filter-profiles/", {
+          token: accessToken,
+          cache: "no-store",
+        }),
+        apiGet<UserFilterPreference>("/moderation/filter-preferences/", {
+          token: accessToken,
+          cache: "no-store",
+        }),
+      ]);
+
+      const profiles = Array.isArray(profilesResponse) ? profilesResponse : [];
+      let nextProfiles = profiles;
+
+      if (nextProfiles.length === 0) {
+        const created = await apiPost<UserFilterProfile>(
+          "/moderation/filter-profiles/",
+          {
+            name: "Default",
+            is_default: true,
+            category_toggles: {},
+            blur_thumbnails: false,
+            age_gate: false,
+            allow_explicit_content: false,
+            blur_explicit_thumbnails: false,
+            redact_profanity: false,
+            keyword_mutes: [],
+            account_mutes: [],
+          },
+          { token: accessToken }
+        );
+        nextProfiles = [created];
+      }
+
+      setFilterProfiles(nextProfiles);
+      setFilterPreference(preferenceResponse);
+
+      const activeProfile = preferenceResponse?.active_profile;
+      const fallbackProfile =
+        activeProfile ||
+        nextProfiles.find((p) => p.is_default) ||
+        nextProfiles[0] ||
+        null;
+      setActiveFilterProfileId(fallbackProfile ? fallbackProfile.id : null);
+    } catch (err) {
+      console.error(err);
+      setFiltersError("Unable to load filter settings.");
+    }
+  };
+
+  const handleFilterProfileChange = async (profileId: number) => {
+    if (!accessToken) return;
+    setActiveFilterProfileId(profileId);
+    try {
+      const updated = await apiPost<UserFilterPreference>(
+        "/moderation/filter-preferences/",
+        { active_profile_id: profileId },
+        { token: accessToken }
+      );
+      setFilterPreference(updated);
+      toast.show("Active filter profile updated.");
+    } catch (err) {
+      console.error(err);
+      toast.show("Unable to update active profile.", "error");
+    }
+  };
+
+  const handleSaveFilters = async () => {
+    if (!accessToken || !activeFilterProfileId) return;
+    setSavingFilters(true);
+    try {
+      const payload = {
+        allow_explicit_content: filterForm.allow_explicit_content,
+        blur_explicit_thumbnails: filterForm.blur_explicit_thumbnails,
+        blur_thumbnails: filterForm.blur_thumbnails,
+        age_gate: filterForm.age_gate,
+        redact_profanity: filterForm.redact_profanity,
+        category_toggles: filterForm.category_toggles,
+        keyword_mutes: filterForm.keyword_mutes
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+        account_mutes: filterForm.account_mutes,
+      };
+      const updated = await apiPatch<UserFilterProfile>(
+        `/moderation/filter-profiles/${activeFilterProfileId}/`,
+        payload,
+        { token: accessToken }
+      );
+      setFilterProfiles((prev) =>
+        prev.map((profile) => (profile.id === updated.id ? updated : profile))
+      );
+      toast.show("Filter settings saved.");
+    } catch (err) {
+      console.error(err);
+      toast.show("Unable to save filters.", "error");
+    } finally {
+      setSavingFilters(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!accessToken) return;
+    if (accountSearch.trim().length < 2) {
+      setAccountResults([]);
+      return;
+    }
+    const controller = new AbortController();
+    const loadResults = async () => {
+      setAccountSearching(true);
+      try {
+        const response = await apiGet<
+          | { results?: UserSearchResult[] }
+          | UserSearchResult[]
+          | { users?: UserSearchResult[] }
+        >(
+          `/search/?q=${encodeURIComponent(accountSearch)}&type=user&limit=8`,
+          { token: accessToken, signal: controller.signal, cache: "no-store" }
+        );
+        let results: UserSearchResult[] = [];
+        if (Array.isArray(response)) {
+          results = response;
+        } else if ("results" in response) {
+          results = response.results || [];
+        } else if ("users" in response) {
+          results = response.users || [];
+        }
+        setAccountResults(results);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setAccountSearching(false);
+      }
+    };
+    const timeout = setTimeout(loadResults, 300);
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [accountSearch, accessToken]);
+
+  const addMutedAccount = (user: UserSearchResult) => {
+    setFilterForm((prev) => {
+      if (prev.account_mutes.includes(user.id)) return prev;
+      return { ...prev, account_mutes: [...prev.account_mutes, user.id] };
+    });
+    setAccountSearch("");
+    setAccountResults([]);
+  };
+
+  const removeMutedAccount = (userId: string) => {
+    setFilterForm((prev) => ({
+      ...prev,
+      account_mutes: prev.account_mutes.filter((id) => id !== userId),
+    }));
+  };
 
   useEffect(() => {
     if (!settings) return;
@@ -328,6 +552,12 @@ export default function SettingsPage() {
                 Manage your profile information, privacy preferences, and blocked users.
               </p>
             </div>
+            <Link
+              href="/app/settings/moderation"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
+            >
+              Moderation history
+            </Link>
           </header>
 
           {isLoading ? (
@@ -952,6 +1182,220 @@ export default function SettingsPage() {
               </section>
 
               <FeedPreferencesSection />
+
+              <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Content filters</h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Customize what you see by adjusting sensitive content settings.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => loadModerationFilters()}
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 transition hover:bg-gray-100"
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {filtersError && (
+                  <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-2 text-sm text-red-600">
+                    {filtersError}
+                  </p>
+                )}
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="flex flex-col text-sm font-medium text-gray-700">
+                    Active filter profile
+                    <select
+                      value={activeFilterProfileId ?? ""}
+                      onChange={(e) => handleFilterProfileChange(Number(e.target.value))}
+                      className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
+                    >
+                      {filterProfiles.map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {profile.name}
+                          {profile.is_default ? " (default)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <label className="flex items-center gap-3 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={filterForm.allow_explicit_content}
+                      onChange={(e) =>
+                        setFilterForm((prev) => ({
+                          ...prev,
+                          allow_explicit_content: e.target.checked,
+                        }))
+                      }
+                    />
+                    Allow explicit content
+                  </label>
+                  <label className="flex items-center gap-3 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={filterForm.redact_profanity}
+                      onChange={(e) =>
+                        setFilterForm((prev) => ({
+                          ...prev,
+                          redact_profanity: e.target.checked,
+                        }))
+                      }
+                    />
+                    Redact profanity in text
+                  </label>
+                  <label className="flex items-center gap-3 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={filterForm.blur_explicit_thumbnails}
+                      onChange={(e) =>
+                        setFilterForm((prev) => ({
+                          ...prev,
+                          blur_explicit_thumbnails: e.target.checked,
+                        }))
+                      }
+                    />
+                    Blur explicit media thumbnails
+                  </label>
+                  <label className="flex items-center gap-3 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={filterForm.blur_thumbnails}
+                      onChange={(e) =>
+                        setFilterForm((prev) => ({
+                          ...prev,
+                          blur_thumbnails: e.target.checked,
+                        }))
+                      }
+                    />
+                    Blur sensitive thumbnails
+                  </label>
+                  <label className="flex items-center gap-3 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={filterForm.age_gate}
+                      onChange={(e) =>
+                        setFilterForm((prev) => ({
+                          ...prev,
+                          age_gate: e.target.checked,
+                        }))
+                      }
+                    />
+                    Enable age gating
+                  </label>
+                </div>
+
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold text-gray-800">Sensitive categories</h3>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {SENSITIVE_CATEGORIES.map((label) => {
+                      const value = filterForm.category_toggles[label];
+                      const isEnabled = value !== false;
+                      return (
+                        <label key={label} className="flex items-center gap-3 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={(e) =>
+                              setFilterForm((prev) => ({
+                                ...prev,
+                                category_toggles: {
+                                  ...prev.category_toggles,
+                                  [label]: e.target.checked,
+                                },
+                              }))
+                            }
+                          />
+                          Show {label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  <label className="flex flex-col text-sm font-medium text-gray-700">
+                    Keyword mutes (comma separated)
+                    <input
+                      value={filterForm.keyword_mutes}
+                      onChange={(e) =>
+                        setFilterForm((prev) => ({ ...prev, keyword_mutes: e.target.value }))
+                      }
+                      className="mt-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      placeholder="spoilers, politics"
+                    />
+                  </label>
+                  <div className="flex flex-col text-sm font-medium text-gray-700">
+                    Mute accounts
+                    <div className="relative mt-1">
+                      <input
+                        value={accountSearch}
+                        onChange={(e) => setAccountSearch(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                        placeholder="Search users to mute"
+                      />
+                      {accountSearch.trim().length >= 2 && (
+                        <div className="absolute z-10 mt-2 w-full rounded-lg border border-gray-200 bg-white shadow-lg">
+                          {accountSearching ? (
+                            <div className="px-3 py-2 text-xs text-gray-500">Searching...</div>
+                          ) : accountResults.length === 0 ? (
+                            <div className="px-3 py-2 text-xs text-gray-500">No users found.</div>
+                          ) : (
+                            accountResults.map((user) => (
+                              <button
+                                key={user.id}
+                                type="button"
+                                onClick={() => addMutedAccount(user)}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                              >
+                                <span className="font-semibold text-gray-800">{user.title}</span>
+                                <span className="text-xs text-gray-500">{user.id.slice(0, 8)}…</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {filterForm.account_mutes.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {filterForm.account_mutes.map((id) => (
+                          <span
+                            key={id}
+                            className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-700"
+                          >
+                            {id.slice(0, 8)}…
+                            <button
+                              type="button"
+                              onClick={() => removeMutedAccount(id)}
+                              className="text-gray-500 hover:text-gray-800"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-gray-500">No muted accounts yet.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <button
+                    onClick={handleSaveFilters}
+                    disabled={savingFilters}
+                    className="rounded-lg border border-(--color-deep-navy) px-5 py-2 text-sm font-semibold text-(--color-deep-navy) transition hover:bg-(--color-deep-navy) hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingFilters ? "Saving..." : "Save filter settings"}
+                  </button>
+                </div>
+              </section>
 
               <section className="rounded-[18px] border border-gray-100 bg-white/95 p-6 shadow-sm backdrop-blur-sm">
                 <div className="flex items-center justify-between">

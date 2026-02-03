@@ -1153,7 +1153,7 @@ export default function PostDetailPage() {
                 </header>
 
                 <LinkifiedPostContent
-                  content={post.content}
+                  content={post.content_redacted ?? post.content}
                   className="whitespace-pre-line text-sm text-gray-800 sm:text-base break-words"
                 />
 
@@ -1177,8 +1177,13 @@ export default function PostDetailPage() {
                               ? "(min-width: 768px) 640px, 100vw"
                               : "(min-width: 1280px) 360px, (min-width: 768px) 45vw, 100vw"
                           }
-                          className="h-full w-full object-cover"
+                          className={`h-full w-full object-cover ${post.blur_explicit ? "blur-sm" : ""}`}
                         />
+                        {post.blur_explicit ? (
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] font-semibold uppercase tracking-wide text-white">
+                            Explicit content
+                          </span>
+                        ) : null}
                         <span className="absolute inset-0 bg-black/0 transition group-hover:bg-black/10" />
                       </button>
                     ))}
@@ -2080,7 +2085,7 @@ export default function PostDetailPage() {
           timestamp={galleryMeta.timestamp}
           caption={
             gallery.type === "post"
-              ? post?.content || undefined
+              ? (post?.content_redacted ?? post?.content) || undefined
               : (post?.comments ?? []).find((c) => c.id === gallery.commentId)?.content || undefined
           }
         />

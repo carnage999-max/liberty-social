@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiDelete, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
-import type { UserProfileOverview } from "@/lib/types";
+import type { UserFilterPreference, UserFilterProfile, UserProfileOverview } from "@/lib/types";
 
 interface UserActionsMenuProps {
   overview: UserProfileOverview;
@@ -18,6 +18,9 @@ export function UserActionsMenu({ overview, accessToken, onUpdated }: UserAction
   const [pending, setPending] = useState(false);
   const [showUnfriendConfirm, setShowUnfriendConfirm] = useState(false);
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [showMuteConfirm, setShowMuteConfirm] = useState(false);
+  const [showUnmuteConfirm, setShowUnmuteConfirm] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const relationship = overview.relationship;
@@ -34,6 +37,29 @@ export function UserActionsMenu({ overview, accessToken, onUpdated }: UserAction
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [menuOpen]);
+
+  useEffect(() => {
+    if (!accessToken || !overview.user.id) return;
+    const loadMuteStatus = async () => {
+      try {
+        const pref = await apiGet<UserFilterPreference>("/moderation/filter-preferences/", {
+          token: accessToken,
+          cache: "no-store",
+        });
+        const profileId = pref?.active_profile?.id;
+        if (!profileId) return;
+        const profile = await apiGet<UserFilterProfile>(`/moderation/filter-profiles/${profileId}/`, {
+          token: accessToken,
+          cache: "no-store",
+        });
+        const muted = (profile.account_mutes || []).includes(overview.user.id);
+        setIsMuted(muted);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    void loadMuteStatus();
+  }, [accessToken, overview.user.id]);
 
   const handleUnfriend = useCallback(async () => {
     if (!accessToken || !relationship?.friend_entry_id) return;
@@ -75,6 +101,42 @@ export function UserActionsMenu({ overview, accessToken, onUpdated }: UserAction
       setShowBlockConfirm(false);
     }
   }, [accessToken, overview.user.id, toast, onUpdated]);
+
+  const updateMute = useCallback(
+    async (nextMuted: boolean) => {
+      if (!accessToken || !overview.user.id) return;
+      setPending(true);
+      try {
+        const pref = await apiGet<UserFilterPreference>("/moderation/filter-preferences/", {
+          token: accessToken,
+          cache: "no-store",
+        });
+        const profileId = pref?.active_profile?.id;
+        if (!profileId) throw new Error("No active filter profile.");
+        const profile = await apiGet<UserFilterProfile>(`/moderation/filter-profiles/${profileId}/`, {
+          token: accessToken,
+          cache: "no-store",
+        });
+        const current = profile.account_mutes || [];
+        const next = nextMuted
+          ? Array.from(new Set([...current, overview.user.id]))
+          : current.filter((id) => id !== overview.user.id);
+        await apiPatch(`/moderation/filter-profiles/${profileId}/`, { account_mutes: next }, { token: accessToken });
+        setIsMuted(nextMuted);
+        toast.show(nextMuted ? "User muted." : "User unmuted.");
+        onUpdated?.();
+      } catch (err) {
+        console.error(err);
+        toast.show("Unable to update mute status.", "error");
+      } finally {
+        setPending(false);
+        setMenuOpen(false);
+        setShowMuteConfirm(false);
+        setShowUnmuteConfirm(false);
+      }
+    },
+    [accessToken, overview.user.id, toast, onUpdated]
+  );
 
   if (isSelf || relationship?.blocked_by_target || relationship?.viewer_has_blocked) {
     return null;
@@ -118,6 +180,14 @@ export function UserActionsMenu({ overview, accessToken, onUpdated }: UserAction
           )}
           <button
             type="button"
+            onClick={() => (isMuted ? setShowUnmuteConfirm(true) : setShowMuteConfirm(true))}
+            disabled={pending}
+            className="flex w-full items-center gap-2 px-4 py-2 text-left text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isMuted ? "Unmute user" : "Mute user"}
+          </button>
+          <button
+            type="button"
             onClick={() => setShowBlockConfirm(true)}
             disabled={pending}
             className="flex w-full items-center gap-2 px-4 py-2 text-left text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -147,6 +217,28 @@ export function UserActionsMenu({ overview, accessToken, onUpdated }: UserAction
         confirmVariant="danger"
         onConfirm={handleBlock}
         onCancel={() => setShowBlockConfirm(false)}
+      />
+
+      <ConfirmationDialog
+        isOpen={showMuteConfirm}
+        title="Mute User"
+        message={`Mute ${userName}? Their posts will be hidden from your feed.`}
+        confirmText="Mute"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={() => updateMute(true)}
+        onCancel={() => setShowMuteConfirm(false)}
+      />
+
+      <ConfirmationDialog
+        isOpen={showUnmuteConfirm}
+        title="Unmute User"
+        message={`Unmute ${userName}? Their posts may appear in your feed again.`}
+        confirmText="Unmute"
+        cancelText="Cancel"
+        confirmVariant="default"
+        onConfirm={() => updateMute(false)}
+        onCancel={() => setShowUnmuteConfirm(false)}
       />
     </div>
   );

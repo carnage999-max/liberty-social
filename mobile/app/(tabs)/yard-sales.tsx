@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import AppNavbar from '../../components/layout/AppNavbar';
 import LocationInfoModal from '../../components/LocationInfoModal';
 import YardSaleListingModal from '../../components/YardSaleListingModal';
+import { openInAppBrowser } from '../../utils/inAppBrowser';
 
 interface YardSaleListing {
   id: number;
@@ -88,13 +89,23 @@ export default function YardSalesScreen() {
       android: `google.navigation:q=${lat},${lon}`,
       default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`,
     });
-    if (url) Linking.openURL(url);
+    if (url) {
+      if (url.startsWith('http')) {
+        openInAppBrowser(url);
+      } else {
+        Linking.openURL(url);
+      }
+    }
   };
 
   const makeCall = (phone?: string | null) => {
     if (!phone) return;
     const url = `tel:${phone}`;
-    Linking.openURL(url).catch(() => null);
+    if (url.startsWith('http')) {
+      openInAppBrowser(url);
+    } else {
+      Linking.openURL(url).catch(() => null);
+    }
   };
 
   return (

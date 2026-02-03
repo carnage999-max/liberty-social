@@ -184,19 +184,24 @@ export default function BookmarksPage() {
                   {authorLabel}
                 </h2>
                 <LinkifiedPostContent
-                  content={post.content}
+                  content={post.content_redacted ?? post.content}
                   className="mt-2 line-clamp-3 text-sm text-gray-700 break-words"
                   showPreview={false}
                 />
                 {post.media && post.media.length > 0 && (
-                  <div className="mt-3 overflow-hidden rounded-xl border border-gray-200">
+                  <div className="relative mt-3 overflow-hidden rounded-xl border border-gray-200">
                     <Image
                       src={post.media[0]}
                       alt="Post media"
                       width={800}
                       height={400}
-                      className="h-auto w-full object-cover"
+                      className={`h-auto w-full object-cover ${post.blur_explicit ? "blur-sm" : ""}`}
                     />
+                    {post.blur_explicit ? (
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] font-semibold uppercase tracking-wide text-white">
+                        Explicit content
+                      </span>
+                    ) : null}
                   </div>
                 )}
               </>

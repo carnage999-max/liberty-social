@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { openInAppBrowser } from '../utils/inAppBrowser';
 
 interface LocationInfoModalProps {
   visible: boolean;
@@ -23,7 +24,13 @@ export default function LocationInfoModal({
       android: `google.navigation:q=${lat},${lon}`,
       default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`,
     });
-    if (url) Linking.openURL(url).catch(() => null);
+    if (url) {
+      if (url.startsWith('http')) {
+        openInAppBrowser(url);
+      } else {
+        Linking.openURL(url).catch(() => null);
+      }
+    }
   };
 
   const copyToClipboard = (text: string) => {

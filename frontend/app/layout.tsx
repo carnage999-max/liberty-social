@@ -105,6 +105,7 @@ export default function RootLayout({
               {children}
             </main>
 
+
             <footer className="border-t border-gray-200 bg-white mt-8 mb-20 sm:mb-0">
               <div className="max-w-6xl mx-auto py-6 px-6 flex flex-col md:flex-row items-center md:justify-between gap-4 text-sm text-gray-600">
                 <div className="flex items-center gap-3">
@@ -183,7 +184,6 @@ export default function RootLayout({
                     Download
                   </a>
                 </nav>
-
                 <div className="text-xs text-gray-400">
                   © {new Date().getFullYear()} Liberty Social. All rights reserved.
                 </div>

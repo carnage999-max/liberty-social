@@ -21,6 +21,8 @@ import AppNavbar from '../../components/layout/AppNavbar';
 import { resolveRemoteUrl, DEFAULT_AVATAR } from '../../utils/url';
 import ContextMenu from '../../components/common/ContextMenu';
 import ImageGallery from '../../components/common/ImageGallery';
+import LinkifiedText from '../../components/common/LinkifiedText';
+import LinkPreviewCard from '../../components/common/LinkPreviewCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -617,9 +619,12 @@ export default function ListingDetailScreen() {
           {/* Description */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Description</Text>
-            <Text style={[styles.description, { color: colors.text }]}>
-              {listing.description}
-            </Text>
+            <LinkifiedText
+              text={listing.description}
+              textStyle={[styles.description, { color: colors.text }]}
+              linkStyle={{ color: '#3B82F6', textDecorationLine: 'underline' }}
+            />
+            <LinkPreviewCard text={listing.description} />
           </View>
 
           {/* Details */}
@@ -796,4 +801,3 @@ export default function ListingDetailScreen() {
     </View>
   );
 }
-

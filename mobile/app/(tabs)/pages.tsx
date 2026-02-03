@@ -51,13 +51,34 @@ export default function PagesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const fetchAllPages = async () => {
+    let nextUrl: string | null = '/pages/';
+    const all: BusinessPage[] = [];
+    while (nextUrl) {
+      const response = await apiClient.get<any>(nextUrl);
+      if (Array.isArray(response)) {
+        all.push(...response);
+        nextUrl = null;
+      } else {
+        all.push(...(response.results || []));
+        nextUrl = response.next || null;
+        if (nextUrl && nextUrl.startsWith('http')) {
+          // apiClient expects path; convert full URL to path.
+          const url = new URL(nextUrl);
+          nextUrl = url.pathname + url.search;
+        }
+      }
+    }
+    return all;
+  };
+
   const loadPages = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Load all pages
-      const response = await apiClient.get<any>('/pages/');
-      setPages(response.results || []);
+      // Load all pages (handle pagination)
+      const allPages = await fetchAllPages();
+      setPages(allPages);
       
       // Load managed pages
       const mine = await apiClient.get<any>('/pages/mine/');

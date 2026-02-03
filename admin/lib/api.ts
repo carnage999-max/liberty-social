@@ -1,4 +1,11 @@
-import type { AdminMetrics, LoginSuccess } from "@/lib/types";
+import type {
+  AdminMetrics,
+  LoginSuccess,
+  ModerationActionEntry,
+  ComplianceLogEntry,
+  ContentClassificationEntry,
+  AppealEntry,
+} from "@/lib/types";
 
 const RAW_API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const API_BASE = RAW_API_BASE.trim();
@@ -155,4 +162,100 @@ export function unlockUserAccount(token: string, userId: string) {
 // User search for admin (using universal search endpoint)
 export function searchUsers(token: string, query: string) {
   return request<any>(`/search/?q=${encodeURIComponent(query)}&type=user&limit=20`, { token });
+}
+
+type ModerationQuery = {
+  start?: string;
+  end?: string;
+  content_type?: string;
+  object_id?: string;
+  label?: string;
+  layer?: string;
+  action?: string;
+  category?: string;
+  status?: string;
+};
+
+function toQueryString(params: Record<string, string | undefined>) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) search.set(key, value);
+  });
+  return search.toString();
+}
+
+export function fetchModerationActions(token: string, params: ModerationQuery = {}) {
+  const qs = toQueryString(params);
+  const path = qs ? `/moderation/actions/?${qs}` : "/moderation/actions/";
+  return request<any>(path, { token });
+}
+
+export function fetchClassifications(token: string, params: ModerationQuery = {}) {
+  const qs = toQueryString(params);
+  const path = qs ? `/admin/moderation/classifications/?${qs}` : "/admin/moderation/classifications/";
+  return request<any>(path, { token });
+}
+
+export function fetchComplianceLogs(token: string, params: ModerationQuery = {}) {
+  const qs = toQueryString(params);
+  const path = qs ? `/admin/moderation/compliance-logs/?${qs}` : "/admin/moderation/compliance-logs/";
+  return request<any>(path, { token });
+}
+
+export function fetchAppealsAdmin(token: string, params: ModerationQuery = {}) {
+  const qs = toQueryString(params);
+  const path = qs ? `/admin/moderation/appeals/?${qs}` : "/admin/moderation/appeals/";
+  return request<any>(path, { token });
+}
+
+export function decideAppealAdmin(token: string, id: number, decision: "approved" | "rejected") {
+  return request<AppealEntry>(`/admin/moderation/appeals/${id}/decide/`, {
+    method: "POST",
+    token,
+    body: { decision },
+  });
+}
+
+export function bulkDecideAppealsAdmin(token: string, ids: number[], decision: "approved" | "rejected") {
+  return request<{ updated: number; decision: string }>(`/admin/moderation/appeals/bulk-decide/`, {
+    method: "POST",
+    token,
+    body: { ids, decision },
+  });
+}
+
+async function exportCsv(token: string, path: string, filename: string) {
+  const url = buildUrl(path);
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new ApiError("Export failed", response.status, await response.text());
+  }
+  const blob = await response.blob();
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+export function exportModerationActions(token: string, params: ModerationQuery, filename: string) {
+  const qs = toQueryString(params);
+  const path = qs ? `/moderation/actions/export/?${qs}` : "/moderation/actions/export/";
+  return exportCsv(token, path, filename);
+}
+
+export function exportClassifications(token: string, params: ModerationQuery, filename: string) {
+  const qs = toQueryString(params);
+  const path = qs ? `/admin/moderation/classifications/export/?${qs}` : "/admin/moderation/classifications/export/";
+  return exportCsv(token, path, filename);
+}
+
+export function exportComplianceLogs(token: string, params: ModerationQuery, filename: string) {
+  const qs = toQueryString(params);
+  const path = qs ? `/admin/moderation/compliance-logs/export/?${qs}` : "/admin/moderation/compliance-logs/export/";
+  return exportCsv(token, path, filename);
 }

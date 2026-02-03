@@ -33,6 +33,8 @@ from .emails import (
     send_offer_declined_email,
 )
 from .slug_utils import SlugOrIdLookupMixin
+from .moderation.pipeline import precheck_text_or_raise, record_text_classification
+from .moderation.throttling import enforce_throttle
 import logging
 
 logger = logging.getLogger(__name__)
@@ -95,13 +97,49 @@ class MarketplaceListingViewSet(SlugOrIdLookupMixin, viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(seller=self.request.user)
+        title = serializer.validated_data.get("title") or ""
+        description = serializer.validated_data.get("description") or ""
+        location = serializer.validated_data.get("location") or ""
+        enforce_throttle(
+            actor=self.request.user,
+            context="marketplace_create",
+            text=" ".join([title, description, location]).strip(),
+        )
+        decision = precheck_text_or_raise(
+            text=" ".join([title, description, location]).strip(),
+            actor=self.request.user,
+            context="marketplace_create",
+        )
+        listing = serializer.save(seller=self.request.user)
+        record_text_classification(
+            content_object=listing,
+            actor=self.request.user,
+            decision=decision,
+            metadata={"context": "marketplace_create"},
+        )
 
     def perform_update(self, serializer):
         listing = self.get_object()
         if listing.seller != self.request.user:
             raise PermissionDenied("You can only edit your own listings.")
-        serializer.save()
+        title = serializer.validated_data.get("title")
+        description = serializer.validated_data.get("description")
+        location = serializer.validated_data.get("location")
+        decision = None
+        if any(value is not None for value in (title, description, location)):
+            decision = precheck_text_or_raise(
+                text=" ".join([title or listing.title, description or listing.description, location or listing.location]).strip(),
+                actor=self.request.user,
+                context="marketplace_update",
+            )
+        listing = serializer.save()
+        if decision:
+            record_text_classification(
+                content_object=listing,
+                actor=self.request.user,
+                decision=decision,
+                metadata={"context": "marketplace_update"},
+            )
 
     def perform_destroy(self, instance):
         if instance.seller != self.request.user:

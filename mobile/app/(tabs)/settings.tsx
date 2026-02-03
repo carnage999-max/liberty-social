@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,8 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Linking,
   Image,
   Platform,
-  Alert,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -25,7 +23,8 @@ import { apiClient } from '../../utils/api';
 import { getApiBase } from '../../constants/API';
 import { storage } from '../../utils/storage';
 import * as ImagePicker from 'expo-image-picker';
-import Constants from 'expo-constants';
+import { applyAppIconPreference, loadAppIconPreference, saveAppIconPreference, type AppIconPreference } from '../../utils/appIcon';
+import { openInAppBrowser } from '../../utils/inAppBrowser';
 
 type SwitchSetting = {
   type: 'switch';
@@ -56,44 +55,30 @@ export default function SettingsScreen() {
   const [bugMessage, setBugMessage] = useState('');
   const [bugScreenshot, setBugScreenshot] = useState<{ uri: string; filename: string; mimeType: string } | null>(null);
   const [sendingBugReport, setSendingBugReport] = useState(false);
+  const [iconPreference, setIconPreference] = useState<AppIconPreference>({
+    color: 'white',
+    shape: 'square',
+  });
+  const [iconLoading, setIconLoading] = useState(true);
+
+  useEffect(() => {
+    const loadIconPreference = async () => {
+      try {
+        const pref = await loadAppIconPreference();
+        setIconPreference(pref);
+      } finally {
+        setIconLoading(false);
+      }
+    };
+    loadIconPreference();
+  }, []);
 
   const handleOpenLink = async (url: string) => {
     try {
-      const isExpoGo = Constants.appOwnership === 'expo';
-      
-      if (isExpoGo) {
-        // In Expo Go, links don't work due to deep linking interference
-        // Show a message to build the APK for full testing
-        Alert.alert(
-          'External Links in Expo Go',
-          'External links cannot be opened in Expo Go. Please build the APK to test this feature: npx expo run:android',
-          [
-            {
-              text: 'Copy Build Command',
-              onPress: () => {
-                // Just show a toast since we can't copy to clipboard easily
-                showToastSuccess('Use: npx expo run:android');
-              },
-            },
-            { text: 'OK', onPress: () => {} },
-          ]
-        );
-        return;
-      }
-
       console.log('🔗 Opening link:', url);
       const fullUrl = url.startsWith('http') ? url : `https://${url}`;
       console.log('🔗 Full URL:', fullUrl);
-      
-      setTimeout(() => {
-        console.log('🔗 Calling Linking.openURL');
-        Linking.openURL(fullUrl).then(() => {
-          console.log('🔗 URL opened successfully');
-        }).catch((err) => {
-          console.error('🔗 Linking error:', err);
-          showToastError('Could not open link');
-        });
-      }, 100);
+      await openInAppBrowser(fullUrl);
     } catch (error) {
       console.error('🔗 Unexpected error:', error);
       showToastError('Could not open link');
@@ -247,15 +232,15 @@ export default function SettingsScreen() {
   const handleOpenFAQ = () => {
     console.log('🔗 FAQ button pressed');
     showToastSuccess('Opening FAQ...');
-    handleOpenLink('https://mylibertysocial.com/faq');
+    handleOpenLink('https://www.mylibertysocial.com/faq');
   };
 
   const handleOpenPrivacyStatement = () => {
-    handleOpenLink('https://mylibertysocial.com/privacy');
+    handleOpenLink('https://www.mylibertysocial.com/privacy');
   };
 
   const handleRequestAccountDeletion = () => {
-    handleOpenLink('https://mylibertysocial.com/account-deletion');
+    handleOpenLink('https://www.mylibertysocial.com/account-deletion');
   };
 
   const settings: SettingSection[] = [
@@ -269,6 +254,10 @@ export default function SettingsScreen() {
           onValueChange: (value: boolean) => setMode(value ? 'dark' : 'light'),
         },
       ],
+    },
+    {
+      title: 'App Icon',
+      items: [],
     },
     {
       title: 'Account',
@@ -308,6 +297,18 @@ export default function SettingsScreen() {
           label: 'Blocked Users',
           icon: 'ban-outline',
           onPress: () => router.push('/(tabs)/settings/blocked'),
+        },
+        {
+          type: 'link',
+          label: 'Content Filters',
+          icon: 'eye-off-outline',
+          onPress: () => router.push('/(tabs)/settings/content-filters'),
+        },
+        {
+          type: 'link',
+          label: 'Moderation History',
+          icon: 'shield-checkmark-outline',
+          onPress: () => router.push('/(tabs)/settings/moderation-history'),
         },
         {
           type: 'link',
@@ -372,25 +373,84 @@ export default function SettingsScreen() {
       borderWidth: 1,
       borderColor: colors.border,
     },
+    iconSection: {
+      gap: 12,
+    },
+    iconOptions: {
+      flexDirection: 'row',
+      gap: 12,
+    },
+    iconCard: {
+      flex: 1,
+      padding: 12,
+      borderRadius: 14,
+      borderWidth: 1,
+      alignItems: 'center',
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+    },
+    iconCardSelected: {
+      borderWidth: 2,
+    },
+    iconImage: {
+      width: 64,
+      height: 64,
+      borderRadius: 14,
+      marginBottom: 8,
+    },
+    iconLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    iconToggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 12,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+    },
+    iconToggleLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    iconToggleHint: {
+      marginTop: 4,
+      fontSize: 12,
+    },
     settingLabel: {
       flex: 1,
       fontSize: 16,
       color: colors.text,
       marginLeft: 12,
     },
+    primaryActionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 14,
+      backgroundColor: '#192A4A',
+      borderWidth: 1,
+      borderColor: '#C8A25F',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.4,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    primaryActionText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '600',
+    },
     logoutButton: {
       margin: 16,
       marginTop: 32,
       marginBottom: 16,
-      backgroundColor: '#FF4D4F',
-      borderRadius: 12,
-      padding: 16,
-      alignItems: 'center',
-    },
-    logoutButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontWeight: '600',
     },
     copyrightContainer: {
       paddingVertical: 24,
@@ -443,46 +503,13 @@ export default function SettingsScreen() {
       gap: 12,
     },
     modalButton: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 8,
-      minWidth: 80,
-      alignItems: 'center',
-    },
-    modalButtonCancel: {
-      backgroundColor: colors.border,
-    },
-    modalButtonSubmit: {
-      backgroundColor: colors.primary,
-    },
-    modalButtonText: {
-      fontSize: 15,
-      fontWeight: '600',
-    },
-    modalButtonTextCancel: {
-      color: colors.text,
-    },
-    modalButtonTextSubmit: {
-      color: '#FFFFFF',
+      flex: 1,
     },
     screenshotSection: {
       marginBottom: 16,
     },
     screenshotButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: 12,
-      backgroundColor: isDark ? colors.backgroundSecondary : '#F5F5F5',
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderStyle: 'dashed',
-      gap: 8,
-    },
-    screenshotButtonText: {
-      color: colors.text,
-      fontSize: 14,
+      width: '100%',
     },
     screenshotPreview: {
       marginTop: 12,
@@ -515,7 +542,76 @@ export default function SettingsScreen() {
       {settings.map((section) => (
         <View key={section.title} style={styles.section}>
           <Text style={styles.sectionTitle}>{section.title}</Text>
-          {section.items.map((item, index) => {
+          {section.title === 'App Icon' ? (
+            <View style={styles.iconSection}>
+              <View style={styles.iconOptions}>
+                {(['white', 'blue'] as const).map((color) => {
+                  const isSelected = iconPreference.color === color;
+                  const squareSource =
+                    color === 'white'
+                      ? require('../../assets/app-icons/white.png')
+                      : require('../../assets/app-icons/blue.png');
+                  const roundSource =
+                    color === 'white'
+                      ? require('../../assets/liberty-social-white-icon-set/android/mipmap-xxxhdpi/ic_launcher_round.png')
+                      : require('../../assets/liberty-social-blue-icon-set/android/mipmap-xxxhdpi/ic_launcher_round.png');
+                  const source =
+                    Platform.OS === 'android' && iconPreference.shape === 'round'
+                      ? roundSource
+                      : squareSource;
+                  return (
+                    <TouchableOpacity
+                      key={color}
+                      style={[
+                        styles.iconCard,
+                        isSelected && styles.iconCardSelected,
+                        { borderColor: isSelected ? '#C8A25F' : colors.border },
+                      ]}
+                      onPress={async () => {
+                        const next = { ...iconPreference, color };
+                        setIconPreference(next);
+                        await saveAppIconPreference(next);
+                        await applyAppIconPreference(next);
+                        showToastSuccess('App icon will update after restart.');
+                      }}
+                      disabled={iconLoading}
+                    >
+                      <Image source={source} style={styles.iconImage} />
+                      <Text style={[styles.iconLabel, { color: colors.text }]}>
+                        {color === 'white' ? 'White' : 'Blue'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {Platform.OS === 'android' ? (
+                <View style={styles.iconToggleRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.iconToggleLabel, { color: colors.text }]}>
+                      Rounded icon
+                    </Text>
+                    <Text style={[styles.iconToggleHint, { color: colors.textSecondary }]}>
+                      Applies on next restart.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={iconPreference.shape === 'round'}
+                    onValueChange={async (value) => {
+                      const next = { ...iconPreference, shape: value ? 'round' : 'square' };
+                      setIconPreference(next);
+                      await saveAppIconPreference(next);
+                      await applyAppIconPreference(next);
+                      showToastSuccess('App icon will update after restart.');
+                    }}
+                    trackColor={{ false: colors.border, true: colors.primary }}
+                    thumbColor="#FFFFFF"
+                    disabled={iconLoading}
+                  />
+                </View>
+              ) : null}
+            </View>
+          ) : (
+          section.items.map((item, index) => {
             if (item.type === 'switch') {
               return (
                 <View key={`${section.title}-${index}`} style={styles.settingItem}>
@@ -541,12 +637,13 @@ export default function SettingsScreen() {
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             );
-          })}
+          })
+          )}
         </View>
       ))}
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Logout</Text>
+      <TouchableOpacity style={[styles.primaryActionButton, styles.logoutButton]} onPress={handleLogout}>
+        <Text style={styles.primaryActionText}>Logout</Text>
       </TouchableOpacity>
 
       <View style={styles.copyrightContainer}>
@@ -584,12 +681,12 @@ export default function SettingsScreen() {
 
             <View style={styles.screenshotSection}>
               <TouchableOpacity
-                style={styles.screenshotButton}
+                style={[styles.primaryActionButton, styles.screenshotButton]}
                 onPress={handlePickScreenshot}
                 disabled={sendingBugReport}
               >
-                <Ionicons name="image-outline" size={20} color={colors.text} />
-                <Text style={styles.screenshotButtonText}>
+                <Ionicons name="image-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.primaryActionText}>
                   {bugScreenshot ? 'Change Screenshot' : 'Add Screenshot (Optional)'}
                 </Text>
               </TouchableOpacity>
@@ -614,26 +711,22 @@ export default function SettingsScreen() {
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonCancel]}
+                style={[styles.primaryActionButton, styles.modalButton]}
                 onPress={() => setBugReportVisible(false)}
                 disabled={sendingBugReport}
               >
-                <Text style={[styles.modalButtonText, styles.modalButtonTextCancel]}>
-                  Cancel
-                </Text>
+                <Text style={styles.primaryActionText}>Cancel</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSubmit]}
+                style={[styles.primaryActionButton, styles.modalButton]}
                 onPress={handleSubmitBugReport}
                 disabled={sendingBugReport}
               >
                 {sendingBugReport ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={[styles.modalButtonText, styles.modalButtonTextSubmit]}>
-                    Submit
-                  </Text>
+                  <Text style={styles.primaryActionText}>Submit</Text>
                 )}
               </TouchableOpacity>
             </View>

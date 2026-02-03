@@ -691,7 +691,7 @@ export default function FeedPage() {
                 onKeyDown={(event) => handlePostContentKeyDown(event, post)}
               >
                 <LinkifiedPostContent
-                  content={post.content}
+                  content={post.content_redacted ?? post.content}
                   className="whitespace-pre-line text-sm text-gray-800 sm:text-base break-words"
                 />
               </div>
@@ -725,8 +725,13 @@ export default function FeedPage() {
                             ? "(min-width: 768px) 640px, 100vw"
                             : "(min-width: 1280px) 360px, (min-width: 768px) 45vw, 100vw"
                         }
-                        className="h-full w-full object-cover"
+                        className={`h-full w-full object-cover ${post.blur_explicit ? "blur-sm" : ""}`}
                       />
+                      {post.blur_explicit ? (
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-[11px] font-semibold uppercase tracking-wide text-white">
+                          Explicit content
+                        </span>
+                      ) : null}
                       <span className="absolute inset-0 bg-black/0 transition group-hover:bg-black/10" />
                     </button>
                   ))}
@@ -1036,7 +1041,7 @@ export default function FeedPage() {
             onSelect={(index) => setGallery((prev) => (prev ? { ...prev, index } : prev))}
             title={authorLabel}
             timestamp={activePost.created_at}
-            caption={activePost.content || undefined}
+            caption={(activePost.content_redacted ?? activePost.content) || undefined}
           />
         );
       })()}

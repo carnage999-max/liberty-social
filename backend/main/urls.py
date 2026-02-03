@@ -46,6 +46,15 @@ from .views import (
     WebSocketDiagnosticView,
     TestPushNotificationView,
 )
+from .moderation_views import (
+    ModerationActionViewSet,
+    UserFilterProfileViewSet,
+    UserFilterPreferenceViewSet,
+    AppealViewSet,
+    ContentClassificationViewSet,
+    ComplianceLogViewSet,
+    AppealAdminViewSet,
+)
 from .marketplace_views import (
     MarketplaceCategoryViewSet,
     MarketplaceListingViewSet,
@@ -126,6 +135,37 @@ router.register("animals/reviews", SellerReviewViewSet, basename="animal-reviews
 router.register("animals/breeders", BreederDirectoryViewSet, basename="animal-breeders")
 router.register(
     "admin/action-logs", AdminActionLogViewSet, basename="admin-action-logs"
+)
+router.register(
+    "moderation/actions", ModerationActionViewSet, basename="moderation-actions"
+)
+router.register(
+    "moderation/filter-profiles",
+    UserFilterProfileViewSet,
+    basename="moderation-filter-profiles",
+)
+router.register(
+    "moderation/filter-preferences",
+    UserFilterPreferenceViewSet,
+    basename="moderation-filter-preferences",
+)
+router.register(
+    "moderation/appeals", AppealViewSet, basename="moderation-appeals"
+)
+router.register(
+    "admin/moderation/classifications",
+    ContentClassificationViewSet,
+    basename="admin-moderation-classifications",
+)
+router.register(
+    "admin/moderation/compliance-logs",
+    ComplianceLogViewSet,
+    basename="admin-moderation-compliance-logs",
+)
+router.register(
+    "admin/moderation/appeals",
+    AppealAdminViewSet,
+    basename="admin-moderation-appeals",
 )
 
 urlpatterns = [

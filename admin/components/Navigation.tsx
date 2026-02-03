@@ -6,11 +6,12 @@ import { usePathname } from "next/navigation";
 export function Navigation() {
   const pathname = usePathname();
 
-  const navItems = [
-    { href: "/" as const, label: "Dashboard" },
-    { href: "/kyc" as const, label: "KYC Submissions" },
-    { href: "/admin-logs" as const, label: "Admin Logs" },
-    { href: "/security" as const, label: "Security" },
+  const navItems: Array<{ href: string; label: string }> = [
+    { href: "/", label: "Dashboard" },
+    { href: "/kyc", label: "KYC Submissions" },
+    { href: "/moderation", label: "Moderation" },
+    { href: "/admin-logs", label: "Admin Logs" },
+    { href: "/security", label: "Security" },
   ];
 
   return (
@@ -21,12 +22,12 @@ export function Navigation() {
           <span className="admin-nav__title">Admin Console</span>
         </div>
         <div className="admin-nav__links">
-          {navItems.map((item) => {
+          {navItems.map((item: { href: string; label: string }) => {
             const isActive = pathname === item.href;
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={item.href as any}
                 className={`admin-nav__link ${isActive ? "admin-nav__link--active" : ""}`}
               >
                 {item.label}
@@ -38,4 +39,3 @@ export function Navigation() {
     </nav>
   );
 }
-

@@ -49,6 +49,8 @@ import ImageGallery from '../../components/common/ImageGallery';
 import FeedBackgroundModal from '../../components/feed/FeedBackgroundModal';
 import FeedFilterModal from '../../components/feed/FeedFilterModal';
 import { useFeedBackground } from '../../hooks/useFeedBackground';
+import LinkifiedText from '../../components/common/LinkifiedText';
+import LinkPreviewCard from '../../components/common/LinkPreviewCard';
 import {
   resolveMediaUrls,
   resolveRemoteUrl,
@@ -870,6 +872,10 @@ export default function FeedScreen() {
     const likeProcessing = !!reactionBusy[item.id];
     const likeAnimation = getLikeAnimation(item.id);
 
+    const shouldBlur = !!item.blur_explicit;
+
+    const contentText = (item as any).content_redacted ?? item.content;
+
     return (
       <View
         style={[
@@ -946,8 +952,15 @@ export default function FeedScreen() {
           onPress={() => handlePostPress(item.id)}
           style={styles.postContentWrapper}
         >
-        {item.content && (
-          <Text style={[styles.postContent, { color: colors.text }]}>{item.content}</Text>
+        {contentText && (
+          <>
+            <LinkifiedText
+              text={contentText}
+              textStyle={[styles.postContent, { color: colors.text }]}
+              linkStyle={{ color: '#3B82F6', textDecorationLine: 'underline' }}
+            />
+            <LinkPreviewCard text={item.content} />
+          </>
         )}
 
         {galleryUrls.length > 0 && (
@@ -986,7 +999,14 @@ export default function FeedScreen() {
                   cachePolicy="memory-disk"
                   transition={200}
                   placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+                  blurRadius={shouldBlur ? 18 : 0}
                 />
+                {shouldBlur ? (
+                  <View style={styles.explicitOverlay} pointerEvents="none">
+                    <Ionicons name="eye-off-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.explicitOverlayText}>Explicit content</Text>
+                  </View>
+                ) : null}
               </TouchableOpacity>
             ))}
           </View>
@@ -1275,6 +1295,7 @@ export default function FeedScreen() {
       borderRadius: 12,
       overflow: 'hidden',
       backgroundColor: colors.border,
+      position: 'relative',
     },
     mediaImageSingle: {
       width: '100%',
@@ -1292,6 +1313,22 @@ export default function FeedScreen() {
     mediaImage: {
       width: '100%',
       height: '100%',
+    },
+    explicitOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    },
+    explicitOverlayText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '600',
     },
     reactionEmoji: {
       fontSize: 20,

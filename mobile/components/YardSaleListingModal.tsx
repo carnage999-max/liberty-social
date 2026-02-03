@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { openInAppBrowser } from '../utils/inAppBrowser';
 
 interface YardSaleListing {
   id: number;
@@ -26,13 +27,23 @@ export default function YardSaleListingModal({ listing, visible, onClose }: { li
       android: `google.navigation:q=${lat},${lon}`,
       default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`,
     });
-    if (url) Linking.openURL(url).catch(() => null);
+    if (url) {
+      if (url.startsWith('http')) {
+        openInAppBrowser(url);
+      } else {
+        Linking.openURL(url).catch(() => null);
+      }
+    }
   };
 
   const callPhone = (phone?: string | null) => {
     if (!phone) return;
     const url = `tel:${phone}`;
-    Linking.openURL(url).catch(() => null);
+    if (url.startsWith('http')) {
+      openInAppBrowser(url);
+    } else {
+      Linking.openURL(url).catch(() => null);
+    }
   };
 
   const posterName = listing.user?.username ?? 'User';

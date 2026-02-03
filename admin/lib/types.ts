@@ -90,3 +90,52 @@ export type UserSearchResult = {
   href: string;
   relevance_score: number;
 };
+
+export type ModerationActionEntry = {
+  id: number;
+  content_type: { id: number; app_label: string; model: string } | null;
+  object_id: string | null;
+  layer: string;
+  action: string;
+  reason_code: string;
+  rule_ref: string;
+  metadata: Record<string, unknown>;
+  actor: string | number | null;
+  created_at: string;
+};
+
+export type ContentClassificationEntry = {
+  id: number;
+  content_type: { id: number; app_label: string; model: string } | null;
+  object_id: string;
+  model_version: string;
+  labels: string[];
+  confidences: Record<string, number>;
+  features: Record<string, unknown>;
+  actor: string | number | null;
+  created_at: string;
+};
+
+export type ComplianceLogEntry = {
+  id: number;
+  layer: string;
+  category: string;
+  content_type: { id: number; app_label: string; model: string } | null;
+  object_id: string | null;
+  content_snippet?: string | null;
+  content_hash?: string | null;
+  metadata?: Record<string, unknown> | null;
+  actor: string | number | null;
+  created_at: string;
+};
+
+export type AppealEntry = {
+  id: number;
+  moderation_action: number;
+  user: string | number;
+  reason: string;
+  status: string;
+  decided_by?: string | number | null;
+  decided_at?: string | null;
+  created_at: string;
+};

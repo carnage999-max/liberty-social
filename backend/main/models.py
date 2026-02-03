@@ -711,3 +711,13 @@ from .yard_sale_models import (
     YardSaleListing,
     YardSaleReport,
 )
+
+# Import moderation models
+from .moderation_models import (  # noqa: E402,F401
+    Appeal,
+    ComplianceLog,
+    ContentClassification,
+    ModerationAction,
+    UserFilterPreference,
+    UserFilterProfile,
+)

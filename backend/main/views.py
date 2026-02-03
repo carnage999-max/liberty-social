@@ -66,6 +66,9 @@ from .serializers import (
 from users.models import Friends
 from users.emails import send_page_admin_invite_email
 from .emails import send_page_invite_email
+from .moderation.pipeline import precheck_text_or_raise, record_text_classification
+from .moderation.throttling import enforce_throttle
+from .moderation.filtering import apply_user_filters_to_posts
 
 
 def send_page_invite_push_notification(recipient, sender, page):
@@ -147,17 +150,32 @@ class PostViewSet(SlugOrIdLookupMixin, ModelViewSet):
         mine = self.request.query_params.get("mine")
         if mine is not None and str(mine).lower() in ("1", "true", "yes"):
             # Only return personal posts (author_type="user"), exclude page posts
-            return qs.filter(author=self.request.user, author_type="user")
+            qs = qs.filter(author=self.request.user, author_type="user")
+        if getattr(self, "action", None) == "list":
+            qs = apply_user_filters_to_posts(qs, self.request.user)
         return qs
 
     def perform_create(self, serializer):
+        content = serializer.validated_data.get("content", "")
+        enforce_throttle(actor=self.request.user, context="post_create", text=content)
+        decision = precheck_text_or_raise(
+            text=content,
+            actor=self.request.user,
+            context="post_create",
+        )
         page = serializer.validated_data.get("page")
         if page:
             if not _page_admin_entry(page, self.request.user):
                 raise PermissionDenied("You do not manage this page.")
-            serializer.save(author=self.request.user, author_type="page")
+            post = serializer.save(author=self.request.user, author_type="page")
         else:
-            serializer.save(author=self.request.user, author_type="user")
+            post = serializer.save(author=self.request.user, author_type="user")
+        record_text_classification(
+            content_object=post,
+            actor=self.request.user,
+            decision=decision,
+            metadata={"context": "post_create"},
+        )
 
     def perform_update(self, serializer):
         instance = serializer.instance
@@ -166,7 +184,22 @@ class PostViewSet(SlugOrIdLookupMixin, ModelViewSet):
                 raise PermissionDenied("You are not allowed to edit this page post.")
         elif instance.author != self.request.user:
             raise PermissionDenied("You are not allowed to edit this post.")
-        serializer.save(edited_at=timezone.now())
+        content = serializer.validated_data.get("content")
+        decision = None
+        if content is not None:
+            decision = precheck_text_or_raise(
+                text=content,
+                actor=self.request.user,
+                context="post_update",
+            )
+        post = serializer.save(edited_at=timezone.now())
+        if decision:
+            record_text_classification(
+                content_object=post,
+                actor=self.request.user,
+                decision=decision,
+                metadata={"context": "post_update"},
+            )
 
     def perform_destroy(self, instance):
         if instance.author_type == "page":
@@ -184,13 +217,41 @@ class CommentViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        content = serializer.validated_data.get("content", "")
+        enforce_throttle(actor=self.request.user, context="comment_create", text=content)
+        decision = precheck_text_or_raise(
+            text=content,
+            actor=self.request.user,
+            context="comment_create",
+        )
+        comment = serializer.save(author=self.request.user)
+        record_text_classification(
+            content_object=comment,
+            actor=self.request.user,
+            decision=decision,
+            metadata={"context": "comment_create"},
+        )
 
     def perform_update(self, serializer):
         instance = serializer.instance
         if instance.author != self.request.user:
             raise PermissionDenied("You are not allowed to edit this comment.")
-        serializer.save()
+        content = serializer.validated_data.get("content")
+        decision = None
+        if content is not None:
+            decision = precheck_text_or_raise(
+                text=content,
+                actor=self.request.user,
+                context="comment_update",
+            )
+        comment = serializer.save()
+        if decision:
+            record_text_classification(
+                content_object=comment,
+                actor=self.request.user,
+                decision=decision,
+                metadata={"context": "comment_update"},
+            )
 
     def perform_destroy(self, instance):
         if instance.author != self.request.user:
@@ -449,7 +510,25 @@ class PageViewSet(SlugOrIdLookupMixin, ModelViewSet):
         return context
 
     def perform_create(self, serializer):
+        name = serializer.validated_data.get("name") or ""
+        description = serializer.validated_data.get("description") or ""
+        enforce_throttle(
+            actor=self.request.user,
+            context="page_create",
+            text=" ".join([name, description]).strip(),
+        )
+        decision = precheck_text_or_raise(
+            text=" ".join([name, description]).strip(),
+            actor=self.request.user,
+            context="page_create",
+        )
         page = serializer.save(created_by=self.request.user)
+        record_text_classification(
+            content_object=page,
+            actor=self.request.user,
+            decision=decision,
+            metadata={"context": "page_create"},
+        )
         PageAdmin.objects.create(
             page=page,
             user=self.request.user,
@@ -465,7 +544,23 @@ class PageViewSet(SlugOrIdLookupMixin, ModelViewSet):
         page = serializer.instance
         if not _page_admin_entry(page, self.request.user):
             raise PermissionDenied("You are not allowed to update this page.")
-        serializer.save()
+        name = serializer.validated_data.get("name")
+        description = serializer.validated_data.get("description")
+        decision = None
+        if name is not None or description is not None:
+            decision = precheck_text_or_raise(
+                text=" ".join([name or page.name, description or page.description]).strip(),
+                actor=self.request.user,
+                context="page_update",
+            )
+        page = serializer.save()
+        if decision:
+            record_text_classification(
+                content_object=page,
+                actor=self.request.user,
+                decision=decision,
+                metadata={"context": "page_update"},
+            )
 
     def perform_destroy(self, instance):
         if not PageAdmin.objects.filter(
@@ -763,6 +858,7 @@ class PageViewSet(SlugOrIdLookupMixin, ModelViewSet):
             posts = page.posts.filter(deleted_at__isnull=True).select_related(
                 "author", "page"
             )
+            posts = apply_user_filters_to_posts(posts, request.user)
             paginator = PageNumberPagination()
             paginated = paginator.paginate_queryset(posts, request)
             target = paginated if paginated is not None else posts
@@ -1043,6 +1139,15 @@ class ConversationViewSet(ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        decision = None
+        if content:
+            enforce_throttle(actor=request.user, context="message_create", text=content)
+            decision = precheck_text_or_raise(
+                text=content,
+                actor=request.user,
+                context="message_create",
+            )
+
         reply_to = None
         if reply_to_id:
             try:
@@ -1060,6 +1165,13 @@ class ConversationViewSet(ModelViewSet):
             media_url=media_url,
             reply_to=reply_to,
         )
+        if decision:
+            record_text_classification(
+                content_object=message,
+                actor=request.user,
+                decision=decision,
+                metadata={"context": "message_create"},
+            )
         ConversationParticipant.objects.filter(
             conversation=conversation, user=request.user
         ).update(last_read_at=timezone.now())
@@ -1159,9 +1271,20 @@ class ConversationViewSet(ModelViewSet):
                     {"detail": "Message content cannot be empty."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            decision = precheck_text_or_raise(
+                text=content,
+                actor=request.user,
+                context="message_update",
+            )
             message.content = content
             message.edited_at = timezone.now()
             message.save(update_fields=["content", "edited_at", "updated_at"])
+            record_text_classification(
+                content_object=message,
+                actor=request.user,
+                decision=decision,
+                metadata={"context": "message_update"},
+            )
 
             serializer = MessageSerializer(
                 message, context=self.get_serializer_context()
@@ -1465,6 +1588,9 @@ class NewsFeedView(APIView):
         filterset.friend_ids = friend_ids
         qs = filterset.qs
         print(f"[DEBUG] After filter: {qs.count()}")
+
+        # Apply user filter preferences
+        qs = apply_user_filters_to_posts(qs, user)
 
         # pagination
         paginator = PageNumberPagination()

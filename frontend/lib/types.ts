@@ -150,6 +150,7 @@ export interface Post {
   author_type: "user" | "page";
   page?: PageSummary | null;
   content: string;
+  content_redacted?: string | null;
   media?: string[] | null;
   media_urls?: string[];
   visibility?: Visibility;
@@ -159,6 +160,7 @@ export interface Post {
   reactions: Reaction[];
   bookmarked?: boolean;
   bookmark_id?: number | null;
+  blur_explicit?: boolean;
 }
 
 // ----------------------
@@ -190,6 +192,42 @@ export interface Page extends PageSummary {
   admin_count?: number;
   is_following?: boolean;
 }
+
+// ----------------------
+// MODERATION FILTERS
+// ----------------------
+
+export interface UserFilterProfile {
+  id: number;
+  name: string;
+  is_default: boolean;
+  category_toggles: Record<string, boolean>;
+  blur_thumbnails: boolean;
+  age_gate: boolean;
+  allow_explicit_content: boolean;
+  blur_explicit_thumbnails: boolean;
+  redact_profanity: boolean;
+  keyword_mutes: string[];
+  account_mutes: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserFilterPreference {
+  id: number;
+  active_profile: UserFilterProfile | null;
+  updated_at: string;
+}
+
+export type UserSearchResult = {
+  id: string;
+  type: string;
+  title: string;
+  description: string | null;
+  image: string | null;
+  href: string;
+  relevance_score: number;
+};
 
 export interface PageAdmin {
   id: number;

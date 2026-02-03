@@ -39,6 +39,8 @@ from .animal_serializers import (
     AdminActionLogSerializer,
 )
 from .slug_utils import SlugOrIdLookupMixin
+from .moderation.pipeline import precheck_text_or_raise, record_text_classification
+from .moderation.throttling import enforce_throttle
 from .emails import send_templated_email
 from django.core.mail import send_mail
 
@@ -418,7 +420,27 @@ class AnimalListingViewSet(SlugOrIdLookupMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Create listing and set seller."""
+        title = serializer.validated_data.get("title") or ""
+        description = serializer.validated_data.get("description") or ""
+        breed = serializer.validated_data.get("breed") or ""
+        location = serializer.validated_data.get("location") or ""
+        enforce_throttle(
+            actor=self.request.user,
+            context="animal_listing_create",
+            text=" ".join([title, description, breed, location]).strip(),
+        )
+        decision = precheck_text_or_raise(
+            text=" ".join([title, description, breed, location]).strip(),
+            actor=self.request.user,
+            context="animal_listing_create",
+        )
         listing = serializer.save(seller=self.request.user)
+        record_text_classification(
+            content_object=listing,
+            actor=self.request.user,
+            decision=decision,
+            metadata={"context": "animal_listing_create"},
+        )
 
         # Auto-activate listing on creation
         listing.status = "active"
@@ -444,7 +466,32 @@ class AnimalListingViewSet(SlugOrIdLookupMixin, viewsets.ModelViewSet):
         if instance.seller != self.request.user and not self.request.user.is_staff:
             raise PermissionDenied("You can only edit your own listings.")
 
-        serializer.save()
+        title = serializer.validated_data.get("title")
+        description = serializer.validated_data.get("description")
+        breed = serializer.validated_data.get("breed")
+        location = serializer.validated_data.get("location")
+        decision = None
+        if any(value is not None for value in (title, description, breed, location)):
+            decision = precheck_text_or_raise(
+                text=" ".join(
+                    [
+                        title or instance.title,
+                        description or instance.description,
+                        breed or instance.breed,
+                        location or instance.location,
+                    ]
+                ).strip(),
+                actor=self.request.user,
+                context="animal_listing_update",
+            )
+        listing = serializer.save()
+        if decision:
+            record_text_classification(
+                content_object=listing,
+                actor=self.request.user,
+                decision=decision,
+                metadata={"context": "animal_listing_update"},
+            )
 
     def perform_destroy(self, instance):
         """Soft delete by marking as cancelled."""
@@ -666,6 +713,42 @@ class BreederDirectoryViewSet(SlugOrIdLookupMixin, viewsets.ModelViewSet):
             return Response(
                 {"error": "No verification found. Please verify as a seller first."},
                 status=status.HTTP_404_NOT_FOUND,
+            )
+
+    def perform_create(self, serializer):
+        breeder_name = serializer.validated_data.get("breeder_name") or ""
+        bio = serializer.validated_data.get("bio") or ""
+        decision = precheck_text_or_raise(
+            text=" ".join([breeder_name, bio]).strip(),
+            actor=self.request.user,
+            context="breeder_directory_create",
+        )
+        breeder = serializer.save()
+        record_text_classification(
+            content_object=breeder,
+            actor=self.request.user,
+            decision=decision,
+            metadata={"context": "breeder_directory_create"},
+        )
+
+    def perform_update(self, serializer):
+        breeder = serializer.instance
+        breeder_name = serializer.validated_data.get("breeder_name")
+        bio = serializer.validated_data.get("bio")
+        decision = None
+        if breeder_name is not None or bio is not None:
+            decision = precheck_text_or_raise(
+                text=" ".join([breeder_name or breeder.breeder_name, bio or breeder.bio]).strip(),
+                actor=self.request.user,
+                context="breeder_directory_update",
+            )
+        breeder = serializer.save()
+        if decision:
+            record_text_classification(
+                content_object=breeder,
+                actor=self.request.user,
+                decision=decision,
+                metadata={"context": "breeder_directory_update"},
             )
 
     @action(detail=False, methods=["get"])

@@ -36,6 +36,8 @@ import { useAlert } from '../../../contexts/AlertContext';
 import UserProfileBottomSheet from '../../../components/profile/UserProfileBottomSheet';
 import ImageGallery from '../../../components/common/ImageGallery';
 import { useTypingStatus } from '../../../contexts/TypingStatusContext';
+import LinkPreviewCard from '../../../components/common/LinkPreviewCard';
+import LinkifiedText from '../../../components/common/LinkifiedText';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import * as Clipboard from 'expo-clipboard';
 import { getThumbnailAsync } from 'expo-video-thumbnails';
@@ -363,19 +365,25 @@ const MessageItem = memo(({
                 displayContent = displayContent.replace(/\[duration:\d+:\d+\]/g, '').trim();
               }
               return displayContent ? (
-                <Text
-                  style={[
-                    styles.messageText,
-                    { 
-                      color: isOwn ? '#FFFFFF' : colors.text,
-                      textShadowColor: chatBackgroundTheme !== 'default' ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
-                      textShadowOffset: chatBackgroundTheme !== 'default' ? { width: 0, height: 1 } : { width: 0, height: 0 },
-                      textShadowRadius: chatBackgroundTheme !== 'default' ? 2 : 0,
-                    },
-                  ]}
-                >
-                  {displayContent}
-                </Text>
+                <>
+                  <LinkifiedText
+                    text={displayContent}
+                    textStyle={[
+                      styles.messageText,
+                      {
+                        color: isOwn ? '#FFFFFF' : colors.text,
+                        textShadowColor: chatBackgroundTheme !== 'default' ? 'rgba(0, 0, 0, 0.5)' : 'transparent',
+                        textShadowOffset: chatBackgroundTheme !== 'default' ? { width: 0, height: 1 } : { width: 0, height: 0 },
+                        textShadowRadius: chatBackgroundTheme !== 'default' ? 2 : 0,
+                      },
+                    ]}
+                    linkStyle={{
+                      color: isOwn ? '#E3E8FF' : '#3B82F6',
+                      textDecorationLine: 'underline',
+                    }}
+                  />
+                  <LinkPreviewCard text={displayContent} />
+                </>
               ) : null;
             })()}
             <Text

@@ -18,6 +18,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
+import { openInAppBrowser } from '../../utils/inAppBrowser';
 import { LoginRequest, RegisterRequest, AuthTokens } from '../../types';
 import { usePasskey } from '../../hooks/usePasskey';
 import { Ionicons } from '@expo/vector-icons';
@@ -706,14 +707,14 @@ export default function AuthScreen() {
           By clicking "Create account" you agree to our{' '}
           <Text 
             style={styles.termsLink}
-            onPress={() => Linking.openURL('https://mylibertysocial.com/terms')}
+            onPress={() => openInAppBrowser('https://mylibertysocial.com/terms')}
           >
             Terms of Service
           </Text>
           {' '}and{' '}
           <Text 
             style={styles.termsLink}
-            onPress={() => Linking.openURL('https://mylibertysocial.com/privacy')}
+            onPress={() => openInAppBrowser('https://mylibertysocial.com/privacy')}
           >
             Privacy Policy
           </Text>

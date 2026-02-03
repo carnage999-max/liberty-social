@@ -8,8 +8,10 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
+  Share,
 } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAlert } from '../../contexts/AlertContext';
@@ -193,6 +195,22 @@ export default function ProfileScreen() {
   const bio = profile?.user?.bio;
   const dateJoined = profile?.user?.date_joined;
 
+  const handleShareProfile = useCallback(async () => {
+    if (!profile?.user) return;
+    const profileId = profile.user.slug ?? profile.user.id ?? userId;
+    if (!profileId) return;
+    const displayName = fullName || username || 'this profile';
+    const profileUrl = `https://mylibertysocial.com/app/users/${profileId}`;
+    try {
+      await Share.share({
+        message: `View ${displayName} on Liberty Social: ${profileUrl}`,
+        title: 'Share profile',
+      });
+    } catch (error) {
+      showToastError('Unable to share profile right now.');
+    }
+  }, [profile?.user, userId, fullName, username, showToastError]);
+
   const photos = useMemo(() => {
     if (!profile?.stats?.photos) return [];
     return resolveMediaUrls(profile.stats.photos);
@@ -346,10 +364,33 @@ export default function ProfileScreen() {
       aspectRatio: 1,
       padding: 1,
     },
+    postImageWrapper: {
+      width: '100%',
+      height: '100%',
+      position: 'relative',
+    },
     postImage: {
       width: '100%',
       height: '100%',
       backgroundColor: colors.border,
+    },
+    explicitOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      paddingHorizontal: 6,
+    },
+    explicitOverlayText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '600',
+      textAlign: 'center',
     },
     emptyContainer: {
       flex: 1,
@@ -436,6 +477,41 @@ export default function ProfileScreen() {
       fontWeight: '600',
       color: '#FFFFFF',
     },
+    navIconButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 3,
+      elevation: 4,
+    },
+    navIconGradient: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: 'rgba(0, 0, 0, 0.2)',
+    },
+    navRightGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    settingsButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 2,
+      borderColor: '#C8A25F',
+      backgroundColor: '#C8A25F',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
   }), [colors, isDark]);
 
   // Only show full page skeleton on initial load when profile is null
@@ -447,7 +523,33 @@ export default function ProfileScreen() {
           showProfileImage={false} 
           showMessageIcon={false}
           showLogo={false} 
-          showSettingsIcon={isOwnProfile} 
+          showSettingsIcon={false} 
+          customRightButton={
+            <View style={styles.navRightGroup}>
+              <TouchableOpacity
+                style={styles.navIconButton}
+                onPress={handleShareProfile}
+                disabled={!profile?.user}
+              >
+                <LinearGradient
+                  colors={['#C8A25F', '#A67C2D']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.navIconGradient}
+                >
+                  <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+              {isOwnProfile && (
+                <TouchableOpacity
+                  style={styles.settingsButton}
+                  onPress={() => router.push('/(tabs)/settings')}
+                >
+                  <Ionicons name="settings-outline" size={22} color="#1a2335" />
+                </TouchableOpacity>
+              )}
+            </View>
+          }
         />
         <SkeletonProfile />
       </View>
@@ -501,13 +603,22 @@ export default function ProfileScreen() {
                   setGalleryVisible(true);
                 }}
               >
-              <Image
-                source={{ uri: post.media[0] }}
-                style={styles.postImage}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                transition={200}
-              />
+                <View style={styles.postImageWrapper}>
+                  <Image
+                    source={{ uri: post.media[0] }}
+                    style={styles.postImage}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    transition={200}
+                    blurRadius={post.blur_explicit ? 18 : 0}
+                  />
+                  {post.blur_explicit ? (
+                    <View style={styles.explicitOverlay} pointerEvents="none">
+                      <Ionicons name="eye-off-outline" size={16} color="#FFFFFF" />
+                      <Text style={styles.explicitOverlayText}>Explicit content</Text>
+                    </View>
+                  ) : null}
+                </View>
               </TouchableOpacity>
             ) : (
               <View style={[styles.postImage, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -673,7 +784,29 @@ export default function ProfileScreen() {
         showProfileImage={false} 
         showMessageIcon={false}
         showLogo={false} 
-        showSettingsIcon={isOwnProfile} 
+        showSettingsIcon={false} 
+        customRightButton={
+          <View style={styles.navRightGroup}>
+            <TouchableOpacity style={styles.navIconButton} onPress={handleShareProfile}>
+              <LinearGradient
+                colors={['#C8A25F', '#A67C2D']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.navIconGradient}
+              >
+                <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+              </LinearGradient>
+            </TouchableOpacity>
+            {isOwnProfile && (
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => router.push('/(tabs)/settings')}
+              >
+                <Ionicons name="settings-outline" size={22} color="#1a2335" />
+              </TouchableOpacity>
+            )}
+          </View>
+        }
       />
       <ScrollView
         style={styles.container}

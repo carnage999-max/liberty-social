@@ -73,6 +73,8 @@ export interface Post {
   mediaUrls: any;
   id: number;
   slug?: string;
+  content_redacted?: string | null;
+  blur_explicit?: boolean;
   author: User;
   content: string;
   media?: string[] | null;

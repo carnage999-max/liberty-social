@@ -17,6 +17,8 @@ from django.conf import settings
 
 from main.models import YardSaleListing, YardSaleReport
 from main.serializers import YardSaleListingSerializer, YardSaleReportSerializer
+from main.moderation.pipeline import precheck_text_or_raise, record_text_classification
+from main.moderation.throttling import enforce_throttle
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +154,26 @@ def create_yard_sale(request):
 
     # TODO: Integrate payment processing
     # For now, create listing directly (payment integration in next step)
+    title = serializer.validated_data.get("title") or ""
+    description = serializer.validated_data.get("description") or ""
+    location = serializer.validated_data.get("location") or ""
+    enforce_throttle(
+        actor=request.user,
+        context="yard_sale_create",
+        text=" ".join([title, description, location]).strip(),
+    )
+    decision = precheck_text_or_raise(
+        text=" ".join([title, description, location]).strip(),
+        actor=request.user,
+        context="yard_sale_create",
+    )
     listing = serializer.save(user=request.user)
+    record_text_classification(
+        content_object=listing,
+        actor=request.user,
+        decision=decision,
+        metadata={"context": "yard_sale_create"},
+    )
 
     return Response(
         YardSaleListingSerializer(listing).data, status=status.HTTP_201_CREATED
@@ -221,7 +242,26 @@ def confirm_yard_sale_payment(request):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        title = serializer.validated_data.get("title") or ""
+        description = serializer.validated_data.get("description") or ""
+        location = serializer.validated_data.get("location") or ""
+        enforce_throttle(
+            actor=request.user,
+            context="yard_sale_create",
+            text=" ".join([title, description, location]).strip(),
+        )
+        decision = precheck_text_or_raise(
+            text=" ".join([title, description, location]).strip(),
+            actor=request.user,
+            context="yard_sale_create_paid",
+        )
         listing = serializer.save(user=request.user)
+        record_text_classification(
+            content_object=listing,
+            actor=request.user,
+            decision=decision,
+            metadata={"context": "yard_sale_create_paid"},
+        )
 
         # Optionally attach stripe metadata to listing
         listing.stripe_payment_intent = payment_intent_id
@@ -304,7 +344,26 @@ def stripe_webhook(request):
                 # Create listing (best-effort)
                 serializer = YardSaleListingSerializer(data=payload_json)
                 if serializer.is_valid():
+                    title = serializer.validated_data.get("title") or ""
+                    description = serializer.validated_data.get("description") or ""
+                    location = serializer.validated_data.get("location") or ""
+                    enforce_throttle(
+                        actor=user,
+                        context="yard_sale_create",
+                        text=" ".join([title, description, location]).strip(),
+                    )
+                    decision = precheck_text_or_raise(
+                        text=" ".join([title, description, location]).strip(),
+                        actor=user,
+                        context="yard_sale_create_webhook",
+                    )
                     listing = serializer.save(user=user if user else None)
+                    record_text_classification(
+                        content_object=listing,
+                        actor=user,
+                        decision=decision,
+                        metadata={"context": "yard_sale_create_webhook"},
+                    )
                     if hasattr(listing, "stripe_payment_intent"):
                         listing.stripe_payment_intent = (
                             data_obj.get("id")
@@ -346,7 +405,24 @@ def update_yard_sale(request, listing_id):
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    title = serializer.validated_data.get("title")
+    description = serializer.validated_data.get("description")
+    location = serializer.validated_data.get("location")
+    decision = None
+    if any(value is not None for value in (title, description, location)):
+        decision = precheck_text_or_raise(
+            text=" ".join([title or listing.title, description or listing.description, location or listing.location]).strip(),
+            actor=request.user,
+            context="yard_sale_update",
+        )
     listing = serializer.save()
+    if decision:
+        record_text_classification(
+            content_object=listing,
+            actor=request.user,
+            decision=decision,
+            metadata={"context": "yard_sale_update"},
+        )
     return Response(YardSaleListingSerializer(listing).data)
 
 
