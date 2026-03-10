@@ -16,7 +16,8 @@ import Spinner from "../Spinner";
 import { apiPost, isApiError } from "@/lib/api";
 import Link from "next/link";
 import { usePasskey } from "@/hooks/usePasskey";
-import { requestGoogleIdToken } from "@/lib/google-auth";
+import GoogleIcon from "./GoogleIcon";
+import { GoogleSignInError, requestGoogleIdToken } from "@/lib/google-auth";
 import type { AuthTokens } from "@/lib/types";
 
 type Mode = "login" | "register";
@@ -56,6 +57,10 @@ export default function AuthPanel() {
       await loginWithTokens(tokens);
       onSuccess();
     } catch (err: any) {
+      if (err instanceof GoogleSignInError && err.code === "cancelled") {
+        setGlobalError(null);
+        return;
+      }
       const message = err?.message || "Google sign-in failed. Please try again.";
       handleError(message);
     } finally {
@@ -117,48 +122,9 @@ export default function AuthPanel() {
                 onClick={handleGoogleAuth}
                 disabled={googleLoading}
               >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 48 48"
-                  aria-hidden="true"
-                >
-                  <path
-                    fill="#FFC107"
-                    d="M43.6 20.5h-1.6V20H24v8h11.3C33.5 31.9 29.1 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C33.7 6.1 29.1 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c10 0 18.4-7.1 19.8-16.5.1-.5.2-1 .2-1.5v-5.5z"
-                  />
-                  <path
-                    fill="#FF3D00"
-                    d="M6.3 14.7l6.6 4.8C14.5 16.3 18.9 14 24 14c3 0 5.7 1.1 7.8 2.9l5.7-5.7C33.7 6.1 29.1 4 24 4 15.5 4 8.1 8.9 6.3 14.7z"
-                  />
-                  <path
-                    fill="#4CAF50"
-                    d="M24 44c5 0 9.6-1.9 13-5.1l-6-4.9C29.1 36 26.7 37 24 37c-5 0-9.3-3.4-10.9-8.1l-6.7 5.2C8.2 39.2 15.5 44 24 44z"
-                  />
-                  <path
-                    fill="#1976D2"
-                    d="M43.6 20.5H42V20H24v8h11.3c-1.3 3.9-5 7-9.3 7-5 0-9.3-3.4-10.9-8.1l-6.7 5.2C8.2 39.2 15.5 44 24 44c10 0 18.4-7.1 19.8-16.5.1-.5.2-1 .2-1.5v-5.5z"
-                  />
-                </svg>
+                <GoogleIcon />
               </SocialBtn>
-
-              <SocialBtn label="Apple" full>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 48 48"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M33.3 25.3c.1-3.2 1.7-5.6 4.4-7.3-1.7-2.4-4.2-3.7-7.3-3.9-3.1-.2-6.2 1.8-7.4 1.8-1.3 0-4.3-1.7-6.7-1.7-3.4.1-6.5 2-8.1 5.1-3.5 6.2-.9 15.3 2.5 20.3 1.7 2.4 3.7 5.1 6.3 5 2.5-.1 3.5-1.6 6.5-1.6 3 0 3.9 1.6 6.6 1.5 2.7 0 4.4-2.4 6.1-4.8 1.9-2.8 2.7-5.6 2.7-5.7-.1-.1-5.1-2-5.1-8.7z"
-                    fill="currentColor"
-                  />
-                  <path
-                    d="M29.5 9.4c1.4-1.7 2.3-4 2-6.4-2.2.2-4.3 1.4-5.7 3.1-1.2 1.4-2.3 3.8-2 6.1 2.3.2 4.4-1.1 5.7-2.8z"
-                    fill="currentColor"
-                  />
-                </svg>
-              </SocialBtn>
+              {/* <SocialBtn label="Apple" full>Apple</SocialBtn> */}
             </div>
           </div>
 

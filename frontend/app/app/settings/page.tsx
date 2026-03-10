@@ -25,7 +25,8 @@ import { usePasskey } from "@/hooks/usePasskey";
 import { useDevices } from "@/hooks/useDevices";
 import { useSessions } from "@/hooks/useSessions";
 import { useActivityLog } from "@/hooks/useActivityLog";
-import { requestGoogleIdToken } from "@/lib/google-auth";
+import GoogleIcon from "@/components/auth/GoogleIcon";
+import { GoogleSignInError, requestGoogleIdToken } from "@/lib/google-auth";
 
 type ProfileForm = {
   first_name: string;
@@ -594,6 +595,9 @@ export default function SettingsPage() {
       await loadSocialAccounts();
       await refetchActivity();
     } catch (err: any) {
+      if (err instanceof GoogleSignInError && err.code === "cancelled") {
+        return;
+      }
       toast.show(err?.message || "Could not link Google account.", "error");
     } finally {
       setLinkingGoogle(false);
@@ -1607,8 +1611,8 @@ export default function SettingsPage() {
                 </dd>
               </div>
               <div className="flex items-start gap-3">
-                <dt className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700">
-                  G
+                <dt className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-gray-200">
+                  <GoogleIcon className="h-4 w-4" />
                 </dt>
                 <dd className="flex-1">
                   <p className="text-xs uppercase tracking-wide text-gray-400">Google</p>

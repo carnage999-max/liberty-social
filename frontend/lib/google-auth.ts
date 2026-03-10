@@ -23,19 +23,31 @@ declare global {
   }
 }
 
+export class GoogleSignInError extends Error {
+  code: "cancelled" | "config" | "unavailable" | "failed";
+
+  constructor(message: string, code: GoogleSignInError["code"]) {
+    super(message);
+    this.name = "GoogleSignInError";
+    this.code = code;
+  }
+}
+
 let googleScriptPromise: Promise<void> | null = null;
 
 function getGoogleClientId(): string {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID?.trim();
   if (!clientId) {
-    throw new Error("Google sign-in is not configured.");
+    throw new GoogleSignInError("Google sign-in is not configured.", "config");
   }
   return clientId;
 }
 
 export function loadGoogleIdentityScript(): Promise<void> {
   if (typeof window === "undefined") {
-    return Promise.reject(new Error("Google sign-in is only available in the browser."));
+    return Promise.reject(
+      new GoogleSignInError("Google sign-in is only available in the browser.", "unavailable")
+    );
   }
 
   if (window.google?.accounts?.id) {
@@ -48,9 +60,13 @@ export function loadGoogleIdentityScript(): Promise<void> {
     const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
     if (existing) {
       existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener("error", () => reject(new Error("Failed to load Google script.")), {
-        once: true,
-      });
+      existing.addEventListener(
+        "error",
+        () => reject(new GoogleSignInError("Failed to load Google script.", "unavailable")),
+        {
+          once: true,
+        }
+      );
       return;
     }
 
@@ -59,7 +75,7 @@ export function loadGoogleIdentityScript(): Promise<void> {
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google script."));
+    script.onerror = () => reject(new GoogleSignInError("Failed to load Google script.", "unavailable"));
     document.head.appendChild(script);
   });
 
@@ -71,7 +87,7 @@ export async function requestGoogleIdToken(): Promise<string> {
   await loadGoogleIdentityScript();
 
   if (!window.google?.accounts?.id) {
-    throw new Error("Google sign-in is unavailable in this browser.");
+    throw new GoogleSignInError("Google sign-in is unavailable in this browser.", "unavailable");
   }
 
   return new Promise((resolve, reject) => {
@@ -80,7 +96,7 @@ export async function requestGoogleIdToken(): Promise<string> {
     const fail = (message: string) => {
       if (settled) return;
       settled = true;
-      reject(new Error(message));
+      reject(new GoogleSignInError(message, "failed"));
     };
     const succeed = (credential: string) => {
       if (settled) return;
@@ -97,7 +113,7 @@ export async function requestGoogleIdToken(): Promise<string> {
           succeed(response.credential);
           return;
         }
-        fail("Google sign-in did not return a credential.");
+        reject(new GoogleSignInError("Google sign-in did not return a credential.", "failed"));
       },
     });
 
@@ -105,16 +121,22 @@ export async function requestGoogleIdToken(): Promise<string> {
       if (settled) return;
       if (notification?.isNotDisplayed?.()) {
         const reason = notification.getNotDisplayedReason?.() || "not displayed";
-        fail(`Google sign-in unavailable (${reason}).`);
+        reject(
+          new GoogleSignInError(`Google sign-in unavailable (${reason}).`, "unavailable")
+        );
       } else if (notification?.isSkippedMoment?.()) {
-        const reason = notification.getSkippedReason?.() || "skipped";
-        fail(`Google sign-in was skipped (${reason}).`);
+        settled = true;
+        reject(new GoogleSignInError("Google sign-in cancelled.", "cancelled"));
       } else if (notification?.isDismissedMoment?.()) {
-        const reason = notification.getDismissedReason?.() || "dismissed";
-        fail(`Google sign-in was dismissed (${reason}).`);
+        settled = true;
+        reject(new GoogleSignInError("Google sign-in cancelled.", "cancelled"));
       }
     });
 
-    setTimeout(() => fail("Google sign-in timed out."), 60_000);
+    setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new GoogleSignInError("Google sign-in timed out.", "cancelled"));
+    }, 60_000);
   });
 }

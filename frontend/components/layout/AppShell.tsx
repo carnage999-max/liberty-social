@@ -21,6 +21,7 @@ import { useUnreadMessages } from "@/hooks/useUnreadMessages";
 import { Dog } from 'lucide-react';
 import FeatureAnnouncementModal from "@/components/modals/FeatureAnnouncementModal";
 import { useFeatureAnnouncements } from "@/hooks/useFeatureAnnouncements";
+import ConfirmationDialog from "@/components/ConfirmationDialog";
 
 const NAV_LINKS = [
   {
@@ -247,6 +248,7 @@ export default function AppShell({ children }: AppShellProps) {
   const [isDesktop, setIsDesktop] = useState(false);
   const [showCompactLogo, setShowCompactLogo] = useState(false);
   const [bugModalOpen, setBugModalOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   // Feature announcements
   const {
@@ -266,6 +268,11 @@ export default function AppShell({ children }: AppShellProps) {
   const { pendingCount: pageInviteCount } = usePageInvites();
   const { unreadCount: notificationUnreadCount } = useNotifications();
   const { unreadCount: unreadMessagesCount } = useUnreadMessages();
+
+  const requestLogout = () => {
+    closeNav();
+    setShowLogoutConfirm(true);
+  };
 
   const getBadgeCount = useCallback(
     (href: string) => {
@@ -736,10 +743,7 @@ export default function AppShell({ children }: AppShellProps) {
               <div className="mt-5 border-t border-gray-100 pt-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    void logout();
-                    closeNav();
-                  }}
+                  onClick={requestLogout}
                   className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
                 >
                   <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-500">
@@ -826,9 +830,7 @@ export default function AppShell({ children }: AppShellProps) {
                   </ul>
                 </div>
                 <button
-                  onClick={() => {
-                    void logout();
-                  }}
+                  onClick={requestLogout}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-[12px] bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 shadow-sm transition hover:bg-rose-100"
                 >
                   <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-rose-500">
@@ -914,6 +916,20 @@ export default function AppShell({ children }: AppShellProps) {
           onDismiss={onAnnouncementDismiss}
         />
       )}
+
+      <ConfirmationDialog
+        isOpen={showLogoutConfirm}
+        title="Sign out?"
+        message="You will be logged out of Liberty Social on this device."
+        confirmText="Sign out"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        onConfirm={() => {
+          setShowLogoutConfirm(false);
+          void logout();
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[var(--color-deep-navy)]/95 shadow-lg backdrop-blur-sm sm:hidden">
