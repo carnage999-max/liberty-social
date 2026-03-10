@@ -13,15 +13,19 @@ import { loginSchema, registerSchema } from "@/lib/validators";
 import { passwordStrength } from "@/lib/password-strength";
 import { useToast } from "../Toast";
 import Spinner from "../Spinner";
-import { isApiError } from "@/lib/api";
+import { apiPost, isApiError } from "@/lib/api";
 import Link from "next/link";
 import { usePasskey } from "@/hooks/usePasskey";
+import { requestGoogleIdToken } from "@/lib/google-auth";
+import type { AuthTokens } from "@/lib/types";
 
 type Mode = "login" | "register";
 
 export default function AuthPanel() {
+  const { loginWithTokens } = useAuth();
   const [mode, setMode] = useState<Mode>("login");
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/app/feed";
@@ -39,6 +43,25 @@ export default function AuthPanel() {
     },
     [toast]
   );
+
+  const handleGoogleAuth = useCallback(async () => {
+    try {
+      setGoogleLoading(true);
+      setGlobalError(null);
+      const googleToken = await requestGoogleIdToken();
+      const tokens = await apiPost<AuthTokens & { linked?: boolean }>(
+        "/auth/google/auth/",
+        { id_token: googleToken }
+      );
+      await loginWithTokens(tokens);
+      onSuccess();
+    } catch (err: any) {
+      const message = err?.message || "Google sign-in failed. Please try again.";
+      handleError(message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, [handleError, loginWithTokens, onSuccess]);
 
   return (
     <div className="relative mx-auto w-full max-w-4xl">
@@ -88,7 +111,12 @@ export default function AuthPanel() {
               Or continue with
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
-              <SocialBtn label="Google" full>
+              <SocialBtn
+                label={googleLoading ? "Connecting..." : "Google"}
+                full
+                onClick={handleGoogleAuth}
+                disabled={googleLoading}
+              >
                 <svg
                   width="18"
                   height="18"
@@ -164,21 +192,27 @@ function SocialBtn({
   children,
   label,
   full,
+  onClick,
+  disabled,
 }: {
   children: ReactNode;
   label: string;
   full?: boolean;
+  onClick?: () => void;
+  disabled?: boolean;
 }) {
       return (
     <button
       type="button"
       title={label}
       aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
       className={[
         "inline-flex items-center justify-center gap-2",
         "rounded-[10px] bg-gradient-to-b from-(--color-silver-light) to-(--color-silver-dark)",
         "border border-(--color-gold) text-(--color-deep-navy)",
-        "px-4 py-2 shadow-metallic hover:opacity-90 transition",
+        "px-4 py-2 shadow-metallic hover:opacity-90 transition disabled:cursor-not-allowed disabled:opacity-60",
         full ? "w-full sm:w-auto" : "",
       ].join(" ")}
     >

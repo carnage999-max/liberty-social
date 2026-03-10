@@ -276,6 +276,9 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 FRONTEND_URL = config("FRONTEND_URL")
 
+# Google OAuth (used for Google Sign-In token verification)
+GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="")
+
 PUSH_NOTIFICATIONS_ENABLED = config(
     "PUSH_NOTIFICATIONS_ENABLED", default=False, cast=bool
 )

@@ -112,6 +112,45 @@ class User(AbstractUser):
         super().save(*args, **kwargs)
 
 
+class SocialAccount(models.Model):
+    """Maps external auth providers to local users."""
+
+    PROVIDER_GOOGLE = "google"
+    PROVIDER_CHOICES = [
+        (PROVIDER_GOOGLE, "Google"),
+    ]
+
+    id = models.UUIDField(
+        _("Social Account ID"), primary_key=True, unique=True, default=uuid4, editable=False
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="social_accounts",
+    )
+    provider = models.CharField(max_length=32, choices=PROVIDER_CHOICES)
+    provider_user_id = models.CharField(max_length=255, db_index=True)
+    email = models.EmailField(blank=True, null=True)
+    display_name = models.CharField(max_length=255, blank=True, null=True)
+    avatar_url = models.URLField(blank=True, null=True)
+    extra_data = models.JSONField(default=dict, blank=True)
+    linked_at = models.DateTimeField(auto_now_add=True)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = (
+            ("provider", "provider_user_id"),
+            ("user", "provider"),
+        )
+        indexes = [
+            models.Index(fields=["user", "provider"]),
+            models.Index(fields=["provider", "provider_user_id"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.provider}:{self.provider_user_id} -> {self.user.email}"
+
+
 class AccountDeletionRequest(models.Model):
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="deletion_request"
@@ -494,6 +533,7 @@ class SessionHistory(models.Model):
         choices=[
             ("password", "Password"),
             ("passkey", "Passkey"),
+            ("google", "Google"),
         ],
         default="password",
         help_text="Method used to authenticate",
@@ -527,6 +567,8 @@ class SecurityEvent(models.Model):
         ("login", "Login"),
         ("login_failed", "Login Failed"),
         ("logout", "Logout"),
+        ("social_account_linked", "Social Account Linked"),
+        ("social_account_unlinked", "Social Account Unlinked"),
         ("passkey_registered", "Passkey Registered"),
         ("passkey_removed", "Passkey Removed"),
         ("device_removed", "Device Removed"),

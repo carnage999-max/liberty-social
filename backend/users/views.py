@@ -1,16 +1,22 @@
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import UntypedToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.pagination import PageNumberPagination
+from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from django.db.models import Count
 from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
 from datetime import timedelta
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from .models import (
     BlockedUsers,
     DismissedSuggestion,
@@ -20,6 +26,7 @@ from .models import (
     UserSettings,
     FriendshipHistory,
     AccountDeletionRequest,
+    SocialAccount,
 )
 from .serializers import (
     BlockedUsersSerializer,
@@ -40,6 +47,117 @@ from main.models import Post, PostMedia
 from main.serializers import PostSerializer
 from main.slug_utils import SlugOrIdLookupMixin
 from main.moderation.pipeline import precheck_text_or_raise, record_text_classification
+
+
+def _create_login_session_and_tokens(
+    *,
+    user: User,
+    request,
+    authentication_method: str,
+    login_description: str,
+    metadata: dict | None = None,
+):
+    from .device_utils import get_client_ip, get_user_agent, get_location_from_ip
+    from .models import Session, SessionHistory, SecurityEvent
+
+    ip_address = get_client_ip(request)
+    user_agent = get_user_agent(request)
+    location = get_location_from_ip(ip_address)
+
+    refresh_token = RefreshToken.for_user(user)
+    access_token = refresh_token.access_token
+
+    token_jti = None
+    refresh_token_jti = None
+    try:
+        untyped_token = UntypedToken(str(access_token))
+        token_jti = untyped_token.get("jti")
+    except (InvalidToken, TokenError, KeyError):
+        pass
+
+    try:
+        untyped_refresh_token = UntypedToken(str(refresh_token))
+        refresh_token_jti = untyped_refresh_token.get("jti")
+    except (InvalidToken, TokenError, KeyError):
+        pass
+
+    session = Session.objects.create(
+        user=user,
+        device_name=f"{user_agent or 'Unknown'}",
+        ip_address=ip_address,
+        location=location,
+        user_agent=user_agent,
+        token_jti=token_jti,
+        refresh_token_jti=refresh_token_jti,
+    )
+
+    SessionHistory.objects.create(
+        user=user,
+        device_name=f"{user_agent or 'Unknown'}",
+        ip_address=ip_address,
+        location=location,
+        user_agent=user_agent,
+        authentication_method=authentication_method,
+    )
+
+    event_metadata = {"session_id": str(session.id)}
+    if metadata:
+        event_metadata.update(metadata)
+    SecurityEvent.objects.create(
+        user=user,
+        event_type="login",
+        description=login_description,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        metadata=event_metadata,
+    )
+
+    return {
+        "refresh_token": str(refresh_token),
+        "access_token": str(access_token),
+        "user_id": str(user.id),
+    }
+
+
+def _google_client_id() -> str:
+    return getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "").strip()
+
+
+def _verify_google_token(token: str) -> dict:
+    client_id = _google_client_id()
+    if not client_id:
+        raise ValueError("Google OAuth is not configured on the server.")
+    try:
+        info = google_id_token.verify_oauth2_token(
+            token,
+            google_requests.Request(),
+            audience=client_id,
+        )
+    except Exception as exc:
+        raise ValueError("Invalid Google token.") from exc
+    if info.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
+        raise ValueError("Invalid Google token issuer.")
+    if not info.get("sub"):
+        raise ValueError("Google token is missing subject.")
+    if not info.get("email"):
+        raise ValueError("Google token is missing email.")
+    if info.get("email_verified") is not True:
+        raise ValueError("Google email is not verified.")
+    return info
+
+
+def _build_unique_username(base: str) -> str:
+    candidate = (base or "user").strip().lower()
+    candidate = "".join(ch for ch in candidate if ch.isalnum() or ch in ("_", "."))
+    candidate = candidate[:120] or "user"
+    if not User.objects.filter(username=candidate).exists():
+        return candidate
+    suffix = 2
+    while True:
+        next_candidate = f"{candidate[:110]}{suffix}"
+        if not User.objects.filter(username=next_candidate).exists():
+            return next_candidate
+        suffix += 1
 
 
 class LoginUserview(ModelViewSet):
@@ -74,67 +192,14 @@ class LoginUserview(ModelViewSet):
                     {"detail": "Account is locked. Please contact support."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            
-            refresh_token = RefreshToken.for_user(user)
-            access_token = refresh_token.access_token
-            
-            # Extract token JTIs for session tracking
-            from rest_framework_simplejwt.tokens import UntypedToken
-            from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
-            token_jti = None
-            refresh_token_jti = None
-            try:
-                untyped_token = UntypedToken(str(access_token))
-                token_jti = untyped_token.get("jti")
-            except (InvalidToken, TokenError, KeyError):
-                pass  # If we can't get jti, continue without it
-            
-            try:
-                untyped_refresh_token = UntypedToken(str(refresh_token))
-                refresh_token_jti = untyped_refresh_token.get("jti")
-            except (InvalidToken, TokenError, KeyError):
-                pass  # If we can't get refresh token jti, continue without it
-            
-            # Create session
-            from .models import Session, SessionHistory, SecurityEvent
-            session = Session.objects.create(
-                user=user,
-                device_name=f"{user_agent or 'Unknown'}",
-                ip_address=ip_address,
-                location=location,
-                user_agent=user_agent,
-                token_jti=token_jti,
-                refresh_token_jti=refresh_token_jti,
-            )
 
-            # Create session history entry
-            SessionHistory.objects.create(
+            tokens = _create_login_session_and_tokens(
                 user=user,
-                device_name=f"{user_agent or 'Unknown'}",
-                ip_address=ip_address,
-                location=location,
-                user_agent=user_agent,
+                request=request,
                 authentication_method="password",
+                login_description="Login via password",
             )
-
-            # Log security event
-            SecurityEvent.objects.create(
-                user=user,
-                event_type="login",
-                description="Login via password",
-                ip_address=ip_address,
-                user_agent=user_agent,
-                metadata={"session_id": str(session.id)},
-            )
-            
-            return Response(
-                {
-                    "refresh_token": str(refresh_token),
-                    "access_token": str(refresh_token.access_token),
-                    "user_id": str(user.id),
-                },
-                status=status.HTTP_200_OK,
-            )
+            return Response(tokens, status=status.HTTP_200_OK)
         
         # Log failed login attempt
         if user:
@@ -149,6 +214,223 @@ class LoginUserview(ModelViewSet):
         
         return Response(
             {"detail": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED
+        )
+
+
+class GoogleAuthView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        google_token = request.data.get("id_token")
+        if not google_token:
+            return Response(
+                {"detail": "id_token is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            claims = _verify_google_token(google_token)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        google_sub = claims["sub"]
+        email = claims["email"].strip().lower()
+        display_name = claims.get("name") or email.split("@")[0]
+        avatar_url = claims.get("picture")
+
+        with transaction.atomic():
+            social = SocialAccount.objects.select_for_update().filter(
+                provider=SocialAccount.PROVIDER_GOOGLE,
+                provider_user_id=google_sub,
+            ).first()
+            linked = False
+
+            if social:
+                user = social.user
+            else:
+                user = User.objects.filter(email=email).first()
+                if user is None:
+                    first_name = claims.get("given_name", "")[:150]
+                    last_name = claims.get("family_name", "")[:150]
+                    user = User.objects.create_user(
+                        email=email,
+                        username=_build_unique_username(display_name or email.split("@")[0]),
+                        first_name=first_name,
+                        last_name=last_name,
+                        password=None,
+                    )
+                    UserSettings.objects.create(user=user)
+                social = SocialAccount.objects.create(
+                    user=user,
+                    provider=SocialAccount.PROVIDER_GOOGLE,
+                    provider_user_id=google_sub,
+                    email=email,
+                    display_name=display_name,
+                    avatar_url=avatar_url,
+                    extra_data=claims,
+                    last_login_at=timezone.now(),
+                )
+                linked = True
+
+            social.email = email
+            social.display_name = display_name
+            social.avatar_url = avatar_url
+            social.extra_data = claims
+            social.last_login_at = timezone.now()
+            social.save(
+                update_fields=[
+                    "email",
+                    "display_name",
+                    "avatar_url",
+                    "extra_data",
+                    "last_login_at",
+                ]
+            )
+
+            from .models import SecurityEvent
+            if linked:
+                SecurityEvent.objects.create(
+                    user=user,
+                    event_type="social_account_linked",
+                    description="Google account linked",
+                    metadata={"provider": "google", "social_account_id": str(social.id)},
+                )
+
+        if user.account_locked_at:
+            return Response(
+                {"detail": "Account is locked. Please contact support."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        tokens = _create_login_session_and_tokens(
+            user=user,
+            request=request,
+            authentication_method="google",
+            login_description="Login via Google",
+            metadata={"provider": "google", "social_account_id": str(social.id)},
+        )
+        tokens["linked"] = linked
+        return Response(tokens, status=status.HTTP_200_OK)
+
+
+class SocialAccountsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        accounts = request.user.social_accounts.all().order_by("provider", "linked_at")
+        data = [
+            {
+                "id": str(account.id),
+                "provider": account.provider,
+                "email": account.email,
+                "display_name": account.display_name,
+                "avatar_url": account.avatar_url,
+                "linked_at": account.linked_at,
+                "last_login_at": account.last_login_at,
+            }
+            for account in accounts
+        ]
+        return Response({"results": data}, status=status.HTTP_200_OK)
+
+
+class GoogleLinkView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        google_token = request.data.get("id_token")
+        if not google_token:
+            return Response(
+                {"detail": "id_token is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            claims = _verify_google_token(google_token)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        google_sub = claims["sub"]
+        email = claims["email"].strip().lower()
+        display_name = claims.get("name") or email.split("@")[0]
+        avatar_url = claims.get("picture")
+        user = request.user
+
+        existing = SocialAccount.objects.filter(
+            provider=SocialAccount.PROVIDER_GOOGLE,
+            provider_user_id=google_sub,
+        ).first()
+        if existing and existing.user_id != user.id:
+            return Response(
+                {"detail": "This Google account is already linked to another user."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        social, _ = SocialAccount.objects.update_or_create(
+            user=user,
+            provider=SocialAccount.PROVIDER_GOOGLE,
+            defaults={
+                "provider_user_id": google_sub,
+                "email": email,
+                "display_name": display_name,
+                "avatar_url": avatar_url,
+                "extra_data": claims,
+                "last_login_at": timezone.now(),
+            },
+        )
+
+        from .models import SecurityEvent
+        SecurityEvent.objects.create(
+            user=user,
+            event_type="social_account_linked",
+            description="Google account linked",
+            metadata={"provider": "google", "social_account_id": str(social.id)},
+        )
+
+        return Response(
+            {
+                "detail": "Google account linked successfully.",
+                "social_account_id": str(social.id),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class GoogleUnlinkView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        social = SocialAccount.objects.filter(
+            user=user,
+            provider=SocialAccount.PROVIDER_GOOGLE,
+        ).first()
+        if social is None:
+            return Response(
+                {"detail": "Google account is not linked."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        other_social_count = user.social_accounts.exclude(id=social.id).count()
+        if not user.has_usable_password() and not user.has_passkey and other_social_count == 0:
+            return Response(
+                {
+                    "detail": "Cannot unlink the only login method. Add a password or passkey first."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        social_id = str(social.id)
+        social.delete()
+
+        from .models import SecurityEvent
+        SecurityEvent.objects.create(
+            user=user,
+            event_type="social_account_unlinked",
+            description="Google account unlinked",
+            metadata={"provider": "google", "social_account_id": social_id},
+        )
+
+        return Response(
+            {"detail": "Google account unlinked successfully."},
+            status=status.HTTP_200_OK,
         )
 
 

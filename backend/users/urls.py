@@ -21,6 +21,10 @@ from .views import (
     UserMetricsView,
     OnlineUsersView,
     AccountDeletionRequestView,
+    GoogleAuthView,
+    GoogleLinkView,
+    GoogleUnlinkView,
+    SocialAccountsView,
 )
 from .analytics_views import (
     analytics_overview,
@@ -110,6 +114,10 @@ urlpatterns = [
         AccountDeletionRequestView.as_view(),
         name="request-account-deletion",
     ),
+    path("google/auth/", GoogleAuthView.as_view(), name="google-auth"),
+    path("social-accounts/", SocialAccountsView.as_view(), name="social-accounts"),
+    path("social-accounts/google/link/", GoogleLinkView.as_view(), name="google-link"),
+    path("social-accounts/google/unlink/", GoogleUnlinkView.as_view(), name="google-unlink"),
     # Passkey endpoints
     path(
         "passkey/register/begin/",

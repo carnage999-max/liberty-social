@@ -25,6 +25,7 @@ import { usePasskey } from "@/hooks/usePasskey";
 import { useDevices } from "@/hooks/useDevices";
 import { useSessions } from "@/hooks/useSessions";
 import { useActivityLog } from "@/hooks/useActivityLog";
+import { requestGoogleIdToken } from "@/lib/google-auth";
 
 type ProfileForm = {
   first_name: string;
@@ -33,6 +34,15 @@ type ProfileForm = {
   phone_number: string;
   bio: string;
   gender: string;
+};
+
+type LinkedSocialAccount = {
+  id: string;
+  provider: string;
+  email?: string | null;
+  display_name?: string | null;
+  linked_at: string;
+  last_login_at?: string | null;
 };
 
 const PRIVACY_OPTIONS: Array<{
@@ -179,6 +189,10 @@ export default function SettingsPage() {
   const [registeringPasskey, setRegisteringPasskey] = useState(false);
   const [removingPasskeyId, setRemovingPasskeyId] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState("");
+  const [socialAccounts, setSocialAccounts] = useState<LinkedSocialAccount[]>([]);
+  const [socialLoading, setSocialLoading] = useState(false);
+  const [linkingGoogle, setLinkingGoogle] = useState(false);
+  const [unlinkingGoogle, setUnlinkingGoogle] = useState(false);
   
   // Phase 2: Device and Session Management
   const { devices, loading: devicesLoading, renameDevice, removeDevice, refetch: refetchDevices } = useDevices();
@@ -189,6 +203,22 @@ export default function SettingsPage() {
   const [removingDeviceId, setRemovingDeviceId] = useState<string | null>(null);
   const [revokingSessions, setRevokingSessions] = useState(false);
   const [deviceRenameValue, setDeviceRenameValue] = useState<Record<string, string>>({});
+
+  const loadSocialAccounts = async () => {
+    if (!accessToken) return;
+    try {
+      setSocialLoading(true);
+      const res = await apiGet<{ results?: LinkedSocialAccount[] }>("/auth/social-accounts/", {
+        token: accessToken,
+      });
+      setSocialAccounts(res?.results || []);
+    } catch (err) {
+      console.error("Failed to load social accounts", err);
+      setSocialAccounts([]);
+    } finally {
+      setSocialLoading(false);
+    }
+  };
 
   // Auto-detect and set device name on mount
   useEffect(() => {
@@ -253,6 +283,14 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!accessToken) return;
     loadModerationFilters();
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      setSocialAccounts([]);
+      return;
+    }
+    loadSocialAccounts();
   }, [accessToken]);
 
   useEffect(() => {
@@ -448,6 +486,7 @@ export default function SettingsPage() {
   const accountEmail = resolvedUser?.email ?? "-";
   const joinedSource = resolvedUser?.date_joined;
   const memberSince = joinedSource ? new Date(joinedSource).toLocaleDateString() : "-";
+  const googleAccount = socialAccounts.find((account) => account.provider === "google");
 
   const handleProfileChange = (field: keyof ProfileForm, value: string) => {
     setProfileForm((prev) => ({ ...prev, [field]: value }));
@@ -538,6 +577,41 @@ export default function SettingsPage() {
       toast.show("Could not unblock user. Please try again.", "error");
     } finally {
       setUnblockingId(null);
+    }
+  };
+
+  const handleLinkGoogle = async () => {
+    if (!accessToken) return;
+    try {
+      setLinkingGoogle(true);
+      const googleToken = await requestGoogleIdToken();
+      await apiPost(
+        "/auth/social-accounts/google/link/",
+        { id_token: googleToken },
+        { token: accessToken }
+      );
+      toast.show("Google account linked.");
+      await loadSocialAccounts();
+      await refetchActivity();
+    } catch (err: any) {
+      toast.show(err?.message || "Could not link Google account.", "error");
+    } finally {
+      setLinkingGoogle(false);
+    }
+  };
+
+  const handleUnlinkGoogle = async () => {
+    if (!accessToken) return;
+    try {
+      setUnlinkingGoogle(true);
+      await apiPost("/auth/social-accounts/google/unlink/", {}, { token: accessToken });
+      toast.show("Google account unlinked.");
+      await loadSocialAccounts();
+      await refetchActivity();
+    } catch (err: any) {
+      toast.show(err?.message || "Could not unlink Google account.", "error");
+    } finally {
+      setUnlinkingGoogle(false);
     }
   };
 
@@ -989,7 +1063,11 @@ export default function SettingsPage() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1">
                                     <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-700">
-                                      {entry.authentication_method === "passkey" ? "🔐 Passkey" : "🔑 Password"}
+                                      {entry.authentication_method === "passkey"
+                                        ? "🔐 Passkey"
+                                        : entry.authentication_method === "google"
+                                          ? "🟢 Google"
+                                          : "🔑 Password"}
                                     </span>
                                     <p className="text-sm font-medium text-gray-900">
                                       {entry.device_name || "Unknown Device"}
@@ -1526,6 +1604,41 @@ export default function SettingsPage() {
                 <dd>
                   <p className="text-xs uppercase tracking-wide text-gray-400">Member since</p>
                   <p className="mt-1 font-medium text-gray-700">{memberSince}</p>
+                </dd>
+              </div>
+              <div className="flex items-start gap-3">
+                <dt className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700">
+                  G
+                </dt>
+                <dd className="flex-1">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">Google</p>
+                  {socialLoading ? (
+                    <p className="mt-1 text-xs text-gray-500">Checking...</p>
+                  ) : googleAccount ? (
+                    <>
+                      <p className="mt-1 text-sm font-medium text-gray-700">
+                        Linked{googleAccount.email ? ` as ${googleAccount.email}` : ""}
+                      </p>
+                      <button
+                        onClick={handleUnlinkGoogle}
+                        disabled={unlinkingGoogle}
+                        className="mt-2 rounded-lg border border-red-300 px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {unlinkingGoogle ? "Unlinking..." : "Unlink"}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-1 text-sm font-medium text-gray-700">Not linked</p>
+                      <button
+                        onClick={handleLinkGoogle}
+                        disabled={linkingGoogle}
+                        className="mt-2 rounded-lg border border-green-300 px-2.5 py-1 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {linkingGoogle ? "Linking..." : "Link Google"}
+                      </button>
+                    </>
+                  )}
                 </dd>
               </div>
             </dl>

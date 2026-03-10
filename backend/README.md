@@ -33,6 +33,21 @@ Base URL: http://localhost:8000/api/auth/
 - POST /logout/ — Logout (blacklist refresh token)
   - Request body: { "refresh_token": "<refresh_token>" }
 
+- POST /google/auth/ — Sign in with Google ID token
+  - Request body: { "id_token": "<google-id-token>" }
+  - Response (200): { "refresh_token": "<token>", "access_token": "<token>", "user_id": "<uuid>", "linked": true|false }
+  - If the Google email matches an existing user, it auto-links that Google account.
+
+- GET /social-accounts/ — List linked social accounts for authenticated user
+- POST /social-accounts/google/link/ — Link Google account to authenticated user
+  - Request body: { "id_token": "<google-id-token>" }
+- POST /social-accounts/google/unlink/ — Unlink Google account from authenticated user
+  - Fails if this would remove the user’s last login method.
+
+Google auth configuration
+
+- Set `GOOGLE_OAUTH_CLIENT_ID` in backend environment so the API can verify Google ID tokens.
+
 User profiles
 
 - GET /user/ — Returns the authenticated user's profile

@@ -7,6 +7,7 @@ from .models import (
     BlockedUsers,
     DismissedSuggestion,
     AccountDeletionRequest,
+    SocialAccount,
 )
 
 
@@ -49,3 +50,11 @@ class AccountDeletionRequestAdmin(admin.ModelAdmin):
     list_filter = ("is_processed",)
     search_fields = ("user__email", "user__username")
     readonly_fields = ("requested_at",)
+
+
+@admin.register(SocialAccount)
+class SocialAccountAdmin(admin.ModelAdmin):
+    list_display = ("provider", "provider_user_id", "user", "email", "linked_at", "last_login_at")
+    list_filter = ("provider",)
+    search_fields = ("provider_user_id", "email", "user__email", "user__username")
+    readonly_fields = ("id", "linked_at", "last_login_at")
