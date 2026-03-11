@@ -106,6 +106,25 @@ The mobile app uses the same Django REST Framework API as the website:
 - All API calls are handled through the centralized `apiClient`
 - Secure storage is used for sensitive authentication data
 
+## iOS App Store Readiness
+
+- Register the App ID as `com.libertysocial.app`
+- Enable `Associated Domains` and `Push Notifications`
+- Keep the iOS associated domain aligned with your passkey RP ID:
+  - `webcredentials:mylibertysocial.com`
+- Configure App Store Connect with the same bundle identifier
+- Configure EAS iOS credentials before running a production build:
+  - `eas credentials --platform ios`
+- Build and submit with:
+  - `eas build --platform ios --profile production`
+  - `eas submit --platform ios --profile production`
+
+## Passkeys
+
+- Native iOS passkeys are implemented through the local Expo module in `modules/expo-passkeys`
+- The backend must use the same RP ID for website and mobile verification
+- Your domain must serve `apple-app-site-association` for `webcredentials:mylibertysocial.com`
+
 ## Troubleshooting
 
 ### API Connection Issues

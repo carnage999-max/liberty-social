@@ -11,7 +11,7 @@ Implements Phase 1: Core Passkey Support (MVP)
 import json
 import base64
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from django.conf import settings
 from django.utils import timezone
@@ -44,8 +44,36 @@ from .device_utils import get_client_ip, get_user_agent, get_location_from_ip, e
 logger = logging.getLogger(__name__)
 
 
+def _normalize_origin(origin: str) -> str:
+    return origin.rstrip("/")
+
+
+def _parse_allowed_origins() -> List[str]:
+    configured_origins = getattr(settings, "WEBAUTHN_ALLOWED_ORIGINS", []) or []
+    if isinstance(configured_origins, str):
+        configured_origins = [o.strip() for o in configured_origins.split(",") if o.strip()]
+    if configured_origins:
+        return [_normalize_origin(origin) for origin in configured_origins]
+
+    cors_origins = getattr(settings, "CORS_ALLOWED_ORIGINS", []) or []
+    if isinstance(cors_origins, str):
+        cors_origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
+
+    origins = [_normalize_origin(origin) for origin in cors_origins]
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+    if frontend_url:
+        normalized_frontend = _normalize_origin(frontend_url)
+        if normalized_frontend not in origins:
+            origins.append(normalized_frontend)
+    return origins
+
+
 def get_rp_id(request=None) -> str:
     """Get the Relying Party ID for WebAuthn (domain without protocol/port)."""
+    configured_rp_id = getattr(settings, "WEBAUTHN_RP_ID", "").strip()
+    if configured_rp_id:
+        return configured_rp_id
+
     # If request is provided, try to use the Origin header (for development/testing)
     if request:
         origin = request.META.get("HTTP_ORIGIN")
@@ -58,48 +86,88 @@ def get_rp_id(request=None) -> str:
                 if hostname in ["localhost", "127.0.0.1"]:
                     return hostname
                 # For production, validate against allowed origins
-                allowed_origins = getattr(settings, "CORS_ALLOWED_ORIGINS", [])
-                # CORS_ALLOWED_ORIGINS can be a list or a string (depending on config)
-                if isinstance(allowed_origins, str):
-                    allowed_origins = [o.strip() for o in allowed_origins.split(",")]
+                allowed_origins = _parse_allowed_origins()
                 # Check if origin contains this hostname or if hostname matches
                 for allowed_origin in allowed_origins:
                     if hostname in allowed_origin or origin == allowed_origin:
-                        return hostname
-    
+                        return hostname.removeprefix("www.")
+
     # Fallback to FRONTEND_URL setting
     frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
     from urllib.parse import urlparse
     parsed = urlparse(frontend_url)
     rp_id = parsed.hostname or "localhost"
+    if rp_id.startswith("www."):
+        rp_id = rp_id[4:]
     # Remove port if present
     if ":" in rp_id:
         rp_id = rp_id.split(":")[0]
     return rp_id
 
 
-def get_rp_origin(request=None) -> str:
-    """Get the Relying Party Origin for WebAuthn."""
+def get_rp_origins(request=None) -> List[str]:
+    """Get the allowed Relying Party Origins for WebAuthn verification."""
+    rp_id = get_rp_id(request)
+    origins = _parse_allowed_origins()
+
+    if rp_id not in ["localhost", "127.0.0.1"]:
+        canonical_origin = f"https://{rp_id}"
+        if canonical_origin not in origins:
+            origins.insert(0, canonical_origin)
+
     # If request is provided, try to use the Origin header (for development/testing)
     if request:
         origin = request.META.get("HTTP_ORIGIN")
         if origin:
-            origin = origin.rstrip("/")
+            origin = _normalize_origin(origin)
             # Allow localhost for development
             if "localhost" in origin or "127.0.0.1" in origin:
-                return origin
+                return [origin]
             # For production, validate against allowed origins
-            allowed_origins = getattr(settings, "CORS_ALLOWED_ORIGINS", [])
-            # CORS_ALLOWED_ORIGINS can be a list or a string (depending on config)
-            if isinstance(allowed_origins, str):
-                allowed_origins = [o.strip() for o in allowed_origins.split(",")]
             # Check if origin is in allowed origins
-            if origin in allowed_origins:
-                return origin
-    
-    # Fallback to FRONTEND_URL setting
-    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
-    return frontend_url.rstrip("/")
+            if origin in origins:
+                return [origin] + [candidate for candidate in origins if candidate != origin]
+
+    return origins
+
+
+def verify_registration_with_origins(credential_json: Dict[str, Any], challenge_bytes: bytes, rp_id: str, origins: List[str]):
+    last_error = None
+    for origin in origins:
+        try:
+            return verify_registration_response(
+                credential=credential_json,
+                expected_challenge=challenge_bytes,
+                expected_rp_id=rp_id,
+                expected_origin=origin,
+            )
+        except Exception as exc:
+            last_error = exc
+    raise last_error
+
+
+def verify_authentication_with_origins(
+    credential_json: Dict[str, Any],
+    challenge_bytes: bytes,
+    rp_id: str,
+    origins: List[str],
+    public_key_bytes: bytes,
+    sign_count: int,
+):
+    last_error = None
+    for origin in origins:
+        try:
+            return verify_authentication_response(
+                credential=credential_json,
+                expected_challenge=challenge_bytes,
+                expected_rp_id=rp_id,
+                expected_origin=origin,
+                credential_public_key=public_key_bytes,
+                credential_current_sign_count=sign_count,
+            )
+        except Exception as exc:
+            last_error = exc
+    raise last_error
 
 
 class PasskeyRegisterBeginView(APIView):
@@ -120,10 +188,10 @@ class PasskeyRegisterBeginView(APIView):
         try:
             # Generate registration options
             rp_id = get_rp_id(request)
-            rp_origin = get_rp_origin(request)
+            rp_origins = get_rp_origins(request)
             
             logger.info(
-                f"Passkey registration begin - RP ID: {rp_id}, RP Origin: {rp_origin}, "
+                f"Passkey registration begin - RP ID: {rp_id}, RP Origins: {rp_origins}, "
                 f"Request Origin: {request.META.get('HTTP_ORIGIN', 'N/A')}"
             )
 
@@ -178,7 +246,8 @@ class PasskeyRegisterBeginView(APIView):
                     "challenge": challenge,
                     "options": options_dict,
                     "rp_id": rp_id,
-                    "rp_origin": rp_origin,
+                    "rp_origin": rp_origins[0] if rp_origins else None,
+                    "rp_origins": rp_origins,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -234,7 +303,7 @@ class PasskeyRegisterCompleteView(APIView):
 
             # Verify the registration response (credential can be dict, str, or RegistrationCredential)
             rp_id = get_rp_id(request)
-            rp_origin = get_rp_origin(request)
+            rp_origins = get_rp_origins(request)
 
             try:
                 challenge_bytes = base64url_to_bytes(challenge)
@@ -245,11 +314,11 @@ class PasskeyRegisterCompleteView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            verification = verify_registration_response(
-                credential=credential_json,  # Can be dict, str, or RegistrationCredential
-                expected_challenge=challenge_bytes,
-                expected_rp_id=rp_id,
-                expected_origin=rp_origin,
+            verification = verify_registration_with_origins(
+                credential_json=credential_json,
+                challenge_bytes=challenge_bytes,
+                rp_id=rp_id,
+                origins=rp_origins,
             )
 
             # Store the credential
@@ -332,8 +401,9 @@ class PasskeyAuthenticateBeginView(APIView):
             if user_identifier:
                 # If user identifier provided, only allow that user's credentials
                 try:
+                    normalized_identifier = user_identifier.strip()
                     user = User.objects.get(
-                        Q(email=user_identifier) | Q(username=user_identifier)
+                        Q(email__iexact=normalized_identifier) | Q(username=normalized_identifier)
                     )
                 except User.DoesNotExist:
                     # Don't reveal if user exists - return generic error
@@ -389,7 +459,7 @@ class PasskeyAuthenticateBeginView(APIView):
 
             # Generate authentication options
             rp_id = get_rp_id(request)
-            rp_origin = get_rp_origin(request)
+            rp_origins = get_rp_origins(request)
 
             authentication_options = generate_authentication_options(
                 rp_id=rp_id,
@@ -410,7 +480,8 @@ class PasskeyAuthenticateBeginView(APIView):
                     "challenge": challenge,
                     "options": options_dict,
                     "rp_id": rp_id,
-                    "rp_origin": rp_origin,
+                    "rp_origin": rp_origins[0] if rp_origins else None,
+                    "rp_origins": rp_origins,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -491,7 +562,7 @@ class PasskeyAuthenticateCompleteView(APIView):
 
             # Verify the authentication response
             rp_id = get_rp_id(request)
-            rp_origin = get_rp_origin(request)
+            rp_origins = get_rp_origins(request)
 
             try:
                 challenge_bytes = base64url_to_bytes(challenge)
@@ -503,13 +574,13 @@ class PasskeyAuthenticateCompleteView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            verification = verify_authentication_response(
-                credential=credential_json,  # Can be dict, str, or AuthenticationCredential
-                expected_challenge=challenge_bytes,
-                expected_rp_id=rp_id,
-                expected_origin=rp_origin,
-                credential_public_key=public_key_bytes,
-                credential_current_sign_count=passkey_credential.sign_count,
+            verification = verify_authentication_with_origins(
+                credential_json=credential_json,
+                challenge_bytes=challenge_bytes,
+                rp_id=rp_id,
+                origins=rp_origins,
+                public_key_bytes=public_key_bytes,
+                sign_count=passkey_credential.sign_count,
             )
 
             # Update credential sign count and last used
@@ -546,17 +617,52 @@ class PasskeyAuthenticateCompleteView(APIView):
             except (InvalidToken, TokenError, KeyError):
                 pass  # If we can't get refresh token jti, continue without it
 
-            # Create session
-            session = Session.objects.create(
-                user=user,
-                device_id=passkey_credential.id,
-                device_name=passkey_credential.device_name,
-                ip_address=ip_address,
-                location=location,
-                user_agent=user_agent,
-                token_jti=token_jti,
-                refresh_token_jti=refresh_token_jti,
+            # Keep one active session row per passkey device.
+            session = (
+                Session.objects.filter(
+                    user=user,
+                    device_id=passkey_credential.id,
+                    revoked_at__isnull=True,
+                )
+                .order_by("-last_activity")
+                .first()
             )
+            if session:
+                session.device_name = passkey_credential.device_name
+                session.ip_address = ip_address
+                session.location = location
+                session.user_agent = user_agent
+                session.token_jti = token_jti
+                session.refresh_token_jti = refresh_token_jti
+                session.revoked_at = None
+                session.save(
+                    update_fields=[
+                        "device_name",
+                        "ip_address",
+                        "location",
+                        "user_agent",
+                        "token_jti",
+                        "refresh_token_jti",
+                        "revoked_at",
+                        "last_activity",
+                    ]
+                )
+                Session.objects.filter(
+                    user=user,
+                    device_id=passkey_credential.id,
+                    revoked_at__isnull=True,
+                ).exclude(id=session.id).update(revoked_at=timezone.now())
+            else:
+                session = Session.objects.create(
+                    user=user,
+                    device_id=passkey_credential.id,
+                    device_name=passkey_credential.device_name,
+                    ip_address=ip_address,
+                    location=location,
+                    user_agent=user_agent,
+                    token_jti=token_jti,
+                    refresh_token_jti=refresh_token_jti,
+                )
 
             # Create session history entry
             SessionHistory.objects.create(
@@ -660,4 +766,3 @@ class PasskeyRemoveView(APIView):
                 {"error": "Failed to remove passkey", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-

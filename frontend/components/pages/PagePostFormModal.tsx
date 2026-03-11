@@ -107,8 +107,8 @@ export default function PagePostForm({ pageId, accessToken, onPostCreated }: Pag
     }
 
     const trimmedContent = content.trim();
-    if (!trimmedContent) {
-      setError("Share something before posting.");
+    if (!trimmedContent && mediaItems.length === 0) {
+      setError("Add some text or at least one image before posting.");
       return;
     }
 
@@ -255,13 +255,13 @@ export default function PagePostForm({ pageId, accessToken, onPostCreated }: Pag
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 p-4 sm:p-6 overflow-y-auto flex-1">
               {/* Content textarea */}
               <label className="flex flex-col text-sm font-medium text-black">
-                <span className="mb-2">What would you like to share?</span>
+                <span className="mb-2">What would you like to share? (optional)</span>
                 <textarea
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   rows={4}
                   className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none transition focus:border-(--color-deep-navy) focus:ring-2 focus:ring-(--color-deep-navy)/20 text-gray-700"
-                  placeholder="Start typing to share a thought, idea, or update..."
+                  placeholder="Add text if you want, or publish images only."
                   disabled={isSubmitting}
                   autoFocus
                 />
@@ -405,7 +405,7 @@ export default function PagePostForm({ pageId, accessToken, onPostCreated }: Pag
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !content.trim()}
+                  disabled={isSubmitting || (!content.trim() && mediaItems.length === 0)}
                   className="rounded-lg btn-primary px-6 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-70"
                 >
                   {isSubmitting ? "Publishing..." : "Publish Post"}

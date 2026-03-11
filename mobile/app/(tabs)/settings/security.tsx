@@ -41,8 +41,6 @@ export default function SecuritySettingsScreen() {
 
   const [registeringPasskey, setRegisteringPasskey] = useState(false);
   const [removingPasskeyId, setRemovingPasskeyId] = useState<string | null>(null);
-  const [deviceNameModalVisible, setDeviceNameModalVisible] = useState(false);
-  const [deviceName, setDeviceName] = useState('');
 
   // Device and Session Management
   const { devices, loading: devicesLoading, renameDevice, removeDevice, refetch: refetchDevices } = useDevices();
@@ -58,11 +56,11 @@ export default function SecuritySettingsScreen() {
 
   const getDeviceName = () => {
     if (Platform.OS === 'ios') {
-      return 'iOS Device';
+      return 'This iPhone';
     } else if (Platform.OS === 'android') {
-      return 'Android Device';
+      return 'This Android device';
     }
-    return 'Mobile Device';
+    return 'This device';
   };
 
   const handleRegisterPasskey = async () => {
@@ -71,21 +69,15 @@ export default function SecuritySettingsScreen() {
       return;
     }
 
-    // Prefill device name when opening modal
-    setDeviceName(getDeviceName());
-    setDeviceNameModalVisible(true);
-  };
-
-  const handleConfirmRegisterPasskey = async () => {
     try {
       setRegisteringPasskey(true);
-      setDeviceNameModalVisible(false);
-      await registerPasskey(deviceName || getDeviceName());
-      setDeviceName('');
+      await registerPasskey(getDeviceName());
       showToastSuccess('Passkey registered successfully!');
       await refetchPasskey();
     } catch (err: any) {
-      showToastError(err?.message || 'Failed to register passkey');
+      if (err?.message !== 'PASSKEY_CANCELLED') {
+        showToastError(err?.message || 'Failed to register passkey');
+      }
     } finally {
       setRegisteringPasskey(false);
     }
@@ -207,6 +199,12 @@ export default function SecuritySettingsScreen() {
       textTransform: 'uppercase',
       marginBottom: 12,
       letterSpacing: 0.5,
+    },
+    sectionDescription: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.text,
+      marginBottom: 12,
     },
     settingItem: {
       flexDirection: 'row',
@@ -425,7 +423,12 @@ export default function SecuritySettingsScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Passkeys Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Passkeys (WebAuthn)</Text>
+          <Text style={styles.sectionTitle}>Passkeys</Text>
+          <Text style={styles.sectionDescription}>
+            {Platform.OS === 'ios'
+              ? 'Use Face ID, Touch ID, or an iCloud Keychain passkey to sign in faster on this iPhone.'
+              : 'Use a saved passkey from your device to sign in faster without typing your password.'}
+          </Text>
           {!isAvailable && (
             <View style={styles.settingItem}>
               <Ionicons name="warning-outline" size={24} color={colors.textSecondary} />
@@ -451,7 +454,9 @@ export default function SecuritySettingsScreen() {
                   {registeringPasskey ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.buttonText}>Enable Passkey</Text>
+                    <Text style={styles.buttonText}>
+                      {Platform.OS === 'ios' ? 'Set Up on This iPhone' : 'Enable Passkey'}
+                    </Text>
                   )}
                 </TouchableOpacity>
               ) : (
@@ -490,7 +495,9 @@ export default function SecuritySettingsScreen() {
                     {registeringPasskey ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.buttonText}>Add Another Passkey</Text>
+                      <Text style={styles.buttonText}>
+                        {Platform.OS === 'ios' ? 'Add Another iPhone Passkey' : 'Add Another Passkey'}
+                      </Text>
                     )}
                   </TouchableOpacity>
                 </>
@@ -644,61 +651,6 @@ export default function SecuritySettingsScreen() {
         </View>
       </ScrollView>
 
-      {/* Device Name Modal */}
-      <Modal
-        visible={deviceNameModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setDeviceNameModalVisible(false);
-          setDeviceName(''); // Clear device name when modal closes
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Device Name</Text>
-              <TouchableOpacity onPress={() => {
-                setDeviceNameModalVisible(false);
-                setDeviceName(''); // Clear device name when modal closes
-              }}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Enter device name (optional)"
-              placeholderTextColor={colors.textSecondary}
-              value={deviceName}
-              onChangeText={setDeviceName}
-              autoFocus
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => {
-                  setDeviceNameModalVisible(false);
-                  setDeviceName('');
-                }}
-              >
-                <Text style={[styles.modalButtonText, styles.modalButtonTextCancel]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSubmit]}
-                onPress={handleConfirmRegisterPasskey}
-                disabled={registeringPasskey}
-              >
-                {registeringPasskey ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={[styles.modalButtonText, styles.modalButtonTextSubmit]}>Continue</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
       {/* Rename Device Modal */}
       <Modal
         visible={renameModalVisible}
@@ -763,4 +715,3 @@ export default function SecuritySettingsScreen() {
     </View>
   );
 }
-

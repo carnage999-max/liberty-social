@@ -17,8 +17,8 @@ These files are required for passkey support in the mobile app.
 
 2. **Update the file:**
    - Open `frontend/public/.well-known/apple-app-site-association`
-   - Replace `TEAM_ID` with your actual Apple Team ID
-   - Example: `"apps": ["ABC123DEF4.com.libertysocial.app"]`
+   - For this project, use Team ID `J4PDJ9UH55`
+   - Expected value: `"apps": ["J4PDJ9UH55.com.libertysocial.app"]`
 
 3. **Verify the file is accessible:**
    - After deploying, check: `https://mylibertysocial.com/.well-known/apple-app-site-association`
@@ -62,4 +62,3 @@ After updating and deploying:
 - Next.js serves files from `public/` at the root, so these files will be at:
   - `/.well-known/apple-app-site-association`
   - `/.well-known/assetlinks.json`
-

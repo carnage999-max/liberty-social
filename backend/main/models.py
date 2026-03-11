@@ -19,7 +19,7 @@ class Post(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="posts"
     )
     slug = models.SlugField(max_length=255, unique=True, blank=True)
-    content = models.TextField()
+    content = models.TextField(blank=True)
     media_url = models.URLField(blank=True, null=True)
     edited_at = models.DateTimeField(null=True, blank=True)
     deleted_at = models.DateTimeField(null=True, blank=True)

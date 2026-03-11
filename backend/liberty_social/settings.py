@@ -279,6 +279,15 @@ FRONTEND_URL = config("FRONTEND_URL")
 # Google OAuth (used for Google Sign-In token verification)
 GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="")
 
+# WebAuthn / Passkeys configuration
+# Use the registrable domain as RP ID (for example "mylibertysocial.com"), not a full URL.
+WEBAUTHN_RP_ID = config("WEBAUTHN_RP_ID", default="")
+WEBAUTHN_ALLOWED_ORIGINS = config(
+    "WEBAUTHN_ALLOWED_ORIGINS",
+    default="",
+    cast=Csv(),
+)
+
 PUSH_NOTIFICATIONS_ENABLED = config(
     "PUSH_NOTIFICATIONS_ENABLED", default=False, cast=bool
 )

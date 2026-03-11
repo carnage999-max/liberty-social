@@ -1192,8 +1192,8 @@ function CreatePostModal({
       return;
     }
     const trimmedContent = content.trim();
-    if (!trimmedContent) {
-      setError("Share something before posting.");
+    if (!trimmedContent && mediaItems.length === 0) {
+      setError("Add some text or at least one image before posting.");
       return;
     }
 
@@ -1297,13 +1297,13 @@ function CreatePostModal({
 
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 py-5 sm:px-6">
           <label className="flex flex-1 flex-col text-sm font-medium text-gray-700">
-            <span className="mb-2">What&apos;s on your mind?</span>
+            <span className="mb-2">What&apos;s on your mind? (optional)</span>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={6}
               className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none transition focus:border-[var(--color-deep-navy)] focus:ring-2 focus:ring-[var(--color-deep-navy)]/20"
-              placeholder="Start typing to share a thought, idea, or update..."
+              placeholder="Add text if you want, or just share images."
             />
           </label>
 

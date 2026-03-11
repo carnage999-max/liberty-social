@@ -20,7 +20,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { apiClient } from '../../utils/api';
 import { openInAppBrowser } from '../../utils/inAppBrowser';
 import { LoginRequest, RegisterRequest, AuthTokens } from '../../types';
-import { usePasskey } from '../../hooks/usePasskey';
+import { getPasskeyLoginLabel, usePasskey } from '../../hooks/usePasskey';
 import { Ionicons } from '@expo/vector-icons';
 import AppNavbar from '../../components/layout/AppNavbar';
 
@@ -40,7 +40,12 @@ export default function AuthScreen() {
   const router = useRouter();
   
   // Passkey authentication
-  const { authenticate: authenticatePasskey, isAvailable: isPasskeyAvailable, loading: passkeyLoading } = usePasskey();
+  const {
+    authenticate: authenticatePasskey,
+    isAvailable: isPasskeyAvailable,
+    loading: passkeyLoading,
+    isPasskeyCancellationError,
+  } = usePasskey();
   const [authenticatingPasskey, setAuthenticatingPasskey] = useState(false);
   const params = useLocalSearchParams();
   const initialMode = (params.mode === 'register' ? 'register' : 'login') as AuthMode;
@@ -141,6 +146,9 @@ export default function AuthScreen() {
       await login(tokens);
       router.replace('/(tabs)/feed');
     } catch (error: any) {
+      if (error?.message === 'PASSKEY_CANCELLED' || isPasskeyCancellationError(error)) {
+        return;
+      }
       showError(error?.message || 'Failed to authenticate with passkey. Please try again.');
     } finally {
       setAuthenticatingPasskey(false);
@@ -341,6 +349,14 @@ export default function AuthScreen() {
       backgroundColor: COLOR_GOLD,
       marginTop: 12,
     },
+    passkeyHint: {
+      marginTop: 8,
+      marginBottom: 4,
+      fontSize: 13,
+      lineHeight: 18,
+      color: isDark ? 'rgba(255, 255, 255, 0.7)' : '#5B6472',
+      textAlign: 'center',
+    },
     buttonText: {
       color: '#FFFFFF',
       fontSize: 16,
@@ -364,45 +380,6 @@ export default function AuthScreen() {
       fontSize: 14,
       color: isDark ? COLOR_GOLD : COLOR_DEEP_NAVY,
       fontWeight: '600',
-    },
-    // Social buttons section
-    socialSection: {
-      marginTop: 24,
-    },
-    socialDivider: {
-      fontSize: 12,
-      letterSpacing: 1,
-      color: isDark ? 'rgba(255, 255, 255, 0.5)' : '#6B7280',
-      marginBottom: 12,
-      textAlign: 'center',
-    },
-    socialButtons: {
-      flexDirection: 'row',
-      gap: 12,
-    },
-    socialButton: {
-      flex: 1,
-      borderRadius: 10,
-      padding: 12,
-      backgroundColor: '#FFFFFF',
-      borderWidth: 1,
-      borderColor: COLOR_GOLD,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    socialButtonContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    socialButtonText: {
-      fontSize: 14,
-      fontWeight: '500',
-      color: COLOR_DEEP_NAVY,
     },
     termsText: {
       fontSize: 12,
@@ -552,36 +529,25 @@ export default function AuthScreen() {
 
         {/* Passkey login button */}
         {isPasskeyAvailable && (
-          <TouchableOpacity
-            style={[styles.button, styles.buttonPasskey, (authenticatingPasskey || passkeyLoading) && styles.buttonDisabled]}
-            onPress={handlePasskeyLogin}
-            disabled={authenticatingPasskey || passkeyLoading}
-          >
-            <Ionicons name="finger-print" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.buttonText}>
-              {authenticatingPasskey || passkeyLoading ? 'Authenticating...' : 'Sign in with Passkey'}
+          <>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonPasskey, (authenticatingPasskey || passkeyLoading) && styles.buttonDisabled]}
+              onPress={handlePasskeyLogin}
+              disabled={authenticatingPasskey || passkeyLoading}
+            >
+              <Ionicons name="finger-print" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={styles.buttonText}>
+                {authenticatingPasskey || passkeyLoading ? 'Authenticating...' : getPasskeyLoginLabel()}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.passkeyHint}>
+              {Platform.OS === 'ios'
+                ? 'Use Face ID, Touch ID, or an iCloud Keychain passkey saved for Liberty Social.'
+                : 'Use a saved passkey from your device password manager.'}
             </Text>
-          </TouchableOpacity>
+          </>
         )}
 
-        {/* Social buttons */}
-        <View style={styles.socialSection}>
-          <Text style={styles.socialDivider}>OR CONTINUE WITH</Text>
-          <View style={styles.socialButtons}>
-            <TouchableOpacity style={styles.socialButton} disabled>
-              <View style={styles.socialButtonContent}>
-                <Ionicons name="logo-google" size={18} color={COLOR_DEEP_NAVY} />
-                <Text style={styles.socialButtonText}>Google</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton} disabled>
-              <View style={styles.socialButtonContent}>
-                <Ionicons name="logo-apple" size={18} color={COLOR_DEEP_NAVY} />
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
       </View>
     );
   };
@@ -728,24 +694,6 @@ export default function AuthScreen() {
           <Text style={styles.buttonText}>{loading ? 'Creating account...' : 'Create account'}</Text>
         </TouchableOpacity>
 
-        {/* Social buttons */}
-        <View style={styles.socialSection}>
-          <Text style={styles.socialDivider}>OR CONTINUE WITH</Text>
-          <View style={styles.socialButtons}>
-            <TouchableOpacity style={styles.socialButton} disabled>
-              <View style={styles.socialButtonContent}>
-                <Ionicons name="logo-google" size={18} color={COLOR_DEEP_NAVY} />
-                <Text style={styles.socialButtonText}>Google</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialButton} disabled>
-              <View style={styles.socialButtonContent}>
-                <Ionicons name="logo-apple" size={18} color={COLOR_DEEP_NAVY} />
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
       </View>
     );
   };

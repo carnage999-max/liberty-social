@@ -5,7 +5,7 @@ Custom Expo module for WebAuthn passkeys implementation.
 ## Features
 
 - ✅ Android support using Credential Manager API
-- ✅ iOS support (to be implemented)
+- ✅ iOS support using `AuthenticationServices`
 - ✅ Web support using native WebAuthn API
 - ✅ Full WebAuthn specification compliance
 
@@ -55,4 +55,11 @@ const authCredential = await Passkeys.get({
 
 - Minimum iOS: 15.1
 - Requires associated domains configuration
+- Requires the App ID capability `Associated Domains`
+- Requires an `apple-app-site-association` file for your RP ID domain
 
+## Production Notes
+
+- Use the registrable domain as the RP ID, for example `mylibertysocial.com`
+- The iOS app must declare `webcredentials:<rp-id>` in associated domains
+- The backend should verify the same RP ID for both website and native app requests

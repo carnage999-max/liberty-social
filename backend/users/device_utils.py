@@ -109,3 +109,21 @@ def extract_device_info(user_agent: Optional[str]) -> dict:
 
     return info
 
+
+def build_device_name(
+    user_agent: Optional[str],
+    *,
+    fallback: Optional[str] = None,
+) -> str:
+    """Return a short, human-readable device label from a user agent string."""
+    info = extract_device_info(user_agent)
+    browser = info.get("browser") or "Browser"
+    platform = info.get("platform") or "Unknown Device"
+
+    if browser == "Unknown" and platform == "Unknown":
+        return fallback or "Unknown Device"
+    if browser == "Unknown":
+        return platform
+    if platform == "Unknown":
+        return browser
+    return f"{browser} on {platform}"

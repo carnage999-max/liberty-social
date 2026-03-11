@@ -17,6 +17,33 @@ export type PasskeyStatus = {
   credentials: PasskeyCredential[];
 };
 
+function isPasskeyCancellationError(error: any): boolean {
+  const message = String(error?.message || error || '').toLowerCase();
+  return (
+    message.includes('cancelled') ||
+    message.includes('canceled') ||
+    message.includes('not handled') ||
+    message.includes('dismissed')
+  );
+}
+
+export function getDefaultPasskeyDeviceName(): string {
+  if (Platform.OS === 'ios') {
+    return 'This iPhone';
+  }
+  if (Platform.OS === 'android') {
+    return 'This Android device';
+  }
+  return 'This device';
+}
+
+export function getPasskeyLoginLabel(): string {
+  if (Platform.OS === 'ios') {
+    return 'Continue with Face ID or Touch ID';
+  }
+  return 'Sign in with Passkey';
+}
+
 // Check if WebAuthn is available using react-native-passkeys
 function isWebAuthnAvailable(): boolean {
   try {
@@ -219,7 +246,7 @@ export function usePasskey() {
       // The library might be checking for user.name in a specific way
       // Try ensuring the user object is at the top level of publicKey, not nested
       // Also ensure all fields are explicitly set as strings
-      const finalOptions = {
+      const finalOptions: any = {
         challenge: String(parsedOptions.challenge),
         rp: {
           id: String(parsedOptions.rp?.id || ''),
@@ -290,6 +317,9 @@ export function usePasskey() {
       // Refresh status
       await fetchStatus();
     } catch (err: any) {
+      if (isPasskeyCancellationError(err)) {
+        return;
+      }
       const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to register passkey';
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -389,6 +419,9 @@ export function usePasskey() {
         user_id: result.user_id || '',
       };
     } catch (err: any) {
+      if (isPasskeyCancellationError(err)) {
+        throw new Error('PASSKEY_CANCELLED');
+      }
       const errorMessage = err?.response?.data?.detail || err?.message || 'Failed to authenticate with passkey';
       setError(errorMessage);
       throw new Error(errorMessage);
@@ -418,10 +451,10 @@ export function usePasskey() {
     loading,
     error,
     isAvailable,
+    isPasskeyCancellationError,
     fetchStatus,
     register,
     authenticate,
     removePasskey,
   };
 }
-

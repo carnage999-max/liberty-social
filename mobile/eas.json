@@ -23,6 +23,8 @@
       }
     },
     "production": {
+      "distribution": "store",
+      "autoIncrement": true,
       "ios": {
         "simulator": false
       },
@@ -40,7 +42,10 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleTeamId": "J4PDJ9UH55"
+      }
+    }
   }
 }
-

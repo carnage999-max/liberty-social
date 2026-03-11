@@ -56,13 +56,23 @@ def _create_login_session_and_tokens(
     authentication_method: str,
     login_description: str,
     metadata: dict | None = None,
+    device_id=None,
+    device_name: str | None = None,
 ):
-    from .device_utils import get_client_ip, get_user_agent, get_location_from_ip
+    from .device_utils import (
+        build_device_name,
+        get_client_ip,
+        get_user_agent,
+        get_location_from_ip,
+    )
     from .models import Session, SessionHistory, SecurityEvent
 
     ip_address = get_client_ip(request)
     user_agent = get_user_agent(request)
     location = get_location_from_ip(ip_address)
+    resolved_device_name = device_name or build_device_name(
+        user_agent, fallback=user_agent or "Unknown Device"
+    )
 
     refresh_token = RefreshToken.for_user(user)
     access_token = refresh_token.access_token
@@ -81,19 +91,57 @@ def _create_login_session_and_tokens(
     except (InvalidToken, TokenError, KeyError):
         pass
 
-    session = Session.objects.create(
-        user=user,
-        device_name=f"{user_agent or 'Unknown'}",
-        ip_address=ip_address,
-        location=location,
-        user_agent=user_agent,
-        token_jti=token_jti,
-        refresh_token_jti=refresh_token_jti,
-    )
+    lookup = {
+        "user": user,
+        "revoked_at__isnull": True,
+    }
+    if device_id:
+        lookup["device_id"] = device_id
+    elif user_agent:
+        lookup["user_agent"] = user_agent
+    else:
+        lookup["device_name"] = resolved_device_name
+
+    session = Session.objects.filter(**lookup).order_by("-last_activity").first()
+    if session:
+        session.device_id = device_id
+        session.device_name = resolved_device_name
+        session.ip_address = ip_address
+        session.location = location
+        session.user_agent = user_agent
+        session.token_jti = token_jti
+        session.refresh_token_jti = refresh_token_jti
+        session.revoked_at = None
+        session.save(
+            update_fields=[
+                "device_id",
+                "device_name",
+                "ip_address",
+                "location",
+                "user_agent",
+                "token_jti",
+                "refresh_token_jti",
+                "revoked_at",
+                "last_activity",
+            ]
+        )
+        Session.objects.filter(**lookup).exclude(id=session.id).update(revoked_at=timezone.now())
+    else:
+        session = Session.objects.create(
+            user=user,
+            device_id=device_id,
+            device_name=resolved_device_name,
+            ip_address=ip_address,
+            location=location,
+            user_agent=user_agent,
+            token_jti=token_jti,
+            refresh_token_jti=refresh_token_jti,
+        )
 
     SessionHistory.objects.create(
         user=user,
-        device_name=f"{user_agent or 'Unknown'}",
+        device_id=device_id,
+        device_name=resolved_device_name,
         ip_address=ip_address,
         location=location,
         user_agent=user_agent,
@@ -160,16 +208,20 @@ def _build_unique_username(base: str) -> str:
         suffix += 1
 
 
+def _normalize_email(value: str | None) -> str:
+    return (value or "").strip().lower()
+
+
 class LoginUserview(ModelViewSet):
     serializer_class = LoginSerializer
     http_method_names = ["post"]
 
     def create(self, request):
-        email = request.data.get("username")  # Frontend still sends as 'username' field
+        email = _normalize_email(
+            request.data.get("username")
+        )  # Frontend still sends as 'username' field
         password = request.data.get("password")
-        user = User.objects.filter(
-            email=email
-        ).first()
+        user = User.objects.filter(email__iexact=email).first()
         
         # Get device info for logging
         from .device_utils import get_client_ip, get_user_agent, get_location_from_ip
@@ -441,6 +493,33 @@ def LogoutView(request):
         refresh_token = request.data.get("refresh_token")
         token = RefreshToken(refresh_token)
         token.blacklist()
+
+        from .models import SecurityEvent, Session
+        from .device_utils import get_client_ip, get_user_agent
+
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+        current_token_jti = None
+        if auth_header.startswith("Bearer "):
+            try:
+                untyped_token = UntypedToken(auth_header.split(" ")[1])
+                current_token_jti = untyped_token.get("jti")
+            except (InvalidToken, TokenError, KeyError):
+                pass
+
+        if current_token_jti:
+            Session.objects.filter(
+                user=request.user,
+                token_jti=current_token_jti,
+                revoked_at__isnull=True,
+            ).update(revoked_at=timezone.now())
+
+        SecurityEvent.objects.create(
+            user=request.user,
+            event_type="logout",
+            description="User logged out",
+            ip_address=get_client_ip(request),
+            user_agent=get_user_agent(request),
+        )
         return Response(
             {"detail": "logout successful"}, status=status.HTTP_205_RESET_CONTENT
         )

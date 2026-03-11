@@ -54,3 +54,17 @@ class MainAppTests(TestCase):
         data = notif_resp.data.get('results') if isinstance(notif_resp.data, dict) and 'results' in notif_resp.data else notif_resp.data
         self.assertTrue(len(data) >= 1)
 
+    def test_create_image_only_post(self):
+        self.client.force_authenticate(user=self.user1)
+        resp = self.client.post(
+            '/api/posts/',
+            {
+                'content': '',
+                'media_urls': ['https://example.com/post-image.jpg'],
+                'visibility': 'public',
+            },
+            format='json'
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.data.get('content'), '')
+        self.assertEqual(resp.data.get('media'), ['https://example.com/post-image.jpg'])

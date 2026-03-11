@@ -410,6 +410,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class PostSerializer(serializers.ModelSerializer):
+    content = serializers.CharField(required=False, allow_blank=True)
     author = UserSerializer(read_only=True)
     page = PageSummarySerializer(read_only=True)
     page_id = serializers.PrimaryKeyRelatedField(
@@ -470,6 +471,17 @@ class PostSerializer(serializers.ModelSerializer):
             "blur_explicit",
             "content_redacted",
         ]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        content = (attrs.get("content") or "").strip()
+        media_urls = attrs.get("media_urls") or []
+        if not content and not media_urls:
+            raise serializers.ValidationError(
+                {"detail": "Post content or at least one image is required."}
+            )
+        attrs["content"] = content
+        return attrs
 
     def create(self, validated_data):
         request = self.context.get("request")

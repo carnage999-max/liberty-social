@@ -184,8 +184,23 @@ class SessionListView(APIView):
             except (InvalidToken, TokenError, KeyError):
                 pass  # If we can't decode, continue without matching
 
-        # Get active sessions (not revoked)
-        sessions = Session.objects.filter(user=user, revoked_at__isnull=True).order_by("-last_activity")
+        # Collapse older duplicate rows so the UI shows one active session per device/browser.
+        sessions = list(
+            Session.objects.filter(user=user, revoked_at__isnull=True).order_by("-last_activity")
+        )
+        grouped_sessions = {}
+        for session in sessions:
+            session_key = str(session.device_id) if session.device_id else (
+                session.user_agent or session.device_name or str(session.id)
+            )
+            existing = grouped_sessions.get(session_key)
+            if existing is None:
+                grouped_sessions[session_key] = session
+                continue
+            if current_token_jti and session.token_jti == current_token_jti:
+                grouped_sessions[session_key] = session
+
+        deduped_sessions = list(grouped_sessions.values())
 
         return Response(
             {
@@ -201,7 +216,7 @@ class SessionListView(APIView):
                         "last_activity": session.last_activity.isoformat(),
                         "is_current": current_token_jti and session.token_jti == current_token_jti,
                     }
-                    for session in sessions
+                    for session in deduped_sessions
                 ],
             },
             status=status.HTTP_200_OK,
@@ -352,4 +367,3 @@ class ActivityLogView(APIView):
             },
             status=status.HTTP_200_OK,
         )
-
