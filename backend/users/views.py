@@ -15,8 +15,10 @@ from django.db.models import Count
 from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
 from datetime import timedelta
+import jwt
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
+from jwt import PyJWKClient
 from .models import (
     BlockedUsers,
     DismissedSuggestion,
@@ -171,18 +173,34 @@ def _google_client_id() -> str:
     return getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "").strip()
 
 
+def _google_client_ids() -> list[str]:
+    configured = list(getattr(settings, "GOOGLE_OAUTH_CLIENT_IDS", []) or [])
+    primary = _google_client_id()
+    if primary and primary not in configured:
+        configured.insert(0, primary)
+    return configured
+
+
 def _verify_google_token(token: str) -> dict:
-    client_id = _google_client_id()
-    if not client_id:
+    client_ids = _google_client_ids()
+    if not client_ids:
         raise ValueError("Google OAuth is not configured on the server.")
-    try:
-        info = google_id_token.verify_oauth2_token(
-            token,
-            google_requests.Request(),
-            audience=client_id,
-        )
-    except Exception as exc:
-        raise ValueError("Invalid Google token.") from exc
+
+    info = None
+    last_error = None
+    for client_id in client_ids:
+        try:
+            info = google_id_token.verify_oauth2_token(
+                token,
+                google_requests.Request(),
+                audience=client_id,
+            )
+            break
+        except Exception as exc:
+            last_error = exc
+
+    if info is None:
+        raise ValueError("Invalid Google token.") from last_error
     if info.get("iss") not in ("accounts.google.com", "https://accounts.google.com"):
         raise ValueError("Invalid Google token issuer.")
     if not info.get("sub"):
@@ -192,6 +210,33 @@ def _verify_google_token(token: str) -> dict:
     if info.get("email_verified") is not True:
         raise ValueError("Google email is not verified.")
     return info
+
+
+def _apple_allowed_audiences() -> list[str]:
+    return list(getattr(settings, "APPLE_AUTH_ALLOWED_AUDIENCES", []) or [])
+
+
+def _verify_apple_identity_token(token: str) -> dict:
+    audiences = _apple_allowed_audiences()
+    if not audiences:
+        raise ValueError("Apple Sign In is not configured on the server.")
+
+    try:
+        jwk_client = PyJWKClient("https://appleid.apple.com/auth/keys")
+        signing_key = jwk_client.get_signing_key_from_jwt(token)
+        claims = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=audiences,
+            issuer="https://appleid.apple.com",
+        )
+    except Exception as exc:
+        raise ValueError("Invalid Apple identity token.") from exc
+
+    if not claims.get("sub"):
+        raise ValueError("Apple token is missing subject.")
+    return claims
 
 
 def _build_unique_username(base: str) -> str:
@@ -361,6 +406,112 @@ class GoogleAuthView(APIView):
             metadata={"provider": "google", "social_account_id": str(social.id)},
         )
         tokens["linked"] = linked
+        return Response(tokens, status=status.HTTP_200_OK)
+
+
+class AppleAuthView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        identity_token = request.data.get("identity_token")
+        if not identity_token:
+            return Response(
+                {"detail": "identity_token is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            claims = _verify_apple_identity_token(identity_token)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        apple_sub = claims["sub"]
+        email = _normalize_email(claims.get("email") or request.data.get("email"))
+        first_name = (request.data.get("first_name") or "").strip()[:150]
+        last_name = (request.data.get("last_name") or "").strip()[:150]
+        display_name = " ".join(part for part in [first_name, last_name] if part).strip()
+        if not display_name:
+            display_name = (email.split("@")[0] if email else "apple-user")[:150]
+
+        with transaction.atomic():
+            social = SocialAccount.objects.select_for_update().filter(
+                provider=SocialAccount.PROVIDER_APPLE,
+                provider_user_id=apple_sub,
+            ).first()
+            linked = False
+
+            if social:
+                user = social.user
+            else:
+                if not email:
+                    return Response(
+                        {
+                            "detail": (
+                                "Apple did not return an email address. "
+                                "Use the same Apple ID you used before, or sign up first."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                user = User.objects.filter(email=email).first()
+                if user is None:
+                    user = User.objects.create_user(
+                        email=email,
+                        username=_build_unique_username(display_name or email.split("@")[0]),
+                        first_name=first_name,
+                        last_name=last_name,
+                        password=None,
+                    )
+                    UserSettings.objects.create(user=user)
+
+                social = SocialAccount.objects.create(
+                    user=user,
+                    provider=SocialAccount.PROVIDER_APPLE,
+                    provider_user_id=apple_sub,
+                    email=email or None,
+                    display_name=display_name,
+                    extra_data=claims,
+                    last_login_at=timezone.now(),
+                )
+                linked = True
+
+            if email:
+                social.email = email
+            if display_name:
+                social.display_name = display_name
+            social.extra_data = claims
+            social.last_login_at = timezone.now()
+            social.save(
+                update_fields=[
+                    "email",
+                    "display_name",
+                    "extra_data",
+                    "last_login_at",
+                ]
+            )
+
+            from .models import SecurityEvent
+            if linked:
+                SecurityEvent.objects.create(
+                    user=user,
+                    event_type="social_account_linked",
+                    description="Apple account linked",
+                    metadata={"provider": "apple", "social_account_id": str(social.id)},
+                )
+
+        if user.account_locked_at:
+            return Response(
+                {"detail": "Account is locked. Please contact support."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        tokens = _create_login_session_and_tokens(
+            user=user,
+            request=request,
+            authentication_method="apple",
+            login_description="Login via Apple",
+        )
         return Response(tokens, status=status.HTTP_200_OK)
 
 

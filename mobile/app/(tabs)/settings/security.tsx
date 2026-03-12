@@ -631,10 +631,16 @@ export default function SecuritySettingsScreen() {
           {!activityLoading &&
             activity.map((entry) => (
               <View key={entry.id} style={styles.activityItem}>
-                <View style={styles.activityHeader}>
-                  <Text style={styles.activityMethod}>
-                    {entry.authentication_method === 'passkey' ? 'Passkey' : 'Password'} Login
-                  </Text>
+	                <View style={styles.activityHeader}>
+	                  <Text style={styles.activityMethod}>
+	                    {entry.authentication_method === 'passkey'
+	                      ? 'Passkey'
+	                      : entry.authentication_method === 'google'
+	                      ? 'Google'
+	                      : entry.authentication_method === 'apple'
+	                      ? 'Apple'
+	                      : 'Password'} Login
+	                  </Text>
                   <Text style={styles.activityMeta}>{formatDate(entry.created_at)}</Text>
                 </View>
                 {entry.device_name && (

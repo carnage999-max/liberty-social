@@ -6,9 +6,9 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
-  Image,
   TextInput,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -50,6 +50,7 @@ export default function PagesScreen() {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const resolvePageImage = (value?: string | null) => resolveRemoteUrl(value) || undefined;
 
   const fetchAllPages = async () => {
     let nextUrl: string | null = '/pages/';
@@ -65,7 +66,11 @@ export default function PagesScreen() {
         if (nextUrl && nextUrl.startsWith('http')) {
           // apiClient expects path; convert full URL to path.
           const url = new URL(nextUrl);
-          nextUrl = url.pathname + url.search;
+          let nextPath = url.pathname + url.search;
+          // apiClient base already includes `/api`, so strip it from absolute URLs
+          // to avoid `/api/api/...` and 404s when following pagination.
+          nextPath = nextPath.replace(/^\/api(?=\/)/, '');
+          nextUrl = nextPath;
         }
       }
     }
@@ -82,7 +87,7 @@ export default function PagesScreen() {
       
       // Load managed pages
       const mine = await apiClient.get<any>('/pages/mine/');
-      setManagedPages(mine || []);
+      setManagedPages(Array.isArray(mine) ? mine : mine?.results || []);
     } catch (error) {
       showError('Failed to load pages');
       console.error(error);
@@ -128,9 +133,8 @@ export default function PagesScreen() {
   };
 
   const renderPage = ({ item }: { item: BusinessPage }) => {
-    const profileImage = item.profile_image_url
-      ? resolveRemoteUrl(item.profile_image_url)
-      : null;
+    const profileImage = resolvePageImage(item.profile_image_url);
+    const coverImage = resolvePageImage(item.cover_image_url);
     const profileSource = profileImage ? { uri: profileImage } : DEFAULT_AVATAR;
 
     return (
@@ -146,13 +150,11 @@ export default function PagesScreen() {
         activeOpacity={0.7}
       >
         {/* Cover Image */}
-        {item.cover_image_url ? (
+        {coverImage ? (
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => {
-              const images: string[] = [];
-              if (item.cover_image_url) images.push(resolveRemoteUrl(item.cover_image_url));
-              if (item.profile_image_url) images.push(resolveRemoteUrl(item.profile_image_url));
+              const images = [coverImage, profileImage].filter((image): image is string => Boolean(image));
               if (images.length > 0) {
                 setGalleryImages(images);
                 setGalleryIndex(0);
@@ -161,8 +163,10 @@ export default function PagesScreen() {
             }}
           >
           <Image
-            source={{ uri: resolveRemoteUrl(item.cover_image_url) }}
+            source={{ uri: coverImage }}
             style={styles.coverImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
           />
           </TouchableOpacity>
         ) : (
@@ -179,9 +183,7 @@ export default function PagesScreen() {
           style={styles.profileImageContainer}
           activeOpacity={0.9}
           onPress={() => {
-            const images: string[] = [];
-            if (item.profile_image_url) images.push(resolveRemoteUrl(item.profile_image_url));
-            if (item.cover_image_url) images.push(resolveRemoteUrl(item.cover_image_url));
+            const images = [profileImage, coverImage].filter((image): image is string => Boolean(image));
             if (images.length > 0) {
               setGalleryImages(images);
               setGalleryIndex(0);
@@ -189,7 +191,7 @@ export default function PagesScreen() {
             }
           }}
         >
-          <Image source={profileSource} style={styles.profileImage} />
+          <Image source={profileSource} style={styles.profileImage} contentFit="cover" cachePolicy="memory-disk" />
           {item.is_verified && (
             <View style={styles.verifiedBadge}>
               <Ionicons name="checkmark-circle" size={20} color="#4F8EF7" />

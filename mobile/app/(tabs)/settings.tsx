@@ -572,7 +572,11 @@ export default function SettingsScreen() {
                         setIconPreference(next);
                         await saveAppIconPreference(next);
                         await applyAppIconPreference(next);
-                        showToastSuccess('App icon will update after restart.');
+                        showToastSuccess(
+                          Platform.OS === 'ios'
+                            ? 'Icon preference saved. iPhone icon switching is temporarily disabled in this build.'
+                            : 'App icon will update after restart.'
+                        );
                       }}
                       disabled={iconLoading}
                     >
@@ -597,7 +601,10 @@ export default function SettingsScreen() {
                   <Switch
                     value={iconPreference.shape === 'round'}
                     onValueChange={async (value) => {
-                      const next = { ...iconPreference, shape: value ? 'round' : 'square' };
+                      const next: AppIconPreference = {
+                        ...iconPreference,
+                        shape: value ? 'round' : 'square',
+                      };
                       setIconPreference(next);
                       await saveAppIconPreference(next);
                       await applyAppIconPreference(next);

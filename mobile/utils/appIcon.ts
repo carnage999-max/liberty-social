@@ -59,6 +59,11 @@ export const saveAppIconPreference = async (preference: AppIconPreference) => {
 };
 
 export const applyAppIconPreference = async (preference: AppIconPreference) => {
+  if (Platform.OS === 'ios') {
+    // Runtime icon switching is currently unstable in this app's iOS build.
+    // Persist the preference without invoking the native module to avoid crashes.
+    return;
+  }
   const module = getDynamicModule();
   const iconKey = getIconKey(preference);
   if (module?.setAppIconAsync) {

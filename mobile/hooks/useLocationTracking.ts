@@ -15,8 +15,7 @@
 import { useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
-
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://api.mylibertysocial.com/api';
+import { getApiBase } from '../constants/API';
 
 interface LocationData {
   latitude?: number;
@@ -57,7 +56,7 @@ async function sendLocationToBackend(
   }
 
   try {
-    const response = await fetch(`${API_BASE}/auth/update-location/`, {
+    const response = await fetch(`${getApiBase()}/auth/update-location/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -116,8 +116,10 @@ class SocialAccount(models.Model):
     """Maps external auth providers to local users."""
 
     PROVIDER_GOOGLE = "google"
+    PROVIDER_APPLE = "apple"
     PROVIDER_CHOICES = [
         (PROVIDER_GOOGLE, "Google"),
+        (PROVIDER_APPLE, "Apple"),
     ]
 
     id = models.UUIDField(

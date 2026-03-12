@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { storage } from '../utils/storage';
-import { getApiBase } from '../constants/API';
+import { getWsBase } from '../constants/API';
 import { Message } from '../types';
 
 interface UseChatWebSocketOptions {
@@ -58,10 +58,7 @@ export function useChatWebSocket({
       }
 
       // Construct WebSocket URL - match frontend implementation
-      const apiBase = getApiBase();
-      // Convert HTTP/HTTPS to WS/WSS and remove /api suffix
-      let wsBase = apiBase.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
-      wsBase = wsBase.replace(/\/api$/, ''); // Match frontend: only replace /api at the end
+      const wsBase = getWsBase();
       // Don't URL encode - backend expects raw token in query string (matches frontend)
       const wsUrl = `${wsBase}/ws/chat/${conversationId}/?token=${token}`;
 
@@ -253,4 +250,3 @@ export function useChatWebSocket({
     stopTyping,
   };
 }
-

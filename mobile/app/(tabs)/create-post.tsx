@@ -72,8 +72,8 @@ export default function CreatePostScreen() {
   const handleSubmit = async () => {
     const trimmedContent = content.trim();
 
-    if (!trimmedContent) {
-      showError('Please enter something to post.');
+    if (!trimmedContent && selectedImages.length === 0) {
+      showError('Add a caption or at least one image to create a post.');
       return;
     }
 
@@ -371,12 +371,12 @@ export default function CreatePostScreen() {
         </View>
 
         <TouchableOpacity
-          style={[
-            themedStyles.submitButton,
-            (submitting || !content.trim()) && themedStyles.disabledButton,
-          ]}
+            style={[
+              themedStyles.submitButton,
+            (submitting || (!content.trim() && selectedImages.length === 0)) && themedStyles.disabledButton,
+            ]}
           onPress={handleSubmit}
-          disabled={submitting || !content.trim()}
+          disabled={submitting || (!content.trim() && selectedImages.length === 0)}
         >
           {submitting ? (
             <ActivityIndicator color="#FFFFFF" />

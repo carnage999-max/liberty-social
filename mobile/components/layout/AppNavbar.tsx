@@ -71,6 +71,19 @@ export default function AppNavbar({
     router.push(href as any);
   };
 
+  const handleBackNavigation = () => {
+    const canGoBack =
+      typeof (router as any).canGoBack === 'function' && (router as any).canGoBack();
+    if (canGoBack) {
+      router.back();
+      return;
+    }
+
+    if (onBackPress) {
+      onBackPress();
+    }
+  };
+
   const styles = StyleSheet.create({
     header: {
       paddingTop: Math.max(insets.top, 20) + 8,
@@ -194,7 +207,7 @@ export default function AppNavbar({
           {showBackButton && (
             <TouchableOpacity
               style={styles.backButton}
-              onPress={onBackPress || (() => router.back())}
+              onPress={handleBackNavigation}
             >
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>

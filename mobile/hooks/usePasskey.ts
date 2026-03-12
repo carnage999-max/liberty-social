@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../utils/api';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { useAuth } from '../contexts/AuthContext';
-import * as Passkeys from '../modules/expo-passkeys/src/index';
+import * as Passkeys from 'expo-passkeys';
 
 export type PasskeyCredential = {
   id: string;
@@ -46,6 +47,11 @@ export function getPasskeyLoginLabel(): string {
 
 // Check if WebAuthn is available using react-native-passkeys
 function isWebAuthnAvailable(): boolean {
+  const isExpoGo = Constants.appOwnership === 'expo';
+  if (isExpoGo) {
+    console.log('[Passkeys] Expo Go detected; native passkeys unavailable');
+    return false;
+  }
   try {
     console.log('[Passkeys] Checking availability, Platform.OS:', Platform.OS);
     console.log('[Passkeys] Passkeys module:', Passkeys ? 'exists' : 'null');
@@ -55,16 +61,34 @@ function isWebAuthnAvailable(): boolean {
     if (Passkeys && typeof Passkeys.isSupported === 'function') {
       const supported = Passkeys.isSupported();
       console.log('[Passkeys] Native isSupported() returned:', supported);
-      // If native returns false but we're on Android, use fallback
-      if (!supported && Platform.OS === 'android') {
-        console.log('[Passkeys] Native returned false on Android, using fallback');
-        return true; // Android 15 definitely supports passkeys
+      // If the native module is present in the installed build, trust the native methods
+      // over a false negative from isSupported(). This avoids hiding passkeys when the
+      // module is linked correctly but reports false during startup.
+      if (!supported && typeof Passkeys.hasNativeModule === 'function' && Passkeys.hasNativeModule()) {
+        const hasNativeMethods =
+          typeof Passkeys.create === 'function' && typeof Passkeys.get === 'function';
+        if (hasNativeMethods && (Platform.OS === 'ios' || Platform.OS === 'android')) {
+          console.log('[Passkeys] Native module is linked; treating passkeys as available');
+          return true;
+        }
+      }
+      // In installed builds, expose passkey UX even if native detection returns false.
+      // This avoids silently hiding passkeys due to detection glitches.
+      if (!supported && !isExpoGo && (Platform.OS === 'ios' || Platform.OS === 'android')) {
+        console.log('[Passkeys] Installed build fallback enabled despite isSupported=false');
+        return true;
       }
       return supported;
     }
-    // Fallback: check if create and get methods exist
-    if (Passkeys && typeof Passkeys.create === 'function' && typeof Passkeys.get === 'function') {
-      console.log('[Passkeys] Native methods exist, assuming supported');
+    // Fallback: only treat native passkeys as supported if the native module was linked.
+    if (
+      Passkeys &&
+      typeof Passkeys.hasNativeModule === 'function' &&
+      Passkeys.hasNativeModule() &&
+      typeof Passkeys.create === 'function' &&
+      typeof Passkeys.get === 'function'
+    ) {
+      console.log('[Passkeys] Native module methods exist, assuming supported');
       return true;
     }
     console.warn('[Passkeys] isSupported function not found in module');
@@ -74,7 +98,8 @@ function isWebAuthnAvailable(): boolean {
   
   // For native platforms, assume available if library is installed
   // The library will handle platform-specific checks
-  const fallbackSupported = Platform.OS === 'ios' || Platform.OS === 'android' || Platform.OS === 'web';
+  const fallbackSupported =
+    Platform.OS === 'web' || (!isExpoGo && (Platform.OS === 'ios' || Platform.OS === 'android'));
   console.log('[Passkeys] Using fallback check, returning:', fallbackSupported);
   return fallbackSupported;
 }

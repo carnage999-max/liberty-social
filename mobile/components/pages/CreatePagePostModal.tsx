@@ -74,8 +74,8 @@ export default function CreatePagePostModal({
   const handleSubmit = async () => {
     const trimmedContent = content.trim();
 
-    if (!trimmedContent) {
-      showError('Please enter something to post.');
+    if (!trimmedContent && selectedImages.length === 0) {
+      showError('Add a caption or at least one image to create a post.');
       return;
     }
 
@@ -210,7 +210,7 @@ export default function CreatePagePostModal({
                 backgroundColor: isDark ? colors.backgroundSecondary : '#F8F9FF',
                 borderColor: colors.border,
               }]}
-              placeholder="What's on your mind?"
+              placeholder="What's on your mind? (optional if you add images)"
               placeholderTextColor={colors.textSecondary}
               value={content}
               onChangeText={setContent}
@@ -307,7 +307,7 @@ export default function CreatePagePostModal({
             <TouchableOpacity
               style={[styles.submitButton, { borderColor: colors.border }]}
               onPress={handleSubmit}
-              disabled={submitting || !content.trim()}
+              disabled={submitting || (!content.trim() && selectedImages.length === 0)}
             >
               <LinearGradient
                 colors={['#192A4A', '#1a2335']}
@@ -464,4 +464,3 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 });
-

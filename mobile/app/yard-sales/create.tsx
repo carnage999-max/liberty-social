@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../contexts/ToastContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -43,6 +43,7 @@ export default function CreateYardSale() {
 
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const pickerDisplay = Platform.OS === 'ios' ? 'spinner' : 'default';
 
 useEffect(() => {
     (global as any).hideTabBar?.();
@@ -59,8 +60,6 @@ useEffect(() => {
         return !!(form.start_date && form.end_date);
       case 'location':
         return !!form.address;
-      case 'media':
-        return true;
       case 'review':
         return true;
       default:
@@ -138,11 +137,13 @@ useEffect(() => {
       }
 
       const { lat, lon } = data[0];
+      const latitude = Number(parseFloat(lat).toFixed(6));
+      const longitude = Number(parseFloat(lon).toFixed(6));
 
       const payload = {
         ...form,
-        latitude: parseFloat(lat),
-        longitude: parseFloat(lon),
+        latitude,
+        longitude,
       };
 
       const encoded = encodeURIComponent(JSON.stringify(payload));
@@ -210,9 +211,10 @@ useEffect(() => {
       <View style={styles.section}>
         <Text style={[styles.label, { color: colors.text }]}>Title <Text style={styles.required}>*</Text></Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, inputStyle]}
           placeholder="Title"
           placeholderTextColor={colors.textSecondary}
+          color={colors.text}
           value={form.title}
           onChangeText={(t) => setForm({ ...form, title: t })}
         />
@@ -221,9 +223,10 @@ useEffect(() => {
       <View style={styles.section}>
         <Text style={[styles.label, { color: colors.text }]}>Description</Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
+          style={[styles.input, styles.textArea, inputStyle]}
           placeholder="Describe your yard sale"
           placeholderTextColor={colors.textSecondary}
+          color={colors.text}
           multiline
           value={form.description}
           onChangeText={(t) => setForm({ ...form, description: t })}
@@ -237,10 +240,10 @@ useEffect(() => {
       <View style={styles.section}>
         <Text style={[styles.label, { color: colors.text }]}>Start Date <Text style={styles.required}>*</Text></Text>
         <TouchableOpacity
-          style={[styles.input, { justifyContent: 'center' }]}
+          style={[styles.input, inputStyle, { justifyContent: 'center' }]}
           onPress={() => setShowStartPicker(true)}
         >
-          <Text style={{ color: form.start_date ? '#000' : colors.textSecondary }}>
+          <Text style={{ color: form.start_date ? colors.text : colors.textSecondary }}>
             {form.start_date || 'Select start date'}
           </Text>
         </TouchableOpacity>
@@ -249,12 +252,21 @@ useEffect(() => {
           <DateTimePicker
             value={form.start_date ? new Date(form.start_date) : new Date()}
             mode="date"
-            display="calendar"
+            display={pickerDisplay}
             onChange={(e: any, date?: Date) => {
-              setShowStartPicker(false);
+              if (Platform.OS !== 'ios') {
+                setShowStartPicker(false);
+              }
+              if (e?.type === 'dismissed') {
+                setShowStartPicker(false);
+                return;
+              }
               if (date) {
                 const iso = date.toISOString().slice(0, 10);
                 setForm({ ...form, start_date: iso });
+                if (Platform.OS === 'ios') {
+                  setShowStartPicker(false);
+                }
               }
             }}
           />
@@ -264,10 +276,10 @@ useEffect(() => {
       <View style={styles.section}>
         <Text style={[styles.label, { color: colors.text }]}>End Date <Text style={styles.required}>*</Text></Text>
         <TouchableOpacity
-          style={[styles.input, { justifyContent: 'center' }]}
+          style={[styles.input, inputStyle, { justifyContent: 'center' }]}
           onPress={() => setShowEndPicker(true)}
         >
-          <Text style={{ color: form.end_date ? '#000' : colors.textSecondary }}>
+          <Text style={{ color: form.end_date ? colors.text : colors.textSecondary }}>
             {form.end_date || 'Select end date'}
           </Text>
         </TouchableOpacity>
@@ -276,12 +288,21 @@ useEffect(() => {
           <DateTimePicker
             value={form.end_date ? new Date(form.end_date) : new Date()}
             mode="date"
-            display="calendar"
+            display={pickerDisplay}
             onChange={(e: any, date?: Date) => {
-              setShowEndPicker(false);
+              if (Platform.OS !== 'ios') {
+                setShowEndPicker(false);
+              }
+              if (e?.type === 'dismissed') {
+                setShowEndPicker(false);
+                return;
+              }
               if (date) {
                 const iso = date.toISOString().slice(0, 10);
                 setForm({ ...form, end_date: iso });
+                if (Platform.OS === 'ios') {
+                  setShowEndPicker(false);
+                }
               }
             }}
           />
@@ -291,9 +312,10 @@ useEffect(() => {
       <View style={styles.section}>
         <Text style={[styles.label, { color: colors.text }]}>Hours</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, inputStyle]}
           placeholder="e.g. 9am - 4pm"
           placeholderTextColor={colors.textSecondary}
+          color={colors.text}
           value={form.hours}
           onChangeText={(t) => setForm({ ...form, hours: t })}
         />
@@ -306,9 +328,10 @@ useEffect(() => {
       <View style={styles.section}>
         <Text style={[styles.label, { color: colors.text }]}>Address <Text style={styles.required}>*</Text></Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, inputStyle]}
           placeholder="Street, City, State"
           placeholderTextColor={colors.textSecondary}
+          color={colors.text}
           value={form.address}
           onChangeText={(t) => setForm({ ...form, address: t })}
         />
@@ -321,8 +344,8 @@ useEffect(() => {
     <View style={styles.stepContent}>
       <View style={styles.section}>
         <Text style={[styles.label, { color: colors.text }]}>Preview</Text>
-        <View style={[styles.previewCard, { backgroundColor: isDark ? '#0b1220' : '#fff' } as any]}>
-          <Text style={{ fontWeight: '700' }}>{form.title || 'Untitled'}</Text>
+        <View style={[styles.previewCard, { backgroundColor: isDark ? '#0b1220' : '#fff', borderColor: colors.border } as any]}>
+          <Text style={{ fontWeight: '700', color: colors.text }}>{form.title || 'Untitled'}</Text>
           <Text style={{ color: colors.textSecondary }}>{form.address}</Text>
           <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{form.start_date} — {form.end_date}</Text>
           <Text style={{ color: colors.textSecondary, marginTop: 6 }}>{form.hours}</Text>
@@ -347,6 +370,29 @@ useEffect(() => {
     </View>
   );
 
+  const cardStyle = {
+    backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF',
+    borderColor: colors.border,
+  };
+  const inputStyle = {
+    borderColor: colors.border,
+    backgroundColor: isDark ? '#111827' : '#F8FAFC',
+  };
+  const stepIndicatorStyle = {
+    borderBottomColor: colors.border,
+  };
+  const navContainerStyle = {
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  };
+  const navSecondaryButtonStyle = {
+    backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
+    borderColor: colors.border,
+  };
+  const navSecondaryTextStyle = {
+    color: isDark ? '#FFFFFF' : '#192A4A',
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
       <AppNavbar
@@ -357,18 +403,22 @@ useEffect(() => {
         onBackPress={() => router.push('/(tabs)/yard-sales')}
       />
 
-      {renderStepIndicator()}
+      <View style={[styles.stepIndicatorWrap, stepIndicatorStyle]}>
+        {renderStepIndicator()}
+      </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={{ padding: 16 }}>
-        {currentStep === 'basic' && renderBasic()}
-        {currentStep === 'schedule' && renderSchedule()}
-        {currentStep === 'location' && renderLocation()}
-        {currentStep === 'review' && renderReview()}
+        <View style={[styles.formCard, cardStyle]}>
+          {currentStep === 'basic' && renderBasic()}
+          {currentStep === 'schedule' && renderSchedule()}
+          {currentStep === 'location' && renderLocation()}
+          {currentStep === 'review' && renderReview()}
+        </View>
       </ScrollView>
 
-      <View style={styles.navigationButtons}>
-        <TouchableOpacity onPress={handlePrevious} disabled={steps.findIndex(s => s.id === currentStep) === 0} style={[styles.navButton, styles.navButtonSecondary]}>
-          <Text style={[styles.navButtonText, { color: colors.text }]}>Back</Text>
+      <View style={[styles.navigationButtons, navContainerStyle]}>
+        <TouchableOpacity onPress={handlePrevious} disabled={steps.findIndex(s => s.id === currentStep) === 0} style={[styles.navButton, styles.navButtonSecondary, navSecondaryButtonStyle]}>
+          <Text style={[styles.navButtonText, navSecondaryTextStyle]}>Back</Text>
         </TouchableOpacity>
 
         {steps[steps.length -1].id !== currentStep ? (
@@ -384,7 +434,8 @@ useEffect(() => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollView: { flex: 1 },
-  stepIndicator: { borderBottomWidth: 1, borderBottomColor: '#eee', paddingHorizontal: 16, paddingTop: 8 },
+  stepIndicatorWrap: { borderBottomWidth: 1 },
+  stepIndicator: { paddingHorizontal: 16, paddingTop: 8 },
   stepIndicatorContent: { paddingVertical: 10 },
   stepNumbersRow: { flexDirection: 'row', alignItems: 'center' },
   stepNumberButton: { padding: 6 },
@@ -399,6 +450,16 @@ const styles = StyleSheet.create({
   stepTitleText: { fontWeight: '700' },
   stepSubtitleText: { color: '#666' },
   stepContent: { paddingHorizontal: 0, paddingVertical: 12 },
+  formCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
   section: { marginBottom: 12 },
   label: { fontSize: 13, fontWeight: '700', marginBottom: 6 },
   required: { color: '#D7263D' },

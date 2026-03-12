@@ -8,11 +8,21 @@ import {
   StyleSheet,
   Dimensions,
   Vibration,
+  Platform,
 } from 'react-native';
+import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useCall } from '../../contexts/CallContext';
+import { resolveRemoteUrl } from '../../utils/url';
+
+let InCallManager: any = null;
+try {
+  InCallManager = require('react-native-incall-manager');
+} catch (error) {
+  // Optional in unsupported builds.
+}
 
 const { width, height } = Dimensions.get('window');
 
@@ -22,14 +32,90 @@ export function IncomingCallModal() {
 
   // Vibrate when incoming call arrives
   useEffect(() => {
+    let mounted = true;
+    let fallbackSound: Audio.Sound | null = null;
+
+    const stopFallbackRingtone = async () => {
+      if (!fallbackSound) return;
+      try {
+        await fallbackSound.stopAsync();
+      } catch {}
+      try {
+        await fallbackSound.unloadAsync();
+      } catch {}
+      fallbackSound = null;
+    };
+
+    const startFallbackRingtone = async () => {
+      try {
+        // Ensure app can play alert audio while in the foreground.
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+          playThroughEarpieceAndroid: false,
+        });
+
+        const { sound } = await Audio.Sound.createAsync(
+          require('../../assets/sounds/ringtone.wav'),
+          {
+            shouldPlay: true,
+            isLooping: true,
+            volume: 1.0,
+          }
+        );
+        if (!mounted) {
+          try {
+            await sound.unloadAsync();
+          } catch {}
+          return;
+        }
+        fallbackSound = sound;
+      } catch (error) {
+        // Best effort fallback.
+      }
+    };
+
     if (incomingCall) {
       // Pattern: vibrate for 300ms, pause 100ms, vibrate for 300ms (repeat)
       Vibration.vibrate([300, 100, 300], true);
+      try {
+        InCallManager?.start?.({ media: 'audio', auto: true, ringback: '' });
+        InCallManager?.setForceSpeakerphoneOn?.(true);
+        InCallManager?.setSpeakerphoneOn?.(true);
+        if (Platform.OS === 'android') {
+          // Android: explicitly request default ringtone + repeat vibration.
+          InCallManager?.startRingtone?.('_DEFAULT_', [0, 700, 300], undefined, 30);
+        } else {
+          InCallManager?.startRingtone?.('_DEFAULT_');
+        }
+      } catch (error) {
+        // Best effort.
+      }
+      startFallbackRingtone();
     } else {
       Vibration.cancel();
+      try {
+        InCallManager?.stopRingtone?.();
+        InCallManager?.stop?.();
+      } catch (error) {
+        // Best effort.
+      }
+      stopFallbackRingtone();
     }
 
-    return () => Vibration.cancel();
+    return () => {
+      mounted = false;
+      Vibration.cancel();
+      try {
+        InCallManager?.stopRingtone?.();
+        InCallManager?.stop?.();
+      } catch (error) {
+        // Best effort.
+      }
+      stopFallbackRingtone();
+    };
   }, [incomingCall?.id]);
 
   if (!incomingCall) return null;
@@ -52,6 +138,7 @@ export function IncomingCallModal() {
 
   const callTypeIcon = incomingCall.call_type === 'video' ? 'videocam' : 'call';
   const callTypeLabel = incomingCall.call_type === 'video' ? 'Video Call' : 'Voice Call';
+  const callerAvatar = resolveRemoteUrl(incomingCall.caller.profile_image_url);
 
   return (
     <Modal
@@ -85,9 +172,13 @@ export function IncomingCallModal() {
               { backgroundColor: colors.primary + '30' },
             ]}
           >
-            <Text style={[styles.avatarText, { color: colors.primary }]}>
-              {(incomingCall.caller.username || '?').charAt(0).toUpperCase()}
-            </Text>
+            {callerAvatar ? (
+              <Image source={{ uri: callerAvatar }} style={styles.avatarImage} />
+            ) : (
+              <Text style={[styles.avatarText, { color: colors.primary }]}>
+                {(incomingCall.caller.username || '?').charAt(0).toUpperCase()}
+              </Text>
+            )}
           </View>
           <Text style={[styles.callerName, { color: colors.text }]}>
             {incomingCall.caller.username}
@@ -165,6 +256,11 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 48,
     fontWeight: 'bold',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 60,
   },
   callerName: {
     fontSize: 28,

@@ -45,6 +45,7 @@ from .views import (
     RedisHealthView,
     WebSocketDiagnosticView,
     TestPushNotificationView,
+    TurnIceServersView,
 )
 from .moderation_views import (
     ModerationActionViewSet,
@@ -236,5 +237,6 @@ urlpatterns = [
         TestPushNotificationView.as_view(),
         name="test-push-notification",
     ),
+    path("turn/ice-servers/", TurnIceServersView.as_view(), name="turn-ice-servers"),
     path("search/", UniversalSearchView.as_view(), name="universal-search"),
 ]

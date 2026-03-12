@@ -8,7 +8,7 @@ export type ActivityEntry = {
   ip_address: string | null;
   location: string | null;
   user_agent: string | null;
-  authentication_method: 'password' | 'passkey';
+  authentication_method: 'password' | 'passkey' | 'google' | 'apple';
   created_at: string;
   ended_at: string | null;
 };
@@ -50,4 +50,3 @@ export function useActivityLog() {
     refetch: () => fetchActivity(),
   };
 }
-

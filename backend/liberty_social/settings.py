@@ -278,6 +278,16 @@ FRONTEND_URL = config("FRONTEND_URL")
 
 # Google OAuth (used for Google Sign-In token verification)
 GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="")
+GOOGLE_OAUTH_CLIENT_IDS = [
+    value.strip()
+    for value in config("GOOGLE_OAUTH_CLIENT_IDS", default="").split(",")
+    if value.strip()
+]
+APPLE_AUTH_ALLOWED_AUDIENCES = [
+    value.strip()
+    for value in config("APPLE_AUTH_ALLOWED_AUDIENCES", default="com.libertysocial.app").split(",")
+    if value.strip()
+]
 
 # WebAuthn / Passkeys configuration
 # Use the registrable domain as RP ID (for example "mylibertysocial.com"), not a full URL.

@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -128,7 +129,11 @@ export default function SendAdminInviteModal({
       animationType="slide"
       onRequestClose={handleClose}
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+      >
         <View style={[styles.modalContent, { backgroundColor: isDark ? colors.backgroundSecondary : '#FFFFFF' }]}>
           {/* Header */}
           <View style={styles.header}>
@@ -231,7 +236,7 @@ export default function SendAdminInviteModal({
           </ScrollView>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -240,14 +245,14 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
   modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '90%',
-    minHeight: 400,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    borderRadius: 20,
+    maxHeight: '80%',
+    minHeight: 360,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 20,
     flexDirection: 'column',
   },
   header: {
@@ -338,4 +343,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

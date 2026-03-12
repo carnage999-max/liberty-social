@@ -32,6 +32,7 @@ import { Modal } from 'react-native';
 import InviteUsersModal from '../../components/pages/InviteUsersModal';
 import CreatePagePostModal from '../../components/pages/CreatePagePostModal';
 import SendAdminInviteModal from '../../components/pages/SendAdminInviteModal';
+import ManagePageAdminsModal from '../../components/pages/ManagePageAdminsModal';
 import * as ImagePicker from 'expo-image-picker';
 import { getApiBase } from '../../constants/API';
 import { storage } from '../../utils/storage';
@@ -91,6 +92,7 @@ export default function PageDetailScreen() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showCreatePostModal, setShowCreatePostModal] = useState(false);
   const [showAdminInviteModal, setShowAdminInviteModal] = useState(false);
+  const [showManageAdminsModal, setShowManageAdminsModal] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
@@ -1833,6 +1835,14 @@ export default function PageDetailScreen() {
           onPress: () => router.push(`/pages/${id}/edit`),
         },
         {
+          label: 'Manage Admins',
+          icon: 'people-outline' as const,
+          onPress: () => {
+            setShowContextMenu(false);
+            setShowManageAdminsModal(true);
+          },
+        },
+        {
           label: 'Send Admin Invite',
           icon: 'person-add-outline' as const,
           onPress: () => {
@@ -2208,6 +2218,13 @@ export default function PageDetailScreen() {
         onInviteSent={() => {
           loadPage();
         }}
+      />
+
+      <ManagePageAdminsModal
+        visible={showManageAdminsModal}
+        pageId={page?.id || 0}
+        isOwner={Boolean(isPageOwner)}
+        onClose={() => setShowManageAdminsModal(false)}
       />
     </KeyboardAvoidingView>
   );

@@ -13,11 +13,28 @@ export default function YardSalePayment() {
   const [loading, setLoading] = useState(false);
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
 
+  const normalizeCoordinate = (value: unknown): number | null => {
+    const parsed = typeof value === 'number' ? value : parseFloat(String(value));
+    if (!Number.isFinite(parsed)) return null;
+    return Number(parsed.toFixed(6));
+  };
+
+  const sanitizePayload = (input: any) => {
+    if (!input) return input;
+    const latitude = normalizeCoordinate(input.latitude);
+    const longitude = normalizeCoordinate(input.longitude);
+    return {
+      ...input,
+      latitude,
+      longitude,
+    };
+  };
+
   useEffect(() => {
     if (!payload) return;
     try {
       const payloadStr = Array.isArray(payload) ? payload[0] : payload;
-      setData(JSON.parse(decodeURIComponent(payloadStr)));
+      setData(sanitizePayload(JSON.parse(decodeURIComponent(payloadStr))));
     } catch (e) {
       console.error('Invalid payload', e);
     }
@@ -46,6 +63,7 @@ export default function YardSalePayment() {
       const { error: initError } = await initPaymentSheet({
         paymentIntentClientSecret: client_secret,
         merchantDisplayName: 'Liberty Social',
+        returnURL: 'liberty-social://stripe-redirect',
       });
 
       setLoading(false);
@@ -64,6 +82,16 @@ export default function YardSalePayment() {
     if (!data) return;
     setLoading(true);
     try {
+      const payloadForConfirm = sanitizePayload(data);
+      if (
+        payloadForConfirm?.latitude === null ||
+        payloadForConfirm?.longitude === null
+      ) {
+        setLoading(false);
+        Alert.alert('Invalid location', 'Please go back and reselect the yard sale address.');
+        return;
+      }
+
       const intentId = await setupPaymentSheet();
       if (!intentId) return;
 
@@ -79,7 +107,7 @@ export default function YardSalePayment() {
       console.log('Confirming payment with intentId:', intentId);
       const confirmRes = await apiClient.post('/yard-sales/confirm-payment/', {
         payment_intent_id: intentId,
-        payload: data,
+        payload: payloadForConfirm,
       });
 
       console.log('Payment confirmed, response:', confirmRes);

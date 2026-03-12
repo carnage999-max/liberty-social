@@ -4,33 +4,24 @@ import Constants from 'expo-constants';
 import { useAuth } from '../contexts/AuthContext';
 import { apiClient } from '../utils/api';
 
-// Check if we're in a development build (not Expo Go)
-const isDevBuild = Constants.appOwnership === 'standalone' || Constants.appOwnership === 'expo';
-const isExpoGo = !Constants.expoConfig?.plugins?.some((p: any) => 
-  typeof p === 'object' && p[0] === 'expo-notifications'
-);
+const isExpoGo = Constants.appOwnership === 'expo';
 
-// Only import and configure notifications if not in Expo Go
 let Notifications: any = null;
 let notificationsAvailable = false;
 
-if (!isExpoGo) {
-  try {
-    Notifications = require('expo-notifications');
-    notificationsAvailable = true;
-    
-    // Configure notification handler - matches Expo documentation exactly
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-      }),
-    });
-  } catch (error) {
-    console.warn('Notifications not available in this build', error);
-    notificationsAvailable = false;
-  }
+try {
+  Notifications = require('expo-notifications');
+  notificationsAvailable = true;
+
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+} catch (error) {
+  notificationsAvailable = false;
 }
 
 export function usePushNotifications() {
@@ -40,7 +31,7 @@ export function usePushNotifications() {
 
   useEffect(() => {
     if (!notificationsAvailable) {
-      console.log('Push notifications not available in Expo Go. Will work in development builds.');
+      console.log('Push notifications module not available in this build.');
       return;
     }
 
@@ -66,7 +57,7 @@ export function usePushNotifications() {
               platform,
             }
           );
-          console.log('Device token registered successfully:', response.data);
+          console.log('Device token registered successfully');
         } catch (error: any) {
           // Check if the error is because the token already exists (400 with specific message)
           const errorData = error?.response?.data;
@@ -129,6 +120,11 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
     return null;
   }
 
+  if (isExpoGo) {
+    console.log('Push notifications are not supported in Expo Go.');
+    return null;
+  }
+
   let token: string | null = null;
 
   if (Platform.OS === 'android') {
@@ -157,7 +153,9 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 
   try {
     // Get project ID from Constants - required for EAS builds
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId;
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ||
+      (Constants as any)?.easConfig?.projectId;
     
     if (!projectId) {
       console.error('No projectId found in app.json. Push notifications require a projectId.');
@@ -192,5 +190,4 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 
   return token;
 }
-
 

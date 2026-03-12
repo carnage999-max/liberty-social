@@ -14,6 +14,9 @@ import {
   Linking,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import Constants from 'expo-constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
@@ -27,11 +30,28 @@ import AppNavbar from '../../components/layout/AppNavbar';
 type AuthMode = 'login' | 'register';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+WebBrowser.maybeCompleteAuthSession();
 
 // Frontend color constants
 const COLOR_GOLD = '#C8A25F';
 const COLOR_DEEP_NAVY = '#1D2B4F';
 const COLOR_DEEPER_NAVY = '#121A33';
+
+type AppleAuthModule = typeof import('expo-apple-authentication');
+let cachedAppleAuthModule: AppleAuthModule | null | undefined;
+
+function getAppleAuthModule(): AppleAuthModule | null {
+  if (cachedAppleAuthModule !== undefined) {
+    return cachedAppleAuthModule;
+  }
+  try {
+    // Load lazily so this screen does not crash when the binary is missing the native module.
+    cachedAppleAuthModule = require('expo-apple-authentication');
+  } catch (error) {
+    cachedAppleAuthModule = null;
+  }
+  return cachedAppleAuthModule;
+}
 
 export default function AuthScreen() {
   const { colors, isDark } = useTheme();
@@ -51,8 +71,12 @@ export default function AuthScreen() {
   const initialMode = (params.mode === 'register' ? 'register' : 'login') as AuthMode;
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const isExpoGo = Constants.appOwnership === 'expo';
   
   // Login state
   const [username, setUsername] = useState('');
@@ -77,6 +101,80 @@ export default function AuthScreen() {
   // Animation values
   const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+  const googleConfigured =
+    Boolean(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) ||
+    Boolean(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID) ||
+    Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
+  const [googleRequest, googleResponse, promptGoogleAuth] = Google.useIdTokenAuthRequest({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  });
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') {
+      setAppleAvailable(false);
+      return;
+    }
+
+    const appleAuth = getAppleAuthModule();
+    if (!appleAuth) {
+      setAppleAvailable(false);
+      return;
+    }
+
+    appleAuth.isAvailableAsync()
+      .then(setAppleAvailable)
+      .catch(() => setAppleAvailable(false));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const completeGoogleLogin = async () => {
+      if (googleResponse?.type !== 'success') {
+        if (googleResponse?.type && googleResponse.type !== 'success') {
+          setGoogleLoading(false);
+        }
+        return;
+      }
+
+      const idToken =
+        (googleResponse.params as Record<string, string | undefined> | undefined)?.id_token ??
+        (googleResponse.authentication as { idToken?: string } | null)?.idToken;
+
+      if (!idToken) {
+        if (!cancelled) {
+          setGoogleLoading(false);
+          showError('Google sign-in did not return an ID token.');
+        }
+        return;
+      }
+
+      try {
+        const tokens = await apiClient.post<AuthTokens>('/auth/google/auth/', {
+          id_token: idToken,
+        });
+        if (cancelled) return;
+        await login(tokens);
+        router.replace('/(tabs)/feed');
+      } catch (error: any) {
+        if (!cancelled) {
+          showError(error?.response?.data?.detail || 'Google sign-in failed.');
+        }
+      } finally {
+        if (!cancelled) {
+          setGoogleLoading(false);
+        }
+      }
+    };
+
+    completeGoogleLogin();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [googleResponse, login, router, showError]);
 
   const switchMode = (newMode: AuthMode) => {
     if (newMode === mode) return;
@@ -135,6 +233,10 @@ export default function AuthScreen() {
   };
 
   const handlePasskeyLogin = async () => {
+    if (isExpoGo) {
+      showError('Passkeys require a development or production build. Expo Go does not include the native passkey module.');
+      return;
+    }
     if (!isPasskeyAvailable) {
       showError('Passkeys are not available on this device');
       return;
@@ -189,6 +291,76 @@ export default function AuthScreen() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    if (isExpoGo) {
+      showError('Google sign-in requires a development or production build. Expo Go uses a different app identity.');
+      return;
+    }
+    if (!googleConfigured) {
+      showError('Google sign-in is not configured for this build.');
+      return;
+    }
+
+    if (!googleRequest) {
+      showError('Google sign-in is still preparing. Please try again.');
+      return;
+    }
+
+    setGoogleLoading(true);
+    try {
+      const result = await promptGoogleAuth();
+      if (result.type !== 'success') {
+        setGoogleLoading(false);
+      }
+    } catch (error) {
+      setGoogleLoading(false);
+      showError('Unable to start Google sign-in.');
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    if (isExpoGo) {
+      showError('Apple sign-in requires a development or production build. Expo Go does not use your app bundle identity.');
+      return;
+    }
+    const appleAuth = getAppleAuthModule();
+    if (Platform.OS !== 'ios' || !appleAvailable || !appleAuth) {
+      showError('Apple Sign In is not available on this device.');
+      return;
+    }
+
+    setAppleLoading(true);
+    try {
+      const credential = await appleAuth.signInAsync({
+        requestedScopes: [
+          appleAuth.AppleAuthenticationScope.FULL_NAME,
+          appleAuth.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error('Apple Sign In did not return an identity token.');
+      }
+
+      const tokens = await apiClient.post<AuthTokens>('/auth/apple/auth/', {
+        identity_token: credential.identityToken,
+        email: credential.email,
+        first_name: credential.fullName?.givenName,
+        last_name: credential.fullName?.familyName,
+      });
+
+      await login(tokens);
+      router.replace('/(tabs)/feed');
+    } catch (error: any) {
+      if (error?.code === 'ERR_REQUEST_CANCELED') {
+        return;
+      }
+      showError(error?.response?.data?.detail || error?.message || 'Apple sign-in failed.');
+    } finally {
+      setAppleLoading(false);
     }
   };
 
@@ -349,6 +521,16 @@ export default function AuthScreen() {
       backgroundColor: COLOR_GOLD,
       marginTop: 12,
     },
+    buttonGoogle: {
+      backgroundColor: '#FFFFFF',
+      borderWidth: 1,
+      borderColor: '#D9DEE8',
+      marginTop: 12,
+    },
+    buttonApple: {
+      backgroundColor: '#111111',
+      marginTop: 12,
+    },
     passkeyHint: {
       marginTop: 8,
       marginBottom: 4,
@@ -361,6 +543,9 @@ export default function AuthScreen() {
       color: '#FFFFFF',
       fontSize: 16,
       fontWeight: '600',
+    },
+    buttonTextDark: {
+      color: COLOR_DEEP_NAVY,
     },
     buttonDisabled: {
       opacity: 0.6,
@@ -527,13 +712,39 @@ export default function AuthScreen() {
           <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign in'}</Text>
         </TouchableOpacity>
 
+        {googleConfigured ? (
+          <TouchableOpacity
+            style={[styles.button, styles.buttonGoogle, googleLoading && styles.buttonDisabled]}
+            onPress={handleGoogleLogin}
+            disabled={googleLoading || !googleRequest || isExpoGo}
+          >
+            <Ionicons name="logo-google" size={20} color="#1F2937" style={{ marginRight: 8 }} />
+            <Text style={[styles.buttonText, styles.buttonTextDark]}>
+              {googleLoading ? 'Connecting to Google...' : 'Continue with Google'}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {Platform.OS === 'ios' && appleAvailable ? (
+          <TouchableOpacity
+            style={[styles.button, styles.buttonApple, appleLoading && styles.buttonDisabled]}
+            onPress={handleAppleLogin}
+            disabled={appleLoading || isExpoGo}
+          >
+            <Ionicons name="logo-apple" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.buttonText}>
+              {appleLoading ? 'Connecting to Apple...' : 'Continue with Apple'}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+
         {/* Passkey login button */}
         {isPasskeyAvailable && (
           <>
             <TouchableOpacity
               style={[styles.button, styles.buttonPasskey, (authenticatingPasskey || passkeyLoading) && styles.buttonDisabled]}
               onPress={handlePasskeyLogin}
-              disabled={authenticatingPasskey || passkeyLoading}
+              disabled={authenticatingPasskey || passkeyLoading || isExpoGo}
             >
               <Ionicons name="finger-print" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
               <Text style={styles.buttonText}>

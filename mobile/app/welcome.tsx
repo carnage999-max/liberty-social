@@ -7,7 +7,7 @@ import {
   Image,
   Dimensions,
 } from 'react-native';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -22,6 +22,8 @@ const COLOR_DEEP_NAVY = '#1D2B4F';
 const COLOR_DEEPER_NAVY = '#121A33';
 
 export default function WelcomeScreen() {
+  const router = useRouter();
+
   return (
     <LinearGradient
       colors={[COLOR_DEEPER_NAVY, COLOR_DEEP_NAVY, '#2D3E5F', '#3A4A6B']}
@@ -65,7 +67,7 @@ export default function WelcomeScreen() {
         {/* Metallic Gold Button */}
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => router.push('/(auth)?mode=register')}
+          onPress={() => router.push({ pathname: '/(auth)', params: { mode: 'register' } })}
         >
           <LinearGradient
             colors={[COLOR_GOLD_DARK, COLOR_GOLD_LIGHT, COLOR_GOLD_DARK]}
@@ -85,7 +87,7 @@ export default function WelcomeScreen() {
         {/* Metallic Silver Button */}
         <TouchableOpacity
           activeOpacity={0.8}
-          onPress={() => router.push('/(auth)?mode=login')}
+          onPress={() => router.push({ pathname: '/(auth)', params: { mode: 'login' } })}
         >
           <LinearGradient
             colors={[COLOR_SILVER_DARK, COLOR_SILVER_LIGHT, COLOR_SILVER_DARK]}

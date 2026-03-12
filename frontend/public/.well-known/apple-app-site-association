@@ -1,4 +1,13 @@
 {
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "J4PDJ9UH55.com.libertysocial.app",
+        "paths": ["*"]
+      }
+    ]
+  },
   "webcredentials": {
     "apps": ["J4PDJ9UH55.com.libertysocial.app"]
   }

@@ -1,5 +1,10 @@
 import asyncio
+import json
 import logging
+import os
+from urllib.error import URLError, HTTPError
+from urllib.parse import urlencode
+from urllib.request import urlopen, Request
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -42,7 +47,7 @@ from .models import (
     UserFeedPreference,
     UserReactionPreference,
 )
-from .realtime import conversation_group_name
+from .realtime import conversation_group_name, notification_group_name
 from .serializers import (
     PostSerializer,
     CommentSerializer,
@@ -1529,6 +1534,59 @@ class TestPushNotificationView(APIView):
             return Response(diagnostics, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class TurnIceServersView(APIView):
+    """Return ICE servers for WebRTC clients.
+
+    If Metered TURN credentials are configured, fetch dynamic credentials from
+    Metered server-side so API keys are not exposed in mobile clients.
+    Falls back to static env-configured STUN/TURN values.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        metered_url = os.getenv("METERED_TURN_CREDENTIALS_URL", "").strip()
+        metered_key = os.getenv("METERED_TURN_API_KEY", "").strip()
+
+        if metered_url and metered_key:
+            try:
+                url = f"{metered_url}?{urlencode({'apiKey': metered_key})}"
+                req = Request(url, method="GET")
+                with urlopen(req, timeout=10) as resp:
+                    payload = json.loads(resp.read().decode("utf-8"))
+                    if isinstance(payload, list):
+                        return Response({"ice_servers": payload}, status=status.HTTP_200_OK)
+            except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
+                logging.getLogger(__name__).warning(
+                    "Failed to fetch Metered TURN credentials: %s", exc
+                )
+
+        # Fallback static configuration for environments without Metered API.
+        stun_urls = (
+            os.getenv("WEBRTC_STUN_URLS", "stun:stun.l.google.com:19302")
+            .strip()
+            .split(",")
+        )
+        stun_urls = [u.strip() for u in stun_urls if u.strip()]
+        turn_url = os.getenv("WEBRTC_TURN_URL", "").strip()
+        turn_username = os.getenv("WEBRTC_TURN_USERNAME", "").strip()
+        turn_credential = os.getenv("WEBRTC_TURN_CREDENTIAL", "").strip()
+
+        ice_servers = []
+        if stun_urls:
+            ice_servers.append({"urls": stun_urls})
+        if turn_url and turn_username and turn_credential:
+            ice_servers.append(
+                {
+                    "urls": turn_url,
+                    "username": turn_username,
+                    "credential": turn_credential,
+                }
+            )
+
+        return Response({"ice_servers": ice_servers}, status=status.HTTP_200_OK)
+
+
 class NewsFeedView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1856,12 +1914,23 @@ class CallViewSet(ModelViewSet):
 
         # Notify caller via WebSocket
         layer = get_channel_layer()
-        if layer and call.conversation:
+        if layer:
             try:
+                if call.conversation:
+                    async_to_sync(layer.group_send)(
+                        conversation_group_name(str(call.conversation.id)),
+                        {
+                            "type": "call.accepted",
+                            "call_id": str(call.id),
+                            "receiver_id": str(request.user.id),
+                        },
+                    )
+
+                # Always notify caller's global notification socket.
                 async_to_sync(layer.group_send)(
-                    conversation_group_name(str(call.conversation.id)),
+                    notification_group_name(str(call.caller.id)),
                     {
-                        "type": "call.accepted",
+                        "type": "call.answer",
                         "call_id": str(call.id),
                         "receiver_id": str(request.user.id),
                     },
@@ -1893,7 +1962,7 @@ class CallViewSet(ModelViewSet):
             try:
                 # Send to caller's personal channel
                 async_to_sync(layer.group_send)(
-                    user_group_name(str(call.caller.id)),
+                    notification_group_name(str(call.caller.id)),
                     {
                         "type": "call.rejected",
                         "call_id": str(call.id),
@@ -1934,18 +2003,30 @@ class CallViewSet(ModelViewSet):
         duration_seconds = request.data.get("duration_seconds", 0)
         call.end_call(duration_seconds)
 
-        # Notify other participant via WebSocket
+        # Notify both participants via WebSocket
         layer = get_channel_layer()
-        if layer and call.conversation:
+        if layer:
             try:
-                async_to_sync(layer.group_send)(
-                    conversation_group_name(str(call.conversation.id)),
-                    {
-                        "type": "call.ended",
-                        "call_id": str(call.id),
-                        "ended_by": str(request.user.id),
-                    },
-                )
+                if call.conversation:
+                    async_to_sync(layer.group_send)(
+                        conversation_group_name(str(call.conversation.id)),
+                        {
+                            "type": "call.end",
+                            "call_id": str(call.id),
+                            "user_id": str(request.user.id),
+                        },
+                    )
+
+                # Notify both users' global notification channels so either side exits call UI.
+                for participant_id in [call.caller_id, call.receiver_id]:
+                    async_to_sync(layer.group_send)(
+                        notification_group_name(str(participant_id)),
+                        {
+                            "type": "call.end",
+                            "call_id": str(call.id),
+                            "user_id": str(request.user.id),
+                        },
+                    )
             except Exception as e:
                 logging.error(f"Error sending call ended notification: {e}")
 

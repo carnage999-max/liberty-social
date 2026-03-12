@@ -452,6 +452,8 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
             await self._handle_call_offer_from_client(content)
         elif message_type == "call.answer":
             await self._handle_call_answer_from_client(content)
+        elif message_type == "call.ice-candidate":
+            await self._handle_call_ice_candidate_from_client(content)
         elif message_type == "call.end":
             await self._handle_call_end_from_client(content)
 
@@ -543,6 +545,32 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
         except Exception as e:
             print(f"[NotificationWS] Error routing call.end: {e}", flush=True)
 
+    async def _handle_call_ice_candidate_from_client(self, content):
+        """Handle call.ice-candidate sent from client through global WebSocket."""
+        try:
+            from .models import Call
+
+            call = await sync_to_async(
+                lambda: Call.objects.select_related('caller', 'receiver').get(id=content.get("call_id"))
+            )()
+
+            other_user_id = call.receiver.id if call.caller.id == self.user.id else call.caller.id
+            other_notification_group = notification_group_name(str(other_user_id))
+
+            print(f"[NotificationWS] Routing call.ice-candidate to user's notification group: {other_notification_group}", flush=True)
+
+            await self.channel_layer.group_send(
+                other_notification_group,
+                {
+                    "type": "call_ice_candidate",
+                    "user_id": str(self.user.id),
+                    "call_id": content.get("call_id"),
+                    "candidate": content.get("candidate"),
+                },
+            )
+        except Exception as e:
+            print(f"[NotificationWS] Error routing call.ice-candidate: {e}", flush=True)
+
     async def notification_created(self, event):
         await self.send_json(
             {
@@ -599,6 +627,18 @@ class NotificationConsumer(AsyncJsonWebsocketConsumer):
                 "type": "call.end",
                 "call_id": event.get("call_id"),
                 "user_id": event.get("user_id"),
+            }
+        )
+
+    async def call_ice_candidate(self, event):
+        """Handle ICE candidates routed from chat or notification consumer."""
+        print(f"[NotificationWS] Sending call.ice-candidate to client - call_id={event.get('call_id')}", flush=True)
+        await self.send_json(
+            {
+                "type": "call.ice-candidate",
+                "call_id": event.get("call_id"),
+                "user_id": event.get("user_id"),
+                "candidate": event.get("candidate"),
             }
         )
 

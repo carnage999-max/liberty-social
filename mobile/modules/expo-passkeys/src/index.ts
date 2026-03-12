@@ -3,6 +3,7 @@ import { requireNativeModule, Platform } from 'expo-modules-core';
 // Import the native module. On web, it will use ExpoPasskeysModule.ts
 // On native platforms, it will use the native module
 let ExpoPasskeysModule: any;
+let nativeModuleLoaded = false;
 
 if (Platform.OS === 'web') {
   ExpoPasskeysModule = require('./ExpoPasskeysModule').default;
@@ -11,6 +12,7 @@ if (Platform.OS === 'web') {
   try {
     console.log('[Passkeys] Attempting to load native module using requireNativeModule...');
     ExpoPasskeysModule = requireNativeModule('ExpoPasskeys');
+    nativeModuleLoaded = true;
     console.log('[Passkeys] Native module ExpoPasskeys loaded successfully');
     console.log('[Passkeys] Module methods:', Object.keys(ExpoPasskeysModule || {}));
   } catch (error) {
@@ -89,6 +91,10 @@ export function isSupported(): boolean {
   return result;
 }
 
+export function hasNativeModule(): boolean {
+  return nativeModuleLoaded;
+}
+
 export async function create(
   options: PublicKeyCredentialCreationOptions
 ): Promise<PublicKeyCredential> {
@@ -115,7 +121,7 @@ export async function get(
 
 export default {
   isSupported,
+  hasNativeModule,
   create,
   get,
 };
-

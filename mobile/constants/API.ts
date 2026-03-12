@@ -5,14 +5,26 @@
 
 export const API_BASE = 'https://api.mylibertysocial.com/api';
 
-// Helper to get the correct API base for mobile emulators
+// Use the configured API base in all environments when provided. This keeps
+// EAS builds and local development aligned instead of hardcoding production.
 export const getApiBase = () => {
-  if (__DEV__) {
-    // Android emulator uses 10.0.2.2 to access host machine
-    if (process.env.EXPO_PUBLIC_API_BASE_URL) {
-      return process.env.EXPO_PUBLIC_API_BASE_URL.replace(/\/$/, '');
-    }
-    return API_BASE;
+  if (process.env.EXPO_PUBLIC_API_BASE_URL) {
+    return process.env.EXPO_PUBLIC_API_BASE_URL.replace(/\/$/, '');
   }
   return API_BASE;
+};
+
+export const getWsBase = () => {
+  if (process.env.EXPO_PUBLIC_WS_BASE_URL) {
+    return process.env.EXPO_PUBLIC_WS_BASE_URL
+      .replace(/\/$/, '')
+      .replace(/\/ws\/notifications\/?$/, '')
+      .replace(/^https:\/\//, 'wss://')
+      .replace(/^http:\/\//, 'ws://');
+  }
+
+  return getApiBase()
+    .replace(/^https:\/\//, 'wss://')
+    .replace(/^http:\/\//, 'ws://')
+    .replace(/\/api\/?$/, '');
 };

@@ -7,12 +7,14 @@ import {
   StyleSheet,
   Dimensions,
   Animated,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useCall } from '../../contexts/CallContext';
 import { useToast } from '../../contexts/ToastContext';
+import { resolveRemoteUrl } from '../../utils/url';
 
 let RTCView: any = null;
 
@@ -120,6 +122,7 @@ export function OutgoingCallModal() {
   const callTypeIcon = outgoingCall.call_type === 'video' ? 'videocam' : 'call';
   const callTypeLabel = outgoingCall.call_type === 'video' ? 'Video Call' : 'Voice Call';
   const isActive = outgoingCall.status === 'active';
+  const receiverAvatar = resolveRemoteUrl(outgoingCall.receiver.profile_image_url);
 
   const handleEndCall = async () => {
     try {
@@ -219,9 +222,13 @@ export function OutgoingCallModal() {
                 isActive ? {} : { transform: [{ scale: pulseAnim }] },
               ]}
             >
-              <Text style={[styles.avatarText, { color: colors.primary }]}>
-                {(outgoingCall.receiver.username || '?').charAt(0).toUpperCase()}
-              </Text>
+              {receiverAvatar ? (
+                <Image source={{ uri: receiverAvatar }} style={styles.avatarImage} />
+              ) : (
+                <Text style={[styles.avatarText, { color: colors.primary }]}>
+                  {(outgoingCall.receiver.username || '?').charAt(0).toUpperCase()}
+                </Text>
+              )}
             </Animated.View>
             <Text style={[styles.recipientName, { color: colors.text }]}>
               {outgoingCall.receiver.username}
@@ -300,6 +307,11 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 48,
     fontWeight: 'bold',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 60,
   },
   recipientName: {
     fontSize: 28,

@@ -17,6 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.libertysocial.app",
+      "usesAppleSignIn": true,
       "associatedDomains": [
         "webcredentials:mylibertysocial.com"
       ],
@@ -62,6 +63,7 @@
       "expo-router",
       "expo-secure-store",
       "expo-font",
+      "expo-apple-authentication",
       [
         "expo-image-picker",
         {
@@ -78,6 +80,7 @@
         }
       ],
       "expo-web-browser",
+      "@config-plugins/react-native-webrtc",
       [
         "expo-build-properties",
         {
@@ -93,11 +96,17 @@
       [
         "expo-dynamic-app-icon",
         {
-          "icons": {
-            "white": "./assets/liberty-social-white-icon-set/ios/iTunesArtwork@2x.png",
-            "blue": "./assets/liberty-social-blue-icon-set/ios/iTunesArtwork@2x.png",
-            "white_round": "./assets/liberty-social-white-icon-set/android/mipmap-xxxhdpi/ic_launcher_round.png",
-            "blue_round": "./assets/liberty-social-blue-icon-set/android/mipmap-xxxhdpi/ic_launcher_round.png"
+          "white": {
+            "image": "./assets/liberty-social-white-icon-set/ios/iTunesArtwork@2x.png"
+          },
+          "blue": {
+            "image": "./assets/liberty-social-blue-icon-set/ios/iTunesArtwork@2x.png"
+          },
+          "white_round": {
+            "image": "./assets/liberty-social-white-icon-set/android/mipmap-xxxhdpi/ic_launcher_round.png"
+          },
+          "blue_round": {
+            "image": "./assets/liberty-social-blue-icon-set/android/mipmap-xxxhdpi/ic_launcher_round.png"
           }
         }
       ]

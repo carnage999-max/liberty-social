@@ -1,19 +1,14 @@
-[{
-  "relation": ["delegate_permission/common.get_login_creds"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.libertysocial.app",
-    "sha256_cert_fingerprints": [
-      "83:6F:35:01:60:AA:CB:53:F6:20:7F:6C:E9:99:FE:2E:98:7F:F5:A6:1E:DA:B2:C6:F1:D9:EC:64:D5:CB:35:6F"
-    ]
+[
+  {
+    "relation": [
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.libertysocial.app",
+      "sha256_cert_fingerprints": [
+        "47:0C:31:38:17:42:C2:CA:FB:1A:42:DA:4B:DD:FF:F6:2E:4A:B8:44"
+      ]
+    }
   }
-}, {
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.libertysocial.app",
-    "sha256_cert_fingerprints": [
-      "83:6F:35:01:60:AA:CB:53:F6:20:7F:6C:E9:99:FE:2E:98:7F:F5:A6:1E:DA:B2:C6:F1:D9:EC:64:D5:CB:35:6F"
-    ]
-  }
-}]
+]

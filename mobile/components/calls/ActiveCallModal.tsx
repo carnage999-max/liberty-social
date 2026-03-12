@@ -8,6 +8,7 @@ import {
   Dimensions,
   SafeAreaView,
   StatusBar,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +16,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useCall } from '../../contexts/CallContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
+import { resolveRemoteUrl } from '../../utils/url';
 
 const { width, height } = Dimensions.get('window');
 
@@ -70,10 +72,12 @@ export function ActiveCallModal() {
   };
 
   const callType = activeCall.call_type === 'video' ? 'Video Call' : 'Voice Call';
-  const otherUserName =
+  const otherUser =
     user?.id === activeCall.caller.id
-      ? activeCall.receiver.username
-      : activeCall.caller.username;
+      ? activeCall.receiver
+      : activeCall.caller;
+  const otherUserName = otherUser.username;
+  const otherUserAvatar = resolveRemoteUrl(otherUser.profile_image_url);
 
   return (
     <Modal
@@ -108,9 +112,13 @@ export function ActiveCallModal() {
                 { backgroundColor: colors.primary + '30' },
               ]}
             >
-              <Text style={[styles.avatarText, { color: colors.primary }]}>
-                {(otherUserName || '?').charAt(0).toUpperCase()}
-              </Text>
+              {otherUserAvatar ? (
+                <Image source={{ uri: otherUserAvatar }} style={styles.avatarImage} />
+              ) : (
+                <Text style={[styles.avatarText, { color: colors.primary }]}>
+                  {(otherUserName || '?').charAt(0).toUpperCase()}
+                </Text>
+              )}
             </View>
             {activeCall.call_type === 'video' && (
               <TouchableOpacity
@@ -131,61 +139,42 @@ export function ActiveCallModal() {
 
           {/* Control buttons */}
           <View style={styles.controls}>
-            {/* Mute button */}
-            <TouchableOpacity
-              style={[
-                styles.controlButton,
-                { backgroundColor: isMuted ? colors.primary : colors.secondary + '40' },
-              ]}
-              onPress={() => setIsMuted(!isMuted)}
-            >
-              <Ionicons
-                name={isMuted ? 'mic-off' : 'mic'}
-                size={24}
-                color={isMuted ? '#fff' : colors.text}
-              />
-              <Text
-                style={[
-                  styles.controlLabel,
-                  { color: isMuted ? '#fff' : colors.text },
-                ]}
-              >
-                Mute
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.controlRow}>
+              <View style={styles.controlItem}>
+                <TouchableOpacity
+                  style={[
+                    styles.roundControlButton,
+                    { backgroundColor: isMuted ? '#192A4A' : 'rgba(255,255,255,0.15)' },
+                  ]}
+                  onPress={() => setIsMuted(!isMuted)}
+                >
+                  <Ionicons name={isMuted ? 'mic-off' : 'mic'} size={22} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.controlLabel}>Mute</Text>
+              </View>
 
-            {/* Speaker button */}
-            <TouchableOpacity
-              style={[
-                styles.controlButton,
-                { backgroundColor: isSpeakerOn ? colors.primary : colors.secondary + '40' },
-              ]}
-              onPress={() => setIsSpeakerOn(!isSpeakerOn)}
-            >
-              <Ionicons
-                name={isSpeakerOn ? 'volume-high' : 'volume-mute'}
-                size={24}
-                color={isSpeakerOn ? '#fff' : colors.text}
-              />
-              <Text
-                style={[
-                  styles.controlLabel,
-                  { color: isSpeakerOn ? '#fff' : colors.text },
-                ]}
-              >
-                Speaker
-              </Text>
-            </TouchableOpacity>
+              <View style={styles.controlItem}>
+                <TouchableOpacity
+                  style={[
+                    styles.roundControlButton,
+                    { backgroundColor: isSpeakerOn ? '#192A4A' : 'rgba(255,255,255,0.15)' },
+                  ]}
+                  onPress={() => setIsSpeakerOn(!isSpeakerOn)}
+                >
+                  <Ionicons name={isSpeakerOn ? 'volume-high' : 'volume-mute'} size={22} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.controlLabel}>Speaker</Text>
+              </View>
 
-            {/* End call button (full width at bottom) */}
-            <View style={styles.endCallWrapper}>
-              <TouchableOpacity
-                style={[styles.endCallButton, { backgroundColor: '#DC2626' }]}
-                onPress={handleEndCall}
-              >
-                <Ionicons name="call-sharp" size={24} color="#fff" />
-                <Text style={styles.endCallLabel}>End Call</Text>
-              </TouchableOpacity>
+              <View style={styles.controlItem}>
+                <TouchableOpacity
+                  style={[styles.roundControlButton, { backgroundColor: '#DC2626' }]}
+                  onPress={handleEndCall}
+                >
+                  <Ionicons name="call-sharp" size={22} color="#fff" />
+                </TouchableOpacity>
+                <Text style={styles.controlLabel}>End</Text>
+              </View>
             </View>
           </View>
         </SafeAreaView>
@@ -241,6 +230,11 @@ const styles = StyleSheet.create({
     fontSize: 56,
     fontWeight: 'bold',
   },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 70,
+  },
   videoToggle: {
     position: 'absolute',
     bottom: 16,
@@ -252,37 +246,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   controls: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-    gap: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 28,
   },
-  controlButton: {
+  controlRow: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  controlItem: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  roundControlButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 8,
   },
   controlLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  endCallWrapper: {
-    marginTop: 12,
-  },
-  endCallButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 8,
-  },
-  endCallLabel: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
     color: '#fff',
   },
